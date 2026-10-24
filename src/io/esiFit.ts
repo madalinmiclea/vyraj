@@ -1,5 +1,5 @@
 import { Category, type Sde } from '../data/sde';
-import { emptyFit, slotOf, defaultState, canLoadCharge, chargesPerModule, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
+import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, chargesPerModule, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
 import type { EsiFitting } from '../character/esi';
 import { tx } from '../i18n';
 
@@ -18,7 +18,7 @@ export function fromEsiFitting(sde: Sde, f: EsiFitting): Fit {
       while (list.length <= index) list.push(null);
       list[index] = { typeId: t.id, state: defaultState(sde, t.id) };
     } else if (item.flag === 'DroneBay' || item.flag === 'FighterBay') {
-      fit.drones.push({ typeId: t.id, count: item.quantity, active: Math.min(item.quantity, 5) });
+      fit.drones.push({ typeId: t.id, count: item.quantity, active: 0 });
     } else if (t.categoryId === Category.Charge) {
       charges.push({ typeId: t.id, quantity: item.quantity });
       fit.cargo.push({ typeId: t.id, count: item.quantity });
@@ -26,6 +26,7 @@ export function fromEsiFitting(sde: Sde, f: EsiFitting): Fit {
       fit.cargo.push({ typeId: t.id, count: item.quantity });
     }
   }
+  launchDrones(sde, fit);
   for (const k of SLOT_KINDS) {
     for (const m of fit.slots[k]) {
       if (!m) continue;

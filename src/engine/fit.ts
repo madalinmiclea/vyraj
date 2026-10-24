@@ -189,6 +189,33 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
   return { ok: false, message: tx('Nu mai sunt sloturi {k} libere.', { k: kind }) };
 }
 
+export function launchDrones(sde: Sde, fit: Fit, maxActive = 5) {
+  const merged: FitDrone[] = [];
+  for (const d of fit.drones) {
+    const same = merged.find((x) => x.typeId === d.typeId);
+    if (same) same.count += d.count; else merged.push({ ...d });
+  }
+  let bandwidth = sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth'));
+  let slots = maxActive;
+  for (const d of merged) {
+    const isFighter = sde.types.get(d.typeId)?.categoryId === Category.Fighter;
+    const per = sde.baseAttr(d.typeId, sde.attrId('droneBandwidthUsed'));
+    const n = isFighter ? d.count : Math.max(0, Math.min(d.count, slots, per > 0 ? Math.floor(bandwidth / per) : d.count));
+    d.active = n;
+    if (!isFighter) { bandwidth -= n * per; slots -= n; }
+  }
+  fit.drones = merged;
+}
+
+export function ensureDroneLimits(sde: Sde, fit: Fit) {
+  const drones = fit.drones.filter((d) => sde.types.get(d.typeId)?.categoryId !== Category.Fighter);
+  const used = drones.reduce((a, d) => a + d.active * sde.baseAttr(d.typeId, sde.attrId('droneBandwidthUsed')), 0);
+  const launched = drones.reduce((a, d) => a + d.active, 0);
+  const dupes = new Set(fit.drones.map((d) => d.typeId)).size !== fit.drones.length;
+  if (dupes || launched > 5 || used > sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth'))) launchDrones(sde, fit);
+  return fit;
+}
+
 export function toDogmaInput(fit: Fit, skills: Map<number, number>, implants: number[] = []) {
   const modules = SLOT_KINDS.flatMap((kind) =>
     fit.slots[kind].flatMap((m, i) => (m ? [{ typeId: m.typeId, state: m.state, chargeId: m.chargeId, slotKey: `${kind}${i}`, overrides: m.mutation?.values }] : [])));

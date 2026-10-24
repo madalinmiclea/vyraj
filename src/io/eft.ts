@@ -1,5 +1,5 @@
 import { Category, type Sde } from '../data/sde';
-import { emptyFit, slotOf, defaultState, canLoadCharge, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
+import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
 import { abyssalTypeId, mutate, mutationRows } from '../engine/mutation';
 import { tx } from '../i18n';
 
@@ -112,15 +112,7 @@ export function parseEft(sde: Sde, text: string): EftResult {
     fit.slots[kind].push(mod);
   }
 
-  let bandwidth = sde.baseAttr(ship.id, sde.attrId('droneBandwidth'));
-  let slots = 5;
-  for (const d of fit.drones) {
-    const per = sde.baseAttr(d.typeId, sde.attrId('droneBandwidthUsed'));
-    const n = Math.max(0, Math.min(d.count, slots, per > 0 ? Math.floor(bandwidth / per) : d.count));
-    d.active = n;
-    bandwidth -= n * per;
-    slots -= n;
-  }
+  launchDrones(sde, fit);
   return { fit, unknown };
 }
 

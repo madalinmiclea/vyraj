@@ -1,4 +1,4 @@
-name: Deploy
+name: Pages
 
 on:
   push:
@@ -7,35 +7,42 @@ on:
     - cron: '0 14 * * 3'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 concurrency:
-  group: deploy
+  group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
       - run: npm run data
-
       - run: npm run build
         env:
+          BASE_PATH: /${{ github.event.repository.name }}/
           VITE_EVE_CLIENT_ID: ${{ vars.EVE_CLIENT_ID }}
           VITE_EVE_CALLBACK_URL: ${{ vars.EVE_CALLBACK_URL }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
 
-      - name: Cloudflare Pages
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PROJECT: ${{ vars.CF_PAGES_PROJECT || 'vyraj' }}
-        run: |
-          npx --yes wrangler@4 pages project create "$PROJECT" --production-branch=main || true
-          npx --yes wrangler@4 pages deploy dist --project-name="$PROJECT" --branch=main
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

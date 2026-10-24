@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
 import { Category, type TypeInfo } from '../data/sde';
 import {
-  addToFit, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
+  addToFit, ensureDroneLimits, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
   type Fit, type FitModule, type SlotKind,
 } from '../engine/fit';
 import { isBoosterSideEffect, type Dogma, type DogmaItem, type ModuleState } from '../engine/dogma';
@@ -44,6 +44,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   const sde = ctx.sde;
   let fit: Fit | null = loadJson<Fit | null>(CURRENT_KEY, null);
   if (fit && !sde.types.has(fit.shipId)) fit = null;
+  if (fit) ensureDroneLimits(sde, fit);
   let profileId = loadJson<string>(PROFILE_KEY, 'Generic/Uniform');
   let targetState = loadJson<TargetState>(TARGET_KEY, { id: 'cruiser', signature: 125, velocity: 200, distanceKm: 30 });
   let priceRequest = 0;
@@ -98,7 +99,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     sde,
     ctx,
     getFit: () => fit,
-    setFit: (next) => { fit = next; render(); },
+    setFit: (next) => { fit = next ? ensureDroneLimits(sde, next) : next; render(); },
     change: (fn) => change(fn),
     profileId: () => profileId,
     targetState: () => targetState,
@@ -541,7 +542,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   return {
     selectItem,
-    load(f: Fit) { fit = cloneFit(f); render(); },
+    load(f: Fit) { fit = ensureDroneLimits(sde, cloneFit(f)); render(); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
   };
 }

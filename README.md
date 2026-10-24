@@ -35,14 +35,14 @@ VITE_EVE_CLIENT_ID=<client id-ul aplicației EVE cu callback http://localhost:51
 | `VITE_EVE_TOKEN_URL` | Endpoint-ul de token SSO. Implicit `https://login.eveonline.com/v2/oauth/token`. |
 | `BASE_PATH` | Calea de bază, dacă site-ul nu e servit din rădăcină (ex: `/vyraj/`). |
 
-## Hosting (Cloudflare Pages)
+## Hosting (GitHub Pages)
 
-Workflow-ul `.github/workflows/deploy.yml` rulează la fiecare push pe `main`, săptămânal (miercuri, după patch-urile de marți) și manual. Descarcă SDE-ul, construiește aplicația și o publică pe Cloudflare Pages.
+Workflow-ul `.github/workflows/deploy.yml` rulează la fiecare push pe `main`, săptămânal (miercuri, după patch-urile de marți) și manual. Descarcă SDE-ul, construiește aplicația cu calea de bază `/<nume repo>/` și o publică pe GitHub Pages. La build, CSP-ul din `public/_headers` e pus și ca `<meta>` în `index.html`, iar `index.html` e copiat în `404.html` ca să meargă întoarcerea de la login pe `/callback`.
 
-În GitHub, la Settings → Secrets and variables → Actions:
+În GitHub:
 
-- Secrets: `CLOUDFLARE_API_TOKEN` (permisiune Cloudflare Pages: Edit), `CLOUDFLARE_ACCOUNT_ID`
-- Variables: `EVE_CLIENT_ID`, `EVE_CALLBACK_URL` (ex: `https://vyraj.pages.dev/callback`), opțional `CF_PAGES_PROJECT`
+- Settings → Pages → Source: **GitHub Actions**
+- Settings → Secrets and variables → Actions → Variables: `EVE_CLIENT_ID`, `EVE_CALLBACK_URL` (ex: `https://madalinmiclea.github.io/vyraj/callback`)
 
 ## Aplicația EVE
 
