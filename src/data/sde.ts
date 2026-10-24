@@ -1,6 +1,6 @@
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
-import { dataUrl } from './manifest';
+import { fetchData } from './manifest';
 
 export interface RawModifier {
   f: string;
@@ -292,11 +292,11 @@ export class Sde {
 let loading: Promise<Sde> | null = null;
 
 export function loadSde(): Promise<Sde> {
-  loading ??= dataUrl('sde')
-    .then((url) => fetch(url).then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url }));
+  loading ??= fetchData('sde')
+    .then((res) => {
+      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url: res.url }));
       return res.json() as Promise<RawSde>;
-    }))
+    })
     .then((raw) => new Sde(raw))
     .catch((e) => {
       loading = null;

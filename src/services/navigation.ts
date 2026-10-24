@@ -1,4 +1,4 @@
-import { dataUrl } from '../data/manifest';
+import { fetchData } from '../data/manifest';
 import { esiFetch } from './esiClient';
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
@@ -107,11 +107,11 @@ export class NavMap {
 let loading: Promise<NavMap> | null = null;
 
 export function loadMap(): Promise<NavMap> {
-  loading ??= dataUrl('map')
-    .then((url) => fetch(url).then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc harta ({url}). Rulează "npm run data" ca să o generezi.', { url }));
+  loading ??= fetchData('map')
+    .then((res) => {
+      if (!res.ok) throw new Error(tx('Nu găsesc harta ({url}). Rulează "npm run data" ca să o generezi.', { url: res.url }));
       return res.json() as Promise<RawMap>;
-    }))
+    })
     .then((raw) => new NavMap(raw))
     .catch((e) => {
       loading = null;

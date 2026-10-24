@@ -1,6 +1,6 @@
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
-import { dataUrl } from '../data/manifest';
+import { fetchData } from '../data/manifest';
 
 export interface SkinShip {
   id: number;
@@ -25,11 +25,11 @@ interface RawSkins {
 let loading: Promise<SkinLine[]> | null = null;
 
 export function loadSkins(): Promise<SkinLine[]> {
-  loading ??= dataUrl('skins')
-    .then((url) => fetch(url).then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url }));
+  loading ??= fetchData('skins')
+    .then((res) => {
+      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url: res.url }));
       return res.json() as Promise<RawSkins>;
-    }))
+    })
     .then((raw) => raw.lines.map((l) => ({
       name: l.n,
       icon: l.i,

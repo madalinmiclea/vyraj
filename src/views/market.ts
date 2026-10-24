@@ -228,7 +228,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             <div class="item-icon"><img src="${typeIconUrl(typeId)}" alt="" /></div>
             <div>
               <h2 id="itemTitle">${esc(name)}</h2>
-              <div class="meta">${badge(tx('Fără ordine în Jita'), 'warn', true)}${badge('Type ID ' + typeId)}</div>
+              <div class="meta">${badge(tx('Fără ordine în Jita'), 'warn', true)}</div>
             </div>
             <div class="actions">${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
           </section>
@@ -251,11 +251,10 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             <h2 id="itemTitle">${esc(name)}</h2>
             <div class="meta">
               ${badge(isGlobalMarket(typeId) ? tx('Piața globală PLEX') : 'Jita 4-4', 'accent', true)}
-              ${badge('Type ID ' + typeId)}
             </div>
           </div>
           <div class="actions">
-            ${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}
+            ${isGlobalMarket(typeId) ? '' : button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}
             ${button(tx('Copiază sell'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-copy="sell"' })}
             ${button(tx('Alertă preț'), { iconName: 'alert', cls: 'ghost sm', attrs: 'data-alert' })}
             <a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a>

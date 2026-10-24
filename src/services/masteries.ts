@@ -1,4 +1,4 @@
-import { dataUrl } from '../data/manifest';
+import { fetchData } from '../data/manifest';
 
 export interface Certificate {
   id: number;
@@ -18,10 +18,10 @@ interface RawMasteries {
 let loading: Promise<RawMasteries | null> | undefined;
 
 function load(): Promise<RawMasteries | null> {
-  loading ??= dataUrl('masteries')
-    .then((url) => fetch(url))
+  loading ??= fetchData('masteries')
     .then((res) => (res.ok ? (res.json() as Promise<RawMasteries>) : null))
-    .catch(() => null);
+    .catch(() => null)
+    .then((raw) => { if (!raw) loading = undefined; return raw; });
   return loading;
 }
 
