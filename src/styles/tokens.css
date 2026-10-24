@@ -1,0 +1,54 @@
+:root {
+  color-scheme: dark;
+  --bg-void: #05070a;
+  --bg-base: #080b0f;
+  --bg-panel: rgba(13, 18, 24, 0.86);
+  --bg-panel-solid: #0d1218;
+  --bg-raised: rgba(22, 30, 39, 0.9);
+  --bg-inset: rgba(4, 7, 10, 0.7);
+  --bg-hover: rgba(79, 195, 217, 0.08);
+  --bg-active: rgba(79, 195, 217, 0.16);
+
+  --line: rgba(150, 180, 200, 0.12);
+  --line-strong: rgba(150, 180, 200, 0.24);
+  --line-accent: rgba(79, 195, 217, 0.45);
+
+  --text: #e4ecf3;
+  --text-bright: #f4f8fb;
+  --text-dim: #aebccb;
+  --text-faint: #7f8d9b;
+
+  --accent: #4fc3d9;
+  --accent-bright: #8fe6f5;
+  --accent-glow: rgba(79, 195, 217, 0.35);
+  --accent-rgb: 79, 195, 217;
+  --gold: #d9a54a;
+  --gold-glow: rgba(217, 165, 74, 0.3);
+
+  --sell: #5fcf8c;
+  --buy: #e8644f;
+  --median: #e3b24f;
+  --warn: #e3a33a;
+  --danger: #d9473a;
+  --ok: #5fcf8c;
+
+  --slot-high: #d9473a;
+  --slot-mid: #e3a33a;
+  --slot-low: #4fc3d9;
+  --slot-rig: #9b7fe0;
+  --slot-sub: #6fcf6f;
+
+  --font-heading: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --chamfer: 12px;
+  --radius: 2px;
+  --gap: 16px;
+  --rail-w: 64px;
+  --sidebar-w: 320px;
+  --topbar-h: 48px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

@@ -1,0 +1,27 @@
+.roster { margin-top: 16px; }
+.roster .panel-actions { display: flex; gap: 8px; align-items: center; }
+.roster-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.roster-chip { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; min-width: 96px; }
+.roster-chip .label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
+.roster-chip .value { font-size: 16px; font-weight: 600; }
+.roster-chip.warn .value { color: var(--warn); }
+.roster-chip.danger .value { color: var(--danger); }
+.roster-note { margin: 8px 0; }
+.roster-table td { vertical-align: top; }
+.roster-table tr.active td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.roster-table td:nth-child(2) { min-width: 220px; }
+.roster-table td:nth-child(3) { max-width: 260px; }
+.roster-who { display: flex; gap: 10px; align-items: flex-start; min-width: 190px; }
+.roster-portrait { position: relative; flex: none; width: 40px; height: 40px; }
+.roster-portrait img { width: 40px; height: 40px; border-radius: 4px; display: block; }
+.roster-dot { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-panel-solid); }
+.roster-dot.on { background: var(--ok); }
+.roster-name { font-weight: 600; }
+.roster-who .badge { margin-top: 4px; }
+.roster-skill { margin-bottom: 4px; }
+.roster-bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.roster-bar span { display: block; height: 100%; background: var(--accent); }
+.roster-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.roster-form label { margin-top: 6px; }
+.roster .window-title .count { margin-left: 8px; }

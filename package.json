@@ -1,0 +1,26 @@
+{
+  "name": "vyraj",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/build-data.mjs --if-missing",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "data": "node scripts/build-data.mjs",
+    "skins": "node scripts/skin-data.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

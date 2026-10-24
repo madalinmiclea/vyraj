@@ -1,0 +1,175 @@
+import type { AppContext } from '../app/context';
+import { importCharacter, portraitUrl } from '../character/esi';
+import { BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
+import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
+import { formatDuration } from '../character/training';
+import { loadJson, saveJson } from '../storage';
+import { icon } from '../ui/icons';
+import { showItemInfo } from '../ui/itemInfo';
+import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
+import { theme } from '../theme';
+import { roman } from '../ui/itemInfo';
+import { tx, locale } from '../i18n';
+
+const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
+
+export function createCharacterView(el: HTMLElement, ctx: AppContext) {
+  const sde = ctx.sde;
+
+  const collapsed = new Set(loadJson<string[]>(COLLAPSED_KEY, []));
+  const toggleCollapsed = (key: string) => {
+    if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
+    saveJson(COLLAPSED_KEY, [...collapsed]);
+  };
+
+  function collapsible(key: string, title: string, count: string | number, body: string, defaultCollapsed = false) {
+    const isCollapsed = collapsed.has(key) !== defaultCollapsed;
+    return `<section class="panel collapsible ${isCollapsed ? 'collapsed' : ''}">
+      <button class="panel-head collapse-head" data-collapse="${key}" data-default="${defaultCollapsed ? 1 : 0}">
+        ${icon('chevron', 'chev')}<div class="window-title">${esc(title)}<span class="count">${esc(String(count))}</span></div>
+      </button>
+      ${isCollapsed ? '' : `<div class="panel-body">${body}</div>`}
+    </section>`;
+  }
+
+  function render(error = '') {
+    const settings = getSettings();
+    const stored = loadStoredCharacters();
+    const active = ctx.character;
+
+    const setup = BUILT_IN_CLIENT_ID ? '' : collapsible('setup', tx('Aplicația EVE (o singură dată)'), settings.clientId ? tx('configurată') : '', `
+        <ol class="steps">
+          <li>${tx('Intră pe <a href="https://developers.eveonline.com/applications" target="_blank" rel="noopener">developers.eveonline.com/applications</a> și loghează-te cu contul EVE.')}</li>
+          <li>${tx('Apasă <b>Create new application</b>. Nume: ce vrei (ex: Vyraj). Descriere: „uz personal”.')}</li>
+          <li>${tx('La <b>Connection type</b> alege <b>Authentication &amp; API Access</b> și bifează scope-urile de mai jos.')}</li>
+          <li>${tx('La <b>Callback URL</b> pune exact:')} <code>${esc(callbackUrl())}</code> ${button(tx('Copiază'), { cls: 'ghost sm', attrs: 'data-copy-callback' })}</li>
+          <li>${tx('Salvează, copiază <b>Client ID</b> și lipește-l aici. Nu ai nevoie de Secret Key (folosim PKCE).')}</li>
+        </ol>
+        <div class="scopes">${SCOPES.map((s) => `<code>${s}</code>`).join('')}</div>
+        <div class="inline-form">
+          <input class="input plain" id="ssoClientId" placeholder="Client ID" value="${esc(settings.clientId)}" spellcheck="false" />
+          ${button(tx('Salvează'), { cls: 'sm', attrs: 'data-save-client' })}
+        </div>`, stored.length > 0);
+
+    const activeStored = stored.find((c) => c.id === active.id);
+    const summary = activeStored
+      ? characterCard(activeStored, true)
+      : stored.length ? '' : `<div class="panel char-empty">
+          <span class="char-empty-ico">${icon('character')}</span>
+          <div><h3>${tx('Niciun caracter importat')}</h3><p>${tx('Fă login cu EVE ca să-ți imporți skill-urile, implanturile și coada de antrenament. Până atunci, statisticile folosesc un caracter teoretic cu toate skill-urile la V.')}</p></div>
+          ${BUILT_IN_CLIENT_ID || settings.clientId ? button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-login' }) : ''}
+        </div>`;
+
+    const left = `${error ? alertBox(error) : ''}${summary}`;
+    const right = `${queuePanel()}${setup}`;
+    el.innerHTML = `${pageHead(tx('Caracter'), '', 'Narodnya')}
+      ${right ? `<div class="grid-2 wide-right char-top"><div class="stack">${left}</div><div class="stack">${right}</div></div>` : left ? `<div class="stack char-top">${left}</div>` : ''}`;
+  }
+
+  function characterCard(c: StoredCharacter, isActive: boolean) {
+    const logged = c.characterId != null && hasTokens(c.characterId);
+    return `<div class="panel char-card ${isActive ? 'active' : ''}">
+      ${c.characterId ? `<img src="${portraitUrl(c.characterId, 128)}" alt="" />` : '<div class="char-placeholder"></div>'}
+      <div class="char-body">
+        <h3>${esc(c.name)}</h3>
+        <div class="meta">
+          ${c.kind === 'esi' ? badge(logged ? 'ESI' : tx('ESI · delogat'), logged ? 'accent' : 'warn') : badge(tx('Personalizat'))}
+          ${isActive ? badge(tx('Activ'), 'ok', true) : ''}
+        </div>
+        <div class="dim small">${c.totalSp ? formatInt(c.totalSp) + ' SP · ' : ''}${tx('{n} skill-uri', { n: Object.keys(c.skills).length })}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(locale) : ''}</div>
+        <div class="row-actions">
+          ${isActive ? '' : button(tx('Folosește'), { cls: 'sm', attrs: `data-use="${esc(c.id)}"` })}
+          ${c.kind === 'esi' && logged ? button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-refresh="${esc(c.id)}"` }) : ''}
+          ${button(tx('Copie editabilă'), { cls: 'ghost sm', attrs: `data-clone="${esc(c.id)}"` })}
+          <button class="btn ghost sm icon-only" data-remove="${esc(c.id)}" title="${tx('Șterge')}">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function queuePanel() {
+    const c = ctx.character;
+    if (!c.queue.length) return '';
+    const now = Date.now();
+    const rows = c.queue.map((q) => {
+      const left = q.finish ? Math.max(0, (new Date(q.finish).getTime() - now) / 1000) : 0;
+      return `<tr><td><button class="link" data-skill-info="${q.skillId}">${esc(sde.types.get(q.skillId)?.name ?? String(q.skillId))}</button></td><td>${roman(q.level)}</td><td class="r num">${q.finish ? formatDuration(left) : tx('pauză')}</td></tr>`;
+    }).join('');
+    const last = c.queue.at(-1)?.finish;
+    return collapsible('queue', tx('Coada de skill-uri'), `${c.queue.length}${last ? ' · ' + formatDuration((new Date(last).getTime() - now) / 1000) : ''}`, `${last ? `<p class="dim small">${tx('Se termină în {time}', { time: formatDuration((new Date(last).getTime() - now) / 1000) })}</p>` : ''}
+        <table class="table compact"><thead><tr><th>Skill</th><th>${tx('Nivel')}</th><th class="r">${tx('Rămas')}</th></tr></thead><tbody>${rows}</tbody></table>`);
+  }
+
+  async function refresh(c: StoredCharacter) {
+    if (!c.characterId) return;
+    toast(theme === 'vyraj' ? 'Weaving the Flow…' : tx('Se actualizează din EVE…'));
+    try {
+      upsertStoredCharacter({ ...(await importCharacter(c.characterId, c.name)), id: c.id });
+      ctx.reloadCharacters();
+      toast(tx('Caracter actualizat'));
+    } catch (err) {
+      render((err as Error).message);
+    }
+  }
+
+  const onClick = async (e: Event) => {
+    const t = e.target as HTMLElement;
+    const at = (sel: string) => t.closest<HTMLElement>(sel);
+    const head = at('[data-collapse]');
+    if (head) { toggleCollapsed(head.dataset.collapse!); return render(); }
+    const info = at('[data-skill-info]');
+    if (info) return showItemInfo(ctx, Number(info.dataset.skillInfo));
+    if (at('[data-copy-callback]')) return copyText(callbackUrl(), tx('Callback URL copiat'));
+    if (at('[data-save-client]')) {
+      saveSettings({ clientId: el.querySelector<HTMLInputElement>('#ssoClientId')!.value.trim() });
+      toast(tx('Client ID salvat'));
+      return render();
+    }
+    if (at('[data-login]')) {
+      try { await startLogin(); } catch (err) { render((err as Error).message); }
+      return;
+    }
+    const stored = loadStoredCharacters();
+    const use = at('[data-use]');
+    if (use) return ctx.setCharacter(use.dataset.use!);
+    const ref = at('[data-refresh]');
+    if (ref) { const c = stored.find((x) => x.id === ref.dataset.refresh); if (c) await refresh(c); return; }
+    const clone = at('[data-clone]');
+    if (clone) {
+      const c = stored.find((x) => x.id === clone.dataset.clone);
+      if (!c) return;
+      const copy: StoredCharacter = { ...structuredClone(c), id: 'custom-' + Date.now().toString(36), name: `${c.name} (plan)`, kind: 'custom', characterId: undefined, queue: [] };
+      upsertStoredCharacter(copy);
+      ctx.setCharacter(copy.id);
+      toast(tx('Copie creată: îi poți schimba nivelurile skill-urilor mai jos'));
+      return;
+    }
+    const remove = at('[data-remove]');
+    if (remove && confirm(tx('Ștergi caracterul din aplicație?'))) {
+      const c = stored.find((x) => x.id === remove.dataset.remove);
+      if (c?.characterId) forgetTokens(c.characterId);
+      removeStoredCharacter(remove.dataset.remove!);
+      if (ctx.character.id === remove.dataset.remove) ctx.setCharacter('all5');
+      else ctx.reloadCharacters();
+    }
+  };
+
+  el.addEventListener('click', onClick);
+
+  ctx.onCharacterChange(() => render());
+  render();
+
+  return {
+    async imported(characterId: number, characterName: string) {
+      try {
+        const c = await importCharacter(characterId, characterName);
+        upsertStoredCharacter(c);
+        ctx.setCharacter(c.id);
+        toast(tx('{name} importat', { name: characterName }));
+      } catch (err) {
+        render((err as Error).message);
+      }
+    },
+    showError: (msg: string) => render(msg),
+  };
+}

@@ -1,0 +1,224 @@
+import type { Fit } from '../engine/fit';
+import type { Dogma, DogmaItem } from '../engine/dogma';
+import { lockTime, DAMAGE_TYPES, LAYERS, type FitStats } from '../engine/stats';
+import { DAMAGE_PROFILES } from '../engine/profiles';
+import { requirementsFor, alphaRaces, fitTypeIds } from '../character/requirements';
+import { formatDuration } from '../character/training';
+import { icon } from '../ui/icons';
+import { alertBox, badge, esc, formatInt, formatNum, meter, panel } from '../ui/components';
+import { roman } from '../ui/itemInfo';
+import { breakdownHtml, derive, single } from '../ui/breakdown';
+import { applied, dpsCurve, TARGETS, type TargetProfile } from '../engine/application';
+import { tx } from '../i18n';
+import { DMG_LABEL, LAYER_LABEL, capTime, sum, damageBar, groupBy, type FitEnv } from './shared';
+
+export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
+  const { sde, ctx } = env;
+
+  function buildTips(d: Dogma) {
+    tips.clear();
+    const ship = d.ship;
+    const id = (n: string) => sde.attrId(n);
+    const tr = (n: string) => ship.trace(id(n));
+    const online = d.modules.filter((m) => m.state !== 'offline');
+    const sum = (v: number[]) => v.reduce((a, b) => a + b, 0);
+    const f = (digits: number, unit = '') => (n: number) => formatNum(n, digits) + (unit ? ' ' + unit : '');
+    const section = (title: string, html: string) => `<div class="bd-title">${esc(title)}</div>${html}`;
+    const resource = (key: string, out: string, use: string, list: DogmaItem[], fmt: (n: number) => string) => {
+      tips.set(key, section(tx('Disponibil'), breakdownHtml(single(tr(out)), fmt, tx('navă')))
+        + section(tx('Folosit'), breakdownHtml(derive(list.map((m) => m.trace(id(use))), sum), fmt, tx('module'))));
+    };
+    resource('cpu', 'cpuOutput', 'cpu', online, f(1, 'tf'));
+    resource('power', 'powerOutput', 'power', online, f(1, 'MW'));
+    resource('calibration', 'upgradeCapacity', 'upgradeCost', d.modules, f(0));
+    const one = (key: string, attr: string, fmt: (n: number) => string) => tips.set(key, breakdownHtml(single(tr(attr)), fmt));
+    one('velocity', 'maxVelocity', f(0, 'm/s'));
+    one('signature', 'signatureRadius', f(0, 'm'));
+    one('agility', 'agility', f(3));
+    one('range', 'maxTargetRange', (n) => formatNum(n / 1000, 1) + ' km');
+    one('scan', 'scanResolution', f(0, 'mm'));
+    tips.set('mass', breakdownHtml(derive([tr('mass')], (v) => v[0] / 1000), (n) => formatInt(n) + ' t'));
+    tips.set('align', breakdownHtml(derive([tr('agility'), tr('mass')], (v) => (-Math.log(0.25) * v[0] * v[1]) / 1e6), f(2, 's')));
+    tips.set('warp', breakdownHtml(derive([tr('warpSpeedMultiplier'), tr('baseWarpSpeed')], (v) => v[0] * v[1]), f(2, 'AU/s')));
+    const shipTargets = tr('maxLockedTargets');
+    const charTargets = d.character.trace(id('maxLockedTargets'));
+    tips.set('targets', charTargets.value < shipTargets.value
+      ? breakdownHtml(single(charTargets), f(0), tx('caracter')) + `<div class="bd-row dim">${tx('limita navei')}: ${formatNum(shipTargets.value, 0)}</div>`
+      : breakdownHtml(single(shipTargets), f(0), tx('navă')));
+    const sensor = ['scanRadarStrength', 'scanLadarStrength', 'scanMagnetometricStrength', 'scanGravimetricStrength']
+      .reduce((a, b) => (ship.get(b) > ship.get(a) ? b : a));
+    one('sensor', sensor, f(1));
+    tips.set('lockF', breakdownHtml(derive([tr('scanResolution')], (v) => lockTime(v[0], 35)), f(1, 's')));
+    tips.set('lockB', breakdownHtml(derive([tr('scanResolution')], (v) => lockTime(v[0], 400)), f(1, 's')));
+  }
+
+  function currentTarget(): TargetProfile {
+    const preset = TARGETS.find((t) => t.id === env.targetState().id);
+    return preset ?? { id: 'custom', name: tx('Personalizat'), signature: env.targetState().signature, velocity: env.targetState().velocity };
+  }
+
+  function dpsChart(points: { distance: number; dps: number }[], raw: number, at: number) {
+    const w = 520, h = 170, pl = 44, pb = 22, pt = 8, pr = 10;
+    const maxX = points[points.length - 1].distance;
+    const maxY = Math.max(raw, ...points.map((p) => p.dps), 1);
+    const x = (v: number) => pl + (v / maxX) * (w - pl - pr);
+    const y = (v: number) => pt + (1 - v / maxY) * (h - pt - pb);
+    const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.distance).toFixed(1)},${y(p.dps).toFixed(1)}`).join('');
+    const ticksX = [0, 0.25, 0.5, 0.75, 1].map((f) => maxX * f);
+    const ticksY = [0, 0.5, 1].map((f) => maxY * f);
+    return `<svg class="dps-chart" viewBox="0 0 ${w} ${h}" role="img">
+      ${ticksY.map((v) => `<line x1="${pl}" x2="${w - pr}" y1="${y(v)}" y2="${y(v)}" class="grid" /><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${formatNum(v, 0)}</text>`).join('')}
+      ${ticksX.map((v) => `<text x="${x(v)}" y="${h - 6}" text-anchor="middle">${formatNum(v / 1000, 0)} km</text>`).join('')}
+      <line x1="${pl}" x2="${w - pr}" y1="${y(raw)}" y2="${y(raw)}" class="raw" />
+      <path d="${line}" class="curve" />
+      ${at <= maxX ? `<line x1="${x(at)}" x2="${x(at)}" y1="${pt}" y2="${h - pb}" class="marker" />` : ''}
+    </svg>`;
+  }
+
+  function applicationPanel(d: Dogma) {
+    const target = currentTarget();
+    const distance = env.targetState().distanceKm * 1000;
+    const a = applied(sde, d, target, distance);
+    if (!a.weapons.length) return '';
+    const pct = a.rawDps ? (a.dps / a.rawDps) * 100 : 0;
+    const custom = target.id === 'custom';
+    return panel({
+      title: tx('DPS aplicat'),
+      actions: `<select class="input plain sm" id="fitTarget">
+        ${TARGETS.map((t) => `<option value="${t.id}" ${t.id === env.targetState().id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+        <option value="custom" ${custom ? 'selected' : ''}>${tx('Personalizat')}</option>
+      </select>`,
+      body: `<div class="target-inputs">
+          <label>${tx('Semnătură')} <input class="input plain sm num" type="number" min="1" data-target-field="signature" value="${target.signature}" ${custom ? '' : 'disabled'} /> m</label>
+          <label>${tx('Viteză')} <input class="input plain sm num" type="number" min="0" data-target-field="velocity" value="${target.velocity}" ${custom ? '' : 'disabled'} /> m/s</label>
+          <label>${tx('Distanță')} <input class="input plain sm num" type="number" min="0" step="1" data-target-field="distanceKm" value="${env.targetState().distanceKm}" /> km</label>
+        </div>
+        <div class="big-stats">
+          <div><span class="label">${tx('DPS aplicat')}</span><span class="value num">${formatNum(a.dps, 1)}</span></div>
+          <div><span class="label">${tx('Din brut')}</span><span class="value num">${formatNum(pct, 0)}%</span></div>
+          <div><span class="label">${tx('Semnătură cu painter')}</span><span class="value num">${formatNum(a.signature, 0)} m</span></div>
+        </div>
+        ${dpsChart(dpsCurve(sde, d, target), a.rawDps, distance)}
+        <table class="table compact"><tbody>${a.weapons.map((w) => `<tr><td>${esc(w.name)}</td><td class="r num">${formatNum(w.dps, 1)}</td><td class="r num dim">${formatNum(w.factor * 100, 0)}%</td></tr>`).join('')}</tbody></table>`,
+    });
+  }
+
+  function statsPanels(s: FitStats, d: Dogma) {
+    const r = s.resources;
+    const res = `
+      <div data-bd="cpu">${meter('CPU', r.cpu.used, r.cpu.total, 'tf')}</div>
+      <div data-bd="power">${meter('Powergrid', r.power.used, r.power.total, 'MW')}</div>
+      <div data-bd="calibration">${meter('Calibration', r.calibration.used, r.calibration.total, '', 0)}</div>
+      <div class="mini-kv">
+        <span>Turrets <b class="num">${r.turrets.used}/${r.turrets.total}</b></span>
+        <span>Launchers <b class="num">${r.launchers.used}/${r.launchers.total}</b></span>
+        ${r.droneBandwidth.total > 0 ? `<span>Bandwidth <b class="num">${formatNum(r.droneBandwidth.used, 0)}/${formatNum(r.droneBandwidth.total, 0)}</b></span>` : ''}
+      </div>`;
+    const warnings = s.warnings.length ? `<div class="stack-sm">${s.warnings.map((w) => alertBox(w)).join('')}</div>` : '';
+
+    const o = s.offense;
+    const weapons = o.weapons.map((w) => `<tr><td>${esc(w.name)} <span class="dim">×${w.count}</span></td>
+      <td class="r num">${formatNum(sum(w.dps), 1)}</td><td class="r num">${formatNum(sum(w.volley), 0)}</td>
+      <td class="r num dim">${w.range ? formatNum(w.range / 1000, 1) + (w.falloff ? ' + ' + formatNum(w.falloff / 1000, 1) : '') + ' km' : ''}</td></tr>`).join('');
+    const offensePanel = panel({
+      title: tx('Ofensivă'),
+      body: `<div class="big-stats">
+          <div><span class="label">DPS total</span><span class="value num">${formatNum(o.totalDps, 1)}</span></div>
+          <div><span class="label">${tx('Arme')}</span><span class="value num">${formatNum(o.weaponDps, 1)}</span></div>
+          <div><span class="label">${tx('Drone')}</span><span class="value num">${formatNum(o.droneDps, 1)}</span></div>
+          <div><span class="label">Volley</span><span class="value num">${formatNum(o.totalVolley, 0)}</span></div>
+        </div>
+        ${damageBar(o.dps)}
+        ${weapons ? `<table class="table compact"><thead><tr><th>${tx('Armă')}</th><th class="r">DPS</th><th class="r">Volley</th><th class="r">${tx('Rază')}</th></tr></thead><tbody>${weapons}</tbody></table>` : `<p class="dim small">${tx('Nicio armă activă.')}</p>`}`,
+    });
+
+    const def = s.defense;
+    const resistRows = LAYERS.map((l) => {
+      const layer = def.layers[l];
+      return `<tr><th>${LAYER_LABEL[l]}</th><td class="r num">${formatInt(layer.hp)}</td>
+        ${DAMAGE_TYPES.map((t) => `<td class="r"><span class="resist ${t}" style="--p:${(layer.resists[t] * 100).toFixed(1)}%">${formatNum(layer.resists[t] * 100, 1)}</span></td>`).join('')}
+        <td class="r num">${formatInt(layer.ehp)}</td></tr>`;
+    }).join('');
+    const tankRows = LAYERS.filter((l) => def.repairs[l].raw > 0).map((l) =>
+      `<span>${LAYER_LABEL[l]} rep <b class="num">${formatNum(def.repairs[l].effective, 1)}</b> EHP/s</span>`).join('')
+      + (def.passiveShield.raw > 0 ? `<span>${tx('Pasiv shield')} <b class="num">${formatNum(def.passiveShield.raw, 1)}</b> HP/s</span>` : '');
+    const defensePanel = panel({
+      title: tx('Defensivă'),
+      actions: `<select class="input plain sm" id="fitProfile" title="${tx('Profil de damage (inamicul)')}">
+        ${groupBy(DAMAGE_PROFILES, (p) => p.group).map(([g, list]) => `<optgroup label="${esc(g)}">${list.map((p) => `<option value="${esc(p.id)}" ${p.id === env.profileId() ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}
+      </select>`,
+      body: `<div class="big-stats">
+          <div><span class="label">EHP</span><span class="value num">${formatInt(def.ehp)}</span></div>
+          <div><span class="label">HP</span><span class="value num">${formatInt(def.hp)}</span></div>
+          <div><span class="label">${tx('Tank activ')} · EHP/s</span><span class="value num">${formatNum(def.activeTank, 1)}</span></div>
+          <div><span class="label">${tx('Pasiv shield')} · EHP/s</span><span class="value num">${formatNum(def.passiveShield.effective, 1)}</span></div>
+        </div>
+        <table class="table compact resists">
+          <thead><tr><th></th><th class="r">HP</th>${DAMAGE_TYPES.map((t) => `<th class="r">${DMG_LABEL[t]}</th>`).join('')}<th class="r">EHP</th></tr></thead>
+          <tbody>${resistRows}</tbody>
+        </table>
+        ${tankRows ? `<div class="mini-kv">${tankRows}</div>` : ''}`,
+    });
+
+    const c = s.capacitor;
+    const capPanel = panel({
+      title: 'Capacitor',
+      body: `<div class="cap-row">
+          <div class="cap-ring ${c.stable ? 'ok' : 'bad'}" style="--p:${c.stable ? ((c.stableAt ?? 1) * 100).toFixed(0) : 0}%"><span class="num">${c.stable ? formatNum((c.stableAt ?? 1) * 100, 1) + '%' : capTime(c.lastsSeconds ?? 0)}</span></div>
+          <dl class="mini-dl">
+            <div><dt>${tx('Capacitate')}</dt><dd class="num">${formatInt(c.capacity)} GJ</dd></div>
+            <div><dt>${tx('Reîncărcare')}</dt><dd class="num">${formatNum(c.rechargeTime, 1)} s</dd></div>
+            <div><dt>${tx('Vârf reîncărcare')}</dt><dd class="num">${formatNum(c.peakRecharge, 1)} GJ/s</dd></div>
+            <div><dt>${tx('Consum net')}</dt><dd class="num">${formatNum(c.usage, 1)} GJ/s</dd></div>
+          </dl>
+        </div>
+        ${c.drains.length ? `<table class="table compact"><tbody>${c.drains.map((x) => `<tr><td>${esc(x.name)}</td><td class="r num ${x.perSecond < 0 ? 'pos' : ''}">${x.perSecond < 0 ? '+' + formatNum(-x.perSecond, 2) : '−' + formatNum(x.perSecond, 2)} GJ/s</td></tr>`).join('')}</tbody></table>` : ''}`,
+    });
+
+    const n = s.navigation;
+    const t = s.targeting;
+    const navPanel = panel({
+      title: tx('Navigație și țintire'),
+      body: `<dl class="mini-dl grid">
+        <div data-bd="velocity"><dt>${tx('Viteză')}</dt><dd class="num">${formatNum(n.maxVelocity, 0)} m/s</dd></div>
+        <div data-bd="align"><dt>Align</dt><dd class="num">${formatNum(n.alignTime, 2)} s</dd></div>
+        <div data-bd="warp"><dt>Warp</dt><dd class="num">${formatNum(n.warpSpeed, 2)} AU/s</dd></div>
+        <div data-bd="signature"><dt>${tx('Semnătură')}</dt><dd class="num">${formatNum(n.signatureRadius, 0)} m</dd></div>
+        <div data-bd="mass"><dt>${tx('Masă')}</dt><dd class="num">${formatInt(n.mass / 1000)} t</dd></div>
+        <div data-bd="agility"><dt>Agility</dt><dd class="num">${formatNum(n.agility, 3)}</dd></div>
+        <div data-bd="range"><dt>${tx('Rază țintire')}</dt><dd class="num">${formatNum(t.maxRange / 1000, 1)} km</dd></div>
+        <div data-bd="scan"><dt>Scan res</dt><dd class="num">${formatNum(t.scanResolution, 0)} mm</dd></div>
+        <div data-bd="targets"><dt>${tx('Ținte')}</dt><dd class="num">${t.maxLocked}</dd></div>
+        <div data-bd="sensor"><dt>${esc(t.sensorType)}</dt><dd class="num">${formatNum(t.sensorStrength, 1)}</dd></div>
+        <div data-bd="lockF"><dt>Lock frigate</dt><dd class="num">${formatNum(lockTime(t.scanResolution, 35), 1)} s</dd></div>
+        <div data-bd="lockB"><dt>Lock BS</dt><dd class="num">${formatNum(lockTime(t.scanResolution, 400), 1)} s</dd></div>
+      </dl>`,
+    });
+
+    return panel({ title: tx('Resurse'), body: res + warnings }) + offensePanel + applicationPanel(d) + defensePanel + capPanel + navPanel;
+  }
+
+  function requirementsPanel(f: Fit) {
+    const ids = fitTypeIds(f);
+    const req = requirementsFor(sde, ids, ctx.character);
+    const alpha = alphaRaces(sde, ids);
+    const rows = req.missing.map((st) => `<tr class="${st.status}"><td>${esc(st.name)}</td><td>${roman(st.current)} → ${roman(st.required)}</td><td class="r num">${formatDuration(st.seconds)}</td></tr>`).join('');
+    return panel({
+      title: 'Requirements',
+      count: ctx.character.name,
+      body: `<div class="req-summary">
+          ${req.canFly ? badge(tx('Poți zbura fit-ul'), 'ok', true) : badge(tx('Lipsesc {n} skill-uri', { n: req.missing.length }), 'warn', true)}
+          ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
+        </div>
+        ${req.missing.length ? `
+          <p class="req-total">${tx('<span class="num">{time}</span> de antrenament · <span class="num">{sp}</span> SP', { time: formatDuration(req.totalSeconds), sp: formatInt(req.totalSp) })}</p>
+          <table class="table compact"><tbody>${rows}</tbody></table>
+          <div class="row-actions"><button class="btn ghost sm" data-action="copy-plan">${icon('copy')}${tx('Copiază planul')}</button><button class="btn ghost sm" data-action="plan-fit">${icon('skills')}${tx('Adaugă în skill plan')}</button></div>
+          <div id="skillbookCost" class="dim small"></div>` : ''}
+        <div class="row-actions"><button class="btn ghost sm" data-action="advice">${icon('skills')}${tx('Ce skill-uri să antrenez')}</button></div>
+        ${ctx.character.kind === 'all5' ? `<p class="dim small">${tx('Statisticile sunt calculate cu All 5. Importă caracterul tău din ecranul Caracter.')}</p>` : ''}`,
+    });
+  }
+
+  return { buildTips, statsPanels, requirementsPanel };
+}

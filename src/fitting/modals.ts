@@ -1,0 +1,381 @@
+import { Category } from '../data/sde';
+import { buildDogma, cloneFit, fitContents, type SlotKind } from '../engine/fit';
+import { computeStats } from '../engine/stats';
+import { findProfile } from '../engine/profiles';
+import { requirementsFor, fitTypeIds } from '../character/requirements';
+import { formatDuration } from '../character/training';
+import { listFittings, saveFitting, listAssets, currentShip, assetNames, universeNames, dynamicItem } from '../character/esi';
+import { assembledShips, fitFromShipWithAbyssal, type OwnedShip } from '../io/assetFit';
+import { hasTokens, hasScope } from '../character/sso';
+import { parseEft, exportEft, exportMultibuy, exportDna } from '../io/eft';
+import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
+import { typeIconUrl } from '../services/market';
+import { loadFits, deleteFit } from './savedFits';
+import { icon } from '../ui/icons';
+import { alertBox, badge, button, loader, closeModal, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
+import { roman } from '../ui/itemInfo';
+import { adviseSkills, rankAdvice, type AdviceKind } from '../character/skillAdvisor';
+import { formatAttribute } from '../ui/attributes';
+import { mutate, mutationRows, moduleName, type MutationRow } from '../engine/mutation';
+import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
+import { tx } from '../i18n';
+import type { FitEnv } from './shared';
+
+export function createFitModals(env: FitEnv) {
+  const { sde, ctx, name } = env;
+
+  function openSavedFits() {
+    const fits = loadFits();
+    const body = fits.length
+      ? `<div class="fit-list">${fits.map((f) => `<div class="fit-list-row">
+          <img src="${typeIconUrl(f.shipId, 32)}" alt="" />
+          <div><b>${esc(f.name)}</b><span class="dim small">${esc(name(f.shipId))}</span></div>
+          ${button(tx('Deschide'), { cls: 'sm', attrs: `data-open="${esc(f.id)}"` })}
+          <button class="btn ghost sm icon-only" data-delete="${esc(f.id)}" title="${tx('Șterge')}">${icon('trash')}</button>
+        </div>`).join('')}</div>`
+      : emptyState({ title: tx('Niciun fit salvat'), text: tx('Apasă „Salvează” pe un fit ca să apară aici.') });
+    const modal = openModal(tx('Fit-uri salvate'), body);
+    modal.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const open = t.closest<HTMLElement>('[data-open]');
+      if (open) {
+        const f = loadFits().find((x) => x.id === open.dataset.open);
+        if (f) { closeModal(); env.setFit(cloneFit(f)); }
+      }
+      const del = t.closest<HTMLElement>('[data-delete]');
+      if (del && confirm(tx('Ștergi fit-ul?'))) { deleteFit(del.dataset.delete!); closeModal(); openSavedFits(); }
+    });
+  }
+
+  function openImport() {
+    const modal = openModal(tx('Importă fit (EFT)'), `
+      <p class="dim small">${tx('Lipește un fit copiat din joc (Fitting → Copy to clipboard) sau din Pyfa.')}</p>
+      <textarea class="input area" id="eftInput" rows="14" spellcheck="false" placeholder="[Drake, PvE]&#10;Ballistic Control System II&#10;..."></textarea>
+      <div id="eftError"></div>
+      <div class="row-actions">${button(tx('Importă'), { iconName: 'upload', attrs: 'data-do-import' })}</div>`, { wide: true });
+    modal.querySelector('[data-do-import]')!.addEventListener('click', () => {
+      try {
+        const { fit: parsed, unknown } = parseEft(sde, modal.querySelector<HTMLTextAreaElement>('#eftInput')!.value);
+        closeModal();
+        env.setFit(parsed);
+        toast(unknown.length ? tx('Importat; {n} linii necunoscute', { n: unknown.length }) : tx('Fit importat'));
+      } catch (err) {
+        modal.querySelector('#eftError')!.innerHTML = alertBox((err as Error).message);
+      }
+    });
+  }
+
+  function openExport() {
+    const fit = env.getFit();
+    if (!fit) return toast(tx('Nu ai niciun fit'));
+    const eft = exportEft(sde, fit);
+    const dna = exportDna(fit);
+    const modal = openModal(tx('Exportă fit'), `
+      <textarea class="input area" rows="14" readonly spellcheck="false">${esc(eft)}</textarea>
+      <div class="row-actions">
+        ${button(tx('Copiază EFT'), { iconName: 'copy', attrs: 'data-copy="eft"' })}
+        ${button(tx('Copiază DNA'), { iconName: 'copy', cls: 'ghost', attrs: 'data-copy="dna"' })}
+        ${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost', attrs: 'data-copy="multibuy"' })}
+      </div>
+      <p class="dim small">${tx('EFT se lipește în joc din Fitting → Import from clipboard și în Pyfa.')}</p>`, { wide: true });
+    modal.addEventListener('click', (e) => {
+      const kind = (e.target as HTMLElement).closest<HTMLElement>('[data-copy]')?.dataset.copy;
+      if (kind === 'eft') copyText(eft, tx('EFT copiat'));
+      if (kind === 'dna') copyText(dna, tx('DNA copiat'));
+      if (kind === 'multibuy' && fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Multibuy copiat'));
+    });
+  }
+
+  function openCompare() {
+    const fits = loadFits();
+    if (fits.length < 1) return toast(tx('Salvează câteva fit-uri ca să le compari'));
+    const profile = findProfile(env.profileId());
+    const rows = fits.map((f) => {
+      const s = computeStats(sde, f, buildDogma(sde, f, ctx.character), profile);
+      const req = requirementsFor(sde, fitTypeIds(f), ctx.character);
+      return { f, s, req };
+    });
+    const best = (vals: number[], high = true) => (high ? Math.max(...vals) : Math.min(...vals));
+    const metrics: { label: string; get: (x: (typeof rows)[number]) => number; fmt: (n: number) => string; high?: boolean }[] = [
+      { label: 'DPS', get: (x) => x.s.offense.totalDps, fmt: (n) => formatNum(n, 0) },
+      { label: 'Volley', get: (x) => x.s.offense.totalVolley, fmt: (n) => formatNum(n, 0) },
+      { label: 'EHP', get: (x) => x.s.defense.ehp, fmt: (n) => formatInt(n) },
+      { label: `${tx('Tank activ')} (EHP/s)`, get: (x) => x.s.defense.activeTank, fmt: (n) => formatNum(n, 1) },
+      { label: tx('Cap stabil la'), get: (x) => (x.s.capacitor.stable ? (x.s.capacitor.stableAt ?? 1) * 100 : 0), fmt: (n) => (n ? formatNum(n, 0) + '%' : tx('nu')) },
+      { label: tx('Viteză'), get: (x) => x.s.navigation.maxVelocity, fmt: (n) => formatNum(n, 0) + ' m/s' },
+      { label: 'Align', get: (x) => x.s.navigation.alignTime, fmt: (n) => formatNum(n, 2) + ' s', high: false },
+      { label: tx('Rază țintire'), get: (x) => x.s.targeting.maxRange, fmt: (n) => formatNum(n / 1000, 1) + ' km' },
+      { label: tx('Antrenament lipsă'), get: (x) => x.req.totalSeconds, fmt: (n) => formatDuration(n), high: false },
+    ];
+    openModal(tx('Compară fit-uri'), `
+      <p class="dim small">${tx('Caracter: {name} · profil {profile}. Cea mai bună valoare e evidențiată.', { name: esc(ctx.character.name), profile: esc(profile.name) })}</p>
+      <div class="table-scroll"><table class="table compact compare">
+        <thead><tr><th></th>${rows.map((x) => `<th>${esc(x.f.name)}<br><span class="dim small">${esc(name(x.f.shipId))}</span></th>`).join('')}</tr></thead>
+        <tbody>${metrics.map((m) => {
+          const vals = rows.map(m.get);
+          const b = best(vals, m.high !== false);
+          return `<tr><th>${m.label}</th>${vals.map((v) => `<td class="num ${v === b && rows.length > 1 ? 'best' : ''}">${m.fmt(v)}</td>`).join('')}</tr>`;
+        }).join('')}</tbody>
+      </table></div>`, { wide: true });
+  }
+
+  function openMutation(kind: SlotKind, i: number) {
+    const current = env.getFit()?.slots[kind][i];
+    if (!current) return;
+    const tier = (n: string) => (/^Glorified/.test(n) ? 3 : 0) + (/Decayed/.test(n) ? 0 : /Gravid/.test(n) ? 1 : /Unstable/.test(n) ? 2 : 3);
+    const options = [...sde.mutaplasmidsFor(current.typeId)].sort((a, b) => tier(a.name) - tier(b.name) || a.name.localeCompare(b.name));
+    const modal = openModal('Mutaplasmid', '', { wide: true });
+    const body = modal.querySelector<HTMLElement>('.panel-body')!;
+    const module = () => env.getFit()?.slots[kind][i] ?? null;
+    const pct = (v: number, base: number) => ((v - base) / Math.abs(base)) * 100;
+    const draw = () => {
+      const m = module();
+      if (!m) { closeModal(); return; }
+      const rows = mutationRows(sde, m);
+      body.innerHTML = `
+        <div class="mut-head">
+          <img src="${typeIconUrl(m.typeId, 64)}" alt="" />
+          <div><b>${esc(moduleName(sde, m))}</b><div class="dim small">${esc(name(m.typeId))}</div></div>
+        </div>
+        <label class="select-field mut-select"><span>Mutaplasmid</span>
+          <select class="input plain" data-mut-pick>
+            <option value="">— ${tx('fără mutație')} —</option>
+            ${options.map((o) => `<option value="${o.id}" ${m.mutation?.mutaplasmidId === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}
+          </select>
+        </label>
+        ${rows.length ? `<table class="table compact mut-table"><tbody>${rows.map((r) => {
+          const a = sde.attributes.get(r.attrId)!;
+          const p = pct(r.value, r.base) * (r.highIsGood ? 1 : -1);
+          const good = Math.abs(p) < 0.05 ? '' : p > 0 ? 'good' : 'bad';
+          const [worst, best] = r.highIsGood ? [r.min, r.max] : [r.max, r.min];
+          return `<tr>
+            <td>${esc(r.name)}</td>
+            <td class="mut-range"><span class="dim small num">${esc(formatAttribute(sde, a, worst))}</span>
+              <input type="range" min="0" max="1000" step="1" value="${Math.round(sliderPos(r) * 1000)}" data-mut-attr="${r.attrId}" />
+              <span class="dim small num">${esc(formatAttribute(sde, a, best))}</span></td>
+            <td class="r num mut-value" data-mut-show="${r.attrId}">${esc(formatAttribute(sde, a, r.value))}</td>
+            <td class="r num ${good}" data-mut-pct="${r.attrId}">${p >= 0 ? '+' : ''}${p.toFixed(1)}%</td>
+          </tr>`;
+        }).join('')}</tbody></table>
+        <div class="row-actions">
+          <button class="btn ghost sm" data-mut-preset="base">${tx('Valori de bază')}</button>
+          <button class="btn ghost sm" data-mut-preset="best">${tx('Cel mai bun roll')}</button>
+          <button class="btn ghost sm" data-mut-preset="worst">${tx('Cel mai slab roll')}</button>
+        </div>` : ''}`;
+    };
+    const sliderPos = (r: MutationRow) => {
+      const t = r.max > r.min ? (r.value - r.min) / (r.max - r.min) : 0;
+      return r.highIsGood ? t : 1 - t;
+    };
+    const fromSlider = (r: MutationRow, pos: number) => {
+      const t = r.highIsGood ? pos : 1 - pos;
+      return r.min + t * (r.max - r.min);
+    };
+    const setValue = (attrId: number, v: number) => {
+      env.change((draft) => {
+        const m = draft.slots[kind][i];
+        if (!m?.mutation) return;
+        const row = mutationRows(sde, m).find((r) => r.attrId === attrId);
+        if (row) m.mutation.values[attrId] = Math.min(row.max, Math.max(row.min, v));
+      });
+    };
+    draw();
+    body.addEventListener('change', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (t.matches('[data-mut-pick]')) {
+        const mp = sde.mutaplasmids.get(Number(t.value));
+        env.change((draft) => {
+          const m = draft.slots[kind][i];
+          if (!m) return;
+          if (mp) mutate(sde, m, mp); else delete m.mutation;
+        });
+        draw();
+      } else if (t.matches('[data-mut-attr]')) {
+        const attrId = Number(t.dataset.mutAttr);
+        const row = module() && mutationRows(sde, module()!).find((r) => r.attrId === attrId);
+        if (row) setValue(attrId, fromSlider(row, Number(t.value) / 1000));
+        draw();
+      }
+    });
+    body.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (!t.matches('[data-mut-attr]')) return;
+      const attrId = Number(t.dataset.mutAttr);
+      const before = module() && mutationRows(sde, module()!).find((r) => r.attrId === attrId);
+      if (!before) return;
+      const row = { ...before, value: Math.min(before.max, Math.max(before.min, fromSlider(before, Number(t.value) / 1000))) };
+      const a = sde.attributes.get(attrId)!;
+      const p = pct(row.value, row.base) * (row.highIsGood ? 1 : -1);
+      const tr = t.closest('tr')!;
+      tr.querySelector('[data-mut-show]')!.textContent = formatAttribute(sde, a, row.value);
+      const pctEl = tr.querySelector<HTMLElement>('[data-mut-pct]')!;
+      pctEl.textContent = `${p >= 0 ? '+' : ''}${p.toFixed(1)}%`;
+      pctEl.className = `r num ${Math.abs(p) < 0.05 ? '' : p > 0 ? 'good' : 'bad'}`;
+    });
+    body.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mut-preset]');
+      if (!b) return;
+      const preset = b.dataset.mutPreset;
+      env.change((draft) => {
+        const m = draft.slots[kind][i];
+        if (!m?.mutation) return;
+        for (const r of mutationRows(sde, m)) {
+          m.mutation.values[r.attrId] = preset === 'base' ? Math.min(r.max, Math.max(r.min, r.base))
+            : (preset === 'best') === r.highIsGood ? r.max : r.min;
+        }
+      });
+      draw();
+    });
+  }
+
+  function openAdvice() {
+    const current = env.getFit();
+    if (!current) return;
+    const KINDS: { key: AdviceKind; label: string }[] = [
+      { key: 'dps', label: 'DPS' },
+      { key: 'tank', label: 'Tank' },
+      { key: 'general', label: 'General' },
+    ];
+    let kind: AdviceKind = 'dps';
+    let perDay = false;
+    const modal = openModal(tx('Ce skill-uri să antrenez'), loader(tx('Calculez fiecare skill pe fit…')), { wide: true });
+    const body = modal.querySelector<HTMLElement>('.panel-body')!;
+    setTimeout(() => {
+      const list = adviseSkills(sde, current, ctx.character, findProfile(env.profileId()));
+      const draw = () => {
+        const ranked = rankAdvice(list, kind, perDay).slice(0, 20);
+        const rows = ranked.map((a) => `<tr>
+          <td>${esc(a.name)}
+            <span class="dim small">${a.from ? roman(a.from) : '0'} → ${roman(a.to)}</span>
+            ${a.missing.length ? `<div class="small warn-text">${tx('cere')} ${a.missing.map((r) => `${esc(name(r.skillId))} ${roman(r.level)}`).join(', ')}</div>` : ''}</td>
+          <td class="advice-gain">${a.changes[kind].map((c) => `<span><b class="num">${esc(c.text)}</b> ${esc(c.label)}</span>`).join('')}</td>
+          <td class="r num">${formatInt(a.sp)} SP</td>
+          <td class="r num">${formatDuration(a.seconds)}</td>
+          <td><button class="icon-btn" data-advice-plan="${a.skillId}:${a.to}" title="${tx('Adaugă în skill plan')}">+</button></td>
+        </tr>`).join('');
+        body.innerHTML = `
+          <div class="tabs">${KINDS.map((k) => `<button class="tab ${k.key === kind ? 'active' : ''}" data-advice-kind="${k.key}">${k.label} <span class="tab-count neutral">${rankAdvice(list, k.key, false).length}</span></button>`).join('')}</div>
+          <div class="advice-sort">
+            <button class="chip-btn ${perDay ? '' : 'active'}" data-advice-sort="gain">${tx('Câștig cel mai mare')}</button>
+            <button class="chip-btn ${perDay ? 'active' : ''}" data-advice-sort="day">${tx('Câștig pe zi de antrenament')}</button>
+          </div>
+          ${rows ? `<table class="table compact advice"><thead><tr><th>Skill</th><th>${tx('Câștig la nivelul următor')}</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+            : `<p class="dim">${kind === 'dps' ? tx('Niciun skill nu mai îmbunătățește DPS-ul pe fit-ul ăsta.') : kind === 'tank' ? tx('Niciun skill nu mai îmbunătățește tank-ul pe fit-ul ăsta.') : tx('Niciun skill nu mai îmbunătățește nimic aici pe fit-ul ăsta.')}</p>`}`;
+      };
+      draw();
+      body.addEventListener('click', (e) => {
+        const t = e.target as HTMLElement;
+        const k = t.closest<HTMLElement>('[data-advice-kind]');
+        if (k) { kind = k.dataset.adviceKind as AdviceKind; draw(); return; }
+        const pl = t.closest<HTMLElement>('[data-advice-plan]');
+        if (pl) {
+          const [id, lvl] = pl.dataset.advicePlan!.split(':').map(Number);
+          const c = ctx.character;
+          savePlan(c.id, addToPlan(sde, loadPlan(c.id), c, id, lvl));
+          toast(tx('{name} {lvl} în skill plan', { name: name(id), lvl: roman(lvl) }));
+          return;
+        }
+        const s = t.closest<HTMLElement>('[data-advice-sort]');
+        if (s) { perDay = s.dataset.adviceSort === 'day'; draw(); }
+      });
+    }, 30);
+  }
+
+  async function openShips() {
+    const c = ctx.character;
+    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) {
+      toast(tx('Selectează un caracter importat din EVE (ecranul Caracter)'));
+      return;
+    }
+    const characterId = c.characterId;
+    const modal = openModal(`${tx('Navele mele')} · ${c.name}`, `<div class="dim">${lore(tx('Se încarcă asset-urile din joc…'), 'Weaving the Flow…')}</div>`, { wide: true });
+    const body = modal.querySelector('.panel-body')!;
+    if (!hasScope(characterId, 'esi-assets.read_assets.v1')) {
+      body.innerHTML = alertBox(tx('Login-ul acestui caracter nu are toate permisiunile. Fă din nou login din ecranul Caracter.'));
+      return;
+    }
+    try {
+      const [assets, active] = await Promise.all([
+        listAssets(characterId),
+        hasScope(characterId, 'esi-location.read_ship_type.v1') ? currentShip(characterId).catch(() => null) : Promise.resolve(null),
+      ]);
+      const ships = assembledShips(sde, assets);
+      if (active && !ships.some((s) => s.itemId === active.ship_item_id) && sde.types.has(active.ship_type_id)) {
+        ships.push({ itemId: active.ship_item_id, typeId: active.ship_type_id, name: name(active.ship_type_id), locationId: 0, contents: assets.filter((a) => a.location_id === active.ship_item_id) });
+      }
+      const [names, places] = await Promise.all([
+        assetNames(characterId, ships.map((s) => s.itemId)).catch(() => new Map<number, string>()),
+        universeNames([...new Set(ships.map((s) => s.locationId).filter(Boolean))]).catch(() => new Map<number, string>()),
+      ]);
+      const label = (s: OwnedShip) => names.get(s.itemId)?.trim() || s.name;
+      const place = (s: OwnedShip) => (s.itemId === active?.ship_item_id ? tx('Nava activă') : places.get(s.locationId) ?? (s.locationId > 1e12 ? tx('Structură de jucător') : tx('Locație {id}', { id: s.locationId })));
+      ships.sort((a, b) => Number(b.itemId === active?.ship_item_id) - Number(a.itemId === active?.ship_item_id) || place(a).localeCompare(place(b)) || a.name.localeCompare(b.name));
+      body.innerHTML = ships.length
+        ? `<div class="fit-list ships">${ships.map((s) => {
+            const modules = s.contents.filter((x) => /Slot/.test(x.location_flag) && sde.types.get(x.type_id)?.categoryId !== Category.Charge).length;
+            return `<div class="fit-list-row">
+              <img src="${typeIconUrl(s.typeId, 32)}" alt="" />
+              <div><b>${esc(label(s))}</b><span class="dim small">${esc(s.name)} · ${esc(place(s))} · ${tx('{n} module', { n: modules })}</span></div>
+              ${s.itemId === active?.ship_item_id ? badge(tx('Activă'), 'ok', true) : '<span></span>'}
+              ${button(tx('Deschide'), { cls: 'sm', attrs: `data-ship="${s.itemId}"` })}
+            </div>`;
+          }).join('')}</div>`
+        : emptyState({ title: tx('Nicio navă asamblată'), text: tx('Nu am găsit nave asamblate în asset-urile tale.') });
+      body.addEventListener('click', async (e) => {
+        const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-ship]');
+        const ship = btn && ships.find((s) => s.itemId === Number(btn.dataset.ship));
+        if (!ship) return;
+        const loaded = await fitFromShipWithAbyssal(sde, ship, label(ship), dynamicItem);
+        closeModal();
+        env.setFit(loaded);
+        toast(tx('Fit încărcat de pe {name}', { name: label(ship) }));
+      });
+    } catch (err) {
+      body.innerHTML = alertBox((err as Error).message);
+    }
+  }
+
+  async function openEsi() {
+    const c = ctx.character;
+    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) {
+      toast(tx('Selectează un caracter importat din EVE (ecranul Caracter)'));
+      return;
+    }
+    const characterId = c.characterId;
+    const modal = openModal(`${tx('Fit-uri EVE')} · ${c.name}`, `<div class="dim">${lore(tx('Se încarcă fit-urile din joc…'), 'Weaving the Flow…')}</div>`, { wide: true });
+    const body = modal.querySelector('.panel-body')!;
+    try {
+      const list = await listFittings(characterId);
+      body.innerHTML = `
+        <div class="row-actions">${button(tx('Trimite fit-ul curent în EVE'), { iconName: 'upload', attrs: 'data-send' })}</div>
+        <div class="fit-list">${list.map((f) => `<div class="fit-list-row">
+          <img src="${typeIconUrl(f.ship_type_id, 32)}" alt="" />
+          <div><b>${esc(f.name)}</b><span class="dim small">${esc(name(f.ship_type_id))}</span></div>
+          ${button(tx('Deschide'), { cls: 'sm', attrs: `data-esi-open="${f.fitting_id}"` })}
+        </div>`).join('') || `<p class="dim">${tx('Nu ai fit-uri salvate în joc.')}</p>`}</div>`;
+      body.addEventListener('click', async (e) => {
+        const t = e.target as HTMLElement;
+        const open = t.closest<HTMLElement>('[data-esi-open]');
+        if (open) {
+          const f = list.find((x) => x.fitting_id === Number(open.dataset.esiOpen));
+          if (f && sde.types.has(f.ship_type_id)) { closeModal(); env.setFit(fromEsiFitting(sde, f)); toast(tx('Fit importat din EVE')); }
+        }
+        if (t.closest('[data-send]')) {
+          const fit = env.getFit();
+          if (!fit) return toast(tx('Nu ai niciun fit'));
+          try {
+            await saveFitting(characterId, toEsiFitting(sde, fit));
+            toast(tx('Fit trimis în EVE'));
+            closeModal();
+          } catch (err) {
+            toast((err as Error).message);
+          }
+        }
+      });
+    } catch (err) {
+      body.innerHTML = alertBox((err as Error).message);
+    }
+  }
+
+  return { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi };
+}

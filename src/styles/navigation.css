@@ -1,0 +1,13 @@
+.nav-form input.nav-num { width: 110px; }
+.nav-form select.input { width: 230px; }
+#jumpShip { margin-top: 14px; }
+#jumpResult, #whResult { margin-top: var(--gap); }
+.nav-ship [data-bd] { cursor: help; }
+.nav-ship-name { display: inline-flex; align-items: center; gap: 6px; }
+.nav-ship-name .row-icon { width: 22px; height: 22px; }
+.nav-legs td, .nav-krai td { vertical-align: middle; }
+.nav-krai tr.risk-hi td { background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.nav-krais { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: var(--gap); margin: var(--gap) 0; align-items: start; }
+.nav-krais .panel { margin: 0; }
+@media (max-width: 700px) { .nav-krais { grid-template-columns: minmax(0, 1fr); } }
+.nav-krai td.small { min-width: 130px; }

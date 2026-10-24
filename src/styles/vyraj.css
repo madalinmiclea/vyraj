@@ -1,0 +1,69 @@
+:root[data-theme='vyraj'] {
+  color-scheme: dark;
+  --bg-void: #060505;
+  --bg-base: #0a0909;
+  --bg-panel: rgba(18, 16, 16, 0.9);
+  --bg-panel-solid: #121010;
+  --bg-raised: rgba(28, 25, 25, 0.92);
+  --bg-inset: rgba(4, 3, 3, 0.75);
+  --bg-hover: rgba(214, 28, 44, 0.09);
+  --bg-active: rgba(214, 28, 44, 0.18);
+
+  --line: rgba(190, 180, 178, 0.11);
+  --line-strong: rgba(190, 180, 178, 0.22);
+  --line-accent: rgba(214, 28, 44, 0.55);
+
+  --text: #e9e3e2;
+  --text-bright: #faf6f5;
+  --text-dim: #b3aaa8;
+  --text-faint: #857c7a;
+
+  --accent: #e0263a;
+  --accent-bright: #ff5466;
+  --accent-glow: rgba(214, 28, 44, 0.4);
+  --accent-rgb: 214, 28, 44;
+  --gold: #c9a15a;
+  --gold-glow: rgba(201, 161, 90, 0.3);
+
+  --danger: #ff6a3d;
+  --buy: #f07a52;
+}
+
+:root[data-theme='vyraj'] body {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 85% 10%, rgba(150, 12, 28, 0.2), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 15% 95%, rgba(90, 10, 18, 0.18), transparent 70%),
+    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(22, 18, 18, 0.6), transparent 80%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+}
+
+:root[data-theme='vyraj'] body::before {
+  background: radial-gradient(ellipse at center, rgba(6, 5, 5, 0.55), rgba(6, 5, 5, 0.93));
+}
+
+:root[data-theme='vyraj'] .topbar { background: linear-gradient(180deg, rgba(24, 21, 21, 0.96), rgba(10, 9, 9, 0.96)); box-shadow: inset 0 -1px 0 rgba(214, 28, 44, 0.25); }
+:root[data-theme='vyraj'] .neocom { background: rgba(12, 10, 10, 0.95); }
+:root[data-theme='vyraj'] .sidebar { background: rgba(11, 10, 10, 0.9); }
+:root[data-theme='vyraj'] .modal-backdrop { background: rgba(4, 2, 2, 0.75); }
+
+.lore-vy, .clade-sep { display: none; }
+:root[data-theme='vyraj'] .lore-std { display: none; }
+:root[data-theme='vyraj'] .lore-vy { display: inline; }
+:root[data-theme='vyraj'] .neocom > * { order: var(--vy-order, 0); }
+:root[data-theme='vyraj'] .clade-sep {
+  display: block;
+  width: 46px;
+  margin: 8px 0 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-accent);
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+:root[data-theme='vyraj'] .clade-sep[style*='--vy-order:1'] { margin-top: 0; border-top-color: transparent; padding-top: 0; }
+:root[data-theme='vyraj'] .neocom-btn[data-tip-vy]::after { content: attr(data-tip-vy); }

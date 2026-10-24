@@ -1,0 +1,32 @@
+.neg-text { color: var(--danger); }
+.gold-text { color: var(--gold); }
+.intel-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 20px; }
+.intel-status { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; }
+.intel-form { margin-bottom: 0; }
+.intel-form select.input { width: 170px; }
+.form-grid input.input.sm-input { width: 110px; }
+.intel-kpis { margin-bottom: var(--gap); }
+.idea-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--gap); align-items: start; }
+.idea-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.idea-list li { display: flex; align-items: center; gap: 4px; padding: 6px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.idea-list li:hover, .intel-item:hover { background: var(--bg-hover); }
+.idea-list li:last-child { border-bottom: 0; }
+.idea-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idea-name small { font-family: var(--font-mono); font-size: 12px; }
+.idea-val { text-align: right; white-space: nowrap; }
+.idea-val small { margin-left: 2px; }
+.intel-item { cursor: pointer; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.intel-table td { vertical-align: middle; }
+.table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.table th.sortable:hover { color: var(--text-bright); }
+.spark { width: 90px; height: 22px; display: block; margin-left: auto; }
+.spark path { fill: none; stroke-width: 1.4; }
+.spark.up path { stroke: var(--sell); }
+.spark.down path { stroke: var(--buy); }
+.intel-progress { max-width: 420px; margin: 0 auto 16px; text-align: center; }
+.intel-progress .meter-track span { transition: width .2s; }
+.row-actions.center { justify-content: center; }
+.tool-grid.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 1100px) { .tool-grid.even { grid-template-columns: minmax(0, 1fr); } }
+.hub-panel { margin-top: var(--gap); }
+.hub-table .hub-diff td { border-bottom: 0; }
