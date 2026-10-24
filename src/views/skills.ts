@@ -24,13 +24,15 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   let openGroup = groupNames[0] ?? '';
   let selectedItem: number | null = null;
 
-  el.innerHTML = `<div class="grid-2 wide-right">
-      <div class="stack" id="skillGroups"></div>
-      <div class="stack">
+  el.innerHTML = `<div class="stack">
+      <div class="char-plan-grid">
         <div id="skillPlan"></div>
-        ${panel({ title: tx('Requirements pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
-        <div id="reqDetail"></div>
+        <div class="stack">
+          ${panel({ title: tx('Requirements pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
+          <div id="reqDetail"></div>
+        </div>
       </div>
+      <div class="stack" id="skillGroups"></div>
     </div>`;
   const groupsEl = el.querySelector<HTMLElement>('#skillGroups')!;
   const search = el.querySelector<HTMLInputElement>('#reqSearch')!;

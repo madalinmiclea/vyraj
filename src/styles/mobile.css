@@ -74,6 +74,7 @@
   .fit-layout, .grid-2, .grid-2.wide-right, .tool-grid, .tool-grid.even { grid-template-columns: minmax(0, 1fr); }
   .view table { display: block; max-width: 100%; overflow-x: auto; }
   .stack > *, .panel { min-width: 0; }
+  .panel-head { flex-wrap: wrap; row-gap: 8px; }
   .ship-head { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .ship-head > :nth-child(3) { grid-column: 1 / -1; }
   .ship-render { width: 72px; height: 72px; }

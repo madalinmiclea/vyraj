@@ -13,7 +13,7 @@ import { tx, locale } from '../i18n';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
 
-export function createCharacterView(el: HTMLElement, ctx: AppContext) {
+export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTMLElement, aside: HTMLElement) {
   const sde = ctx.sde;
 
   const collapsed = new Set(loadJson<string[]>(COLLAPSED_KEY, []));
@@ -60,10 +60,9 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext) {
           ${BUILT_IN_CLIENT_ID || settings.clientId ? button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-login' }) : ''}
         </div>`;
 
-    const left = `${error ? alertBox(error) : ''}${summary}`;
-    const right = `${queuePanel()}${setup}`;
-    el.innerHTML = `${pageHead(tx('Caracter'), '', 'Narodnya')}
-      ${right ? `<div class="grid-2 wide-right char-top"><div class="stack">${left}</div><div class="stack">${right}</div></div>` : left ? `<div class="stack char-top">${left}</div>` : ''}`;
+    head.innerHTML = pageHead(tx('Caracter'), '', 'Narodnya');
+    el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
+    aside.innerHTML = `${queuePanel()}${setup}`;
   }
 
   function characterCard(c: StoredCharacter, isActive: boolean) {
@@ -121,7 +120,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext) {
     if (info) return showItemInfo(ctx, Number(info.dataset.skillInfo));
     if (at('[data-copy-callback]')) return copyText(callbackUrl(), tx('Callback URL copiat'));
     if (at('[data-save-client]')) {
-      saveSettings({ clientId: el.querySelector<HTMLInputElement>('#ssoClientId')!.value.trim() });
+      saveSettings({ clientId: aside.querySelector<HTMLInputElement>('#ssoClientId')!.value.trim() });
       toast(tx('Client ID salvat'));
       return render();
     }
@@ -155,6 +154,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext) {
   };
 
   el.addEventListener('click', onClick);
+  aside.addEventListener('click', onClick);
 
   ctx.onCharacterChange(() => render());
   render();

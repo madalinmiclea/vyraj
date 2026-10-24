@@ -245,8 +245,8 @@ async function start() {
     infoHandler = (typeId) => showItemInfo(ctx, typeId);
     market.setInfo(infoHandler);
     fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); });
-    viewEl('character').innerHTML = '<div id="charTop"></div><div id="charRoster"></div><div id="charSkills"></div>';
-    const character = createCharacterView(document.getElementById('charTop')!, ctx);
+    viewEl('character').innerHTML = '<div id="charHead"></div><div class="char-layout"><div class="char-main"><div id="charTop" class="stack"></div><div id="charRoster"></div><div id="charSkills"></div></div><aside id="charAside" class="stack char-aside"></aside></div>';
+    const character = createCharacterView(document.getElementById('charTop')!, ctx, document.getElementById('charHead')!, document.getElementById('charAside')!);
     createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
     createRosterView(document.getElementById('charRoster')!, ctx);
     createToolsView(viewEl('tools'), ctx, sidePane('tools'));
