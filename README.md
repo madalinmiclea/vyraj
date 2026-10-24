@@ -1,64 +1,125 @@
 # Vyraj
 
-Prețuri Jita, fitting în stilul Pyfa, import de caracter din EVE, requirements pentru orice item, SKIN-uri și unelte de ISK. Aplicație statică: rulează complet în browser, fără server. Toate datele utilizatorului (caractere, token-uri, fit-uri, SKIN-uri, setări) stau doar în localStorage-ul browserului.
+Vyraj is a free web toolkit for EVE Online pilots: Jita market prices, a Pyfa-style fitting simulator, character and skill planning, market intel, PvP intel, navigation and ISK tools, all in one place.
 
-## Local
+It is a fully static site. Everything runs in your browser and there is no Vyraj server. Your characters, login tokens, fits, SKIN collection and settings are stored only in your browser's local storage and are never sent anywhere except directly to CCP's own services.
+
+## User guide
+
+### Getting around
+
+- **Left rail** (bottom bar on phones): switches between the main screens.
+- **Left panel**: the item browser or the screen's own menu. On phones it opens from the ☰ button at the top left.
+- **Top right**: your characters, the theme switch (Light, Dark, Vyraj) and the language switch (RO / EN).
+- **Right-click** any item in the browser to open its full info: attributes, variations and skill requirements.
+
+### Characters
+
+Use **Add character** in the top right and log in with your EVE account. You can add as many characters as you like and switch between them from the same menu. Until you log in, Vyraj uses a theoretical character with all skills at level V, so every screen still works.
+
+The **Character** screen shows your skills by group, your skill queue, a skill plan you can build from any item's requirements, and the time each step takes with your attributes and implants. With several characters, an overview panel shows every character at once: what is training, when queues end, where they are, wallet and total SP.
+
+### Market
+
+Search any item or pick it from the browser to see live Jita 4-4 buy and sell orders, the spread, price history and the same item in the other trade hubs. Items with no orders in Jita right now are greyed out in the browser.
+
+### Intel Jita
+
+Scans the Jita market for opportunities: trading ideas, the most traded items, station trading margins after tax and broker fees, price trends and hauling routes between hubs. Margins are always calculated as buy in one place, sell in another.
+
+### Intel PvP
+
+- **Route:** checks a route between two systems for recent kills, ship and pod losses per system in the last hour, with details from zKillboard, so you can spot gatecamps before you undock.
+- **Local and D-Scan:** paste the Local member list or a D-Scan result from the game. Vyraj shows the corporations and alliances present, the ships on scan, an estimated threat and the PvP history of the pilots.
+
+### Navigation
+
+A jump planner for capital ships with fatigue, the current state of Pochven, and the latest Thera and Turnur wormhole connections.
+
+### Fitting
+
+A fitting simulator that follows Pyfa's formulas:
+
+- Pick a ship, then click a slot. The browser narrows down to modules for that slot only.
+- Fits always stay valid. Any change that would break CPU, powergrid, calibration, hardpoints, slots or drone bandwidth is blocked and the reason is shown.
+- Stats include DPS and volley, EHP and resists against damage profiles, capacitor, speed, targeting and the fit's cost at Jita sell prices. Hover a stat to see where every bonus comes from.
+- Import and export EFT, DNA and Multibuy, save fits, compare saved fits side by side, load fits saved in the game, send a fit to the game, and rebuild fits from the ships you own.
+- Fleet boosts, projected effects and abyssal (mutated) modules are supported.
+
+### ISK tools
+
+- **Appraisal:** paste items from your inventory, a contract or an EFT fit and get their Jita value.
+- **Abyssal journal:** log Abyssal runs and track profit, ISK per hour and losses.
+- **Wallet:** balance, journal and transactions.
+- **Assets:** everything you own, valued at Jita prices.
+- **LP Store:** the best ISK per LP offers for the loyalty points you have.
+- **Price alerts:** get a browser notification when an item crosses a price you set, while Vyraj is open.
+
+### SKINs
+
+Your SKIN collection per ship and per line, what you still miss, and the cheapest way to complete a collection. Each ship also shows its Mastery levels.
+
+## Why Vyraj asks for each permission
+
+When you log in, EVE asks you to approve the permissions below. Each one is used only for the feature listed, only for the character you logged in with, and only from your own browser.
+
+| Permission | What Vyraj does with it |
+| --- | --- |
+| `esi-skills.read_skills.v1` | Reads your trained skills, so fitting stats, requirements and training times match your character instead of an all-V character. |
+| `esi-skills.read_skillqueue.v1` | Shows your skill queue and when it ends, in the Character screen and the character overview. |
+| `esi-clones.read_implants.v1` | Reads your active implants, so their bonuses are applied to your fits and to training speed. |
+| `esi-fittings.read_fittings.v1` | Loads the fits you saved in the game, so you can open them in the simulator. |
+| `esi-fittings.write_fittings.v1` | Sends a fit from Vyraj to your in-game saved fittings, only when you press the button. It can add or remove saved fits and nothing else. |
+| `esi-assets.read_assets.v1` | Reads your items: to rebuild fits from ships you own, value your assets and sync your SKIN collection. |
+| `esi-location.read_ship_type.v1` | Shows which ship each character is currently flying. |
+| `esi-location.read_location.v1` | Shows the system and station each character is in, in the character overview. |
+| `esi-location.read_online.v1` | Shows whether a character is online and when it last logged in. |
+| `esi-universe.read_structures.v1` | Turns player structure IDs into names, so locations read "station name" instead of a number. |
+| `esi-wallet.read_character_wallet.v1` | Shows your ISK balance, wallet journal and transactions in ISK tools. |
+| `esi-characters.read_loyalty.v1` | Reads your loyalty points, so the LP Store shows the best offers for the LP you actually have. |
+
+Vyraj never sees your password. Login uses EVE's official SSO with PKCE, there is no client secret, and you can revoke access at any time from [community.eveonline.com/support/third-party-applications](https://community.eveonline.com/support/third-party-applications/).
+
+## Running it yourself
 
 ```bash
 npm install
 npm run dev    # http://localhost:5173
 ```
 
-La primul `npm run dev` se generează automat datele din SDE: fișierele brute în `data/`, iar copiile publicate, cu hash în nume, în `public/data/` (plus `manifest.json`). `npm run data` le regenerează oricând (după un patch EVE).
+The first `npm run dev` downloads the game data (SDE) into `data/` and publishes hashed copies to `public/data/`. Run `npm run data` again after an EVE patch.
 
-Pentru login EVE local, pune în `.env.local`:
+For EVE login during development, create `.env.local`:
 
 ```
-VITE_EVE_CLIENT_ID=<client id-ul aplicației EVE cu callback http://localhost:5173/callback>
+VITE_EVE_CLIENT_ID=<client id of an EVE application with callback http://localhost:5173/callback>
 ```
 
-## Comenzi
-
-| Comandă | Ce face |
+| Command | What it does |
 | --- | --- |
-| `npm run dev` | aplicația, cu reîncărcare la salvare |
-| `npm run typecheck` | verificare TypeScript |
-| `npm run build` | build de producție în `dist/` |
-| `npm run data` | regenerează datele din SDE |
+| `npm run dev` | runs the app with live reload |
+| `npm run typecheck` | TypeScript check |
+| `npm run build` | production build into `dist/` |
+| `npm run data` | regenerates the game data |
 
-## Variabile de build
-
-| Variabilă | Ce face |
+| Build variable | What it does |
 | --- | --- |
-| `VITE_EVE_CLIENT_ID` | Client ID-ul aplicației EVE. Dacă lipsește, utilizatorul își pune propriul Client ID în ecranul Caracter. |
-| `VITE_EVE_CALLBACK_URL` | Callback URL-ul înregistrat la EVE. Implicit `<origin>/callback`. |
-| `VITE_EVE_TOKEN_URL` | Endpoint-ul de token SSO. Implicit `https://login.eveonline.com/v2/oauth/token`. |
-| `BASE_PATH` | Calea de bază, dacă site-ul nu e servit din rădăcină (ex: `/vyraj/`). |
+| `VITE_EVE_CLIENT_ID` | Client ID of the EVE application. Without it, users enter their own Client ID in the Character screen. |
+| `VITE_EVE_CALLBACK_URL` | Callback URL registered with EVE. Defaults to `<origin><base>callback`. |
+| `VITE_EVE_TOKEN_URL` | SSO token endpoint. Defaults to `https://login.eveonline.com/v2/oauth/token`. |
+| `BASE_PATH` | Base path when the site is not served from the domain root, for example `/vyraj/`. |
 
-## Hosting (GitHub Pages)
+### Hosting on GitHub Pages
 
-Workflow-ul `.github/workflows/deploy.yml` rulează la fiecare push pe `main`, săptămânal (miercuri, după patch-urile de marți) și manual. Descarcă SDE-ul, construiește aplicația cu calea de bază `/<nume repo>/` și o publică pe GitHub Pages. La build, CSP-ul din `public/_headers` e pus și ca `<meta>` în `index.html`, iar `index.html` e copiat în `404.html` ca să meargă întoarcerea de la login pe `/callback`.
+`.github/workflows/deploy.yml` runs on every push to `main`, weekly on Wednesday after the Tuesday patches, and on demand. It downloads the game data, builds the site with the base path `/<repository name>/` and publishes it to GitHub Pages.
 
-În GitHub:
+In the repository settings:
 
-- Settings → Pages → Source: **GitHub Actions**
-- Settings → Secrets and variables → Actions → Variables: `EVE_CLIENT_ID`, `EVE_CALLBACK_URL` (ex: `https://madalinmiclea.github.io/vyraj/callback`)
+- **Pages → Source:** GitHub Actions
+- **Secrets and variables → Actions → Variables:** `EVE_CLIENT_ID` and `EVE_CALLBACK_URL` (for example `https://<user>.github.io/vyraj/callback`)
 
-## Aplicația EVE
+On [developers.eveonline.com/applications](https://developers.eveonline.com/applications), create an application with **Authentication & API Access**, the site's callback URL and all the permissions listed above.
 
-Pe [developers.eveonline.com/applications](https://developers.eveonline.com/applications): **Authentication & API Access**, callback-ul site-ului și scope-urile `esi-skills.read_skills.v1`, `esi-skills.read_skillqueue.v1`, `esi-clones.read_implants.v1`, `esi-fittings.read_fittings.v1`, `esi-fittings.write_fittings.v1`, `esi-assets.read_assets.v1`, `esi-location.read_ship_type.v1`, `esi-location.read_location.v1`, `esi-location.read_online.v1`, `esi-universe.read_structures.v1`, `esi-wallet.read_character_wallet.v1`, `esi-characters.read_loyalty.v1`. Login-ul folosește PKCE, deci nu există Secret Key în aplicație.
+## Credits
 
-## Structură
-
-```
-src/data/        SDE: încărcare și căutare atribute/efecte
-src/engine/      motorul de fitting: dogma, statistici, capacitor, profile de damage
-src/character/   login SSO, ESI, caractere, requirements, timp de antrenament
-src/io/          EFT, DNA, Multibuy, fit-uri ESI
-src/services/    market, intel, SKIN-uri, wallet, alerte
-src/views/       ecranele aplicației
-src/ui/          componente comune
-scripts/         generarea datelor din SDE
-```
-
-Formulele urmează Pyfa (GPL-3.0), folosit doar ca referință, fără cod copiat.
+Fitting formulas follow [Pyfa](https://github.com/pyfa-org/Pyfa), used as a reference only. Game data and images © CCP Games. EVE Online is a trademark of CCP hf. Vyraj is not affiliated with or endorsed by CCP.

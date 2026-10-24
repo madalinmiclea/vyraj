@@ -1,4 +1,5 @@
 export const EN: Record<string, string> = {
+  "Meniu": "Menu",
   "Nu pot încărca prețurile nici de la Fuzzwork, nici de la ESI.": "Could not load prices from Fuzzwork or from ESI.",
   "Spațiul de stocare al browserului e plin, ultima modificare nu s-a salvat. Șterge fit-uri vechi sau datele site-ului.": "Browser storage is full, the last change was not saved. Delete old fits or the site data.",
   "Sesiunea EVE a acestui caracter a expirat sau a fost revocată. Fă din nou login.": "This character's EVE session expired or was revoked. Log in again.",

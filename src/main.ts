@@ -44,6 +44,7 @@ const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | n
 document.querySelector('#app')!.innerHTML = `
   <div class="shell">
     <header class="topbar">
+      <button class="side-toggle" id="sideToggle" aria-label="${tx('Meniu')}">${icon('menu')}</button>
       <div class="brand">${logo}<span>Vyraj</span></div>
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
@@ -72,6 +73,8 @@ document.querySelector('#app')!.innerHTML = `
       </div>
       ${SIDE_VIEWS.map((id) => `<div class="side-pane" id="pane-${id}"></div>`).join('')}
     </aside>
+
+    <div class="side-scrim" id="sideScrim"></div>
 
     <main class="main">
       ${VIEWS.map((v) => `<div class="view" id="view-${v.id}"></div>`).join('')}
@@ -109,6 +112,16 @@ const browser = createItemBrowser(document.getElementById('treeView')!, {
 });
 treeFilter.addEventListener('input', () => browser.filter(treeFilter.value));
 
+const shell = document.querySelector<HTMLElement>('.shell')!;
+const mobile = matchMedia('(max-width: 760px)');
+const setSide = (open: boolean) => shell.classList.toggle('side-open', open && mobile.matches);
+document.getElementById('sideToggle')!.addEventListener('click', () => setSide(!shell.classList.contains('side-open')));
+document.getElementById('sideScrim')!.addEventListener('click', () => setSide(false));
+document.querySelector('.sidebar')!.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).closest('.tree-item, .side-link, .tree-scope-clear')) setSide(false);
+});
+mobile.addEventListener('change', () => setSide(false));
+
 document.addEventListener('error', (e) => {
   if (e.target instanceof HTMLImageElement) e.target.style.visibility = 'hidden';
 }, true);
@@ -135,6 +148,7 @@ function switchView(id: ViewId) {
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
+  setSide(false);
 }
 
 document.querySelector('.neocom')!.addEventListener('click', (e) => {
@@ -230,7 +244,7 @@ async function start() {
 
     infoHandler = (typeId) => showItemInfo(ctx, typeId);
     market.setInfo(infoHandler);
-    fitting = createFittingView(viewEl('fitting'), ctx, (scope) => browser.setScope(scope));
+    fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); });
     viewEl('character').innerHTML = '<div id="charTop"></div><div id="charRoster"></div><div id="charSkills"></div>';
     const character = createCharacterView(document.getElementById('charTop')!, ctx);
     createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
