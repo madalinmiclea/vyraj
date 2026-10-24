@@ -1,6 +1,7 @@
 import { Category, type Sde } from '../data/sde';
 import { Dogma, EffectCategory, type ModuleState } from './dogma';
 import { tx } from '../i18n';
+import type { FleetBoost } from './fleet';
 
 export type SlotKind = 'high' | 'mid' | 'low' | 'rig' | 'subsystem';
 export const SLOT_KINDS: SlotKind[] = ['high', 'mid', 'low', 'rig', 'subsystem'];
@@ -37,6 +38,14 @@ export interface Fit {
   cargo: FitCargo[];
   implants: number[];
   boosterSides?: Record<string, string[]>;
+  mode?: number;
+  fleet?: FleetBoost;
+  projected?: FitProjected[];
+}
+
+export interface FitProjected {
+  typeId: number;
+  count: number;
 }
 
 export interface CharacterSkills {
@@ -226,6 +235,9 @@ export function toDogmaInput(fit: Fit, skills: Map<number, number>, implants: nu
     modules,
     drones: fit.drones.map((d) => ({ typeId: d.typeId, count: d.active })),
     boosterSides: fit.boosterSides,
+    mode: fit.mode,
+    fleet: fit.fleet,
+    projected: (fit.projected ?? []).filter((p) => p.count > 0).map((p) => ({ typeId: p.typeId, count: p.count })),
   };
 }
 

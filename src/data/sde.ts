@@ -21,6 +21,7 @@ export interface RawEffect {
   dis?: number;
   rng?: number;
   fal?: number;
+  res?: number;
 }
 
 export interface RawAttribute {
@@ -61,6 +62,18 @@ export interface RawSde {
   cloneGrades: { i: number; n: string; skills: Record<string, number> }[];
   units?: Record<string, string>;
   mutaplasmids?: RawMutaplasmid[];
+  buffs?: RawBuff[];
+}
+
+export interface RawBuff {
+  i: number;
+  n?: string;
+  op: string;
+  agg: 'Maximum' | 'Minimum';
+  item: number[];
+  loc: number[];
+  locGroup: [number, number][];
+  locSkill: [number, number][];
 }
 
 export interface RawMutaplasmid {
@@ -87,6 +100,8 @@ export const Category = {
   Subsystem: 32,
   Fighter: 87,
 } as const;
+
+export const MODE_GROUP = 1306;
 
 export interface TypeInfo {
   id: number;
@@ -127,6 +142,7 @@ export interface EffectInfo {
   dischargeAttributeId?: number;
   rangeAttributeId?: number;
   falloffAttributeId?: number;
+  resistanceAttributeId?: number;
 }
 
 export class Sde {
@@ -138,6 +154,7 @@ export class Sde {
   readonly units: Map<number, string>;
   readonly cloneGrades: { id: number; name: string; skills: Map<number, number> }[];
   readonly mutaplasmids = new Map<number, Mutaplasmid>();
+  readonly buffs = new Map<number, RawBuff>();
   private readonly mutaplasmidsByBase = new Map<number, Mutaplasmid[]>();
   private readonly abyssalBase = new Map<number, number[]>();
   private readonly attrByName = new Map<string, number>();
@@ -158,7 +175,7 @@ export class Sde {
     for (const e of raw.effects) {
       this.effects.set(e.i, {
         id: e.i, name: e.n, category: e.cat, modifiers: e.mods,
-        durationAttributeId: e.dur, dischargeAttributeId: e.dis, rangeAttributeId: e.rng, falloffAttributeId: e.fal,
+        durationAttributeId: e.dur, dischargeAttributeId: e.dis, rangeAttributeId: e.rng, falloffAttributeId: e.fal, resistanceAttributeId: e.res,
       });
       this.effectByName.set(e.n, e.i);
     }
@@ -176,6 +193,7 @@ export class Sde {
     this.cloneGrades = raw.cloneGrades.map((c) => ({
       id: c.i, name: c.n, skills: new Map(Object.entries(c.skills).map(([k, v]) => [Number(k), v])),
     }));
+    for (const b of raw.buffs ?? []) this.buffs.set(b.i, b);
     for (const m of raw.mutaplasmids ?? []) {
       const mp: Mutaplasmid = {
         id: m.i,
@@ -258,6 +276,12 @@ export class Sde {
 
   abyssalBases(abyssalTypeId: number): number[] {
     return this.abyssalBase.get(abyssalTypeId) ?? [];
+  }
+
+  modesFor(shipId: number): TypeInfo[] {
+    const ship = this.types.get(shipId);
+    if (!ship) return [];
+    return [...this.types.values()].filter((t) => t.groupId === MODE_GROUP && t.name.startsWith(`${ship.name} `)).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   typesInCategory(categoryId: number): TypeInfo[] {

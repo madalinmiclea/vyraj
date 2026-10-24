@@ -46,7 +46,7 @@ Workflow-ul `.github/workflows/deploy.yml` rulează la fiecare push pe `main`, s
 
 ## Aplicația EVE
 
-Pe [developers.eveonline.com/applications](https://developers.eveonline.com/applications): **Authentication & API Access**, callback-ul site-ului și scope-urile `esi-skills.read_skills.v1`, `esi-skills.read_skillqueue.v1`, `esi-clones.read_implants.v1`, `esi-fittings.read_fittings.v1`, `esi-fittings.write_fittings.v1`, `esi-assets.read_assets.v1`, `esi-location.read_ship_type.v1`, `esi-wallet.read_character_wallet.v1`, `esi-characters.read_loyalty.v1`. Login-ul folosește PKCE, deci nu există Secret Key în aplicație.
+Pe [developers.eveonline.com/applications](https://developers.eveonline.com/applications): **Authentication & API Access**, callback-ul site-ului și scope-urile `esi-skills.read_skills.v1`, `esi-skills.read_skillqueue.v1`, `esi-clones.read_implants.v1`, `esi-fittings.read_fittings.v1`, `esi-fittings.write_fittings.v1`, `esi-assets.read_assets.v1`, `esi-location.read_ship_type.v1`, `esi-location.read_location.v1`, `esi-location.read_online.v1`, `esi-universe.read_structures.v1`, `esi-wallet.read_character_wallet.v1`, `esi-characters.read_loyalty.v1`. Login-ul folosește PKCE, deci nu există Secret Key în aplicație.
 
 ## Structură
 

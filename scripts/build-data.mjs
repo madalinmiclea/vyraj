@@ -19,6 +19,8 @@ const FIT_CATEGORIES = new Set([
     87,
 ]);
 
+const MODE_GROUP = 1306;
+
 const TYPE_FIELD_ATTRS = { mass: 4, capacity: 38, volume: 161, radius: 162 };
 
 class HttpError extends Error {
@@ -53,7 +55,7 @@ const en = (v) => (typeof v === 'string' ? v : v?.['en-us'] ?? v?.en ?? '');
 
 async function generate() {
     console.log('⏳ Descarcăm SDE-ul...');
-    const [types, typeDogma, groups, categories, marketGroups, attributes, effects, cloneGrades, metadata, units, dynamic] = await Promise.all([
+    const [types, typeDogma, groups, categories, marketGroups, attributes, effects, cloneGrades, metadata, units, dynamic, buffs] = await Promise.all([
         getSplit('types'),
         getSplit('typedogma'),
         getJson('fsd_built/groups.0.json'),
@@ -65,6 +67,7 @@ async function generate() {
         getJson('phobos/metadata.0.json'),
         getJson('fsd_built/dogmaunits.0.json'),
         getJson('fsd_built/dynamicitemattributes.0.json'),
+        getJson('fsd_lite/dbuffcollections.0.json'),
     ]);
 
     const rootCache = {};
@@ -98,7 +101,8 @@ async function generate() {
 
     for (const [typeId, t] of Object.entries(types)) {
         const group = groups[t.groupID];
-        if (!t.published || !group || !FIT_CATEGORIES.has(group.categoryID)) continue;
+        if (!group || !FIT_CATEGORIES.has(group.categoryID)) continue;
+        if (!t.published && t.groupID !== MODE_GROUP) continue;
         const dogma = typeDogma[typeId] || { dogmaAttributes: [], dogmaEffects: [] };
 
         const a = {};
@@ -147,6 +151,7 @@ async function generate() {
             dis: ef.dischargeAttributeID ?? undefined,
             rng: ef.rangeAttributeID ?? undefined,
             fal: ef.falloffAttributeID ?? undefined,
+            res: ef.resistanceAttributeID ?? undefined,
         });
     }
 
@@ -190,6 +195,17 @@ async function generate() {
         }))
         .filter((x) => x.m.length);
 
+    const outBuffs = Object.entries(buffs).map(([id, b]) => ({
+        i: Number(id),
+        n: en(b.displayName) || undefined,
+        op: b.operationName,
+        agg: b.aggregateMode,
+        item: (b.itemModifiers ?? []).map((m) => m.dogmaAttributeID),
+        loc: (b.locationModifiers ?? []).map((m) => m.dogmaAttributeID),
+        locGroup: (b.locationGroupModifiers ?? []).map((m) => [m.dogmaAttributeID, m.groupID]),
+        locSkill: (b.locationRequiredSkillModifiers ?? []).map((m) => [m.dogmaAttributeID, m.skillID]),
+    }));
+
     const build = metadata.find?.((r) => r.field_name === 'client_build')?.field_value;
     const sde = {
         version: { build, generated: new Date().toISOString() },
@@ -200,6 +216,7 @@ async function generate() {
         types: outTypes,
         cloneGrades: outClones,
         mutaplasmids: outMutaplasmids,
+        buffs: outBuffs,
         units: Object.fromEntries(Object.entries(units).map(([id, u]) => [id, en(u.displayName)]).filter(([, n]) => n)),
     };
 

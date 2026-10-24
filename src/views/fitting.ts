@@ -31,6 +31,7 @@ import type { BrowserScope } from '../ui/sidebar';
 import { CURRENT_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type TargetState, type FitEnv } from '../fitting/shared';
 import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
+import { createSupportPanels } from '../fitting/support';
 
 export const FITTING_CATEGORIES = ['Ships', 'Ship Equipment', 'Ship and Module Modifications', 'Ammunition & Charges', 'Drones', 'Implants & Boosters'];
 
@@ -106,6 +107,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     name,
   };
   const { buildTips, statsPanels, requirementsPanel } = createStatsPanels(env, tips);
+  const support = createSupportPanels(env);
   const { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi } = createFitModals(env);
   const nameInput = el.querySelector<HTMLInputElement>('#fitName')!;
   const charSelect = el.querySelector<HTMLSelectElement>('#fitCharacter')!;
@@ -128,13 +130,14 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       right.innerHTML = '';
       return;
     }
+    support.ensureMode(fit);
     const d = buildDogma(sde, fit, ctx.character);
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
-    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + dronesPanel(fit, stats) + extrasPanel(fit);
+    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + dronesPanel(fit, stats) + extrasPanel(fit) + support.supportPanel(fit, d);
     buildTips(d);
-    right.innerHTML = statsPanels(stats, d) + requirementsPanel(fit) + costPanel();
+    right.innerHTML = statsPanels(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
     saveJson(CURRENT_KEY, fit);
     loadCost(fit);
   }
@@ -145,7 +148,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <div class="ship-render"><img src="${typeRenderUrl(f.shipId, 256)}" alt="" /></div>
       <div class="ship-info">
         <h2><button class="link" data-info="${f.shipId}">${esc(t.name)}</button></h2>
-        <div class="meta">${badge(t.groupName)}${s.warnings.length ? badge(tx('{n} probleme', { n: s.warnings.length }), 'danger', true) : ''}</div>
+        <div class="meta">${badge(t.groupName)}${support.modeSelect(f)}${s.warnings.length ? badge(tx('{n} probleme', { n: s.warnings.length }), 'danger', true) : ''}</div>
         <div class="ship-dps"><span class="big num">${formatNum(s.offense.totalDps, 0)}</span><span class="dim">DPS</span>
           <span class="big num">${compactISK(s.defense.ehp)}</span><span class="dim">EHP</span>
           <span class="big num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</span><span class="dim">Cap</span></div>
@@ -198,11 +201,14 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function dronesPanel(f: Fit, s: FitStats) {
-    if (!f.drones.length && s.resources.droneBay.total <= 0) return '';
+    const r = s.resources;
+    if (!f.drones.length && r.droneBay.total <= 0 && r.fighterBay.total <= 0) return '';
+    const fighterBay = r.fighterBay.total > 0 || r.fighterBay.used > 0;
+    const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
     const rows = f.drones.map((dr, i) => `<div class="slot fitted drone-row">
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button>
-        <span class="dim small">${tx('{a} lansate din {n}', { a: dr.active, n: dr.count })}</span></div>
+        <span class="dim small">${isFighter(dr.typeId) ? tx('{a} escadrile lansate din {n}', { a: dr.active, n: dr.count }) : tx('{a} lansate din {n}', { a: dr.active, n: dr.count })}</span></div>
       <div class="stepper" title="${tx('Drone lansate')}">
         <button data-drone="${i}:active:-1">−</button><span class="num">${dr.active}</span><button data-drone="${i}:active:1">+</button>
       </div>
@@ -213,8 +219,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <button class="slot-remove" data-drone="${i}:remove:0" title="${tx('Scoate')}">${icon('close')}</button>
     </div>`);
     return panel({
-      title: 'Drone bay',
-      count: `${formatNum(s.resources.droneBay.used, 0)} / ${formatNum(s.resources.droneBay.total, 0)} m³`,
+      title: fighterBay && r.droneBay.total <= 0 ? 'Fighter bay' : 'Drone bay',
+      count: [r.droneBay.total > 0 || !fighterBay ? `${formatNum(r.droneBay.used, 0)} / ${formatNum(r.droneBay.total, 0)} m³` : '', fighterBay ? `Fighters ${formatNum(r.fighterBay.used, 0)} / ${formatNum(r.fighterBay.total, 0)} m³ · ${tx('tuburi')} ${r.fighterTubes.used}/${r.fighterTubes.total}` : ''].filter(Boolean).join(' · '),
       body: `<div class="slot-group drones">${rows.join('') || `<p class="dim small">${tx('Apasă pe o dronă din browser ca s-o adaugi.')}</p>`}</div>`,
     });
   }
@@ -394,6 +400,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLElement;
     const at = (sel: string) => target.closest<HTMLElement>(sel);
 
+    if (fit && support.handleClick(target)) return;
     const quick = at('[data-quick]');
     if (quick) { selectItem(quick.dataset.quick!, null); return; }
     const info = at('[data-info]');
@@ -464,6 +471,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   el.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
     if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
+    if (fit && support.handleChange(target)) return;
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
     if (target.id === 'fitTarget') {
       const preset = TARGETS.find((t) => t.id === target.value);

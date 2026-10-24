@@ -13,14 +13,14 @@
     "skins": "node scripts/skin-data.mjs"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.5"
   },
   "allowScripts": {
     "fsevents@2.3.3": true
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   }
 }

@@ -4,6 +4,7 @@ import { simulateCapacitor, type CapCycle, type CapResult } from './capacitor';
 import { slotCounts, SLOT_KINDS, type Fit, type SlotKind } from './fit';
 import type { DamageProfile } from './profiles';
 import { tx } from '../i18n';
+import { projectedCapCycles, projectedFlow } from './projected';
 
 export type DamageType = 'em' | 'thermal' | 'kinetic' | 'explosive';
 export const DAMAGE_TYPES: DamageType[] = ['em', 'thermal', 'kinetic', 'explosive'];
@@ -24,12 +25,18 @@ export interface Resources {
   calibration: Resource;
   droneBandwidth: Resource;
   droneBay: Resource;
+  fighterBay: Resource;
+  fighterTubes: Resource;
+  fighterLight: Resource;
+  fighterSupport: Resource;
+  fighterHeavy: Resource;
   turrets: Resource;
   launchers: Resource;
   slots: Record<SlotKind, Resource>;
 }
 
 const isOnline = (m: DogmaItem) => m.state !== 'offline';
+const isFighter = (sde: Sde, typeId: number) => sde.types.get(typeId)?.categoryId === Category.Fighter;
 
 export function resources(sde: Sde, fit: Fit, d: Dogma): Resources {
   const ship = d.ship;
@@ -37,8 +44,14 @@ export function resources(sde: Sde, fit: Fit, d: Dogma): Resources {
   const mods = d.modules;
   const turrets = mods.filter((m) => sde.hasEffect(m.typeId, 'turretFitted')).length;
   const launchers = mods.filter((m) => sde.hasEffect(m.typeId, 'launcherFitted')).length;
-  const activeDrones = d.drones.reduce((a, x) => a + x.item.get('droneBandwidthUsed') * x.count, 0);
-  const bayVolume = fit.drones.reduce((a, x) => a + sde.baseAttr(x.typeId, sde.attrId('volume')) * x.count, 0);
+  const activeDrones = d.drones.filter((x) => !isFighter(sde, x.item.typeId)).reduce((a, x) => a + x.item.get('droneBandwidthUsed') * x.count, 0);
+  const volume = (typeId: number) => sde.baseAttr(typeId, sde.attrId('volume'));
+  const bayVolume = fit.drones.filter((x) => !isFighter(sde, x.typeId)).reduce((a, x) => a + volume(x.typeId) * x.count, 0);
+  const squads = fit.drones.filter((x) => isFighter(sde, x.typeId));
+  const squadSize = (typeId: number) => sde.baseAttr(typeId, sde.attrId('fighterSquadronMaxSize')) || 1;
+  const fighterVolume = squads.reduce((a, x) => a + volume(x.typeId) * squadSize(x.typeId) * x.count, 0);
+  const launchedSquads = squads.filter((x) => x.active > 0);
+  const squadsOf = (attr: string) => launchedSquads.filter((x) => sde.baseAttr(x.typeId, sde.attrId(attr)) > 0).reduce((a, x) => a + x.active, 0);
 
   const slots = Object.fromEntries(SLOT_KINDS.map((k) => [k, { used: fit.slots[k].filter(Boolean).length, total: counts[k] }])) as Record<SlotKind, Resource>;
 
@@ -48,6 +61,11 @@ export function resources(sde: Sde, fit: Fit, d: Dogma): Resources {
     calibration: { used: mods.reduce((a, m) => a + m.get('upgradeCost'), 0), total: ship.get('upgradeCapacity') },
     droneBandwidth: { used: activeDrones, total: ship.get('droneBandwidth') },
     droneBay: { used: bayVolume, total: ship.get('droneCapacity') },
+    fighterBay: { used: fighterVolume, total: ship.get('fighterCapacity') },
+    fighterTubes: { used: launchedSquads.reduce((a, x) => a + x.active, 0), total: Math.round(ship.get('fighterTubes')) },
+    fighterLight: { used: squadsOf('fighterSquadronIsLight'), total: Math.round(ship.get('fighterLightSlots')) },
+    fighterSupport: { used: squadsOf('fighterSquadronIsSupport'), total: Math.round(ship.get('fighterSupportSlots')) },
+    fighterHeavy: { used: squadsOf('fighterSquadronIsHeavy'), total: Math.round(ship.get('fighterHeavySlots')) },
     turrets: { used: turrets, total: Math.round(ship.get('turretSlotsLeft')) },
     launchers: { used: launchers, total: Math.round(ship.get('launcherSlotsLeft')) },
     slots,
@@ -62,12 +80,17 @@ export function validate(sde: Sde, fit: Fit, d: Dogma, r: Resources): string[] {
   over(r.calibration, 'Calibration');
   over(r.droneBandwidth, 'Drone bandwidth');
   over(r.droneBay, 'Drone bay');
+  over(r.fighterBay, 'Fighter bay');
+  over(r.fighterTubes, 'Fighter tubes');
+  over(r.fighterLight, 'Light fighters');
+  over(r.fighterSupport, 'Support fighters');
+  over(r.fighterHeavy, 'Heavy fighters');
   over(r.turrets, 'Turret hardpoints');
   over(r.launchers, 'Launcher hardpoints');
   for (const k of SLOT_KINDS) over(r.slots[k], tx('Sloturi {k}', { k }));
 
   const maxDrones = d.character.get('maxActiveDrones');
-  const launched = fit.drones.reduce((a, x) => a + x.active, 0);
+  const launched = fit.drones.filter((x) => !isFighter(sde, x.typeId)).reduce((a, x) => a + x.active, 0);
   if (launched > maxDrones) out.push(tx('Prea multe drone lansate: {n} / {max} (skill-ul Drones)', { n: launched, max: maxDrones }));
 
   const byGroup = new Map<number, number>();
@@ -92,7 +115,7 @@ export function validate(sde: Sde, fit: Fit, d: Dogma, r: Resources): string[] {
 export interface WeaponStat {
   name: string;
   count: number;
-  kind: 'turret' | 'missile' | 'drone';
+  kind: 'turret' | 'missile' | 'drone' | 'fighter';
   volley: Damage;
   dps: Damage;
   range?: number;
@@ -107,6 +130,11 @@ export interface Offense {
   totalVolley: number;
   dps: Damage;
 }
+
+const FIGHTER_ABILITIES = [
+  { effect: 'fighterAbilityAttackM', prefix: 'fighterAbilityAttackMissileDamage', multiplier: 'fighterAbilityAttackMissileDamageMultiplier', duration: 'fighterAbilityAttackMissileDuration', range: 'fighterAbilityAttackMissileRangeOptimal' },
+  { effect: 'fighterAbilityMissiles', prefix: 'fighterAbilityMissilesDamage', multiplier: 'fighterAbilityMissilesDamageMultiplier', duration: 'fighterAbilityMissilesDuration', range: 'fighterAbilityMissilesRange' },
+];
 
 const TURRET_EFFECTS = ['targetAttack', 'projectileFired', 'targetDisintegratorAttack'];
 
@@ -144,6 +172,23 @@ export function offense(sde: Sde, d: Dogma): Offense {
   }
 
   for (const { item, count } of d.drones) {
+    if (isFighter(sde, item.typeId)) {
+      const size = item.get('fighterSquadronMaxSize') || 1;
+      let volley = zero();
+      let dps = zero();
+      let range = 0;
+      for (const ab of FIGHTER_ABILITIES) {
+        if (!sde.hasEffect(item.typeId, ab.effect)) continue;
+        const seconds = item.get(ab.duration) / 1000;
+        if (seconds <= 0) continue;
+        const v = scale({ em: item.get(ab.prefix + 'EM'), thermal: item.get(ab.prefix + 'Therm'), kinetic: item.get(ab.prefix + 'Kin'), explosive: item.get(ab.prefix + 'Exp') }, (item.get(ab.multiplier) || 1) * size * count);
+        volley = add(volley, v);
+        dps = add(dps, scale(v, 1 / seconds));
+        range = Math.max(range, ab.range ? item.get(ab.range) : 0);
+      }
+      if (sum(dps) > 0) push({ name: item.type.name, count, kind: 'fighter', volley, dps, range: range || undefined });
+      continue;
+    }
     if (!sde.hasEffect(item.typeId, 'targetAttack') && !sde.hasEffect(item.typeId, 'projectileFired')) continue;
     const cycle = item.get('speed') / 1000;
     if (cycle <= 0) continue;
@@ -151,8 +196,8 @@ export function offense(sde: Sde, d: Dogma): Offense {
     push({ name: item.type.name, count, kind: 'drone', volley, dps: scale(volley, 1 / cycle), range: item.get('maxRange') });
   }
 
-  const weaponDps = weapons.filter((w) => w.kind !== 'drone').reduce((a, w) => a + sum(w.dps), 0);
-  const droneDps = weapons.filter((w) => w.kind === 'drone').reduce((a, w) => a + sum(w.dps), 0);
+  const weaponDps = weapons.filter((w) => w.kind !== 'drone' && w.kind !== 'fighter').reduce((a, w) => a + sum(w.dps), 0);
+  const droneDps = weapons.filter((w) => w.kind === 'drone' || w.kind === 'fighter').reduce((a, w) => a + sum(w.dps), 0);
   return {
     weapons,
     weaponDps,
@@ -228,6 +273,10 @@ export function defense(sde: Sde, d: Dogma, profile: DamageProfile): Defense {
       repairs.hull.raw += m.get('structureDamageAmount') / cycle;
     }
   }
+  const flow = projectedFlow(d);
+  repairs.shield.raw += flow.shield;
+  repairs.armor.raw += flow.armor;
+  repairs.hull.raw += flow.hull;
   for (const l of LAYERS) repairs[l].effective = repairs[l].raw / factor[l];
 
   const rechargeSec = ship.get('shieldRechargeRate') / 1000;
@@ -265,6 +314,10 @@ export function capacitor(sde: Sde, d: Dogma): CapacitorStat {
       drains.push({ name: `${m.type.name} · ${m.other.type.name}`, perSecond: -m.other.get('capacitorBonus') / duration });
       cycles.push({ need: -m.other.get('capacitorBonus'), duration });
     }
+  }
+  for (const p of projectedCapCycles(d)) {
+    drains.push({ name: p.name, perSecond: p.need / p.duration });
+    cycles.push({ need: p.need, duration: p.duration });
   }
   const usage = drains.reduce((a, x) => a + x.perSecond, 0);
   const grossUsage = drains.reduce((a, x) => a + Math.max(0, x.perSecond), 0);
@@ -330,7 +383,26 @@ export function lockTime(scanResolution: number, targetSignature: number): numbe
   return Math.min(40000 / scanResolution / Math.asinh(targetSignature) ** 2, 1800);
 }
 
+export interface HeatStat {
+  name: string;
+  slotKey: string;
+  damage: number;
+  hp: number;
+  cycle: number;
+  cycles: number;
+}
+
+export function heat(d: Dogma): HeatStat[] {
+  return d.modules.filter((m) => m.state === 'overheated').map((m) => {
+    const damage = m.get('heatDamage');
+    const hp = m.get('hp');
+    const cycle = (m.get('speed') || m.get('duration')) / 1000;
+    return { name: m.type.name, slotKey: m.slotKey ?? '', damage, hp, cycle, cycles: damage > 0 ? Math.ceil(hp / damage) : Infinity };
+  });
+}
+
 export interface FitStats {
+  heat: HeatStat[];
   resources: Resources;
   warnings: string[];
   offense: Offense;
@@ -350,6 +422,7 @@ export function computeStats(sde: Sde, fit: Fit, d: Dogma, profile: DamageProfil
     capacitor: capacitor(sde, d),
     navigation: navigation(d),
     targeting: targeting(d),
+    heat: heat(d),
   };
 }
 

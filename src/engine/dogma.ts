@@ -1,5 +1,7 @@
 import { Category, type Sde, type EffectInfo, type RawModifier } from '../data/sde';
 import { applyOverrides } from './overrides';
+import { applyProjected } from './projected';
+import { fleetBuffs, type FleetBoost } from './fleet';
 
 export const Op = {
   PreAssign: -1,
@@ -22,7 +24,7 @@ export const EffectCategory = { Passive: 0, Active: 1, Target: 2, Area: 3, Onlin
 export type ModuleState = 'offline' | 'online' | 'active' | 'overheated';
 const STATE_LEVEL: Record<ModuleState, number> = { offline: 0, online: 1, active: 2, overheated: 3 };
 
-export type ItemKind = 'ship' | 'character' | 'skill' | 'implant' | 'module' | 'charge' | 'drone';
+export type ItemKind = 'ship' | 'character' | 'skill' | 'implant' | 'module' | 'charge' | 'drone' | 'mode' | 'buff' | 'projected';
 
 const PENALTY_DENOM = 2.67 ** 2;
 
@@ -180,7 +182,19 @@ export interface DogmaInput {
   modules: { typeId: number; state: ModuleState; chargeId?: number; slotKey: string; overrides?: Record<string, number> }[];
   drones?: { typeId: number; count: number }[];
   boosterSides?: Record<string, string[]>;
+  mode?: number;
+  buffs?: { id: number; value: number }[];
+  fleet?: FleetBoost;
+  projected?: ProjectedInput[];
 }
+
+export interface ProjectedInput {
+  typeId: number;
+  count: number;
+  chargeId?: number;
+}
+
+const UNPENALIZED_BUFFS = new Set([11, 12, 14, 15, 19, 42, 48]);
 
 export function isBoosterSideEffect(name: string): boolean {
   return /^booster.*Penalty/.test(name);
@@ -196,6 +210,9 @@ export class Dogma {
   readonly modules: DogmaItem[] = [];
   readonly charges: DogmaItem[] = [];
   readonly drones: { item: DogmaItem; count: number }[] = [];
+  readonly mode?: DogmaItem;
+  readonly buffSources: DogmaItem[] = [];
+  readonly projected: { item: DogmaItem; count: number }[] = [];
   private readonly reqSkillCache = new Map<number, number[]>();
   private readonly boosterSides: Record<string, string[]>;
 
@@ -230,7 +247,35 @@ export class Dogma {
       this.drones.push({ item: new DogmaItem(this, d.typeId, 'drone', 'active'), count: d.count });
     }
 
+    if (input.mode && sde.types.has(input.mode)) this.mode = new DogmaItem(this, input.mode, 'mode');
+
     this.applyAll();
+    this.applyBuffs([...(input.buffs ?? []), ...fleetBuffs(sde, input.fleet)]);
+    if (input.projected?.length) applyProjected(this, input.projected);
+  }
+
+  private applyBuffs(buffs: { id: number; value: number }[]) {
+    const best = new Map<number, number>();
+    for (const b of buffs) {
+      const def = this.sde.buffs.get(b.id);
+      if (!def) continue;
+      const prev = best.get(b.id);
+      const better = prev == null || (def.agg === 'Minimum' ? b.value < prev : b.value > prev);
+      if (better) best.set(b.id, b.value);
+    }
+    for (const [id, value] of best) {
+      const def = this.sde.buffs.get(id)!;
+      const op = ({ PostPercent: Op.PostPercent, PostMul: Op.PostMul, PostAssignment: Op.PostAssign, ModAdd: Op.ModAdd, PreAssignment: Op.PreAssign } as Record<string, number>)[def.op];
+      if (op == null) continue;
+      const source = new DogmaItem(this, 0, 'buff');
+      this.buffSources.push(source);
+      const mod = { source, op, value: () => value, penalized: !UNPENALIZED_BUFFS.has(id) };
+      const located = this.shipLocated;
+      for (const attr of def.item) this.ship.addModifier(attr, mod);
+      for (const attr of def.loc) for (const x of located) x.addModifier(attr, mod);
+      for (const [attr, group] of def.locGroup) for (const x of located) if (x.groupId === group) x.addModifier(attr, mod);
+      for (const [attr, skill] of def.locSkill) for (const x of located) if (x.requiresSkill(skill)) x.addModifier(attr, mod);
+    }
   }
 
   requiredSkillIds(typeId: number): number[] {
@@ -243,7 +288,7 @@ export class Dogma {
   }
 
   get allItems(): DogmaItem[] {
-    return [this.ship, this.character, ...this.skills, ...this.implants, ...this.modules, ...this.charges, ...this.drones.map((d) => d.item)];
+    return [this.ship, this.character, ...this.skills, ...this.implants, ...this.modules, ...this.charges, ...this.drones.map((d) => d.item), ...(this.mode ? [this.mode] : [])];
   }
 
   get shipLocated(): DogmaItem[] {

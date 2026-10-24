@@ -10,7 +10,9 @@ export interface Breakdown {
 }
 
 export function sourceLabel(item: DogmaItem): string {
+  if (item.kind === 'buff') return tx('boost flotă');
   const name = item.type.name;
+  if (item.dogma.ship.typeId === 0) return tx('proiectat: {name}', { name });
   if (item.kind === 'skill') return `${name} ${roman(item.get('skillLevel'))}`;
   if (item.kind === 'ship') return tx('bonus {name}', { name });
   return name;

@@ -288,6 +288,15 @@ select.input option, select.input optgroup { background: var(--bg-panel-solid); 
 .dps-chart .marker { stroke: var(--gold); stroke-width: 1; stroke-dasharray: 2 3; }
 .booster-sides { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; }
 .booster-sides .chip-btn.active { border-color: var(--danger); color: var(--danger); }
+.window-title.sub { margin: 4px 0 8px; font-size: 11px; opacity: .8; }
+.window-title.sub:not(:first-child) { margin-top: 16px; }
+.fleet-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.burst-groups { display: grid; gap: 6px; }
+.burst-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.burst-group select { width: auto; }
+.proj-add { display: flex; gap: 6px; margin-bottom: 8px; }
+.proj-add .input { flex: 1; min-width: 0; }
+.ship-head .mode-field { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); background: transparent; color: var(--text-dim); border-radius: var(--radius); cursor: pointer; font-size: 13px; }
 .icon-btn:hover { border-color: var(--line-accent); color: var(--accent-bright); }
 .icon-btn svg { width: 12px; height: 12px; }
