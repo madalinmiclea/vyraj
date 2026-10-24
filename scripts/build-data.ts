@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateSkins } from './skin-data.mjs';
-import { publishData, RAW_DIR } from './publish-data.mjs';
+import { generateSkins } from './skin-data.ts';
+import { publishData, RAW_DIR } from './publish-data.ts';
+
+type Row = Record<string, any>;
 
 process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
 
@@ -21,37 +23,38 @@ const FIT_CATEGORIES = new Set([
 
 const MODE_GROUP = 1306;
 
-const TYPE_FIELD_ATTRS = { mass: 4, capacity: 38, volume: 161, radius: 162 };
+const TYPE_FIELD_ATTRS: Record<string, number> = { mass: 4, capacity: 38, volume: 161, radius: 162 };
 
 class HttpError extends Error {
-    constructor(status, url) {
+    status: number;
+    constructor(status: number, url: string) {
         super(`${status} ${url}`);
         this.status = status;
     }
 }
 
-async function getJson(file) {
+async function getJson(file: string): Promise<any> {
     const url = `${BASE}/${file}`;
     const res = await fetch(url);
     if (!res.ok) throw new HttpError(res.status, url);
     return res.json();
 }
 
-async function getSplit(name) {
-    const all = {};
+async function getSplit(name: string): Promise<Row> {
+    const all: Row = {};
     for (let i = 0; ; i++) {
         try {
             Object.assign(all, await getJson(`fsd_built/${name}.${i}.json`));
             console.log(`   ${name}.${i}.json`);
         } catch (e) {
-            if (e.status === 404 && i > 0) break;
+            if ((e as HttpError).status === 404 && i > 0) break;
             throw e;
         }
     }
     return all;
 }
 
-const en = (v) => (typeof v === 'string' ? v : v?.['en-us'] ?? v?.en ?? '');
+const en = (v: any): string => (typeof v === 'string' ? v : v?.['en-us'] ?? v?.en ?? '');
 
 async function generate() {
     console.log('⏳ Descarcăm SDE-ul...');
@@ -70,22 +73,22 @@ async function generate() {
         getJson('fsd_lite/dbuffcollections.0.json'),
     ]);
 
-    const rootCache = {};
-    const rootName = (groupId) => {
+    const rootCache: Record<number, string> = {};
+    const rootName = (groupId: number): string => {
         if (rootCache[groupId]) return rootCache[groupId];
         let id = groupId;
         while (marketGroups[id]?.parentGroupID) id = marketGroups[id].parentGroupID;
         return (rootCache[groupId] = en(marketGroups[id]?.name) || 'Other');
     };
 
-    const items = [];
+    const items: { n: string; c: string; t: number; m: number }[] = [];
     for (const [typeId, t] of Object.entries(types)) {
         const name = en(t.typeName);
         if (!name || !t.published || !t.marketGroupID) continue;
         items.push({ n: name, c: rootName(t.marketGroupID), t: Number(typeId), m: t.marketGroupID });
     }
     items.sort((a, b) => a.n.localeCompare(b.n));
-    const usedMarketGroups = {};
+    const usedMarketGroups: Record<number, [string, number]> = {};
     for (const it of items) {
         for (let id = it.m; id && !usedMarketGroups[id] && marketGroups[id]; id = marketGroups[id].parentGroupID) {
             usedMarketGroups[id] = [en(marketGroups[id].name), marketGroups[id].parentGroupID ?? 0];
@@ -95,9 +98,9 @@ async function generate() {
     fs.writeFileSync(path.join(RAW_DIR, 'items.json'), JSON.stringify({ items, groups: usedMarketGroups }));
     console.log(`✅ data/items.json: ${items.length} iteme de market`);
 
-    const outTypes = [];
-    const usedEffects = new Set();
-    const usedGroups = new Set();
+    const outTypes: Row[] = [];
+    const usedEffects = new Set<number>();
+    const usedGroups = new Set<number>();
 
     for (const [typeId, t] of Object.entries(types)) {
         const group = groups[t.groupID];
@@ -105,12 +108,12 @@ async function generate() {
         if (!t.published && t.groupID !== MODE_GROUP) continue;
         const dogma = typeDogma[typeId] || { dogmaAttributes: [], dogmaEffects: [] };
 
-        const a = {};
+        const a: Record<number, number> = {};
         for (const { attributeID, value } of dogma.dogmaAttributes) a[attributeID] = value;
         for (const [field, attrId] of Object.entries(TYPE_FIELD_ATTRS)) {
             if (t[field] != null && a[attrId] == null) a[attrId] = t[field];
         }
-        const e = dogma.dogmaEffects.map((x) => x.effectID);
+        const e: number[] = dogma.dogmaEffects.map((x: Row) => x.effectID);
         e.forEach((id) => usedEffects.add(id));
         usedGroups.add(t.groupID);
 
@@ -129,11 +132,11 @@ async function generate() {
         });
     }
 
-    const outEffects = [];
+    const outEffects: Row[] = [];
     for (const id of usedEffects) {
         const ef = effects[id];
         if (!ef) continue;
-        const mods = (ef.modifierInfo || []).map((m) => ({
+        const mods = (ef.modifierInfo || []).map((m: Row) => ({
             f: m.func,
             d: m.domain,
             op: m.operation,
@@ -155,7 +158,7 @@ async function generate() {
         });
     }
 
-    const outAttrs = [];
+    const outAttrs: Row[] = [];
     for (const id of Object.keys(attributes)) {
         const at = attributes[id];
         if (!at) continue;
@@ -176,37 +179,37 @@ async function generate() {
 
     const outGroups = [...usedGroups].map((id) => ({ i: Number(id), n: en(groups[id].groupName ?? groups[id].name), c: groups[id].categoryID }));
     const outCategories = [...FIT_CATEGORIES].map((id) => ({ i: id, n: en(categories[id]?.categoryName ?? categories[id]?.name) }));
-    const outClones = Object.entries(cloneGrades).map(([id, c]) => ({
+    const outClones = Object.entries(cloneGrades as Row).map(([id, c]) => ({
         i: Number(id),
         n: c.internalDescription,
-        skills: Object.fromEntries(c.skills.map((s) => [s.typeID, s.level])),
+        skills: Object.fromEntries(c.skills.map((s: Row) => [s.typeID, s.level])),
     }));
 
     const typeIds = new Set(outTypes.map((t) => t.i));
-    const outMutaplasmids = Object.entries(dynamic)
+    const outMutaplasmids = Object.entries(dynamic as Row)
         .filter(([id]) => types[id]?.published !== false && en(types[id]?.typeName))
         .map(([id, d]) => ({
             i: Number(id),
             n: en(types[id].typeName),
-            a: Object.fromEntries(Object.entries(d.attributeIDs).map(([attr, r]) => [attr, [r.min, r.max]])),
+            a: Object.fromEntries(Object.entries(d.attributeIDs as Row).map(([attr, r]) => [attr, [r.min, r.max]])),
             m: d.inputOutputMapping
-                .map((x) => ({ from: x.applicableTypes.filter((t) => typeIds.has(t)), to: x.resultingType }))
-                .filter((x) => x.from.length && typeIds.has(x.to)),
+                .map((x: Row) => ({ from: (x.applicableTypes as number[]).filter((t) => typeIds.has(t)), to: x.resultingType as number }))
+                .filter((x: { from: number[]; to: number }) => x.from.length && typeIds.has(x.to)),
         }))
         .filter((x) => x.m.length);
 
-    const outBuffs = Object.entries(buffs).map(([id, b]) => ({
+    const outBuffs = Object.entries(buffs as Row).map(([id, b]) => ({
         i: Number(id),
         n: en(b.displayName) || undefined,
         op: b.operationName,
         agg: b.aggregateMode,
-        item: (b.itemModifiers ?? []).map((m) => m.dogmaAttributeID),
-        loc: (b.locationModifiers ?? []).map((m) => m.dogmaAttributeID),
-        locGroup: (b.locationGroupModifiers ?? []).map((m) => [m.dogmaAttributeID, m.groupID]),
-        locSkill: (b.locationRequiredSkillModifiers ?? []).map((m) => [m.dogmaAttributeID, m.skillID]),
+        item: (b.itemModifiers ?? []).map((m: Row) => m.dogmaAttributeID),
+        loc: (b.locationModifiers ?? []).map((m: Row) => m.dogmaAttributeID),
+        locGroup: (b.locationGroupModifiers ?? []).map((m: Row) => [m.dogmaAttributeID, m.groupID]),
+        locSkill: (b.locationRequiredSkillModifiers ?? []).map((m: Row) => [m.dogmaAttributeID, m.skillID]),
     }));
 
-    const build = metadata.find?.((r) => r.field_name === 'client_build')?.field_value;
+    const build = metadata.find?.((r: Row) => r.field_name === 'client_build')?.field_value;
     const sde = {
         version: { build, generated: new Date().toISOString() },
         categories: outCategories,
@@ -217,7 +220,7 @@ async function generate() {
         cloneGrades: outClones,
         mutaplasmids: outMutaplasmids,
         buffs: outBuffs,
-        units: Object.fromEntries(Object.entries(units).map(([id, u]) => [id, en(u.displayName)]).filter(([, n]) => n)),
+        units: Object.fromEntries(Object.entries(units as Row).map(([id, u]) => [id, en(u.displayName)]).filter(([, n]) => n)),
     };
 
     const file = path.join(RAW_DIR, 'sde.json');
@@ -232,7 +235,7 @@ generate()
     .then(() => generateSkins())
     .then((d) => console.log(`✅ data/skins.json: ${d.lines.length} colecții SKIN`))
     .then(() => console.log('✅ public/data:', publishData()))
-    .catch((e) => {
+    .catch((e: Error) => {
     console.error('Eroare:', e.message);
     process.exitCode = 1;
 });

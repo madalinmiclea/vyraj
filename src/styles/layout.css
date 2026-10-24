@@ -42,8 +42,8 @@
 }
 .brand-mark {
   width: 26px; height: 26px;
-  color: var(--accent);
-  filter: drop-shadow(0 0 6px var(--accent-glow));
+  color: #e0263a;
+  filter: drop-shadow(0 0 6px rgba(224, 38, 58, 0.4));
 }
 .topbar-title {
   font-family: var(--font-display);
@@ -154,7 +154,7 @@
   border: 1px solid transparent;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-.neocom-btn svg { width: 22px; height: 22px; }
+.neocom-btn svg { width: 26px; height: 26px; }
 .neocom-btn:hover { color: var(--text-bright); background: var(--bg-hover); }
 .neocom-btn.active {
   color: var(--accent-bright);

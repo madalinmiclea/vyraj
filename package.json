@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "node scripts/build-data.mjs --if-missing",
+    "predev": "node scripts/build-data.ts --if-missing",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc",
-    "data": "node scripts/build-data.mjs",
-    "skins": "node scripts/skin-data.mjs"
+    "data": "node scripts/build-data.ts",
+    "skins": "node scripts/skin-data.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

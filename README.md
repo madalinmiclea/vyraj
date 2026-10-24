@@ -1,5 +1,7 @@
 # Vyraj
 
+*o7, capsuleer. May your flow stay unbroken and every Proving end in your favour.*
+
 Vyraj is a free web toolkit for EVE Online pilots: Jita market prices, a Pyfa-style fitting simulator, character and skill planning, market intel, PvP intel, navigation and ISK tools, all in one place.
 
 It is a fully static site. Everything runs in your browser and there is no Vyraj server. Your characters, login tokens, fits, SKIN collection and settings are stored only in your browser's local storage and are never sent anywhere except directly to CCP's own services.
@@ -108,17 +110,6 @@ VITE_EVE_CLIENT_ID=<client id of an EVE application with callback http://localho
 | `VITE_EVE_CALLBACK_URL` | Callback URL registered with EVE. Defaults to `<origin><base>callback`. |
 | `VITE_EVE_TOKEN_URL` | SSO token endpoint. Defaults to `https://login.eveonline.com/v2/oauth/token`. |
 | `BASE_PATH` | Base path when the site is not served from the domain root, for example `/vyraj/`. |
-
-### Hosting on GitHub Pages
-
-`.github/workflows/deploy.yml` runs on every push to `main`, weekly on Wednesday after the Tuesday patches, and on demand. It downloads the game data, builds the site with the base path `/<repository name>/` and publishes it to GitHub Pages.
-
-In the repository settings:
-
-- **Pages → Source:** GitHub Actions
-- **Secrets and variables → Actions → Variables:** `EVE_CLIENT_ID` and `EVE_CALLBACK_URL` (for example `https://<user>.github.io/vyraj/callback`)
-
-On [developers.eveonline.com/applications](https://developers.eveonline.com/applications), create an application with **Authentication & API Access**, the site's callback URL and all the permissions listed above.
 
 ## Credits
 

@@ -46,10 +46,10 @@ export function icon(name: string, cls = ''): string {
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">${paths[name] || paths.module}</svg>`;
 }
 
-export const logo = `<svg class="brand-mark" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-  <circle cx="16" cy="16" r="13" opacity=".45"/>
-  <path d="M16 5 26 23H6z"/>
-  <path d="M16 12 21 21H11z" fill="currentColor" opacity=".35"/>
+export const logo = `<svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+  <path d="M12 2.8 21.5 19.6H2.5z"/>
+  <path d="M12 2.8V12M2.5 19.6 12 12M21.5 19.6 12 12"/>
+  <path d="M12 8.2 15.4 14.4H8.6z" fill="currentColor" stroke="none" opacity="0.55"/>
 </svg>`;
 
 export const reticle = `<svg class="reticle" viewBox="0 0 100 100" fill="none" stroke="currentColor" aria-hidden="true">

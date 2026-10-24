@@ -39,7 +39,6 @@
   .neocom-btn { width: 44px; height: 44px; flex: none; }
   .neocom-btn.active::before { left: 8px; right: 8px; top: -7px; bottom: auto; width: auto; height: 2px; }
   .neocom-btn[data-tip]::after { display: none; }
-  :root[data-theme='vyraj'] .neocom .clade-sep { display: none; }
 
   .sidebar {
     position: fixed;

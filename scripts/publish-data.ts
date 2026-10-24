@@ -11,7 +11,7 @@ const NAMES = ['sde', 'items', 'skins', 'masteries', 'map'];
 export function publishData() {
     fs.mkdirSync(OUT_DIR, { recursive: true });
     for (const f of fs.readdirSync(OUT_DIR)) if (f.endsWith('.json')) fs.rmSync(path.join(OUT_DIR, f));
-    const manifest = {};
+    const manifest: Record<string, string> = {};
     for (const name of NAMES) {
         const src = path.join(RAW_DIR, `${name}.json`);
         if (!fs.existsSync(src)) continue;

@@ -47,12 +47,17 @@
 :root[data-theme='vyraj'] .sidebar { background: rgba(11, 10, 10, 0.9); }
 :root[data-theme='vyraj'] .modal-backdrop { background: rgba(4, 2, 2, 0.75); }
 
-.lore-vy, .clade-sep { display: none; }
+.lore-vy { display: none; }
 :root[data-theme='vyraj'] .lore-std { display: none; }
 :root[data-theme='vyraj'] .lore-vy { display: inline; }
-:root[data-theme='vyraj'] .neocom > * { order: var(--vy-order, 0); }
+.neocom > * { order: var(--vy-order, 0); }
+.clade-sep { width: 30px; height: 1px; margin: 6px 0; flex: none; background: var(--line-strong); font-size: 0; overflow: hidden; }
+.clade-sep[style*='--vy-order:1'] { display: none; }
 :root[data-theme='vyraj'] .clade-sep {
   display: block;
+  height: auto;
+  overflow: visible;
+  background: none;
   width: 46px;
   margin: 8px 0 2px;
   padding-top: 6px;
@@ -67,3 +72,6 @@
 }
 :root[data-theme='vyraj'] .clade-sep[style*='--vy-order:1'] { margin-top: 0; border-top-color: transparent; padding-top: 0; }
 :root[data-theme='vyraj'] .neocom-btn[data-tip-vy]::after { content: attr(data-tip-vy); }
+@media (max-width: 760px) {
+  .neocom .clade-sep, :root[data-theme='vyraj'] .neocom .clade-sep { display: none; }
+}
