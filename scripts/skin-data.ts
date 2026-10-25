@@ -4,14 +4,18 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { publishData, RAW_DIR } from './publish-data.ts';
+import { writeMining } from './mining-data.ts';
+import { buildIndustry } from './industry-data.ts';
 
 type Row = Record<string, any>;
 
 const OUT = path.join(RAW_DIR, 'skins.json');
 const MASTERY_OUT = path.join(RAW_DIR, 'masteries.json');
 const MAP_OUT = path.join(RAW_DIR, 'map.json');
+const INDUSTRY_OUT = path.join(RAW_DIR, 'industry.json');
+const PI_OUT = path.join(RAW_DIR, 'pi.json');
 const ZIP_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
-const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates'];
+const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials'];
 const SHIP_CATEGORY = 6;
 
 const en = (v: any): string => (typeof v === 'string' ? v : v?.en ?? v?.['en-us'] ?? '');
@@ -151,6 +155,57 @@ export function buildMap(dir: string) {
     return { generated: new Date().toISOString(), source: 'sde', regions: outRegions, constellations: outConst, systems: outSystems, gates: outGates };
 }
 
+const PI_PIN_KINDS: Record<number, string> = { 1026: 'ext', 1027: 'cc', 1028: 'fac', 1029: 'store', 1030: 'pad', 1063: 'ecu' };
+const PI_RAW_CATEGORY = 42;
+const HARVESTED_TYPE = 709;
+const EXTRACTOR_PLANET = 1632;
+
+const keyed = (v: any): [number, Row][] => (Array.isArray(v) ? v.map((x: Row) => [Number(x._key ?? x.typeID), x._value ?? x] as [number, Row]) : Object.entries(v ?? {}).map(([k, x]) => [Number(k), x as Row]));
+
+export function buildPi(dir: string) {
+    const schematics = readJsonl(dir, 'planetSchematics');
+    const types = readJsonl(dir, 'types');
+    const groups = readJsonl(dir, 'groups');
+    const dogma = readJsonl(dir, 'typeDogma');
+    const attr = (id: number, a: number): number | undefined => (dogma.get(id)?.dogmaAttributes ?? []).find((x: Row) => x.attributeID === a)?.value;
+    const tier = new Map<number, number>();
+    for (const [id, t] of types) if (t.published && groups.get(t.groupID)?.categoryID === PI_RAW_CATEGORY) tier.set(id, 0);
+    const rows = [...schematics].map(([id, s]) => {
+        const io = keyed(s.types);
+        const out = io.find(([, x]) => !x.isInput);
+        return { id, name: en(s.name ?? s.nameID), cycle: Number(s.cycleTime), out, ins: io.filter(([, x]) => x.isInput).map(([t, x]) => [t, Number(x.quantity)]) };
+    }).filter((r) => r.out && r.ins.length);
+    for (let pass = 0; pass < 6; pass++) {
+        for (const r of rows) {
+            const ts = r.ins.map(([t]) => tier.get(t));
+            if (ts.every((x) => x != null)) tier.set(r.out![0], Math.max(...(ts as number[])) + 1);
+        }
+    }
+    const outTypes: Record<number, [string, number, number]> = {};
+    for (const [id, t] of tier) outTypes[id] = [en(types.get(id)?.name), t, Number(types.get(id)?.volume ?? 0)];
+    const outSchematics = rows
+        .filter((r) => tier.has(r.out![0]))
+        .map((r) => [r.id, r.name, r.cycle, r.out![0], Number(r.out![1].quantity), r.ins])
+        .sort((a, b) => (a[0] as number) - (b[0] as number));
+    const planets: Record<number, [string, number[]]> = {};
+    const pins: Record<number, [string, string, number]> = {};
+    for (const [id, t] of types) {
+        const kind = PI_PIN_KINDS[t.groupID];
+        if (!kind) continue;
+        pins[id] = [en(t.name), kind, Number(t.capacity ?? 0)];
+        if (kind !== 'ext') continue;
+        const planet = attr(id, EXTRACTOR_PLANET);
+        const raw = attr(id, HARVESTED_TYPE);
+        if (!planet || !raw || !tier.has(raw)) continue;
+        const name = en(types.get(planet)?.name).replace(/^Planet \((.*)\)$/, '$1');
+        const entry = planets[planet] ?? (planets[planet] = [name, []]);
+        if (!entry[1].includes(raw)) entry[1].push(raw);
+    }
+    const counts = [0, 1, 2, 3, 4].map((n) => [...tier.values()].filter((x) => x === n).length);
+    if (counts[0] < 10 || counts[4] < 5 || Object.keys(planets).length < 8) throw new Error(`Datele PI din SDE par incomplete: ${counts.join('/')}`);
+    return { generated: new Date().toISOString(), source: 'sde', types: outTypes, schematics: outSchematics, planets, pins };
+}
+
 export async function generateSkins() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-sde-'));
     try {
@@ -160,6 +215,9 @@ export async function generateSkins() {
         fs.writeFileSync(OUT, JSON.stringify(data));
         fs.writeFileSync(MASTERY_OUT, JSON.stringify(buildMasteries(dir)));
         fs.writeFileSync(MAP_OUT, JSON.stringify(buildMap(dir)));
+        writeMining(dir);
+        fs.writeFileSync(INDUSTRY_OUT, JSON.stringify(buildIndustry((name) => readJsonl(dir, name))));
+        fs.writeFileSync(PI_OUT, JSON.stringify(buildPi(dir)));
         return data;
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -180,7 +238,7 @@ export function skinsAge() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     console.log('⏳ Descarc SDE-ul oficial pentru SKIN-uri, mastery și hartă...');
     generateSkins()
-        .then((d) => console.log(`✅ data/skins.json: ${d.lines.length} colecții, ${d.lines.reduce((a, l) => a + l.s.length, 0)} SKIN-uri, data/masteries.json, data/map.json`))
+        .then((d) => console.log(`✅ data/skins.json: ${d.lines.length} colecții, ${d.lines.reduce((a, l) => a + l.s.length, 0)} SKIN-uri, data/masteries.json, data/map.json, data/pi.json`))
         .then(() => console.log('✅ public/data:', publishData()))
         .catch((e: Error) => { console.error('Eroare:', e.message); process.exitCode = 1; });
 }

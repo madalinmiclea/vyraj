@@ -12,6 +12,7 @@ import { findProfile } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { allCharacters } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
+import { shareUrl } from '../io/shareLink';
 import { fetchPrices, typeIconUrl, typeRenderUrl } from '../services/market';
 import { loadFits, saveFit } from '../fitting/savedFits';
 import { loadJson, saveJson } from '../storage';
@@ -33,6 +34,7 @@ import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, G
 import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
 import { createSupportPanels } from '../fitting/support';
+import { createNpcPanel } from '../fitting/npc';
 
 export const FITTING_CATEGORIES = ['Ships', 'Ship Equipment', 'Ship and Module Modifications', 'Ammunition & Charges', 'Drones', 'Implants & Boosters'];
 
@@ -88,6 +90,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           ${button(tx('Fit-uri'), { iconName: 'fitting', cls: 'ghost sm', attrs: 'data-action="saved"' })}
           ${button(tx('Importă'), { iconName: 'upload', cls: 'ghost sm', attrs: 'data-action="import"' })}
           ${button(tx('Exportă'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-action="export"' })}
+          ${button(tx('Link'), { iconName: 'link', cls: 'ghost sm', attrs: `data-action="share" title="${tx('Copiază un link care deschide fit-ul direct în Vyraj')}"` })}
           ${button(tx('Compară'), { iconName: 'compare', cls: 'ghost sm', attrs: 'data-action="compare"' })}
           ${button('EVE', { iconName: 'login', cls: 'ghost sm', attrs: `data-action="esi" title="${tx('Fit-urile salvate în joc')}"` })}
           ${button(tx('Navele mele'), { iconName: 'ship', cls: 'ghost sm', attrs: `data-action="ships" title="${tx('Navele asamblate din hangare, cu ce au montat')}"` })}
@@ -117,6 +120,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   };
   const { buildTips, statsPanels, requirementsPanel } = createStatsPanels(env, tips);
   const support = createSupportPanels(env);
+  const npc = createNpcPanel(env);
   const { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi } = createFitModals(env);
   const nameInput = el.querySelector<HTMLInputElement>('#fitName')!;
   const charSelect = el.querySelector<HTMLSelectElement>('#fitCharacter')!;
@@ -231,7 +235,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const counts = slotCounts(sde, fit, d);
     left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d);
     buildTips(d);
-    right.innerHTML = statsPanels(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
+    right.innerHTML = statsPanels(stats, d) + npc.render(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
     persist();
     loadCost(fit);
   }
@@ -570,6 +574,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   el.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const at = (sel: string) => target.closest<HTMLElement>(sel);
+    if (npc.handleClick(target)) { render(); return; }
 
     const tabClose = at('[data-fit-close]');
     if (tabClose) { closeTab(Number(tabClose.dataset.fitClose)); return; }
@@ -684,6 +689,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLSelectElement;
     if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
     if (fit && support.handleChange(target)) return;
+    if (npc.handleChange(target)) { render(); return; }
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
     if (target.id === 'fitTarget') {
       const preset = TARGETS.find((t) => t.id === target.value);
@@ -751,6 +757,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         return openImport();
       case 'export':
         return openExport();
+      case 'share':
+        if (!fit) return toast(tx('Nu ai niciun fit'));
+        shareUrl(fit).then((url) => copyText(url, tx('Link copiat. Cine îl deschide primește fit-ul într-un tab nou.'))).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
+        break;
       case 'compare':
         return openCompare();
       case 'esi':

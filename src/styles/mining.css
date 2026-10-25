@@ -1,0 +1,12 @@
+#mineRefine .panel + .panel, #mineYield .panel + .panel { margin-top: var(--gap); }
+.mine-table td, .mine-miners td { vertical-align: middle; }
+.mine-table td.accent { color: var(--accent); }
+.mine-table [data-bd], #mineRefine [data-bd], .mine-miners [data-bd] { cursor: help; }
+.mine-calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--gap); align-items: start; margin-top: 10px; }
+#mineCalc { margin-top: 12px; }
+.nav-form label.check { flex-direction: row; align-items: center; gap: 6px; align-self: end; }
+@media (max-width: 760px) { .mine-calc-grid { grid-template-columns: minmax(0, 1fr); } }
+.mine-table td:last-child .badge { white-space: nowrap; }
+.mine-table td:first-child .dim.small { margin-left: 30px; }
+.mine-table td:first-child { min-width: 240px; }
+.mine-table td:first-child .nav-ship-name { white-space: nowrap; }

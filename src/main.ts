@@ -9,11 +9,16 @@ import { createCharacterView } from './views/character';
 import { createSkillsView } from './views/skills';
 import { createRosterView } from './views/roster';
 import { createToolsView } from './views/tools';
+import { createOrdersView } from './views/orders';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
 import { createNavigationView } from './views/navigation';
+import { createMiningView } from './views/mining';
+import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
+import { createPiView } from './views/pi';
 import { startAlertWatcher } from './services/alerts';
+import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
 import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVENT, type TokenSet } from './character/sso';
@@ -25,10 +30,11 @@ import { loadJson, saveJson, onStorageError } from './storage';
 import { tx, lang, setLang, type Lang } from './i18n';
 import { theme, setTheme, type Theme } from './theme';
 import { initSelects } from './ui/select';
+import { readSharedFit } from './io/shareLink';
 
-type ViewId = 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins';
+type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining';
 
-const SIDE_VIEWS = ['character', 'tools', 'skins', 'recon', 'navigation'] as const;
+const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
@@ -38,8 +44,12 @@ const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | n
   { id: 'navigation', label: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
   { id: 'fitting', label: 'Fitting', icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
   { id: 'character', label: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
+  { id: 'industry', label: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Veles', order: 4 },
   { id: 'tools', label: tx('Unelte ISK'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
+  { id: 'mining', label: tx('Mining'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Veles', order: 4 },
+  { id: 'orders', label: tx('Ordine market'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
+  { id: 'pi', label: 'Planetary Interaction', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Veles', order: 4 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
@@ -101,7 +111,7 @@ const intel = createIntelView(viewEl('intel'), null, {
 market.setFees(() => intel.fees());
 
 let fitting: FittingView | null = null;
-for (const id of ['fitting', 'character', 'tools', 'skins', 'recon', 'navigation'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -241,7 +251,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'character', 'tools', 'skins', 'recon', 'navigation'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -306,10 +316,22 @@ async function start() {
     createRosterView(document.getElementById('charRoster')!, ctx);
   });
   mount(['tools'], () => createToolsView(viewEl('tools'), ctx, sidePane('tools')));
+  mount(['orders'], () => createOrdersView(viewEl('orders'), ctx, sidePane('orders'), { onOpen: (name, typeId) => { switchView('market'); market.show(name, typeId); } }));
   mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
   mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
   mount(['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation')));
+  mount(['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
+  mount(['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
+  mount(['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
   intel.setContext(ctx);
+  const openShared = () => readSharedFit(sde).then((f) => {
+    if (!f || !fitting) return;
+    switchView('fitting');
+    fitting.load(f);
+    toast(tx('Fit deschis din link: {name}', { name: f.name }));
+  }).catch(() => toast(tx('Linkul de fit nu e valid sau e incomplet.')));
+  openShared();
+  window.addEventListener('hashchange', openShared);
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);
@@ -318,6 +340,7 @@ async function start() {
 
 start();
 startAlertWatcher();
+itemsReady.then(startOrderWatcher).catch(() => {});
 
 const refreshListed = () => fetchListedTypes().then((ids) => browser.setListed(ids)).catch(() => {  });
 refreshListed();

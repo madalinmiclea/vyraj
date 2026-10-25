@@ -9,6 +9,9 @@
 @import './styles/navigation.css';
 @import './styles/skins.css';
 @import './styles/roster.css';
+@import './styles/pi.css';
+@import './styles/orders.css';
+@import './styles/mining.css';
 @import './styles/mobile.css';
 @import './styles/light.css';
 @import './styles/vyraj.css';

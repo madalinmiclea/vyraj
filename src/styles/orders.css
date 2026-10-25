@@ -1,0 +1,15 @@
+.ord-side-label { margin: 14px 16px 4px; font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-faint); }
+.ord-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+.ord-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; margin-bottom: 4px; }
+.ord-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-dim); }
+.ord-table td { vertical-align: top; }
+.ord-table td:not(:first-child), .ord-table th { white-space: nowrap; }
+.ord-table .badge { white-space: nowrap; }
+.ord-table .ord-item { display: inline-flex; align-items: center; text-align: left; }
+.ord-table tr.ord-beaten td:first-child { box-shadow: inset 2px 0 0 var(--danger); }
+.ord-table .ord-place { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ord-table td.ord-place { max-width: 260px; }
+.ord-table .ord-action .btn { margin-left: auto; }
+.history-kpis .value.ord-bad { color: var(--danger); }
+.ord-note { margin-top: 12px; max-width: 900px; }
+.ord-table .ord-item + .badge { margin-left: 6px; vertical-align: 1px; }

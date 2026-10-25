@@ -1,0 +1,32 @@
+.pi-form input.pi-num { width: 110px; }
+.pi-form input.pi-product { width: 260px; }
+.pi-form select.input { width: 140px; }
+#piChains, #piPlanner, #piColonies { margin-top: var(--gap); }
+.pi-prod, .pi-node { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pi-ext, .pi-fac { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pi-prod .row-icon, .pi-ext .row-icon, .pi-fac .row-icon, .pi-node .row-icon { width: 22px; height: 22px; }
+.pi-ext + .pi-ext, .pi-fac + .pi-fac, .pi-store + .pi-store { margin-top: 4px; }
+.pi-ext .badge { margin-left: auto; }
+.pi-planet { display: flex; flex-direction: column; gap: 2px; }
+.pi-in { display: inline-block; margin-right: 10px; white-space: nowrap; }
+.pi-row { cursor: pointer; }
+.pi-row:hover td { background: rgba(var(--accent-rgb), 0.06); }
+.pi-chains .neg, .pi-plan-grid .neg { color: var(--danger); }
+.pi-chains .pos { color: var(--ok); }
+.pi-tier { display: inline-block; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 3px; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+.pi-tier.t1 { color: var(--text-bright); }
+.pi-tier.t2 { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.pi-tier.t3 { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.4); }
+.pi-tier.t4 { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+.pi-store { display: flex; align-items: center; gap: 8px; min-width: 120px; cursor: help; }
+.pi-store-bar { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.pi-store-bar i { display: block; height: 100%; background: var(--accent); }
+.pi-store.warn .pi-store-bar i { background: var(--warn); }
+.pi-store.danger .pi-store-bar i { background: var(--danger); }
+.pi-colonies td { vertical-align: top; }
+.pi-plan-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap); margin-top: var(--gap); align-items: start; }
+.pi-plan-grid .panel { margin: 0; }
+.pi-tree, .pi-tree ul { list-style: none; margin: 0; padding: 0; }
+.pi-tree ul { margin-left: 11px; padding-left: 14px; border-left: 1px solid var(--line); }
+.pi-tree li { padding: 3px 0; }
+@media (max-width: 1100px) { .pi-plan-grid { grid-template-columns: minmax(0, 1fr); } }

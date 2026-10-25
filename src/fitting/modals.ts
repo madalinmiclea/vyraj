@@ -8,6 +8,7 @@ import { listFittings, saveFitting, listAssets, currentShip, assetNames, univers
 import { assembledShips, fitFromShipWithAbyssal, type OwnedShip } from '../io/assetFit';
 import { hasScope, loginProblem } from '../character/sso';
 import { parseEft, exportEft, exportMultibuy, exportDna } from '../io/eft';
+import { shareUrl } from '../io/shareLink';
 import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
 import { typeIconUrl } from '../services/market';
 import { loadFits, deleteFit } from './savedFits';
@@ -76,6 +77,7 @@ export function createFitModals(env: FitEnv) {
         ${button(tx('Copiază EFT'), { iconName: 'copy', attrs: 'data-copy="eft"' })}
         ${button(tx('Copiază DNA'), { iconName: 'copy', cls: 'ghost', attrs: 'data-copy="dna"' })}
         ${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost', attrs: 'data-copy="multibuy"' })}
+        ${button(tx('Copiază link'), { iconName: 'link', cls: 'ghost', attrs: 'data-copy="link"' })}
       </div>
       <p class="dim small">${tx('EFT se lipește în joc din Fitting → Import from clipboard și în Pyfa.')}</p>`, { wide: true });
     modal.addEventListener('click', (e) => {
@@ -83,6 +85,7 @@ export function createFitModals(env: FitEnv) {
       if (kind === 'eft') copyText(eft, tx('EFT copiat'));
       if (kind === 'dna') copyText(dna, tx('DNA copiat'));
       if (kind === 'multibuy' && fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Multibuy copiat'));
+      if (kind === 'link') shareUrl(fit).then((url) => copyText(url, tx('Link copiat. Cine îl deschide primește fit-ul într-un tab nou.'))).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
     });
   }
 
