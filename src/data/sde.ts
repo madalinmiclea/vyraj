@@ -1,6 +1,6 @@
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
-import { fetchData } from './manifest';
+import { dataMissing, fetchData } from './manifest';
 
 export interface RawModifier {
   f: string;
@@ -294,7 +294,7 @@ let loading: Promise<Sde> | null = null;
 export function loadSde(): Promise<Sde> {
   loading ??= fetchData('sde')
     .then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url: res.url }));
+      if (!res.ok) throw dataMissing(res.url);
       return res.json() as Promise<RawSde>;
     })
     .then((raw) => new Sde(raw))

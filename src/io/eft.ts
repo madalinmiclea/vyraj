@@ -1,5 +1,5 @@
-import { Category, type Sde } from '../data/sde';
-import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
+import { Category, MODE_GROUP, type Sde } from '../data/sde';
+import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
 import { abyssalTypeId, mutate, mutationRows } from '../engine/mutation';
 import { tx } from '../i18n';
 
@@ -86,7 +86,9 @@ export function parseEft(sde: Sde, text: string): EftResult {
       const t = sde.findType(qty[1]);
       const count = Number(qty[2]);
       if (!t) { unknown.push(raw); continue; }
-      if (t.categoryId === Category.Drone || t.categoryId === Category.Fighter) {
+      if (t.categoryId === Category.Fighter) {
+        fit.drones.push({ typeId: t.id, count: squadsFromFighters(sde, t.id, count), active: 0 });
+      } else if (t.categoryId === Category.Drone) {
         fit.drones.push({ typeId: t.id, count, active: 0 });
       } else {
         fit.cargo.push({ typeId: t.id, count });
@@ -99,6 +101,10 @@ export function parseEft(sde: Sde, text: string): EftResult {
     if (t && sde.isAbyssal(t.id)) t = (block?.base && sde.findType(block.base)) || sde.types.get(sde.abyssalBases(t.id)[0]) || t;
     if (!t) { unknown.push(raw); continue; }
     if (t.categoryId === Category.Implant) { fit.implants.push(t.id); continue; }
+    if (t.groupId === MODE_GROUP) {
+      if (sde.modesFor(ship.id).some((m) => m.id === t!.id)) fit.mode = t.id; else unknown.push(raw);
+      continue;
+    }
     const kind = slotOf(sde, t.id);
     if (!kind) { fit.cargo.push({ typeId: t.id, count: 1 }); continue; }
     const charge = chargeName ? sde.findType(chargeName) : undefined;
@@ -133,8 +139,12 @@ export function exportEft(sde: Sde, fit: Fit): string {
     }
     out.push('');
   }
+  if (fit.mode && sde.types.has(fit.mode)) out.push(name(fit.mode), '');
   if (fit.drones.length) {
-    for (const d of fit.drones) out.push(`${name(d.typeId)} x${d.count}`);
+    for (const d of fit.drones) {
+      if (isFighterType(sde, d.typeId)) for (let i = 0; i < d.count; i++) out.push(`${name(d.typeId)} x${squadSize(sde, d.typeId)}`);
+      else out.push(`${name(d.typeId)} x${d.count}`);
+    }
     out.push('');
   }
   if (fit.implants.length) {
@@ -158,13 +168,14 @@ export function exportMultibuy(sde: Sde, contents: Map<number, number>): string 
   return [...contents].map(([id, n]) => `${sde.types.get(id)?.name ?? id} ${n}`).join('\n');
 }
 
-export function exportDna(fit: Fit): string {
+export function exportDna(sde: Sde, fit: Fit): string {
   const counts = new Map<number, number>();
   const add = (id: number, n = 1) => counts.set(id, (counts.get(id) ?? 0) + n);
-  for (const k of SLOT_KINDS) for (const m of fit.slots[k]) if (m) add(m.typeId);
+  const order: SlotKind[] = ['subsystem', 'high', 'mid', 'low', 'rig'];
+  for (const k of order) for (const m of fit.slots[k]) if (m) add(m.typeId);
   const charges = new Map<number, number>();
   for (const k of SLOT_KINDS) for (const m of fit.slots[k]) if (m?.chargeId) charges.set(m.chargeId, (charges.get(m.chargeId) ?? 0) + 1);
-  for (const d of fit.drones) add(d.typeId, d.count);
+  for (const d of fit.drones) add(d.typeId, isFighterType(sde, d.typeId) ? d.count * squadSize(sde, d.typeId) : d.count);
   const parts = [String(fit.shipId), ...[...counts].map(([id, n]) => `${id};${n}`), ...[...charges].map(([id, n]) => `${id};${n}`)];
   return parts.join(':') + '::';
 }

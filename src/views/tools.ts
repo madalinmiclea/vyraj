@@ -8,7 +8,7 @@ import { loadAlerts, saveAlerts, addAlert, checkAlerts, hit, ALERTS_EVENT } from
 import { TIERS, WEATHERS, loadRuns, saveRuns, filamentTypeId, profitOf, summarize, iskPerHour, type AbyssalRun } from '../services/abyssal';
 import { renderWallet } from './wallet';
 import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
-import { hasTokens, hasScope } from '../character/sso';
+import { hasScope, loginProblem } from '../character/sso';
 import { allEveItems } from '../data/items';
 import { tx, locale } from '../i18n';
 
@@ -50,9 +50,12 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     <button class="chip-btn ${basis === 'buy' ? 'active' : ''}" data-basis="buy">Jita buy</button>
   </div>`;
 
+  const ASSET_SAFETY = 2004;
+
   function esiCharacter(scope?: string): { id: number } | string {
     const c = ctx.character;
-    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) return tx('Selectează un caracter importat din EVE (ecranul Caracter).');
+    const problem = loginProblem(c);
+    if (problem || !c.characterId) return problem ?? '';
     if (scope && !hasScope(c.characterId, scope)) return 'scope';
     return { id: c.characterId };
   }
@@ -168,8 +171,9 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   async function saveRun() {
     const v = (id: string) => body.querySelector<HTMLInputElement>('#' + id)!.value;
     const tier = Number(v('abTier')), weather = v('abWeather'), ship = v('abShip').trim();
-    const minutes = Math.max(1, Number(v('abMinutes')) || 20), shipLoss = Math.max(0, Number(v('abLoss')) || 0);
-    const { lines } = parseItems(v('abLoot'));
+    const minutes = Number(v('abMinutes')), shipLoss = Math.max(0, Number(v('abLoss')) || 0);
+    if (!(minutes >= 1)) { toast(tx('Pune durata run-ului în minute (minim 1).')); return; }
+    const { lines, unknown } = parseItems(v('abLoot'));
     const fil = filamentTypeId(tier, weather);
     toast(tx('Calculez valorile…'));
     try {
@@ -178,7 +182,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       const filamentCost = fil ? priceOf(prices.get(fil), 'sell') : 0;
       saveRuns([...loadRuns(), { id: `${Date.now()}`, date: Date.now(), tier, weather, ship, minutes, filamentCost, lootValue, shipLoss }]);
       saveJson(LAST_RUN_KEY, { tier, weather, ship, minutes });
-      toast(tx('Run salvat · profit {isk} ISK', { isk: compactISK(lootValue - filamentCost - shipLoss) }));
+      const saved = tx('Run salvat · profit {isk} ISK', { isk: compactISK(lootValue - filamentCost - shipLoss) });
+      toast(unknown.length ? `${saved} · ${tx('{n} linii de loot nerecunoscute: {list}', { n: unknown.length, list: unknown.slice(0, 5).join(', ') + (unknown.length > 5 ? '…' : '') })}` : saved);
       abyssal();
     } catch (err) {
       toast((err as Error).message);
@@ -216,10 +221,10 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         t.qty += v.a.quantity; t.value += v.value;
         types.set(v.a.type_id, t);
       }
-      const names = await universeNames([...locs.keys()]).catch(() => new Map<number, string>());
+      const names = await universeNames([...locs.keys()], c.id).catch(() => new Map<number, string>());
       if (tab !== 'assets') return;
       const total = valued.reduce((a, v) => a + v.value, 0);
-      const locName = (id: number) => names.get(id) ?? (id > 1e12 ? tx('Structură {id}', { id }) : tx('Locație {id}', { id }));
+      const locName = (id: number) => names.get(id) ?? (id === ASSET_SAFETY ? 'Asset Safety' : id > 1e12 ? tx('Structură {id}', { id }) : tx('Locație {id}', { id }));
       body.innerHTML = `${panel({
           title: tx('Valoare assets'),
           actions: basisChips(),

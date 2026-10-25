@@ -264,7 +264,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       renderLocal();
       let last = Date.now();
       for (const p of todo) {
-        try { p.stats = await pilotStats(p.id); } catch { p.stats = null; }
+        try { p.stats = await pilotStats(p.id); } catch { p.stats = null; p.failed = true; }
         if (run !== localRun) return;
         pending--;
         if (Date.now() - last > 1500 || !pending) { renderLocal(); last = Date.now(); }
@@ -275,7 +275,8 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   }
 
   function renderLocal() {
-    const list = [...pilots].sort((a, b) => threat(b.stats) - threat(a.stats) || (b.stats?.recent ?? 0) - (a.stats?.recent ?? 0) || (b.stats?.kills ?? 0) - (a.stats?.kills ?? 0));
+    const rank = (p: Pilot) => (p.failed ? 1.5 : threat(p.stats));
+    const list = [...pilots].sort((a, b) => rank(b) - rank(a) || (b.stats?.recent ?? 0) - (a.stats?.recent ?? 0) || (b.stats?.kills ?? 0) - (a.stats?.kills ?? 0));
     const groups = new Map<string, { id?: number; corp: boolean; n: number; danger: number }>();
     for (const p of list) {
       const key = p.allianceId ? `a${p.allianceId}` : `c${p.corpId}`;
@@ -287,6 +288,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const mains = list.map((p) => ({ p, ship: p.stats?.topShips[0]?.id, est: p.stats?.topShips[0] ? estimateDps(ctx.sde, p.stats.topShips[0].id) : null }));
     const dps = mains.reduce((n, m) => n + (threat(m.p.stats) >= 1 ? m.est?.dps ?? 0 : 0), 0);
     const dangerous = list.filter((p) => threat(p.stats) >= 2).length;
+    const failed = list.filter((p) => p.failed).length;
     const logo = (g: { id?: number; corp: boolean }) => (g.id ? `<img class="row-icon" src="https://images.evetech.net/${g.corp ? 'corporations' : 'alliances'}/${g.id}/logo?size=32" alt="" />` : '');
     localResult.innerHTML = `<div class="history-kpis intel-kpis">
         <div><span class="label">${tx('Piloți')}</span><span class="value">${formatInt(list.length)}</span></div>
@@ -295,6 +297,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div title="${esc(tx('Suma DPS-ului estimat pentru nava cea mai folosită de fiecare pilot cu kill-uri. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
         ${pending ? `<div><span class="label">zKillboard</span><span class="value dim">${tx('încă {n}', { n: pending })}</span></div>` : ''}
       </div>
+      ${failed ? alertBox(tx('zKillboard nu a răspuns pentru {n} piloți (site căzut sau prea multe cereri). Nu știm nimic despre ei, nu-i considera inofensivi. Apasă din nou Analizează peste un minut.', { n: failed }), 'danger') : ''}
       ${unknown.length ? alertBox(tx('Nume negăsite: {list}', { list: unknown.slice(0, 10).join(', ') + (unknown.length > 10 ? '…' : '') }), 'warn') : ''}
       ${list.length > MAX_PILOTS ? alertBox(tx('Istoricul zKillboard se încarcă doar pentru primii {n} piloți.', { n: MAX_PILOTS }), 'warn') : ''}
       <div class="recon-grid">
@@ -311,10 +314,11 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
                 <td><span class="recon-ship"><img class="row-icon round" src="${portraitUrl(p.id, 32)}" alt="" />${zkbLink('character', p.id, esc(p.name))}</span></td>
                 <td class="dim recon-aff">${esc(cachedName(p.corpId))}${p.allianceId ? `<small>${esc(cachedName(p.allianceId))}</small>` : ''}</td>
                 ${s === undefined ? `<td colspan="5" class="dim small">${tx('se încarcă...')}</td>`
+                  : p.failed ? `<td colspan="5" class="small warn-text">${tx('zKillboard indisponibil')}</td>`
                   : `<td class="r num">${formatInt(s?.kills ?? 0)}</td><td class="r num dim">${formatInt(s?.losses ?? 0)}</td><td class="r num">${formatInt(s?.solo ?? 0)}</td><td class="r num">${s?.kills ? s.danger + '%' : '—'}</td><td class="r num ${(s?.recent ?? 0) > 0 ? 'neg-text' : 'dim'}">${formatInt(s?.recent ?? 0)}</td>`}
                 <td>${shipCell(ship)}</td>
                 <td class="r num" ${est ? `title="${esc(dpsTip(est))}"` : ''}>${est ? formatInt(est.dps) : '—'}</td>
-                <td>${s === undefined ? '' : badge(THREAT_LABEL()[lvl], RISK_TONE[lvl], true)}</td>
+                <td>${s === undefined ? '' : p.failed ? badge(tx('Neverificat'), 'warn', true) : badge(THREAT_LABEL()[lvl], RISK_TONE[lvl], true)}</td>
               </tr>`;
             }).join('')}
             </tbody></table></div>`,
@@ -346,7 +350,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     for (const s of ships) byGroup.set(s.group, (byGroup.get(s.group) ?? 0) + s.n);
     const otherGroups = new Map<string, number>();
     for (const o of other) otherGroups.set(o.group || o.typeName, (otherGroups.get(o.group || o.typeName) ?? 0) + o.n);
-    const bubbles = other.filter((o) => /Warp Disrupt|Interdiction/i.test(o.group)).reduce((n, o) => n + o.n, 0);
+    const bubbles = other.filter((o) => /Warp Disrupt|Interdiction/i.test(o.group) || /Warp Disrupt(or|ion)|Interdiction Sphere/i.test(o.typeName)).reduce((n, o) => n + o.n, 0);
     const caps = ships.filter((s) => /Carrier|Dreadnought|Titan|Supercarrier|Force Auxiliary/i.test(s.group));
     localResult.innerHTML = `<div class="history-kpis intel-kpis">
         <div><span class="label">${tx('Nave')}</span><span class="value">${formatInt(shipCount)}</span></div>
@@ -355,7 +359,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div title="${esc(tx('Suma DPS-ului estimat pentru navele văzute. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
         <div><span class="label">${tx('Alte obiecte')}</span><span class="value">${formatInt(other.reduce((n, x) => n + x.n, 0))}</span></div>
       </div>
-      ${bubbles ? alertBox(tx('{n} bule de warp pe scan', { n: bubbles }), 'danger') : ''}
+      ${bubbles ? alertBox(bubbles === 1 ? tx('O bulă de warp pe scan') : tx('{n} bule de warp pe scan', { n: bubbles }), 'danger') : ''}
       ${caps.length ? alertBox(tx('Capitale pe scan: {list}', { list: caps.map((c) => `${c.n}× ${c.typeName}`).join(', ') }), 'danger') : ''}
       <div class="recon-grid">
         ${panel({

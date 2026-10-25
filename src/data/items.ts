@@ -1,5 +1,4 @@
-import { fetchData } from './manifest';
-import { tx } from '../i18n';
+import { dataMissing, fetchData } from './manifest';
 
 export interface EveItem {
   n: string;
@@ -18,7 +17,7 @@ let loading: Promise<EveItem[]> | null = null;
 export function loadItems(): Promise<EveItem[]> {
   loading ??= fetchData('items')
     .then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url: res.url }));
+      if (!res.ok) throw dataMissing(res.url);
       return res.json() as Promise<{ items: EveItem[]; groups: MarketGroups }>;
     })
     .then((raw) => {

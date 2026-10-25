@@ -46,6 +46,12 @@ export function withImplants(sde: Sde, base: Attributes, implants: number[]): At
   return out;
 }
 
+export function trainingAttributes(sde: Sde, c: { attributes: Attributes; implants: number[]; clone?: string }): Attributes {
+  const a = withImplants(sde, c.attributes, c.implants);
+  if (c.clone !== 'alpha') return a;
+  return { charisma: a.charisma / 2, intelligence: a.intelligence / 2, memory: a.memory / 2, perception: a.perception / 2, willpower: a.willpower / 2 };
+}
+
 export function spPerMinute(sde: Sde, skillId: number, attrs: Attributes): number {
   const primary = ATTRIBUTE_BY_ID[sde.baseAttr(skillId, sde.attrId('primaryAttribute'))] ?? 'intelligence';
   const secondary = ATTRIBUTE_BY_ID[sde.baseAttr(skillId, sde.attrId('secondaryAttribute'))] ?? 'memory';

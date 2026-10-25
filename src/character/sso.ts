@@ -89,6 +89,8 @@ export function decodeJwt(token: string): { characterId: number; characterName: 
 
 export class SessionExpiredError extends Error {}
 
+export const SESSION_EXPIRED_EVENT = 'vyraj-session-expired';
+
 async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
@@ -155,6 +157,12 @@ export function hasTokens(characterId: number): boolean {
   return Boolean(allTokens()[characterId]);
 }
 
+export function loginProblem(c: { kind: string; characterId?: number; name: string }): string | null {
+  if (c.kind !== 'esi' || !c.characterId) return tx('Selectează un caracter importat din EVE (ecranul Caracter).');
+  if (!hasTokens(c.characterId)) return tx('{name} nu mai e logat în EVE (sesiunea a expirat sau a fost revocată). Fă din nou login din ecranul Caracter.', { name: c.name });
+  return null;
+}
+
 const refreshing = new Map<number, Promise<string>>();
 
 async function refresh(characterId: number): Promise<string> {
@@ -166,7 +174,10 @@ async function refresh(characterId: number): Promise<string> {
     storeTokens(fresh);
     return fresh.accessToken;
   } catch (e) {
-    if (e instanceof SessionExpiredError) forgetTokens(characterId);
+    if (e instanceof SessionExpiredError) {
+      forgetTokens(characterId);
+      window.dispatchEvent(new CustomEvent<number>(SESSION_EXPIRED_EVENT, { detail: characterId }));
+    }
     throw e;
   }
 }

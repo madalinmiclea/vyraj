@@ -3,6 +3,10 @@ import { importCharacter, portraitUrl } from '../character/esi';
 import { BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
 import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
 import { formatDuration } from '../character/training';
+import { forgetPlan } from '../character/skillPlan';
+import { forgetRoster } from '../character/roster';
+import { forgetSkins } from '../services/skins';
+import { forgetWallet } from '../services/wallet';
 import { loadJson, saveJson } from '../storage';
 import { icon } from '../ui/icons';
 import { showItemInfo } from '../ui/itemInfo';
@@ -144,9 +148,17 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       return;
     }
     const remove = at('[data-remove]');
-    if (remove && confirm(tx('Ștergi caracterul din aplicație?'))) {
+    if (remove && confirm(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric wallet, skill plan, SKIN-uri)?'))) {
       const c = stored.find((x) => x.id === remove.dataset.remove);
-      if (c?.characterId) forgetTokens(c.characterId);
+      if (c) {
+        forgetPlan(c.id);
+        forgetSkins(c.id);
+        forgetRoster(c.id);
+        if (c.characterId && !stored.some((x) => x.id !== c.id && x.characterId === c.characterId)) {
+          forgetTokens(c.characterId);
+          forgetWallet(c.characterId);
+        }
+      }
       removeStoredCharacter(remove.dataset.remove!);
       if (ctx.character.id === remove.dataset.remove) ctx.setCharacter('all5');
       else ctx.reloadCharacters();

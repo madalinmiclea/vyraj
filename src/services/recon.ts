@@ -54,6 +54,7 @@ export interface Pilot {
   corpId?: number;
   allianceId?: number;
   stats?: PilotStats | null;
+  failed?: boolean;
 }
 
 export interface DscanRow { typeId: number; name: string; typeName: string; distance: string; km: number | null }
@@ -75,7 +76,11 @@ const ZKB_SPACING = 700;
 
 function zkbJson<T>(path: string): Promise<T> {
   const run = zkbChain.then(async () => {
-    const res = await fetch(`${ZKB}${path}`, { headers: { Accept: 'application/json' } });
+    let res = await fetch(`${ZKB}${path}`, { headers: { Accept: 'application/json' } });
+    if (res.status === 429 || res.status >= 500) {
+      await sleep(Number(res.headers.get('retry-after')) * 1000 || 3000);
+      res = await fetch(`${ZKB}${path}`, { headers: { Accept: 'application/json' } });
+    }
     if (!res.ok) throw new Error(`zKillboard: ${res.status}`);
     return (await res.json()) as T;
   });
@@ -295,9 +300,9 @@ export function parsePaste(text: string): { kind: 'dscan'; rows: DscanRow[] } | 
 function toKm(d: string): number | null {
   const m = d.replace(/[\s ]/g, '').match(/^([\d.,]+)(m|km|AU)$/i);
   if (!m) return null;
-  const v = Number(m[1].replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.'));
-  if (!Number.isFinite(v)) return null;
   const unit = m[2].toLowerCase();
+  const v = unit === 'au' ? Number(m[1].replace(',', '.')) : Number(m[1].replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.'));
+  if (!Number.isFinite(v)) return null;
   return unit === 'm' ? v / 1000 : unit === 'km' ? v : v * 149_597_870.7;
 }
 

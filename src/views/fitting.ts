@@ -1,18 +1,18 @@
 import type { AppContext } from '../app/context';
 import { Category, type TypeInfo } from '../data/sde';
 import {
-  addToFit, ensureDroneLimits, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
+  addToFit, droneLimit, ensureDroneLimits, mergeImplants, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
   type Fit, type FitModule, type SlotKind,
 } from '../engine/fit';
 import { isBoosterSideEffect, type Dogma, type DogmaItem, type ModuleState } from '../engine/dogma';
-import { applyChecked } from '../engine/rules';
+import { applyChecked, violations } from '../engine/rules';
 import { computeStats, type FitStats } from '../engine/stats';
 import { findProfile } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { allCharacters } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
 import { fetchPrices, typeIconUrl, typeRenderUrl } from '../services/market';
-import { saveFit } from '../fitting/savedFits';
+import { loadFits, saveFit } from '../fitting/savedFits';
 import { loadJson, saveJson } from '../storage';
 import { icon } from '../ui/icons';
 import { alertBox, badge, button, compactISK, copyText, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
@@ -43,9 +43,10 @@ export interface FittingView {
 
 export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
   const sde = ctx.sde;
+  const limitDrones = (f: Fit) => ensureDroneLimits(sde, f, droneLimit(sde, f, ctx.character.skills, ctx.character.implants));
   let fit: Fit | null = loadJson<Fit | null>(CURRENT_KEY, null);
   if (fit && !sde.types.has(fit.shipId)) fit = null;
-  if (fit) ensureDroneLimits(sde, fit);
+  if (fit) limitDrones(fit);
   let profileId = loadJson<string>(PROFILE_KEY, 'Generic/Uniform');
   let targetState = loadJson<TargetState>(TARGET_KEY, { id: 'cruiser', signature: 125, velocity: 200, distanceKm: 30 });
   let priceRequest = 0;
@@ -78,6 +79,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         <label class="select-field"><span>${tx('Caracter')}</span><select class="input plain" id="fitCharacter"></select></label>
         <div class="toolbar-actions">
           ${button(tx('Salvează'), { iconName: 'save', cls: 'sm', attrs: 'data-action="save"' })}
+          ${button(tx('Salvează ca nou'), { iconName: 'plus', cls: 'ghost sm', attrs: `data-action="save-as" title="${tx('Păstrează fit-ul salvat și creează o copie nouă')}"` })}
           ${button(tx('Fit-uri'), { iconName: 'fitting', cls: 'ghost sm', attrs: 'data-action="saved"' })}
           ${button(tx('Importă'), { iconName: 'upload', cls: 'ghost sm', attrs: 'data-action="import"' })}
           ${button(tx('Exportă'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-action="export"' })}
@@ -100,7 +102,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     sde,
     ctx,
     getFit: () => fit,
-    setFit: (next) => { fit = next ? ensureDroneLimits(sde, next) : next; render(); },
+    setFit: (next) => { fit = next ? limitDrones(next) : next; render(); },
     change: (fn) => change(fn),
     profileId: () => profileId,
     targetState: () => targetState,
@@ -268,7 +270,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function extrasPanel(f: Fit) {
-    const own = ctx.character.implants.filter((id) => sde.types.has(id) && !f.implants.includes(id));
+    const active = new Set(mergeImplants(sde, ctx.character.implants, f.implants));
+    const own = ctx.character.implants.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id));
     if (!f.implants.length && !f.cargo.length && !own.length) return '';
     const slotOfImplant = (id: number) => sde.baseAttr(id, sde.attrId('implantness'));
     const list = (items: { id: number; label: string; sub?: string; set?: string; sides?: string; attr?: string; tag?: string }[]) => items.map((x) => `<div class="slot fitted">
@@ -368,8 +371,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const bay = applyChecked(sde, fit, ctx.character.skills, (draft) => {
         const r = addToFit(sde, draft, t.id);
         const dr = draft.drones.find((x) => x.typeId === t.id);
-        if (r.ok && dr) dr.active--;
-        return r.ok ? { ok: true, message: tx('{name} adăugată în drone bay (nelansată: {why})', { name: t.name, why: result.message.toLowerCase() }) } : r;
+        if (r.ok && dr && dr.active > 0) dr.active--;
+        const why = result.message.charAt(0).toLowerCase() + result.message.slice(1);
+        if (!r.ok) return r;
+        return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în fighter bay (nelansat: {why})', { name: t.name, why }) : tx('{name} adăugată în drone bay (nelansată: {why})', { name: t.name, why }) };
       }, ctx.character.implants);
       if (bay.ok) result = bay;
     }
@@ -421,9 +426,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const remove = at('[data-remove]');
     if (remove) {
       const [k, i] = parseSlot(remove.dataset.remove!);
-      fit.slots[k][i] = null;
-      if (k === 'subsystem') fit.slots[k] = fit.slots[k].filter(Boolean);
-      render();
+      change((draft) => {
+        draft.slots[k][i] = null;
+        if (k === 'subsystem') draft.slots[k] = draft.slots[k].filter(Boolean);
+      });
       return;
     }
     const drone = at('[data-drone]');
@@ -450,9 +456,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       return;
     }
     const implant = at('[data-implant]');
-    if (implant) { fit.implants.splice(Number(implant.dataset.implant), 1); render(); return; }
+    if (implant) { change((draft) => { draft.implants.splice(Number(implant.dataset.implant), 1); }); return; }
     const cargo = at('[data-cargo]');
-    if (cargo) { fit.cargo.splice(Number(cargo.dataset.cargo), 1); render(); }
+    if (cargo) change((draft) => { draft.cargo.splice(Number(cargo.dataset.cargo), 1); });
   });
 
   el.addEventListener('contextmenu', (e) => {
@@ -492,8 +498,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const m = fit.slots[k][i];
       if (!m) return;
       const chargeId = Number(target.value) || undefined;
-      for (const other of fit.slots[k]) if (other && other.typeId === m.typeId) other.chargeId = chargeId;
-      render();
+      change((draft) => { for (const other of draft.slots[k]) if (other && other.typeId === m.typeId) other.chargeId = chargeId; });
     }
   });
 
@@ -512,6 +517,19 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         if (!fit) return toast(tx('Nu ai niciun fit de salvat'));
         saveFit(fit);
         toast(tx('Fit salvat'));
+        break;
+      case 'save-as':
+        if (!fit) return toast(tx('Nu ai niciun fit de salvat'));
+        fit.id = newFitId();
+        {
+          const names = new Set(loadFits().map((f) => f.name));
+          const base = fit.name.replace(/ \(\d+\)$/, '');
+          let n = 2;
+          if (names.has(fit.name)) { while (names.has(`${base} (${n})`)) n++; fit.name = `${base} (${n})`; }
+        }
+        saveFit(fit);
+        render();
+        toast(tx('Salvat ca fit nou: {name}', { name: fit.name }));
         break;
       case 'saved':
         return openSavedFits();
@@ -545,12 +563,22 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   renderCharacters();
-  ctx.onCharacterChange(() => { renderCharacters(); render(); });
+  let shownCharacter = ctx.character.id;
+  ctx.onCharacterChange(() => {
+    renderCharacters();
+    if (fit && shownCharacter !== ctx.character.id) {
+      limitDrones(fit);
+      const problems = [...violations(sde, fit, ctx.character.skills, ctx.character.implants).values()];
+      if (problems.length) toast(proving(tx('Fit-ul nu încape cu skill-urile lui {name}: {why}', { name: ctx.character.name, why: problems[0] })));
+    }
+    shownCharacter = ctx.character.id;
+    render();
+  });
   render();
 
   return {
     selectItem,
-    load(f: Fit) { fit = ensureDroneLimits(sde, cloneFit(f)); render(); },
+    load(f: Fit) { fit = limitDrones(cloneFit(f)); render(); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
   };
 }

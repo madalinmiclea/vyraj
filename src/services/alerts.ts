@@ -32,11 +32,12 @@ export function addAlert(a: Omit<PriceAlert, 'id'>) {
 
 export const hit = (a: PriceAlert, value: number) => value > 0 && (a.op === 'below' ? value <= a.price : value >= a.price);
 
-export async function checkAlerts() {
-  const list = loadAlerts();
-  if (!list.length) return;
-  const prices = await fetchPrices(list.map((a) => a.typeId));
+async function runCheck() {
+  const ids = loadAlerts().map((a) => a.typeId);
+  if (!ids.length) return;
+  const prices = await fetchPrices(ids);
   const now = Date.now();
+  const list = loadAlerts();
   const fired: PriceAlert[] = [];
   for (const a of list) {
     const p = prices.get(a.typeId);
@@ -50,8 +51,13 @@ export async function checkAlerts() {
   for (const a of fired) {
     const text = `${a.name}: ${a.side} ${compactISK(a.current ?? 0)} ISK (${a.op === 'below' ? '≤' : '≥'} ${compactISK(a.price)})`;
     toast(text);
-    if ('Notification' in window && Notification.permission === 'granted') new Notification(tx('Alertă preț Jita'), { body: text });
+    if ('Notification' in window && Notification.permission === 'granted') new Notification(tx('Alertă preț Jita'), { body: text, tag: `vyraj-alert-${a.id}` });
   }
+}
+
+export async function checkAlerts() {
+  if (navigator.locks) return navigator.locks.request('vyraj-price-alerts', () => runCheck());
+  return runCheck();
 }
 
 export function startAlertWatcher() {

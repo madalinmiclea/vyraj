@@ -133,7 +133,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     const result = pane.querySelector<HTMLElement>('#jumpResult')!;
     const tips = new Map<string, string>();
     bindBreakdownTips(pane, (k) => tips.get(k));
-    let plan: { plan: JumpPlan | null; from: NavSystem; to: NavSystem; ship: JumpShip; reach: number; fuelPrice: number | null } | null = null;
+    let plan: { plan: JumpPlan | null; from: NavSystem; to: NavSystem; ship: JumpShip; reach: number; fuelPrice: number | null; ignored: string[] } | null = null;
 
     const selectedFit = (): Fit | null => {
       const v = String(new FormData(form).get('ship') ?? saved.ship);
@@ -187,15 +187,22 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
       result.innerHTML = loader(tx('Calculez ruta de jump'));
       try {
         const m = map ?? (await mapReady);
-        const from = m.find(q.from);
-        const to = m.find(q.to);
-        if (!from) throw new Error(tx('Nu găsesc sistemul „{name}”.', { name: q.from }));
-        if (!to) throw new Error(tx('Nu găsesc sistemul „{name}”.', { name: q.to }));
-        const avoid = new Set(q.avoid.split(/[,;\n]/).map((s) => m.find(s)?.id).filter((x): x is number => x != null && x !== to.id));
+        const pick = (name: string) => {
+          const found = m.find(name);
+          if (found) return found;
+          const hits = m.suggest(name, 6);
+          if (hits.length > 1) throw new Error(tx('„{name}” se potrivește cu mai multe sisteme: {list}. Scrie numele complet.', { name, list: hits.slice(0, 5).map((x) => x.name).join(', ') + (hits.length > 5 ? '…' : '') }));
+          throw new Error(tx('Nu găsesc sistemul „{name}”.', { name }));
+        };
+        const from = pick(q.from);
+        const to = pick(q.to);
+        const names = q.avoid.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+        const ignored = names.filter((n) => !m.find(n));
+        const avoid = new Set(names.map((n) => m.find(n)?.id).filter((x): x is number => x != null && x !== to.id));
         const { ship } = shipStats();
         const p = planJumps(m, ship, from, to, q.mode, avoid, q.fatigue);
         const reach = inRange(m, from, ship.range).length;
-        plan = { plan: p, from, to, ship, reach, fuelPrice: null };
+        plan = { plan: p, from, to, ship, reach, fuelPrice: null, ignored };
         renderPlan();
         if (p) {
           const prices = await fetchPrices([ship.fuelType]).catch(() => null);
@@ -209,22 +216,23 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
 
     function renderPlan() {
       if (!plan) return;
-      const { plan: p, from, to, ship, reach, fuelPrice } = plan;
+      const { plan: p, from, to, ship, reach, fuelPrice, ignored } = plan;
       const m = map!;
+      const skipped = ignored.length ? alertBox(tx('Nu am evitat: {list} (nume necunoscute sau ambigue).', { list: ignored.join(', ') }), 'warn') : '';
       if (!p) {
         const why = !cynoAllowed(to)
           ? isHighsec(to)
             ? tx('{name} e highsec: acolo nu se poate aprinde cyno, deci nu poți sări direct. Alege un sistem lowsec din apropiere și continuă pe porți.', { name: to.name })
             : tx('În {name} nu se poate sări cu jump drive (Pochven, Zarzakh sau spațiu Jove).', { name: to.name })
           : tx('Nu există rută cu raza de {ly} LY. Antrenează Jump Drive Calibration sau alege alt punct de plecare.', { ly: formatNum(ship.range, 2) });
-        result.innerHTML = panel({ title: `${from.name} → ${to.name}`, body: alertBox(why, 'warn') + `<p class="dim small">${tx('Din {name} ai {n} sisteme cyno în rază.', { name: esc(from.name), n: formatInt(reach) })}</p>` });
+        result.innerHTML = panel({ title: `${from.name} → ${to.name}`, body: skipped + alertBox(why, 'warn') + `<p class="dim small">${tx('Din {name} ai {n} sisteme cyno în rază.', { name: esc(from.name), n: formatInt(reach) })}</p>` });
         return;
       }
       const cost = fuelPrice ? p.fuel * fuelPrice : null;
       result.innerHTML = panel({
         title: `${from.name} → ${to.name}`,
         count: tx('{n} salturi', { n: p.legs.length }),
-        body: `<div class="history-kpis">
+        body: `${skipped}<div class="history-kpis">
             <div><span class="label">${tx('Salturi')}</span><span class="value">${p.legs.length}</span></div>
             <div><span class="label">${tx('Distanță totală')}</span><span class="value">${formatNum(p.ly, 2)} LY</span></div>
             <div><span class="label">${tx('Izotopi')}</span><span class="value accent">${formatInt(p.fuel)}</span></div>

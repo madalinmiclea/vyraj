@@ -4,7 +4,7 @@ import { computeStats, type FitStats } from '../engine/stats';
 import type { DamageProfile } from '../engine/profiles';
 import type { Character } from './characters';
 import { directRequirements, type Requirement } from './requirements';
-import { skillRank, spForLevel, trainingSeconds, withImplants } from './training';
+import { skillRank, spForLevel, trainingAttributes, trainingSeconds } from './training';
 import { tx } from '../i18n';
 
 export type AdviceKind = 'dps' | 'tank' | 'general';
@@ -102,7 +102,7 @@ function candidateSkills(sde: Sde, character: Character): number[] {
 
 export function adviseSkills(sde: Sde, fit: Fit, character: Character, profile: DamageProfile): SkillAdvice[] {
   const base = computeStats(sde, fit, buildDogma(sde, fit, character), profile);
-  const attrs = withImplants(sde, character.attributes, character.implants);
+  const attrs = trainingAttributes(sde, character);
   const out: SkillAdvice[] = [];
   for (const skillId of candidateSkills(sde, character)) {
     const from = character.skills.get(skillId) ?? 0;

@@ -122,7 +122,7 @@ export function openModal(title: string, body: string, { wide = false } = {}): H
 }
 
 export function closeModal() {
-  document.querySelector('.modal-backdrop')?.remove();
+  document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove());
 }
 
 export async function copyText(text: string, message = tx('Copiat în clipboard')) {

@@ -1,15 +1,14 @@
 import { accessToken, hasScope, hasTokens, SCOPES } from './sso';
 import { esiFetch } from '../services/esiClient';
 import { resolveNames, systemInfo, type SystemInfo } from '../services/recon';
-import { loadStoredCharacters, type StoredCharacter } from './characters';
+import { loadStoredCharacters, ROSTER_KEY, type StoredCharacter } from './characters';
+import { STRUCTURES_KEY } from './esi';
 import { spPerMinute, withImplants } from './training';
 import { loadJson, saveJson } from '../storage';
 import type { Sde } from '../data/sde';
 
 const ESI = 'https://esi.evetech.net/latest';
-const ROSTER_KEY = 'eve-fit:roster';
 const ACCOUNTS_KEY = 'eve-fit:roster-accounts';
-const STRUCTURES_KEY = 'eve-fit:structure-names';
 export const ROSTER_TTL = 5 * 60 * 1000;
 
 export type CloneState = 'omega' | 'alpha' | 'unknown';
@@ -71,6 +70,13 @@ export function setAccount(id: string, account: string, omega: string) {
   const key = accountKey(a, id);
   if (omega) a.omega[key] = omega; else delete a.omega[key];
   saveAccounts(a);
+}
+
+export function forgetRoster(id: string) {
+  const roster = loadRoster();
+  if (roster[id]) { delete roster[id]; saveRoster(roster); }
+  const a = loadAccounts();
+  if (a.chars[id]) { delete a.chars[id]; saveAccounts(a); }
 }
 
 export const rosterCharacters = (): StoredCharacter[] => loadStoredCharacters().filter((c) => c.kind === 'esi' && c.characterId != null);
@@ -173,9 +179,8 @@ export interface Places {
   names: Map<number, string>;
 }
 
-let structureNames = loadJson<Record<number, string>>(STRUCTURES_KEY, {});
-
 export async function resolvePlaces(entries: RosterEntry[]): Promise<Places> {
+  let structureNames = loadJson<Record<number, string>>(STRUCTURES_KEY, {});
   const systemIds = [...new Set(entries.map((e) => e.systemId).filter((x): x is number => x != null))];
   const stationIds = [...new Set(entries.map((e) => e.stationId).filter((x): x is number => x != null))];
   const [systems, stations] = await Promise.all([

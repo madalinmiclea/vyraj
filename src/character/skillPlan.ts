@@ -1,8 +1,8 @@
 import type { Sde } from '../data/sde';
-import { loadJson, saveJson } from '../storage';
+import { loadJson, removeKey, saveJson } from '../storage';
 import type { Character } from './characters';
 import { directRequirements } from './requirements';
-import { skillRank, spForLevel, trainingSeconds, withImplants } from './training';
+import { skillRank, spForLevel, trainingAttributes, trainingSeconds } from './training';
 
 export interface PlanEntry {
   skillId: number;
@@ -20,6 +20,10 @@ const key = (characterId: string) => `eve-fit:plan:${characterId}`;
 
 export function loadPlan(characterId: string): PlanEntry[] {
   return loadJson<PlanEntry[]>(key(characterId), []);
+}
+
+export function forgetPlan(characterId: string) {
+  removeKey(key(characterId));
 }
 
 export function savePlan(characterId: string, plan: PlanEntry[]) {
@@ -44,24 +48,34 @@ export function addItemToPlan(sde: Sde, plan: PlanEntry[], character: Character,
   return directRequirements(sde, typeId).reduce((p, r) => addToPlan(sde, p, character, r.skillId, r.level), plan);
 }
 
-export function removeFromPlan(plan: PlanEntry[], index: number): PlanEntry[] {
-  const target = plan[index];
-  if (!target) return plan;
-  return plan.filter((e, i) => i !== index && !(e.skillId === target.skillId && e.level > target.level));
+function validEntries(sde: Sde, plan: PlanEntry[], character: Character): PlanEntry[] {
+  const have = new Map(character.skills);
+  const kept: PlanEntry[] = [];
+  for (const e of plan) {
+    const ready = (have.get(e.skillId) ?? 0) >= e.level - 1 && directRequirements(sde, e.skillId).every((r) => (have.get(r.skillId) ?? 0) >= r.level);
+    if (!ready) continue;
+    kept.push(e);
+    have.set(e.skillId, Math.max(have.get(e.skillId) ?? 0, e.level));
+  }
+  return kept;
 }
 
-export function movePlan(plan: PlanEntry[], index: number, delta: number): PlanEntry[] {
+export function removeFromPlan(sde: Sde, plan: PlanEntry[], character: Character, index: number): PlanEntry[] {
+  const target = plan[index];
+  if (!target) return plan;
+  return validEntries(sde, plan.filter((e, i) => i !== index && !(e.skillId === target.skillId && e.level > target.level)), character);
+}
+
+export function movePlan(sde: Sde, plan: PlanEntry[], character: Character, index: number, delta: number): PlanEntry[] {
   const to = index + delta;
   if (to < 0 || to >= plan.length) return plan;
   const out = [...plan];
   [out[index], out[to]] = [out[to], out[index]];
-  const a = out[Math.min(index, to)], b = out[Math.max(index, to)];
-  if (a.skillId === b.skillId && a.level > b.level) return plan;
-  return out;
+  return validEntries(sde, out, character).length < validEntries(sde, plan, character).length ? plan : out;
 }
 
 export function planRows(sde: Sde, plan: PlanEntry[], character: Character, start = Date.now()): PlanRow[] {
-  const attrs = withImplants(sde, character.attributes, character.implants);
+  const attrs = trainingAttributes(sde, character);
   let t = start;
   return plan.map((e) => {
     const rank = skillRank(sde, e.skillId);

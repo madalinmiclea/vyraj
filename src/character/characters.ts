@@ -31,6 +31,7 @@ export interface StoredCharacter {
 export interface Character extends CharacterSkills {
   id: string;
   kind: 'all5' | 'all0' | 'esi' | 'custom';
+  clone?: 'alpha' | 'omega' | 'unknown';
   characterId?: number;
   sp: Map<number, number>;
   attributes: Attributes;
@@ -42,6 +43,7 @@ export interface Character extends CharacterSkills {
 }
 
 const KEY = 'eve-fit:characters';
+export const ROSTER_KEY = 'eve-fit:roster';
 const ACTIVE_KEY = 'eve-fit:active-character';
 
 export function allLevels(sde: Sde, level: number): Character {
@@ -65,7 +67,8 @@ export function fromStored(c: StoredCharacter): Character {
     skills.set(Number(id), s.level);
     sp.set(Number(id), s.sp);
   }
-  return { ...c, skills, sp };
+  const clone = c.kind === 'esi' ? loadJson<Record<string, { clone?: Character['clone'] }>>(ROSTER_KEY, {})[c.id]?.clone : undefined;
+  return { ...c, skills, sp, clone };
 }
 
 export function loadStoredCharacters(): StoredCharacter[] {

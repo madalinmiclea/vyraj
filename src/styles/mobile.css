@@ -80,10 +80,8 @@
   .ship-head > :nth-child(3) { grid-column: 1 / -1; }
   .ship-render { width: 72px; height: 72px; }
 
-  .tabs, .advice-sort { overflow-x: auto; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar, .advice-sort::-webkit-scrollbar { display: none; }
+  .tabs, .advice-sort { flex-wrap: wrap; row-gap: 6px; }
   .tab, .advice-sort > * { flex: none; }
-  .advice-sort { flex-wrap: nowrap; }
   .skin-toolbar .field { max-width: none; }
 
   .modal-backdrop { padding: 12px 8px; }

@@ -6,7 +6,7 @@ import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { formatDuration } from '../character/training';
 import { listFittings, saveFitting, listAssets, currentShip, assetNames, universeNames, dynamicItem } from '../character/esi';
 import { assembledShips, fitFromShipWithAbyssal, type OwnedShip } from '../io/assetFit';
-import { hasTokens, hasScope } from '../character/sso';
+import { hasScope, loginProblem } from '../character/sso';
 import { parseEft, exportEft, exportMultibuy, exportDna } from '../io/eft';
 import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
 import { typeIconUrl } from '../services/market';
@@ -69,7 +69,7 @@ export function createFitModals(env: FitEnv) {
     const fit = env.getFit();
     if (!fit) return toast(tx('Nu ai niciun fit'));
     const eft = exportEft(sde, fit);
-    const dna = exportDna(fit);
+    const dna = exportDna(sde, fit);
     const modal = openModal(tx('Exportă fit'), `
       <textarea class="input area" rows="14" readonly spellcheck="false">${esc(eft)}</textarea>
       <div class="row-actions">
@@ -87,8 +87,10 @@ export function createFitModals(env: FitEnv) {
   }
 
   function openCompare() {
-    const fits = loadFits();
-    if (fits.length < 1) return toast(tx('Salvează câteva fit-uri ca să le compari'));
+    const current = env.getFit();
+    const saved = loadFits();
+    const fits = current ? [{ ...cloneFit(current), name: `${current.name} · ${tx('curent')}` }, ...saved.filter((f) => f.id !== current.id)] : saved;
+    if (fits.length < 2) return toast(tx('Salvează câteva fit-uri ca să le compari'));
     const profile = findProfile(env.profileId());
     const rows = fits.map((f) => {
       const s = computeStats(sde, f, buildDogma(sde, f, ctx.character), profile);
@@ -283,8 +285,9 @@ export function createFitModals(env: FitEnv) {
 
   async function openShips() {
     const c = ctx.character;
-    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) {
-      toast(tx('Selectează un caracter importat din EVE (ecranul Caracter)'));
+    const problem = loginProblem(c);
+    if (problem || !c.characterId) {
+      toast(problem ?? '');
       return;
     }
     const characterId = c.characterId;
@@ -305,7 +308,7 @@ export function createFitModals(env: FitEnv) {
       }
       const [names, places] = await Promise.all([
         assetNames(characterId, ships.map((s) => s.itemId)).catch(() => new Map<number, string>()),
-        universeNames([...new Set(ships.map((s) => s.locationId).filter(Boolean))]).catch(() => new Map<number, string>()),
+        universeNames([...new Set(ships.map((s) => s.locationId).filter(Boolean))], characterId).catch(() => new Map<number, string>()),
       ]);
       const label = (s: OwnedShip) => names.get(s.itemId)?.trim() || s.name;
       const place = (s: OwnedShip) => (s.itemId === active?.ship_item_id ? tx('Nava activă') : places.get(s.locationId) ?? (s.locationId > 1e12 ? tx('Structură de jucător') : tx('Locație {id}', { id: s.locationId })));
@@ -337,8 +340,9 @@ export function createFitModals(env: FitEnv) {
 
   async function openEsi() {
     const c = ctx.character;
-    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) {
-      toast(tx('Selectează un caracter importat din EVE (ecranul Caracter)'));
+    const problem = loginProblem(c);
+    if (problem || !c.characterId) {
+      toast(problem ?? '');
       return;
     }
     const characterId = c.characterId;
@@ -360,14 +364,17 @@ export function createFitModals(env: FitEnv) {
           const f = list.find((x) => x.fitting_id === Number(open.dataset.esiOpen));
           if (f && sde.types.has(f.ship_type_id)) { closeModal(); env.setFit(fromEsiFitting(sde, f)); toast(tx('Fit importat din EVE')); }
         }
-        if (t.closest('[data-send]')) {
+        const send = t.closest<HTMLButtonElement>('[data-send]');
+        if (send && !send.disabled) {
           const fit = env.getFit();
           if (!fit) return toast(tx('Nu ai niciun fit'));
+          send.disabled = true;
           try {
             await saveFitting(characterId, toEsiFitting(sde, fit));
             toast(tx('Fit trimis în EVE'));
             closeModal();
           } catch (err) {
+            send.disabled = false;
             toast((err as Error).message);
           }
         }

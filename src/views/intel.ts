@@ -5,7 +5,7 @@ import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import {
   loadScan, scanJita, SCAN_STALE_MS, feesFromSkills, spreadPct, priceTrend, volumeTrend, bookPressure, stationTrade,
-  HUBS, fetchHubPrices, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
+  HUBS, fetchHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
   type Scan, type IntelRow, type Fees, type HaulRow,
 } from '../services/intel';
 import { tx } from '../i18n';
@@ -225,7 +225,10 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     body.innerHTML = panel({ body: loader(tx('Prețuri {name}', { name: hub.name })) });
     try {
       const prices = await fetchHubPrices(hub, scan.rows.map((r) => r.typeId));
-      haul = { hub: hub.id, rows: haulRoutes(scan.rows, prices, fees(), volumeOf) };
+      const profitable = [...new Set(haulRoutes(scan.rows, prices, fees(), () => 0).map((h) => h.row.typeId))];
+      body.innerHTML = panel({ body: loader(tx('Volume împachetate')) });
+      const packaged = await fetchPackagedVolumes(profitable).catch(() => new Map<number, number>());
+      haul = { hub: hub.id, rows: haulRoutes(scan.rows, prices, fees(), (id) => packaged.get(id) ?? volumeOf(id)) };
     } catch (err) {
       haulError = (err as Error).message;
     }
@@ -314,24 +317,55 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     }
   });
 
+  let refocusing = false;
+  function keepFocus(fn: () => void) {
+    if (refocusing) return;
+    const a = document.activeElement as HTMLElement | null;
+    const attr = a && el.contains(a) ? ['data-set', 'data-fee'].find((n) => a.hasAttribute(n)) : undefined;
+    const selector = attr ? `[${attr}="${a!.getAttribute(attr)}"]` : '';
+    refocusing = true;
+    try { fn(); } finally { refocusing = false; }
+    if (selector) el.querySelector<HTMLElement>(selector)?.focus();
+  }
+
+  const LIMITS: Partial<Record<keyof Settings, [number, number, boolean]>> = {
+    share: [1, 100, false],
+    cargo: [1, 1e7, false],
+    minVolume: [0, 1e12, false],
+    minMargin: [-100, 1e4, false],
+    maxPrice: [0, 1e9, true],
+  };
+
   el.addEventListener('change', (e) => {
+    if (refocusing) return;
     const t = e.target as HTMLInputElement | HTMLSelectElement;
     const fee = t.dataset.fee as keyof Fees | undefined;
     if (fee) {
       const v = Number(t.value);
-      if (!(v >= 0)) return;
+      if (t.value.trim() === '' || !Number.isFinite(v) || v < 0 || v > 100) {
+        toast(tx('Taxa trebuie să fie între 0 și 100%'));
+        keepFocus(render);
+        return;
+      }
       settings.fees = { ...fees(), [fee]: v };
       save();
-      render();
+      keepFocus(render);
       return;
     }
     const key = t.dataset.set as keyof Settings | undefined;
     if (!key) return;
-    const v = ['category', 'hub', 'direction'].includes(key) ? t.value : Number(t.value) || 0;
+    let v: string | number = t.value;
+    if (!['category', 'hub', 'direction'].includes(key)) {
+      const [min, max, emptyOk] = LIMITS[key] ?? [0, Infinity, false];
+      const n = Number(t.value);
+      if (t.value.trim() === '' && emptyOk) v = 0;
+      else if (t.value.trim() === '' || !Number.isFinite(n)) { keepFocus(render); return; }
+      else v = Math.min(max, Math.max(min, n));
+    }
     settings = { ...settings, [key]: v };
     if (key === 'hub') { haul = null; haulError = ''; }
     save();
-    render();
+    keepFocus(render);
   });
 
   render();

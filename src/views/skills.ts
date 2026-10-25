@@ -93,7 +93,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const sp = c.totalSp ?? skills.reduce((a, s) => a + (c.sp.get(s.id) ?? spForLevel(skillRank(sde, s.id), c.skills.get(s.id) ?? 0)), 0);
     const scroll = side.querySelector('.side-nav')?.scrollTop ?? 0;
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Skill-uri'), `${trained}/${skills.length}`)}
-        <p class="side-note">${formatInt(sp)} SP${editable ? ` · ${tx('caracter personalizat: poți schimba nivelurile')}` : c.kind === 'esi' ? '' : ` · ${tx('caracter teoretic')}`}</p></div>
+        <p class="side-note">${formatInt(sp)} SP${editable ? ` · ${tx('caracter personalizat: poți schimba nivelurile')}` : c.kind === 'esi' ? (c.clone === 'alpha' ? ` · ${tx('Alpha: antrenează la jumătate de viteză')}` : '') : ` · ${tx('caracter teoretic')}`}</p></div>
       <div class="side-nav skill-tree">${groupNames.map((g) => {
         const list = groups.get(g)!;
         const any = list.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
@@ -177,9 +177,23 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       return;
     }
     const move = at('[data-plan-move]');
-    if (move) { const [i, d] = move.dataset.planMove!.split(':').map(Number); setPlan(movePlan(currentPlan(), i, d)); return; }
+    if (move) {
+      const [i, d] = move.dataset.planMove!.split(':').map(Number);
+      const before = currentPlan();
+      const next = movePlan(sde, before, ctx.character, i, d);
+      if (next === before) toast(tx('Nu poți muta skill-ul înaintea precondițiilor lui'));
+      else setPlan(next);
+      return;
+    }
     const remove = at('[data-plan-remove]');
-    if (remove) { setPlan(removeFromPlan(currentPlan(), Number(remove.dataset.planRemove))); return; }
+    if (remove) {
+      const before = currentPlan();
+      const next = removeFromPlan(sde, before, ctx.character, Number(remove.dataset.planRemove));
+      const dropped = before.length - next.length - 1;
+      setPlan(next);
+      if (dropped > 0) toast(tx('Am scos și {n} skill-uri care depindeau de el', { n: dropped }));
+      return;
+    }
     if (at('[data-plan-copy]')) { copyText(planText(planRows(sde, currentPlan(), ctx.character)), tx('Plan copiat (lipește-l în Skill Plans din joc)')); return; }
     if (at('[data-plan-clear]')) { setPlan([]); return; }
     if (at('[data-copy-plan]') && selectedItem) {
@@ -197,8 +211,11 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (!stored) return;
     const skillId = Number(target.dataset.level);
     const level = Number(target.value);
-    if (level > 0) stored.skills[skillId] = { level, sp: spForLevel(skillRank(sde, skillId), level) };
+    const before = stored.skills[skillId]?.sp ?? 0;
+    const after = level > 0 ? spForLevel(skillRank(sde, skillId), level) : 0;
+    if (level > 0) stored.skills[skillId] = { level, sp: after };
     else delete stored.skills[skillId];
+    if (stored.totalSp != null) stored.totalSp = Math.max(0, stored.totalSp + after - before);
     upsertStoredCharacter(stored);
     ctx.reloadCharacters();
     toast(`${sde.types.get(skillId)?.name} → ${roman(level)}`);

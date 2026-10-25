@@ -1,7 +1,7 @@
 import './style.css';
 import { marketGroups, loadItems } from './data/items';
 import { icon, logo } from './ui/icons';
-import { windowTitle, searchField, formatInt, loader, alertBox, panel, esc, lore, toast } from './ui/components';
+import { windowTitle, searchField, formatInt, loader, alertBox, panel, esc, lore, toast, closeModal } from './ui/components';
 import { createItemBrowser } from './ui/sidebar';
 import { createMarketView } from './views/market';
 import { createFittingView, FITTING_CATEGORIES, type FittingView } from './views/fitting';
@@ -14,9 +14,9 @@ import { createReconView } from './views/recon';
 import { createNavigationView } from './views/navigation';
 import { createSkinsView } from './views/skins';
 import { startAlertWatcher } from './services/alerts';
-import { loadSde } from './data/sde';
+import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
-import { handleCallback, hasTokens, startLogin, getSettings, type TokenSet } from './character/sso';
+import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVENT, type TokenSet } from './character/sso';
 import { loadStoredCharacters } from './character/characters';
 import { portraitUrl } from './character/esi';
 import { fetchListedTypes } from './services/market';
@@ -211,7 +211,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (activeView === 'market') market.focus(); else treeFilter.focus();
   }
-  if (e.key === 'Escape') { document.querySelector('.modal-backdrop')?.remove(); closeCharMenu(); }
+  if (e.key === 'Escape') { closeModal(); closeCharMenu(); }
 });
 
 const charSwitch = document.getElementById('charSwitch')!;
@@ -236,64 +236,84 @@ async function start() {
   const saved = loadJson<ViewId>(VIEW_KEY, 'market');
   switchView(login || loginError ? 'character' : VIEWS.some((v) => v.id === saved) ? saved : 'market');
 
+  let sde: Sde;
   try {
-    const [sde] = await Promise.all([loadSde(), itemsReady]);
-    const ctx = new AppContext(sde);
-    const topCharacter = document.getElementById('topCharacter')!;
-    const avatar = document.getElementById('charAvatar')!;
-    const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : '<span class="char-placeholder"></span>');
-    const renderCharMenu = () => {
-      const stored = loadStoredCharacters();
-      const active = ctx.character;
-      const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
-      charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
-          <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.keys(c.skills).length })}</small></span></button>`).join('')}
-        ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? 'All 5' : 'All 0'}</span><small>${tx('caracter teoretic')}</small></span></button>`).join('')}
-        <div class="char-menu-sep"></div>
-        <button class="char-menu-item login" data-char-login>${icon('login')}<span>${anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>`;
-    };
-    const showCharacter = () => {
-      topCharacter.textContent = ctx.character.name;
-      avatar.innerHTML = portrait(ctx.character.characterId);
-      renderCharMenu();
-    };
-    ctx.onCharacterChange(showCharacter);
-    showCharacter();
-    document.getElementById('charSwitchBtn')!.addEventListener('click', () => {
-      renderCharMenu();
-      charMenu.hidden = !charMenu.hidden;
-      charSwitch.classList.toggle('open', !charMenu.hidden);
-    });
-    charMenu.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement;
-      const sw = t.closest<HTMLElement>('[data-switch]');
-      if (sw) { closeCharMenu(); ctx.setCharacter(sw.dataset.switch!); return; }
-      if (t.closest('[data-char-login]')) {
-        closeCharMenu();
-        if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-        startLogin().catch((err) => toast((err as Error).message));
-      }
-    });
-
-    infoHandler = (typeId) => showItemInfo(ctx, typeId);
-    market.setInfo(infoHandler);
-    fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); });
-    viewEl('character').innerHTML = '<div id="charHead"></div><div class="char-layout"><div class="char-main"><div id="charTop" class="stack"></div><div id="charRoster"></div><div id="charSkills"></div></div><aside id="charAside" class="stack char-aside"></aside></div>';
-    const character = createCharacterView(document.getElementById('charTop')!, ctx, document.getElementById('charHead')!, document.getElementById('charAside')!);
-    createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
-    createRosterView(document.getElementById('charRoster')!, ctx);
-    createToolsView(viewEl('tools'), ctx, sidePane('tools'));
-    createSkinsView(viewEl('skins'), ctx, sidePane('skins'));
-    createReconView(viewEl('recon'), ctx, sidePane('recon'));
-    createNavigationView(viewEl('navigation'), ctx, sidePane('navigation'));
-    intel.setContext(ctx);
-
-    if (login) await character.imported(login.characterId, login.characterName);
-    if (loginError) character.showError(loginError);
+    [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
     for (const id of ['fitting', 'character', 'tools', 'skins', 'recon', 'navigation'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    return;
   }
+  const mount = (ids: ViewId[], fn: () => void) => {
+    try {
+      fn();
+    } catch (err) {
+      const msg = alertBox((err as Error).message);
+      for (const id of ids) viewEl(id).innerHTML = panel({ body: msg });
+    }
+  };
+  const ctx = new AppContext(sde);
+  const topCharacter = document.getElementById('topCharacter')!;
+  const avatar = document.getElementById('charAvatar')!;
+  const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : '<span class="char-placeholder"></span>');
+  const renderCharMenu = () => {
+    const stored = loadStoredCharacters();
+    const active = ctx.character;
+    const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
+    charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
+        <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.keys(c.skills).length })}</small></span></button>`).join('')}
+      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? 'All 5' : 'All 0'}</span><small>${tx('caracter teoretic')}</small></span></button>`).join('')}
+      <div class="char-menu-sep"></div>
+      <button class="char-menu-item login" data-char-login>${icon('login')}<span>${anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>`;
+  };
+  const showCharacter = () => {
+    topCharacter.textContent = ctx.character.name;
+    avatar.innerHTML = portrait(ctx.character.characterId);
+    renderCharMenu();
+  };
+  ctx.onCharacterChange(showCharacter);
+  showCharacter();
+  document.getElementById('charSwitchBtn')!.addEventListener('click', () => {
+    renderCharMenu();
+    charMenu.hidden = !charMenu.hidden;
+    charSwitch.classList.toggle('open', !charMenu.hidden);
+  });
+  charMenu.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const sw = t.closest<HTMLElement>('[data-switch]');
+    if (sw) { closeCharMenu(); ctx.setCharacter(sw.dataset.switch!); return; }
+    if (t.closest('[data-char-login]')) {
+      closeCharMenu();
+      if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+      startLogin().catch((err) => toast((err as Error).message));
+    }
+  });
+  window.addEventListener(SESSION_EXPIRED_EVENT, (e) => {
+    const id = (e as CustomEvent<number>).detail;
+    const c = loadStoredCharacters().find((x) => x.characterId === id);
+    toast(tx('Sesiunea EVE pentru {name} a expirat sau a fost revocată. Fă din nou login din meniul de caractere.', { name: c?.name ?? String(id) }));
+    ctx.reloadCharacters();
+  });
+
+  infoHandler = (typeId) => showItemInfo(ctx, typeId);
+  market.setInfo(infoHandler);
+  mount(['fitting'], () => { fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); }); });
+  let character: ReturnType<typeof createCharacterView> | null = null;
+  mount(['character'], () => {
+    viewEl('character').innerHTML = '<div id="charHead"></div><div class="char-layout"><div class="char-main"><div id="charTop" class="stack"></div><div id="charRoster"></div><div id="charSkills"></div></div><aside id="charAside" class="stack char-aside"></aside></div>';
+    character = createCharacterView(document.getElementById('charTop')!, ctx, document.getElementById('charHead')!, document.getElementById('charAside')!);
+    createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
+    createRosterView(document.getElementById('charRoster')!, ctx);
+  });
+  mount(['tools'], () => createToolsView(viewEl('tools'), ctx, sidePane('tools')));
+  mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
+  mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
+  mount(['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation')));
+  intel.setContext(ctx);
+
+  const view = character as ReturnType<typeof createCharacterView> | null;
+  if (view && login) await view.imported(login.characterId, login.characterName);
+  if (view && loginError) view.showError(loginError);
 }
 
 start();

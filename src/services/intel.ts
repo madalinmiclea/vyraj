@@ -1,6 +1,7 @@
 import { loadJson, saveJson } from '../storage';
 import { allEveItems } from '../data/items';
-import { fetchListedTypes, fetchPrices, fetchHistory, esiAggregates, type Aggregates } from './market';
+import { fetchListedTypes, fetchPrices, fetchHistory, esiAggregates, lastDays, type Aggregates } from './market';
+import { esiFetch } from './esiClient';
 import { tx } from '../i18n';
 
 export const ACCOUNTING = 16622;
@@ -98,9 +99,9 @@ export async function scanJita(depth: number, onProgress: (p: Progress) => void)
   done = 0;
   onProgress({ stage: tx('Istoric tranzacții'), done, total: candidates.length });
   await pool(candidates, 8, async ({ id, p }) => {
-    const hist = (await fetchHistory(id)).slice(-30);
+    const hist = lastDays(await fetchHistory(id), 30);
     if (!hist.length) return;
-    const last7 = hist.slice(-7);
+    const last7 = lastDays(hist, 7);
     const item = known.get(id)!;
     rows.push({
       typeId: id,
@@ -236,4 +237,21 @@ export function haulRoutes(rows: IntelRow[], hubPrices: Map<number, HubPrice>, f
     push('in', h.sellMin, r.buyMax, Math.min(h.sellBook, r.buyBook));
   }
   return out;
+}
+
+const VOLUME_KEY = 'eve-intel:packaged-volume';
+
+export async function fetchPackagedVolumes(typeIds: number[]): Promise<Map<number, number>> {
+  const cache = loadJson<Record<string, number>>(VOLUME_KEY, {});
+  const missing = [...new Set(typeIds)].filter((id) => cache[id] == null);
+  let changed = false;
+  await pool(missing, 6, async (id) => {
+    const res = await esiFetch(`https://esi.evetech.net/latest/universe/types/${id}/?datasource=tranquility`);
+    if (!res.ok) return;
+    const t = (await res.json()) as { packaged_volume?: number; volume?: number };
+    const v = t.packaged_volume ?? t.volume;
+    if (typeof v === 'number' && v > 0) { cache[id] = v; changed = true; }
+  }, () => {});
+  if (changed) saveJson(VOLUME_KEY, cache);
+  return new Map(typeIds.filter((id) => cache[id] != null).map((id) => [id, cache[id]]));
 }

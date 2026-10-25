@@ -1,5 +1,6 @@
-import { accessToken } from './sso';
+import { accessToken, hasScope } from './sso';
 import { esiFetch } from '../services/esiClient';
+import { loadJson, saveJson } from '../storage';
 import type { StoredCharacter, SkillState } from './characters';
 import type { Attributes } from './training';
 
@@ -114,13 +115,43 @@ export async function assetNames(characterId: number, itemIds: number[]): Promis
   return out;
 }
 
-export async function universeNames(ids: number[]): Promise<Map<number, string>> {
-  const out = new Map<number, string>();
-  const known = ids.filter((id) => id < 100_000_000);
-  for (let i = 0; i < known.length; i += 1000) {
-    const res = await esiFetch(`${ESI}/universe/names/?datasource=tranquility`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(known.slice(i, i + 1000)) });
-    if (!res.ok) continue;
+export const STRUCTURES_KEY = 'eve-fit:structure-names';
+const structureMisses = new Set<number>();
+
+async function namesBatch(ids: number[], out: Map<number, string>): Promise<void> {
+  const res = await esiFetch(`${ESI}/universe/names/?datasource=tranquility`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) });
+  if (res.ok) {
     for (const x of (await res.json()) as { id: number; name: string }[]) out.set(x.id, x.name);
+    return;
+  }
+  if (res.status === 404 && ids.length > 1) {
+    const mid = Math.ceil(ids.length / 2);
+    await namesBatch(ids.slice(0, mid), out);
+    await namesBatch(ids.slice(mid), out);
+  }
+}
+
+export async function universeNames(ids: number[], characterId?: number): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  const unique = [...new Set(ids)];
+  const known = unique.filter((id) => id > 0 && id < 100_000_000);
+  for (let i = 0; i < known.length; i += 1000) await namesBatch(known.slice(i, i + 1000), out);
+  const structures = unique.filter((id) => id >= 1e12);
+  if (structures.length && characterId && hasScope(characterId, 'esi-universe.read_structures.v1')) {
+    const cache = loadJson<Record<string, string>>(STRUCTURES_KEY, {});
+    let changed = false;
+    for (const id of structures) {
+      if (!cache[id] && !structureMisses.has(id)) {
+        try {
+          cache[id] = (await esi<{ name: string }>(characterId, `/universe/structures/${id}/`)).name;
+          changed = true;
+        } catch {
+          structureMisses.add(id);
+        }
+      }
+      if (cache[id]) out.set(id, cache[id]);
+    }
+    if (changed) saveJson(STRUCTURES_KEY, cache);
   }
   return out;
 }

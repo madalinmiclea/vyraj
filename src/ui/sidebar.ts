@@ -155,13 +155,18 @@ export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, on
       .filter((r) => !only || only.includes(r.name))
       .map((r) => (ids ? prune(r, (e) => e.t != null && ids.has(e.t)) : r))
       .filter((r): r is TreeNode => r !== null);
-    for (const root of roots) {
-      if (query) {
-        const flat = flatten(root).filter((x) => x.l.includes(query)).sort((a, b) => a.n.localeCompare(b.n));
-        if (!flat.length) continue;
+    if (query) {
+      const rank = (x: Entry) => (x.l === query ? 0 : x.l.startsWith(query) ? 1 : 2);
+      const hits = roots
+        .map((root) => ({ root, flat: flatten(root).filter((x) => x.l.includes(query)).sort((a, b) => rank(a) - rank(b) || a.n.localeCompare(b.n)) }))
+        .filter((h) => h.flat.length)
+        .sort((a, b) => rank(a.flat[0]) - rank(b.flat[0]));
+      for (const { root, flat } of hits) {
         total += flat.length;
         container.appendChild(groupEl(root, 0, flat, true));
-      } else {
+      }
+    } else {
+      for (const root of roots) {
         total += root.total;
         container.appendChild(groupEl(root, 0, null, !!scope && roots.length === 1));
       }

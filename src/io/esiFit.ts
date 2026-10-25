@@ -1,5 +1,5 @@
 import { Category, type Sde } from '../data/sde';
-import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, chargesPerModule, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
+import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, chargesPerModule, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
 import type { EsiFitting } from '../character/esi';
 import { tx } from '../i18n';
 
@@ -17,7 +17,9 @@ export function fromEsiFitting(sde: Sde, f: EsiFitting): Fit {
       const list = fit.slots[kind];
       while (list.length <= index) list.push(null);
       list[index] = { typeId: t.id, state: defaultState(sde, t.id) };
-    } else if (item.flag === 'DroneBay' || item.flag === 'FighterBay') {
+    } else if (t.categoryId === Category.Fighter && (item.flag === 'FighterBay' || item.flag === 'DroneBay')) {
+      fit.drones.push({ typeId: t.id, count: squadsFromFighters(sde, t.id, item.quantity), active: 0 });
+    } else if (item.flag === 'DroneBay' && t.categoryId === Category.Drone) {
       fit.drones.push({ typeId: t.id, count: item.quantity, active: 0 });
     } else if (t.categoryId === Category.Charge) {
       charges.push({ typeId: t.id, quantity: item.quantity });
@@ -42,7 +44,10 @@ export function toEsiFitting(sde: Sde, fit: Fit): Omit<EsiFitting, 'fitting_id'>
   for (const k of SLOT_KINDS) {
     fit.slots[k].forEach((m, i) => { if (m) items.push({ type_id: m.typeId, flag: `${FLAG_PREFIX[k]}${i}`, quantity: 1 }); });
   }
-  for (const d of fit.drones) items.push({ type_id: d.typeId, flag: sde.types.get(d.typeId)?.categoryId === Category.Fighter ? 'FighterBay' : 'DroneBay', quantity: d.count });
+  for (const d of fit.drones) {
+    const fighter = isFighterType(sde, d.typeId);
+    items.push({ type_id: d.typeId, flag: fighter ? 'FighterBay' : 'DroneBay', quantity: fighter ? d.count * squadSize(sde, d.typeId) : d.count });
+  }
   const cargo = new Map(fit.cargo.map((c) => [c.typeId, c.count]));
   for (const k of SLOT_KINDS) {
     for (const m of fit.slots[k]) {

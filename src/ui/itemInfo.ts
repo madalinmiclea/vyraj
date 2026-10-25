@@ -117,7 +117,8 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
     ? `<input class="input plain attr-filter" placeholder="${tx('Filtrează atribute...')}" data-attr-filter />
       ${sections.map((sec) => `<div class="attr-section"><h3 class="section-title">${esc(sec.title)}</h3>
         <table class="table compact attrs"><tbody>${sec.rows.map((r) => `<tr data-attr-name="${esc(fold(r.name))}"><td>${esc(r.name)}</td>
-          <td class="r num ${r.base ? (r.better ? 'better' : 'worse') : ''}">${r.base ? `<s class="dim">${esc(r.base)}</s> ` : ''}${esc(r.value)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`
+          <td class="r num ${r.base ? (r.better ? 'better' : 'worse') : ''}">${r.base ? `<s class="dim">${esc(r.base)}</s> ` : ''}${esc(r.value)}</td></tr>`).join('')}</tbody></table></div>`).join('')}
+      <p class="dim hidden" data-attr-empty></p>`
     : `<p class="dim">${tx('Itemul nu are atribute afișabile.')}</p>`;
   const body = `
     <div class="info-head">
@@ -200,6 +201,12 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
     const q = fold((e.target as HTMLInputElement).value.trim());
     el.querySelectorAll<HTMLElement>('[data-attr-name]').forEach((row) => row.classList.toggle('hidden', !row.dataset.attrName!.includes(q)));
     el.querySelectorAll<HTMLElement>('.attr-section').forEach((sec) => sec.classList.toggle('hidden', !sec.querySelector('[data-attr-name]:not(.hidden)')));
+    const empty = el.querySelector<HTMLElement>('[data-attr-empty]');
+    if (empty) {
+      const none = !el.querySelector('.attr-section:not(.hidden)');
+      empty.classList.toggle('hidden', !none);
+      empty.textContent = none ? tx('Niciun atribut nu conține „{q}”.', { q: (e.target as HTMLInputElement).value.trim() }) : '';
+    }
   });
   el.querySelector('[data-copy-plan]')?.addEventListener('click', () => copyText(skillPlanText(plan.missing), tx('Plan copiat (lipește-l în Skill Plans din joc)')));
 }

@@ -9,13 +9,17 @@ let pausedUntil = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function acquire() {
-  if (active >= MAX_CONCURRENT) await new Promise<void>((resolve) => queue.push(resolve));
-  active++;
+  if (active < MAX_CONCURRENT) {
+    active++;
+    return;
+  }
+  await new Promise<void>((resolve) => queue.push(resolve));
 }
 
 function release() {
-  active--;
-  queue.shift()?.();
+  const next = queue.shift();
+  if (next) next();
+  else active--;
 }
 
 function noteLimits(res: Response) {

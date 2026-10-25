@@ -1,5 +1,6 @@
 import type { AppContext } from '../app/context';
 import { portraitUrl } from '../character/esi';
+import { hasTokens } from '../character/sso';
 import { formatDuration } from '../character/training';
 import { accountKey, fetchRosterEntry, loadAccounts, loadRoster, omegaUntil, refreshRoster, resolvePlaces, rosterCharacters, ROSTER_TTL, saveRoster, setAccount, type Places, type RosterEntry } from '../character/roster';
 import { displaySec, secClass } from '../services/recon';
@@ -100,7 +101,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
   }
 
   function characterCell(c: StoredCharacter, e: RosterEntry | undefined, now: number) {
-    const status = e?.error === 'logged-out'
+    const status = e?.error === 'logged-out' || !hasTokens(c.characterId!)
       ? badge(tx('Delogat'), 'danger')
       : e?.missing.length
         ? `<span title="${esc(e.missing.join('\n'))}">${badge(tx('Permisiuni lipsă'), 'warn')}</span>`
@@ -158,10 +159,10 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
               const e = roster[c.id];
               return `<tr class="${c.id === ctx.character.id ? 'active' : ''}">
                 <td>${characterCell(c, e, now)}</td>
-                <td>${trainingCell(e, now)}</td>
-                <td>${locationCell(e)}</td>
-                <td>${omegaCell(c, e, now)}</td>
-                <td class="r num">${e?.wallet != null ? compactISK(e.wallet) : '<span class="dim">—</span>'}</td>
+                <td data-label="${tx('Antrenează')}">${trainingCell(e, now)}</td>
+                <td data-label="${tx('Locație')}">${locationCell(e)}</td>
+                <td data-label="Omega">${omegaCell(c, e, now)}</td>
+                <td class="r num" data-label="ISK">${e?.wallet != null ? compactISK(e.wallet) : '<span class="dim">—</span>'}</td>
                 <td class="r"><button class="btn ghost sm icon-only" data-roster-edit="${esc(c.id)}" title="${tx('Cont și Omega')}">${icon('settings')}</button></td>
               </tr>`;
             }).join('')}</tbody>
@@ -186,6 +187,8 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
     } finally {
       busy = false;
     }
+    const active = ctx.character;
+    if (active.kind === 'esi' && roster[active.id] && roster[active.id].clone !== active.clone) ctx.reloadCharacters();
     render();
     await loadPlaces();
   }

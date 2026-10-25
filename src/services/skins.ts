@@ -1,6 +1,5 @@
-import { loadJson, saveJson } from '../storage';
-import { tx } from '../i18n';
-import { fetchData } from '../data/manifest';
+import { loadJson, removeKey, saveJson } from '../storage';
+import { dataMissing, fetchData } from '../data/manifest';
 
 export interface SkinShip {
   id: number;
@@ -27,7 +26,7 @@ let loading: Promise<SkinLine[]> | null = null;
 export function loadSkins(): Promise<SkinLine[]> {
   loading ??= fetchData('skins')
     .then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc {url}. Rulează "npm run data" ca să generezi datele.', { url: res.url }));
+      if (!res.ok) throw dataMissing(res.url);
       return res.json() as Promise<RawSkins>;
     })
     .then((raw) => raw.lines.map((l) => ({
@@ -206,4 +205,9 @@ export function applySync(characterId: string, lines: SkinLine[], owned: Set<str
   for (const t of src.transactions ?? []) if (t.is_buy) take(`t${t.transaction_id}`, t.type_id);
   saveJson(syncedKey(characterId), { seen: [...seen], at: Date.now() });
   return added;
+}
+
+export function forgetSkins(characterId: string) {
+  removeKey(ownedKey(characterId));
+  removeKey(syncedKey(characterId));
 }

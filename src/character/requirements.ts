@@ -1,7 +1,7 @@
 import type { Sde } from '../data/sde';
 import { SLOT_KINDS, type Fit } from '../engine/fit';
 import type { Character } from './characters';
-import { spForLevel, skillRank, trainingSeconds, withImplants } from './training';
+import { spForLevel, skillRank, trainingAttributes, trainingSeconds } from './training';
 
 const REQ = [
   ['requiredSkill1', 'requiredSkill1Level'],
@@ -105,7 +105,7 @@ export function skillsPlan(sde: Sde, skills: Map<number, number>, character: Cha
 }
 
 function planFor(sde: Sde, needed: Map<number, number>, character: Character): FitRequirements {
-  const attrs = withImplants(sde, character.attributes, character.implants);
+  const attrs = trainingAttributes(sde, character);
 
   const ordered: number[] = [];
   const done = new Set<number>();

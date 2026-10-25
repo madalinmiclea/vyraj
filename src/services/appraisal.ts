@@ -20,7 +20,7 @@ const qty = (s: string) => {
 };
 
 function parseLine(raw: string): { name: string; quantity: number }[] {
-  const line = raw.replace(/\r/g, '').trim();
+  const line = raw.replace(/\r/g, '').trim().replace(/\s*\/\s*offline$/i, '');
   if (!line) return [];
   const ship = line.match(/^\[([^,\]]+)/);
   if (ship) return [{ name: ship[1], quantity: 1 }];

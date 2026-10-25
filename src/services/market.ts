@@ -2,6 +2,7 @@ import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 import { esiFetch } from './esiClient';
 export const JITA_REGION = 10000002;
+export const JITA_STATION = 60003760;
 export const PLEX_TYPE_ID = 44992;
 export const GLOBAL_PLEX_REGION = 19000001;
 export const isGlobalMarket = (typeId: number) => typeId === PLEX_TYPE_ID;
@@ -56,7 +57,7 @@ const cache = new Map<number, { at: number; value: Aggregates }>();
 
 async function fuzzworkChunk(chunk: number[]): Promise<Record<string, { sell?: FuzzworkSide; buy?: FuzzworkSide }> | null> {
   try {
-    const res = await fetch(`https://market.fuzzwork.co.uk/aggregates/?region=${JITA_REGION}&types=${chunk.join(',')}`);
+    const res = await fetch(`https://market.fuzzwork.co.uk/aggregates/?station=${JITA_STATION}&types=${chunk.join(',')}`);
     return res.ok ? await res.json() : null;
   } catch {
     return null;
@@ -76,12 +77,12 @@ export async function fetchPrices(typeIds: number[]): Promise<Map<number, Aggreg
     const chunk = missing.slice(i, i + 100);
     const json = await fuzzworkChunk(chunk);
     if (!json) {
-      const values = await Promise.all(chunk.map((id) => esiAggregates(isGlobalMarket(id) ? GLOBAL_PLEX_REGION : JITA_REGION, id).catch(() => null)));
+      const values = await Promise.all(chunk.map((id) => (isGlobalMarket(id) ? esiAggregates(GLOBAL_PLEX_REGION, id) : esiAggregates(JITA_REGION, id, JITA_STATION)).catch(() => null)));
       if (values.every((v) => v === null)) throw new Error(tx('Nu pot încărca prețurile nici de la Fuzzwork, nici de la ESI.'));
       chunk.forEach((id, j) => {
-        const value = values[j] ?? toAggregates();
-        cache.set(id, { at: now, value });
-        out.set(id, value);
+        const value = values[j];
+        if (value) cache.set(id, { at: now, value });
+        out.set(id, value ?? toAggregates());
       });
       continue;
     }
@@ -145,6 +146,11 @@ export async function fetchListedTypes(): Promise<Set<number>> {
   const ids = [...(await first.json() as number[]), ...rest.flat(), PLEX_TYPE_ID];
   saveJson(LISTED_KEY, { at: Date.now(), ids });
   return new Set(ids);
+}
+
+export function lastDays<T extends { date: string }>(history: T[], days: number, now = Date.now()): T[] {
+  const cutoff = new Date(now - days * 86400000).toISOString().slice(0, 10);
+  return history.filter((d) => d.date >= cutoff);
 }
 
 export interface HistoryDay {

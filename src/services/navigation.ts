@@ -1,7 +1,6 @@
-import { fetchData } from '../data/manifest';
+import { dataMissing, fetchData } from '../data/manifest';
 import { esiFetch } from './esiClient';
 import { fold } from '../ui/fold';
-import { tx } from '../i18n';
 
 const ESI = 'https://esi.evetech.net/latest';
 const SCOUT = 'https://api.eve-scout.com/v2/public/signatures';
@@ -65,7 +64,11 @@ export class NavMap {
 
   find(name: string): NavSystem | undefined {
     const q = fold(name.trim());
-    return this.byName.get(q) ?? this.sorted.find((s) => fold(s.name).startsWith(q));
+    if (!q) return undefined;
+    const exact = this.byName.get(q);
+    if (exact) return exact;
+    const hits = this.suggest(name, 2);
+    return hits.length === 1 ? hits[0] : undefined;
   }
 
   suggest(prefix: string, limit = 12): NavSystem[] {
@@ -109,7 +112,7 @@ let loading: Promise<NavMap> | null = null;
 export function loadMap(): Promise<NavMap> {
   loading ??= fetchData('map')
     .then((res) => {
-      if (!res.ok) throw new Error(tx('Nu găsesc harta ({url}). Rulează "npm run data" ca să o generezi.', { url: res.url }));
+      if (!res.ok) throw dataMissing(res.url);
       return res.json() as Promise<RawMap>;
     })
     .then((raw) => new NavMap(raw))

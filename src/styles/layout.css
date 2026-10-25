@@ -46,6 +46,11 @@
   filter: drop-shadow(0 0 6px rgba(224, 38, 58, 0.4));
 }
 .topbar-title {
+  flex-shrink: 100;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
@@ -56,6 +61,8 @@
 .topbar-title b { color: var(--accent-bright); font-weight: 700; }
 .topbar-spacer { flex: 1; }
 .topbar-stat {
+  flex: none;
+  white-space: nowrap;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -88,6 +95,7 @@
 .char-menu-sep { height: 1px; margin: 6px 0; background: var(--line); }
 .lang-switch {
   display: flex;
+  flex: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   overflow: hidden;
@@ -248,6 +256,9 @@
 .view.active { display: block; }
 @keyframes view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+@media (max-width: 1100px) {
+  .topbar-title { display: none; }
+}
 @media (max-width: 900px) {
   :root { --sidebar-base: 240px; }
   .topbar-stat.optional { display: none; }

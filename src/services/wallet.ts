@@ -1,5 +1,5 @@
 import type { WalletEntry, WalletTransaction } from '../character/esi';
-import { loadJson } from '../storage';
+import { loadJson, removeKey } from '../storage';
 import { tx } from '../i18n';
 
 export const PVE_REFS = new Set([
@@ -162,23 +162,17 @@ export interface FlowBucket {
 }
 
 export function flowBuckets(entries: WalletEntry[], period: Period, oldest: number, now = Date.now()): FlowBucket[] {
-  let size: number, n: number, from: number;
-  if (period === '1d') {
-    size = HOUR;
-    n = 24;
-    from = Math.floor(now / HOUR) * HOUR - (n - 1) * HOUR;
-  } else {
-    const days = period === 'all' ? Math.max(1, Math.ceil((now - oldest) / DAY)) : PERIODS.find((p) => p.id === period)!.days;
-    size = days > 120 ? 7 * DAY : DAY;
-    n = Math.ceil((days * DAY) / size);
-    const today = new Date(now);
-    today.setUTCHours(0, 0, 0, 0);
-    from = today.getTime() - (n - 1) * size;
-  }
+  const days = period === 'all' ? Math.max(1, Math.ceil((now - oldest) / DAY)) : PERIODS.find((p) => p.id === period)!.days;
+  const start = period === 'all' ? Math.min(oldest, now - DAY) : now - days * DAY;
+  const size = period === '1d' ? HOUR : days > 120 ? 7 * DAY : DAY;
+  const align = period === '1d' ? HOUR : DAY;
+  const from = Math.floor(start / align) * align;
+  const n = Math.max(1, Math.ceil((now - from) / size));
   const out: FlowBucket[] = Array.from({ length: n }, (_, i) => ({ start: from + i * size, size, earned: 0, spent: 0 }));
   for (const e of entries) {
-    const i = Math.floor((Date.parse(e.date) - from) / size);
-    if (i < 0 || i >= n) continue;
+    const t = Date.parse(e.date);
+    if (t < start || t > now) continue;
+    const i = Math.min(n - 1, Math.floor((t - from) / size));
     const a = e.amount ?? 0;
     if (a > 0) out[i].earned += a; else out[i].spent -= a;
   }
@@ -202,4 +196,9 @@ export function tradeSummary(rows: WalletTransaction[]): TradeRow[] {
     map.set(r.type_id, row);
   }
   return [...map.values()].sort((a, b) => b.boughtIsk + b.soldIsk - (a.boughtIsk + a.soldIsk));
+}
+
+export function forgetWallet(characterId: number) {
+  removeKey(`eve-fit:wallet:${characterId}`);
+  removeKey(`eve-fit:wallet-trades:${characterId}`);
 }

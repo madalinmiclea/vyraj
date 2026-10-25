@@ -1,12 +1,13 @@
 import { icon } from '../ui/icons';
 import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel } from '../ui/components';
-import { resolveType, fetchJitaAggregates, fetchHistory, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
+import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
 import { HUBS, fetchHubPrices, BASE_SALES_TAX, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { addAlert } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 import { allEveItems } from '../data/items';
+import { fold } from '../ui/fold';
 
 const QUICK = ['PLEX', 'Large Skill Injector', 'Tritanium', 'Drake', 'Gila', 'Multispectrum Energized Membrane II', 'Compressed Veldspar', 'Nanite Repair Paste'];
 const RECENT_KEY = 'eve-market:recent';
@@ -175,19 +176,19 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   function renderHistory() {
     const el = state.querySelector<HTMLElement>('#historyPanel');
     if (!el) return;
-    const days = history.slice(-range);
+    const days = lastDays(history, range);
     if (!days.length) { el.innerHTML = panel({ title: tx('Istoric preț {name}', { name: historyName() }), actions: historyChips(), body: `<p class="dim small">${tx('Fără istoric pentru itemul ăsta.')}</p>` }); return; }
     const points: SeriesPoint[] = days.map((d) => ({ label: d.date.slice(5).split('-').reverse().join('.'), value: d.average, low: d.lowest, high: d.highest, bar: d.volume }));
-    const last30 = history.slice(-30);
+    const last30 = lastDays(history, 30);
     const avg30 = last30.reduce((a, d) => a + d.average * d.volume, 0) / Math.max(1, last30.reduce((a, d) => a + d.volume, 0));
-    const vol30 = last30.reduce((a, d) => a + d.volume, 0) / Math.max(1, last30.length);
+    const vol30 = last30.reduce((a, d) => a + d.volume, 0) / 30;
     const first = days[0].average, last = days[days.length - 1].average;
     const change = first ? ((last - first) / first) * 100 : 0;
     el.innerHTML = panel({
       title: tx('Istoric preț {name}', { name: historyName() }),
       actions: `${historyChips()}<div class="advice-sort">${RANGES.map((n) => `<button class="chip-btn ${n === range ? 'active' : ''}" data-range="${n}">${n === 365 ? tx('1 an') : tx('{n} zile', { n })}</button>`).join('')}</div>`,
       body: `<div class="history-kpis">
-          <div><span class="label">${tx('Medie 30 zile')}</span><span class="value">${compactISK(avg30)}</span></div>
+          <div><span class="label">${tx('Medie 30 zile')}</span><span class="value">${last30.length ? compactISK(avg30) : '—'}</span></div>
           <div><span class="label">${tx('Volum pe zi')}</span><span class="value">${formatInt(vol30)}</span></div>
           <div><span class="label">${tx('Schimbare')} ${range === 365 ? tx('1 an') : tx('{n} zile', { n: range })}</span><span class="value ${change >= 0 ? 'up' : 'down'}">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span></div>
           <div><span class="label">Min / max</span><span class="value">${compactISK(Math.min(...days.map((d) => d.lowest)))} / ${compactISK(Math.max(...days.map((d) => d.highest)))}</span></div>
@@ -211,7 +212,37 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     }
   }
 
+  function localMatches(q: string) {
+    const words = fold(q.trim()).split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    const full = words.join(' ');
+    const rank = (n: string) => (n === full ? 0 : n.startsWith(full) ? 1 : n.includes(full) ? 2 : 3);
+    return allEveItems
+      .map((it) => ({ it, n: fold(it.n.trim()) }))
+      .filter((x) => words.every((w) => x.n.includes(w)))
+      .sort((a, b) => rank(a.n) - rank(b.n) || a.n.length - b.n.length || a.n.localeCompare(b.n))
+      .map((x) => x.it);
+  }
+
   async function show(itemName: string, knownTypeId: number | null = null) {
+    if (knownTypeId == null && allEveItems.length) {
+      const hits = localMatches(itemName);
+      const exact = hits.find((h) => fold(h.n.trim()) === fold(itemName.trim()));
+      if (exact) { show(exact.n.trim(), exact.t); return; }
+      if (hits.length === 1) { show(hits[0].n.trim(), hits[0].t); return; }
+      if (hits.length > 1) {
+        ++requestId;
+        input.value = itemName;
+        current = null;
+        const list = hits.slice(0, 24);
+        state.innerHTML = panel({
+          title: tx('Rezultate pentru „{q}”', { q: itemName }),
+          count: hits.length > list.length ? tx('primele {n} din {total}', { n: list.length, total: formatInt(hits.length) }) : formatInt(hits.length),
+          body: `<div class="item-tiles">${list.map((h) => `<button class="item-tile" data-item="${esc(h.n.trim())}"><img src="${typeIconUrl(h.t, 32)}" alt="" loading="lazy" /><span>${esc(h.n.trim())}</span></button>`).join('')}</div>`,
+        });
+        return;
+      }
+    }
     const id = ++requestId;
     input.value = itemName;
     state.innerHTML = loader(tx('Interogăm piața din Jita 4-4'));

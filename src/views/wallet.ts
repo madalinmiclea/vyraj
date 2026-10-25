@@ -96,7 +96,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const size = buckets[0]?.size ?? 86400000;
     const bucketName = size < 86400000 ? tx('pe oră') : size > 86400000 ? tx('pe săptămână') : tx('pe zi');
     const chips = PERIODS.map((p) => `<button class="chip-btn ${p.id === period ? 'active' : ''}" data-wallet-period="${p.id}">${p.label}</button>`).join('');
-    const partial = from > 0 && from < oldest - 3600000;
+    const partial = entries.length > 0 && from > 0 && from < oldest - 3600000;
     const refs = [...new Set(rows.map((e) => e.ref_type))].sort((a, b) => refLabel(a).localeCompare(refLabel(b)));
     if (ref && !refs.includes(ref)) ref = '';
     const cats = byRef(rows);
@@ -104,7 +104,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
 
     root.innerHTML = `${panel({
         title: 'Wallet',
-        count: tx('istoric salvat din {date}', { date: day(oldest) }),
+        count: entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal'),
         actions: `<div class="advice-sort">${chips}</div>`,
         body: `<div class="history-kpis">
             <div><span class="label">${tx('Sold')}</span><span class="value">${compactISK(balance)}</span></div>
