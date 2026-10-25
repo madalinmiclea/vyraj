@@ -1,6 +1,7 @@
 import type { AppContext } from '../app/context';
 import { Category, type TypeInfo } from '../data/sde';
 import { loadStoredCharacters, upsertStoredCharacter } from '../character/characters';
+import { loadJson, saveJson } from '../storage';
 import { requirementTree, requirementsFor, alphaRaces } from '../character/requirements';
 import { formatDuration, durationHtml, skillRank, spForLevel } from '../character/training';
 import { typeIconUrl } from '../services/market';
@@ -21,7 +22,8 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   }
   const groupNames = [...groups.keys()].sort();
   const searchable = [...sde.types.values()].filter((t) => t.marketGroupId).map((t) => ({ t, l: fold(t.name) }));
-  let openGroup = groupNames[0] ?? '';
+  const OPEN_KEY = 'eve-fit:ui:skill-groups';
+  const openGroups = new Set(loadJson<string[]>(OPEN_KEY, []));
   let selectedItem: number | null = null;
 
   el.innerHTML = `<div class="stack">
@@ -32,9 +34,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
           <div id="reqDetail"></div>
         </div>
       </div>
-      <div class="stack" id="skillGroups"></div>
     </div>`;
-  const groupsEl = el.querySelector<HTMLElement>('#skillGroups')!;
   const search = el.querySelector<HTMLInputElement>('#reqSearch')!;
   const results = el.querySelector<HTMLElement>('#reqResults')!;
   const detail = el.querySelector<HTMLElement>('#reqDetail')!;
@@ -69,37 +69,52 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     });
   }
 
+  function skillRows(group: string) {
+    const c = ctx.character;
+    const editable = c.kind === 'custom';
+    return (groups.get(group) ?? []).map((s) => {
+      const lvl = c.skills.get(s.id) ?? 0;
+      const pips = Array.from({ length: 5 }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+      return `<div class="skill-row">
+          <button class="link" data-info="${s.id}" title="${esc(s.name)}">${esc(s.name)}</button>
+          <span class="dim small">r${skillRank(sde, s.id)}</span>
+          ${lvl < 5 ? `<button class="icon-btn plan-add" data-plan-skill="${s.id}" title="${tx('Adaugă nivelul următor în skill plan')}">+</button>` : '<span class="plan-add"></span>'}
+          ${editable
+            ? `<select class="input plain sm" data-level="${s.id}">${[0, 1, 2, 3, 4, 5].map((l) => `<option value="${l}" ${l === lvl ? 'selected' : ''}>${roman(l)}</option>`).join('')}</select>`
+            : `<span class="skill-pips">${pips}</span>`}
+        </div>`;
+    }).join('');
+  }
+
   function renderGroups() {
     const c = ctx.character;
     const editable = c.kind === 'custom';
     const trained = skills.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
     const sp = c.totalSp ?? skills.reduce((a, s) => a + (c.sp.get(s.id) ?? spForLevel(skillRank(sde, s.id), c.skills.get(s.id) ?? 0)), 0);
+    const scroll = side.querySelector('.side-nav')?.scrollTop ?? 0;
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Skill-uri'), `${trained}/${skills.length}`)}
         <p class="side-note">${formatInt(sp)} SP${editable ? ` · ${tx('caracter personalizat: poți schimba nivelurile')}` : c.kind === 'esi' ? '' : ` · ${tx('caracter teoretic')}`}</p></div>
-      <div class="side-nav">${groupNames.map((g) => {
+      <div class="side-nav skill-tree">${groupNames.map((g) => {
         const list = groups.get(g)!;
         const any = list.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
-        return `<button class="side-link ${openGroup === g ? 'active' : ''}" data-group="${esc(g)}"><span>${esc(g)}</span><span class="count">${any}/${list.length}</span></button>`;
+        const open = openGroups.has(g);
+        return `<div class="tree-group sub skill-group ${open ? 'open' : ''}" style="--depth:0">
+            <button class="tree-head" data-group="${esc(g)}">${icon('chevron', 'chev')}<span>${esc(g)}</span><span class="count">${any}/${list.length}</span></button>
+            <div class="tree-items"><div class="skill-list">${open ? skillRows(g) : ''}</div></div>
+          </div>`;
       }).join('')}</div>`;
-    const list = groups.get(openGroup) ?? [];
-    const done = list.filter((s) => (c.skills.get(s.id) ?? 0) >= 5).length;
-    const any = list.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
-    groupsEl.innerHTML = panel({
-      title: openGroup,
-      count: `${any}/${list.length}${done ? ` · ${done}×V` : ''}`,
-      body: `<div class="skill-list">${list.map((s) => {
-        const lvl = c.skills.get(s.id) ?? 0;
-        const pips = Array.from({ length: 5 }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-        return `<div class="skill-row">
-          <button class="link" data-info="${s.id}">${esc(s.name)}</button>
-          <span class="dim small">rank ${skillRank(sde, s.id)}</span>
-          ${lvl < 5 ? `<button class="icon-btn plan-add" data-plan-skill="${s.id}" title="${tx('Adaugă nivelul următor în skill plan')}">+</button>` : '<span></span>'}
-          ${editable
-            ? `<select class="input plain sm" data-level="${s.id}">${[0, 1, 2, 3, 4, 5].map((l) => `<option value="${l}" ${l === lvl ? 'selected' : ''}>${roman(l)}</option>`).join('')}</select>`
-            : `<span class="skill-pips">${pips}</span>`}
-        </div>`;
-      }).join('')}</div>`,
-    });
+    side.querySelector('.side-nav')!.scrollTop = scroll;
+  }
+
+  function toggleGroup(head: HTMLElement) {
+    const g = head.dataset.group!;
+    const box = head.parentElement!;
+    const open = !openGroups.has(g);
+    if (open) openGroups.add(g); else openGroups.delete(g);
+    saveJson(OPEN_KEY, [...openGroups]);
+    box.classList.toggle('open', open);
+    const list = box.querySelector<HTMLElement>('.skill-list')!;
+    list.innerHTML = open ? skillRows(g) : '';
   }
 
   function renderResults() {
@@ -145,7 +160,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const t = e.target as HTMLElement;
     const at = (sel: string) => t.closest<HTMLElement>(sel);
     const group = at('[data-group]');
-    if (group) { openGroup = group.dataset.group!; renderGroups(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
+    if (group) { toggleGroup(group); return; }
     const info = at('[data-info]');
     if (info) { showItemInfo(ctx, Number(info.dataset.info)); return; }
     const item = at('[data-item]');
@@ -175,7 +190,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   el.addEventListener('click', onClick);
   side.addEventListener('click', onClick);
 
-  el.addEventListener('change', (e) => {
+  const onLevel = (e: Event) => {
     const target = e.target as HTMLSelectElement;
     if (!target.dataset.level) return;
     const stored = loadStoredCharacters().find((c) => c.id === ctx.character.id);
@@ -187,7 +202,9 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     upsertStoredCharacter(stored);
     ctx.reloadCharacters();
     toast(`${sde.types.get(skillId)?.name} → ${roman(level)}`);
-  });
+  };
+  el.addEventListener('change', onLevel);
+  side.addEventListener('change', onLevel);
 
   search.addEventListener('input', renderResults);
   ctx.onCharacterChange(() => { renderGroups(); renderDetail(); renderPlan(); });

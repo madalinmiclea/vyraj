@@ -47,7 +47,8 @@
   --radius: 2px;
   --gap: 16px;
   --rail-w: 64px;
-  --sidebar-w: 320px;
+  --sidebar-base: 320px;
+  --sidebar-w: calc(var(--sidebar-base) * var(--sidebar-scale, 1));
   --topbar-h: 48px;
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);

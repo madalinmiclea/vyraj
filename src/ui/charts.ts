@@ -66,3 +66,55 @@ export function bindSeriesChart(root: HTMLElement, points: SeriesPoint[], { barL
   });
   svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; cursor.style.display = 'none'; });
 }
+
+export interface FlowPoint {
+  label: string;
+  earned: number;
+  spent: number;
+}
+
+export function flowChart(points: FlowPoint[]) {
+  if (!points.length) return '';
+  const w = 760, h = 240, pl = 58, pr = 10, pt = 10, pb = 24;
+  const max = Math.max(1, ...points.map((p) => Math.max(p.earned, p.spent)));
+  const half = (h - pt - pb) / 2;
+  const mid = pt + half;
+  const step = (w - pl - pr) / points.length;
+  const x = (i: number) => pl + step * (i + 0.5);
+  const bw = Math.max(0.6, step * 0.7);
+  const bars = points.map((p, i) => {
+    const up = (p.earned / max) * half, down = (p.spent / max) * half;
+    const left = (x(i) - bw / 2).toFixed(1);
+    return `<rect class="in" x="${left}" width="${bw.toFixed(1)}" y="${(mid - up).toFixed(1)}" height="${up.toFixed(1)}" /><rect class="out" x="${left}" width="${bw.toFixed(1)}" y="${mid.toFixed(1)}" height="${down.toFixed(1)}" />`;
+  }).join('');
+  const every = Math.max(1, Math.ceil(points.length / 8));
+  const hits = points.map((_, i) => `<rect class="hit" data-i="${i}" x="${(x(i) - step / 2).toFixed(1)}" width="${step.toFixed(1)}" y="${pt}" height="${h - pt - pb}" />`).join('');
+  const ticks: [number, string][] = [[pt, '+' + compactISK(max)], [mid, '0'], [pt + 2 * half, '−' + compactISK(max)]];
+  return `<div class="series-wrap"><svg class="series-chart flow-chart" viewBox="0 0 ${w} ${h}" role="img">
+    ${ticks.map(([y, t]) => `<line x1="${pl}" x2="${w - pr}" y1="${y}" y2="${y}" class="grid" /><text x="${pl - 6}" y="${y + 4}" text-anchor="end">${t}</text>`).join('')}
+    ${points.map((p, i) => (i % every === 0 ? `<text x="${x(i)}" y="${h - 6}" text-anchor="middle">${p.label}</text>` : '')).join('')}
+    ${bars}
+    <line x1="${pl}" x2="${w - pr}" y1="${mid}" y2="${mid}" class="zero" />
+    <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${h - pb}" style="display:none" />
+    ${hits}
+  </svg><div class="series-tip" style="display:none"></div></div>`;
+}
+
+export function bindFlowChart(root: HTMLElement, points: FlowPoint[]) {
+  const wrap = root.querySelector<HTMLElement>('.series-wrap');
+  if (!wrap) return;
+  const svg = wrap.querySelector('svg')!, tip = wrap.querySelector<HTMLElement>('.series-tip')!, cursor = wrap.querySelector<SVGLineElement>('.cursor')!;
+  svg.addEventListener('mousemove', (e) => {
+    const r = (e.target as Element).closest<SVGRectElement>('.hit');
+    if (!r) return;
+    const p = points[Number(r.dataset.i)];
+    const cx = Number(r.getAttribute('x')) + Number(r.getAttribute('width')) / 2;
+    cursor.setAttribute('x1', String(cx)); cursor.setAttribute('x2', String(cx)); cursor.style.display = '';
+    const net = p.earned - p.spent;
+    tip.innerHTML = `<b>${p.label}</b><span class="up">${tx('Câștigat')} ${compactISK(p.earned)} ISK</span><span class="down">${tx('Cheltuit')} ${compactISK(p.spent)} ISK</span><span>Net ${net < 0 ? '−' : '+'}${compactISK(Math.abs(net))} ISK</span>`;
+    tip.style.display = '';
+    const box = wrap.getBoundingClientRect();
+    tip.style.left = `${Math.min(box.width - tip.offsetWidth - 4, Math.max(4, e.clientX - box.left + 12))}px`;
+  });
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; cursor.style.display = 'none'; });
+}

@@ -53,3 +53,4 @@
 :root[data-theme='light'] .char-menu { box-shadow: 0 16px 40px rgba(20, 36, 52, 0.18); }
 
 :root[data-theme='light'] body { font-weight: 450; -webkit-font-smoothing: auto; }
+:root[data-theme='light'] .xsel-menu { box-shadow: 0 16px 40px rgba(20, 36, 52, 0.18); }

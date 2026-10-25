@@ -178,6 +178,11 @@ select.input option, select.input optgroup { background: var(--bg-panel-solid); 
 .skill-group { border-bottom: 1px solid rgba(150, 180, 200, 0.05); }
 .skill-group .tree-head .count { margin-left: auto; }
 .skill-list { padding: 4px 4px 10px 12px; }
+.skill-tree .skill-list { padding: 2px 14px 8px 34px; }
+.skill-tree .skill-row { gap: 6px; font-size: 13px; }
+.skill-tree .skill-row .dim.small { font-size: 11px; font-family: var(--font-mono); }
+.skill-tree .skill-row .plan-add { margin-left: 0; width: 20px; height: 20px; flex: none; }
+.skill-tree .skill-row .skill-pips i { width: 8px; height: 8px; }
 .skill-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; }
 .skill-row .link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .skill-pips { display: flex; gap: 2px; }
@@ -383,3 +388,16 @@ select.input option, select.input optgroup { background: var(--bg-panel-solid); 
 .item-tile:hover { border-color: var(--accent); background: var(--bg-hover); color: var(--text-bright); }
 .item-tile img, .item-tile > span:first-child { width: 32px; height: 32px; flex: none; border: 1px solid var(--line); background: var(--bg-inset); }
 .item-tile > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-chart .in { fill: var(--ok); opacity: 0.8; }
+.flow-chart .out { fill: var(--danger); opacity: 0.75; }
+.flow-chart .zero { stroke: var(--line-strong); stroke-width: 1; }
+.wallet-periods tbody tr { cursor: pointer; }
+.wallet-periods tbody tr:hover td { background: var(--bg-hover); }
+.wallet-periods tbody tr.active td { background: rgba(var(--accent-rgb), 0.08); }
+.wallet-periods tbody tr.active td:first-child { color: var(--text-bright); box-shadow: inset 2px 0 0 var(--accent); }
+.wallet-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.wallet-filters .input { width: auto; min-width: 180px; flex: 1; }
+.wallet-filters select.input { flex: 0 1 220px; }
+.wallet-journal td.desc { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wallet-note { margin: 4px 0 10px; }
+.wallet-scroll { max-height: 420px; overflow-y: auto; }

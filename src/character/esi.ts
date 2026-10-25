@@ -175,6 +175,7 @@ export interface WalletTransaction {
   is_buy: boolean;
   date: string;
   quantity: number;
+  unit_price: number;
 }
 
 export function walletTransactions(characterId: number): Promise<WalletTransaction[]> {

@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, badge, emptyState } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, badge, emptyState, windowTitle } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, typeIconUrl } from '../services/market';
@@ -43,18 +43,16 @@ const ago = (ms: number) => {
 const secCell = (s: NavSystem) => `<span class="num ${secClass(s.sec)}">${formatNum(displaySec(s.sec), 1)}</span>`;
 const dotlan = (name: string, text = name) => `<a class="ext-link" href="https://evemaps.dotlan.net/system/${encodeURIComponent(name.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`;
 
-export function createNavigationView(el: HTMLElement, ctx: AppContext) {
+export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'jump');
   if (!TABS.some((t) => t.id === tab)) tab = 'jump';
   const saved = loadJson<PlanForm>(PLAN_KEY, { ship: 'type:28844', from: '', to: '', mode: 'jumps', avoid: '', fatigue: 0 });
 
   el.innerHTML = `${pageHead(tx('Navigație'), tx('Jump planner pentru capitale, tracker Pochven și conexiuni Thera / Turnur'), 'Krai Passage')}
-    <div class="tabs" id="navTabs"></div>
     <div id="navJump"></div>
     <div id="navPochven"></div>
     <div id="navWormholes"></div>
     <datalist id="navSystems"></datalist>`;
-  const tabsEl = el.querySelector<HTMLElement>('#navTabs')!;
   const panes: Record<Tab, HTMLElement> = {
     jump: el.querySelector<HTMLElement>('#navJump')!,
     pochven: el.querySelector<HTMLElement>('#navPochven')!,
@@ -67,7 +65,8 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext) {
   const mapReady = loadMap().then((m) => (map = m));
 
   function renderTabs() {
-    tabsEl.innerHTML = TABS.map((t) => `<button class="tab ${t.id === tab ? 'active' : ''}" data-nav-tab="${t.id}">${t.label}</button>`).join('');
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Navigație'))}</div>
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-nav-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
     if (!loaded.has(tab)) {
       loaded.add(tab);
@@ -77,7 +76,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext) {
     }
   }
 
-  tabsEl.addEventListener('click', (e) => {
+  side.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-nav-tab]');
     if (!b) return;
     tab = b.dataset.navTab as Tab;

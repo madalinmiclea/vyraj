@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, badge, button } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, badge, button, windowTitle } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
@@ -59,16 +59,14 @@ function dpsTip(e: DpsEstimate) {
   return parts.join('\n');
 }
 
-export function createReconView(el: HTMLElement, ctx: AppContext) {
+export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'route');
   if (!TABS.some((t) => t.id === tab)) tab = 'route';
   const saved = loadJson<{ from: string; to: string; flag: RouteFlag }>(ROUTE_KEY, { from: 'Jita', to: 'Amarr', flag: 'shortest' });
 
   el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Pericol pe rută și analiza Local / D-Scan'), 'Cladistic Recon')}
-    <div class="tabs" id="reconTabs"></div>
     <div id="reconRoute"></div>
     <div id="reconLocal"></div>`;
-  const tabsEl = el.querySelector<HTMLElement>('#reconTabs')!;
   const routeEl = el.querySelector<HTMLElement>('#reconRoute')!;
   const localEl = el.querySelector<HTMLElement>('#reconLocal')!;
 
@@ -76,12 +74,13 @@ export function createReconView(el: HTMLElement, ctx: AppContext) {
   const shipCell = (id?: number) => (id ? `<span class="recon-ship"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" /><span>${esc(shipName(id))}</span></span>` : '<span class="dim">—</span>');
 
   function renderTabs() {
-    tabsEl.innerHTML = TABS.map((t) => `<button class="tab ${t.id === tab ? 'active' : ''}" data-recon-tab="${t.id}">${t.label}</button>`).join('');
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Intel PvP'))}</div>
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-recon-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     routeEl.hidden = tab !== 'route';
     localEl.hidden = tab !== 'local';
   }
 
-  tabsEl.addEventListener('click', (e) => {
+  side.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-recon-tab]');
     if (!b) return;
     tab = b.dataset.reconTab as Tab;

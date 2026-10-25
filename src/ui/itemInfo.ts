@@ -3,6 +3,7 @@ import { directRequirements, requirementTree, requirementsFor, skillsPlan, alpha
 import { formatDuration, durationHtml } from '../character/training';
 import { typeIconUrl } from '../services/market';
 import { shipMastery, masterySkills, type ShipMastery } from '../services/masteries';
+import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
 import { attributeSections } from './attributes';
 import { openModal, badge, badgeHtml, esc, formatInt, copyText, toast } from './components';
@@ -57,6 +58,15 @@ function planTable(plan: FitRequirements): string {
       </table>`;
 }
 
+const CAPITAL_SHIPS = 3344;
+
+function withHullSkills(ctx: AppContext, shipId: number, mastery: ShipMastery): ShipMastery {
+  const bonus = directRequirements(ctx.sde, shipId).filter((r) => r.skillId !== CAPITAL_SHIPS);
+  if (!bonus.length) return mastery;
+  const hull = { id: -shipId, name: tx('Skill-urile care dau bonusurile navei'), skills: bonus.map((r) => ({ skillId: r.skillId, levels: [1, 2, 3, 4, 5].map((l) => Math.max(r.level, l)) })) };
+  return { levels: mastery.levels.map((certs) => [hull, ...certs]) };
+}
+
 function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans: FitRequirements[]): string {
   const have = ctx.character.skills;
   const plan = plans[level - 1];
@@ -78,7 +88,7 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
         }).join('')}</tbody></table></div>`;
     }).join('')}</div>
     ${planTable(plan)}
-    ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
+    ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-plan-mastery>${tx('Adaugă în skill plan')}</button><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
 }
 
 export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) {
@@ -152,8 +162,9 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
     if (panel && mastery) panel.innerHTML = masteryHtml(ctx, mastery, masteryLevel, masteryPlans);
   };
   if (t.categoryId === 6) {
-    shipMastery(typeId).then((m) => {
-      if (!m || !el.isConnected) return;
+    shipMastery(typeId).then((raw) => {
+      if (!raw || !el.isConnected) return;
+      const m = withHullSkills(ctx, typeId, raw);
       mastery = m;
       masteryPlans = [1, 2, 3, 4, 5].map((l) => skillsPlan(sde, masterySkills(m, l), ctx.character));
       const reached = masteryPlans.findIndex((p) => !p.canFly);
@@ -168,6 +179,12 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
   el.addEventListener('click', (e) => {
     const lvl = (e.target as HTMLElement).closest<HTMLElement>('[data-mastery-level]');
     if (lvl) { masteryLevel = Number(lvl.dataset.masteryLevel); renderMastery(); return; }
+    if ((e.target as HTMLElement).closest('[data-plan-mastery]')) {
+      const steps = masteryPlans[masteryLevel - 1].missing;
+      savePlan(ctx.character.id, steps.reduce((p, st) => addToPlan(sde, p, ctx.character, st.skillId, st.required), loadPlan(ctx.character.id)));
+      toast(tx('Mastery {lvl} pentru {ship} adăugat în skill plan', { lvl: roman(masteryLevel), ship: t.name }));
+      return;
+    }
     if ((e.target as HTMLElement).closest('[data-copy-mastery]')) {
       copyText(skillPlanText(masteryPlans[masteryLevel - 1].missing), tx('Plan copiat (lipește-l în Skill Plans din joc)'));
       return;

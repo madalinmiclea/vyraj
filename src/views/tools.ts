@@ -6,11 +6,10 @@ import { parseItems, type AppraisalLine } from '../services/appraisal';
 import { fetchPrices, fetchLpOffers, resolveIds, typeIconUrl, type Aggregates } from '../services/market';
 import { loadAlerts, saveAlerts, addAlert, checkAlerts, hit, ALERTS_EVENT } from '../services/alerts';
 import { TIERS, WEATHERS, loadRuns, saveRuns, filamentTypeId, profitOf, summarize, iskPerHour, type AbyssalRun } from '../services/abyssal';
-import { pveSessions, byRef, daily, refLabel } from '../services/wallet';
-import { walletJournal, walletBalance, loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
+import { renderWallet } from './wallet';
+import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
 import { hasTokens, hasScope } from '../character/sso';
 import { allEveItems } from '../data/items';
-import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { tx, locale } from '../i18n';
 
 type Tab = 'appraisal' | 'abyssal' | 'wallet' | 'assets' | 'lp' | 'alerts';
@@ -190,45 +189,11 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const c = esiCharacter('esi-wallet.read_character_wallet.v1');
     if (c === 'scope') { body.innerHTML = scopePrompt(); return; }
     if (typeof c === 'string') { body.innerHTML = panel({ body: alertBox(c) }); return; }
-    body.innerHTML = panel({ body: loader(tx('Citesc wallet journal')) });
+    const charId = ctx.character.id;
     try {
-      const [entries, balance] = await Promise.all([walletJournal(c.id), walletBalance(c.id)]);
-      if (tab !== 'wallet') return;
-      const sessions = pveSessions(entries);
-      const days = daily(entries, 30);
-      const points: SeriesPoint[] = days.map((d) => ({ label: new Date(d.day).toISOString().slice(5, 10).split('-').reverse().join('.'), value: d.pve }));
-      const pveTotal = sessions.reduce((a, s) => a + s.isk, 0);
-      const pveHours = sessions.reduce((a, s) => a + (s.end - s.start), 0) / 3600000;
-      const oldest = entries.length ? entries.reduce((m, e) => Math.min(m, Date.parse(e.date)), Infinity) : Date.now();
-      body.innerHTML = `${panel({
-          title: 'Wallet',
-          count: tx('{n} intrări din {date}', { n: formatInt(entries.length), date: dateTime(oldest) }),
-          body: `<div class="history-kpis">
-              <div><span class="label">${tx('Sold')}</span><span class="value">${compactISK(balance)}</span></div>
-              <div><span class="label">${tx('Venit PvE')}</span><span class="value">${compactISK(pveTotal)}</span></div>
-              <div><span class="label">${tx('Ore active')}</span><span class="value">${formatNum(pveHours, 1)}</span></div>
-              <div><span class="label">${tx('ISK/oră PvE')}</span><span class="value">${compactISK(pveHours ? pveTotal / pveHours : 0)}</span></div>
-            </div>
-            <h4 class="sub-head">${tx('Venit PvE pe zi (30 zile)')}</h4>
-            ${seriesChart(points, { bars: true })}`,
-        })}
-        <div class="tool-grid">
-          ${panel({
-            title: tx('Sesiuni PvE'),
-            body: sessions.length ? `<table class="table compact"><thead><tr><th>Start</th><th class="r">${tx('Durată')}</th><th class="r">ISK</th><th class="r">${tx('ISK/oră')}</th></tr></thead><tbody>
-              ${sessions.slice(0, 40).map((s) => { const h = (s.end - s.start) / 3600000; return `<tr><td class="num dim">${dateTime(s.start)}</td><td class="r num">${formatNum(h, 1)} h</td><td class="r">${isk(s.isk)}</td><td class="r">${isk(s.isk / h)}</td></tr>`; }).join('')}
-              </tbody></table>` : `<p class="dim">${tx('Fără bounty sau misiuni în jurnal.')}</p>`,
-          })}
-          ${panel({
-            title: tx('Pe categorie'),
-            body: `<table class="table compact"><thead><tr><th>${tx('Tip')}</th><th class="r">${tx('Intrat')}</th><th class="r">${tx('Ieșit')}</th></tr></thead><tbody>
-              ${byRef(entries).map((r) => `<tr><td>${esc(refLabel(r.ref))}</td><td class="r up">${r.income ? isk(r.income) : ''}</td><td class="r down">${r.spent ? isk(r.spent) : ''}</td></tr>`).join('')}
-              </tbody></table>`,
-          })}
-        </div>`;
-      bindSeriesChart(body, points, { valueLabel: 'PvE' });
+      await renderWallet(body, ctx, c.id, () => tab === 'wallet' && ctx.character.id === charId);
     } catch (err) {
-      body.innerHTML = panel({ body: alertBox((err as Error).message) });
+      if (tab === 'wallet') body.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
   }
 
