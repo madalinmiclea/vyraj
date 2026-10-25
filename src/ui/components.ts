@@ -53,8 +53,10 @@ export function statCard({ label, id, tone = '', meta = '' }: { label: string; i
   </div>`;
 }
 
-export function emptyState({ title, text = '', extra = '' }: { title: string; text?: string; extra?: string }) {
-  return `<div class="empty">${reticle}<h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}${extra}</div>`;
+export function emptyState({ title, text = '', extra = '', vy = '', vyText = '' }: { title: string; text?: string; extra?: string; vy?: string; vyText?: string }) {
+  const h = vy ? lore(esc(title), esc(vy)) : esc(title);
+  const p = text && vyText ? lore(esc(text), esc(vyText)) : esc(text);
+  return `<div class="empty">${reticle}<h3>${h}</h3>${text ? `<p>${p}</p>` : ''}${extra}</div>`;
 }
 
 export function loader(text: string) {

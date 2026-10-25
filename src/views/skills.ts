@@ -128,7 +128,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   function renderDetail() {
     if (!selectedItem) {
-      detail.innerHTML = panel({ body: emptyState({ title: tx('Alege un item'), text: tx('Caută mai sus un item ca să vezi ce skill-uri îți trebuie și cât durează.') }) });
+      detail.innerHTML = panel({ body: emptyState({ title: tx('Alege un item'), text: tx('Caută mai sus un item ca să vezi ce skill-uri îți trebuie și cât durează.'), vy: 'Choose the Form to Master', vyText: 'Search above for an item. The Flow shall reveal which skills must be woven and how long the weaving takes.' }) });
       return;
     }
     const t = sde.type(selectedItem);

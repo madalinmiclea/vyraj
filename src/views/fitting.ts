@@ -221,6 +221,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         body: emptyState({
           title: tx('Alege o navă'),
           text: tx('Deschide „Ships” în browserul din stânga și apasă pe o navă. Apoi apasă pe module, muniție sau drone ca să le montezi. Poți și importa un fit EFT din joc sau din Pyfa.'),
+          vy: 'Choose the Hull to Prove',
+          vyText: 'Open “Ships” in the browser on the left and select a hull. Then bind modules, charges or drones to it. A fit from the game or from Pyfa may also be woven in through EFT import.',
           extra: `<div class="chips">${['Rifter', 'Drake', 'Gila', 'Ishtar', 'Golem'].map((n) => button(n, { cls: 'ghost sm', attrs: `data-quick="${n}"` })).join('')}</div>`,
         }),
       });

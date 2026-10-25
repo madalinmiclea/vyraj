@@ -399,7 +399,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
       const dist = origin ? m.gateDistances(origin.id) : null;
       const rows = links.map((l) => ({ l, s: m.systems.get(l.systemId), d: dist?.get(l.systemId) }))
         .sort((a, b) => (a.d ?? 999) - (b.d ?? 999) || b.l.hoursLeft - a.l.hoursLeft);
-      if (!rows.length) { result.innerHTML = panel({ body: emptyState({ title: tx('Nicio conexiune raportată acum') }) }); return; }
+      if (!rows.length) { result.innerHTML = panel({ body: emptyState({ title: tx('Nicio conexiune raportată acum'), vy: 'No Passages Reported' }) }); return; }
       const hubs = [...new Set(rows.map((r) => r.l.hub))];
       result.innerHTML = panel({
         title: tx('Conexiuni active'),

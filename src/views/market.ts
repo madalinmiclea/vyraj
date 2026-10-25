@@ -1,5 +1,5 @@
 import { icon } from '../ui/icons';
-import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel } from '../ui/components';
+import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel, lore } from '../ui/components';
 import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
 import { HUBS, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
@@ -87,7 +87,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     };
     const section = (title: string, names: string[]) => names.length ? `<section class="item-tiles-block"><h4 class="window-title">${title}</h4><div class="item-tiles">${names.map(tile).join('')}</div></section>` : '';
     state.innerHTML = `<div class="market-welcome">
-      <div class="market-welcome-head">${icon('market')}<div><h3>${tx('Selectează o țintă')}</h3><p>${tx('Alege un item din browserul din stânga sau caută-l mai sus. Prețurile vin live din ordinele din Jita 4-4.')}</p></div></div>
+      <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul din stânga sau caută-l mai sus. Prețurile vin live din ordinele din Jita 4-4.'), 'Pick an item from the browser on the left or search above. Prices flow live from the Jita 4-4 orders.')}</p></div></div>
       ${section(tx('Vizitate recent'), recent)}
       ${section(tx('Populare'), QUICK.filter((n) => !recent.includes(n)))}
     </div>`;
@@ -263,7 +263,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             </div>
             <div class="actions">${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
           </section>
-          ${emptyState({ title: tx('Nimeni nu vinde sau cumpără acum'), text: tx('Itemul există în joc, dar nu are niciun ordin activ în Jita (des întâlnit la module de officer și iteme rare). Verifică din nou mai târziu; prețurile se reîmprospătează la fiecare căutare.') })}
+          ${emptyState({ title: tx('Nimeni nu vinde sau cumpără acum'), text: tx('Itemul există în joc, dar nu are niciun ordin activ în Jita (des întâlnit la module de officer și iteme rare). Verifică din nou mai târziu; prețurile se reîmprospătează la fiecare căutare.'), vy: 'The Conduit Is Silent', vyText: 'This item exists, but no order flows for it in Jita right now (common for officer modules and rare items). Return later; prices refresh with every search.' })}
           <div id="hubPanel" class="hub-panel"></div>`;
         current = { typeId, name, sell: 0, buy: 0 };
         jitaPrices = p;

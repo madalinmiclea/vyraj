@@ -336,7 +336,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
             <td class="r">${a.current != null ? isk(a.current) : '—'}</td>
             <td class="num dim">${a.checkedAt ? dateTime(a.checkedAt) : '—'}</td>
             <td><button class="icon-btn" data-al-del="${a.id}" title="${tx('Șterge')}">✕</button></td></tr>`).join('')}
-          </tbody></table>` : emptyState({ title: tx('Nicio alertă'), text: '' })}`,
+          </tbody></table>` : emptyState({ title: tx('Nicio alertă'), vy: 'No Alerts Woven' })}`,
     });
   }
 

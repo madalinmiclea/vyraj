@@ -157,7 +157,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   function renderGrid() {
     const body = el.querySelector<HTMLElement>('#skinBody')!;
     const list = visible();
-    if (!list.length) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de afișat'), text: tx('Niciun SKIN nu se potrivește filtrului.') }) }); return; }
+    if (!list.length) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de afișat'), text: tx('Niciun SKIN nu se potrivește filtrului.'), vy: 'No Raiment Answers', vyText: 'No SKIN answers the current filter.' }) }); return; }
     body.innerHTML = `<div class="skin-grid">${list.map((l) => tile(l) + (open === l.name ? detail(l) : '')).join('')}</div>`;
   }
 
@@ -177,7 +177,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       .filter((ship) => ship.licenses.length && !owned.has(skinKey(line.name, ship.id)))
       .map((ship) => ({ line, ship })))
       .filter(({ line, ship }) => !query || line.name.toLowerCase().includes(query) || ship.name.toLowerCase().includes(query));
-    if (!missing.length) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de cumpărat'), text: tx('Ai toate SKIN-urile din filtrul curent.') }) }); return; }
+    if (!missing.length) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de cumpărat'), text: tx('Ai toate SKIN-urile din filtrul curent.'), vy: 'All Raiment Gathered', vyText: 'Every SKIN in the current filter is already yours.' }) }); return; }
     body.innerHTML = panel({ body: loader(tx('Citesc prețurile din Jita')) });
     try {
       const listed = await fetchListedTypes().catch(() => null);

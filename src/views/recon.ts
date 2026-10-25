@@ -261,7 +261,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const run = ++localRun;
     pilots = [];
     if (parsed.kind === 'empty') {
-      localResult.innerHTML = panel({ body: emptyState({ title: tx('Nimic de analizat'), text: tx('Lipește numele piloților din Local (unul pe rând) sau liniile copiate din D-Scan.') }) });
+      localResult.innerHTML = panel({ body: emptyState({ title: tx('Nimic de analizat'), text: tx('Lipește numele piloților din Local (unul pe rând) sau liniile copiate din D-Scan.'), vy: 'Nothing to Discern', vyText: 'Paste the pilot names from Local (one per line) or the lines copied from D-Scan, and the Clade shall discern them.' }) });
       return;
     }
     if (parsed.kind === 'dscan') { renderDscan(parsed.rows); return; }

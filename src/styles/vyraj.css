@@ -52,7 +52,7 @@
 :root[data-theme='vyraj'] .lore-vy { display: inline; }
 .neocom > * { order: var(--vy-order, 0); }
 .clade-sep { width: 30px; height: 1px; margin: 6px 0; flex: none; background: var(--line-strong); font-size: 0; overflow: hidden; }
-.clade-sep[style*='--vy-order:1'] { display: none; }
+.clade-sep[style='--vy-order:1'] { display: none; }
 :root[data-theme='vyraj'] .clade-sep {
   display: block;
   height: auto;
@@ -70,8 +70,15 @@
   text-transform: uppercase;
   color: var(--accent);
 }
-:root[data-theme='vyraj'] .clade-sep[style*='--vy-order:1'] { margin-top: 0; border-top-color: transparent; padding-top: 0; }
+:root[data-theme='vyraj'] .clade-sep[style='--vy-order:1'] { margin-top: 0; border-top-color: transparent; padding-top: 0; }
 :root[data-theme='vyraj'] .neocom-btn[data-tip-vy]::after { content: attr(data-tip-vy); }
+@media (min-width: 761px) and (max-height: 820px) {
+  .neocom { gap: 2px; padding: 6px 0; }
+  .neocom-btn { width: 40px; height: 40px; }
+  .neocom-btn svg { width: 22px; height: 22px; }
+  .clade-sep { margin: 4px 0; }
+  :root[data-theme='vyraj'] .clade-sep { margin: 4px 0 1px; padding-top: 4px; }
+}
 @media (max-width: 760px) {
   .neocom .clade-sep, :root[data-theme='vyraj'] .neocom .clade-sep { display: none; }
 }

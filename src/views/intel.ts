@@ -114,7 +114,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     renderTabs();
     if (scanning) return;
     if (!scan) {
-      body.innerHTML = panel({ body: emptyState({ title: tx('Piața Jita nescanată'), text: tx('Scanarea citește ordinele din The Forge și istoricul pe 30 de zile pentru cele mai active iteme.'), extra: `<div class="row-actions center"><button class="btn" data-scan>${icon('refresh')}${tx('Scanează Jita')}</button></div>` }) });
+      body.innerHTML = panel({ body: emptyState({ title: tx('Piața Jita nescanată'), text: tx('Scanarea citește ordinele din The Forge și istoricul pe 30 de zile pentru cele mai active iteme.'), vy: 'Jita Not Yet Discerned', vyText: 'The scan reads The Forge orders and 30 days of history for the most active items.', extra: `<div class="row-actions center"><button class="btn" data-scan>${icon('refresh')}${tx('Scanează Jita')}</button></div>` }) });
       return;
     }
     ({ ideas, volume, trading, trend, haul: transport } as Record<Tab, () => void>)[tab]();

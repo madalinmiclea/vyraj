@@ -134,7 +134,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const scan = lastScan();
     const chars = rosterCharacters();
     if (!chars.length) {
-      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de market.') }) });
+      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de market.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your market orders.' }) });
       return;
     }
     const warn = scan?.missingScope.length

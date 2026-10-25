@@ -44,12 +44,12 @@ const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | n
   { id: 'navigation', label: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
   { id: 'fitting', label: 'Fitting', icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
   { id: 'character', label: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
-  { id: 'industry', label: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Veles', order: 4 },
+  { id: 'industry', label: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 14 },
   { id: 'tools', label: tx('Unelte ISK'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
-  { id: 'mining', label: tx('Mining'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Veles', order: 4 },
+  { id: 'mining', label: tx('Mining'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
   { id: 'orders', label: tx('Ordine market'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
-  { id: 'pi', label: 'Planetary Interaction', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Veles', order: 4 },
+  { id: 'pi', label: 'Planetary Interaction', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
@@ -70,7 +70,7 @@ document.querySelector('#app')!.innerHTML = `
     </header>
 
     <nav class="neocom">
-      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
+      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<button class="neocom-btn" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
     </nav>
 

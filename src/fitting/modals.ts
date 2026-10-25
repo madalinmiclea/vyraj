@@ -34,7 +34,7 @@ export function createFitModals(env: FitEnv) {
           ${button(tx('Deschide'), { cls: 'sm', attrs: `data-open="${esc(f.id)}"` })}
           <button class="btn ghost sm icon-only" data-delete="${esc(f.id)}" title="${tx('Șterge')}">${icon('trash')}</button>
         </div>`).join('')}</div>`
-      : emptyState({ title: tx('Niciun fit salvat'), text: tx('Apasă „Salvează” pe un fit ca să apară aici.') });
+      : emptyState({ title: tx('Niciun fit salvat'), text: tx('Apasă „Salvează” pe un fit ca să apară aici.'), vy: 'No Provings Kept', vyText: 'Press “Save” on a fit and it shall be kept here.' });
     const modal = openModal(tx('Fit-uri salvate'), body);
     modal.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
@@ -326,7 +326,7 @@ export function createFitModals(env: FitEnv) {
               ${button(tx('Deschide'), { cls: 'sm', attrs: `data-ship="${s.itemId}"` })}
             </div>`;
           }).join('')}</div>`
-        : emptyState({ title: tx('Nicio navă asamblată'), text: tx('Nu am găsit nave asamblate în asset-urile tale.') });
+        : emptyState({ title: tx('Nicio navă asamblată'), text: tx('Nu am găsit nave asamblate în asset-urile tale.'), vy: 'No Hulls Assembled', vyText: 'No assembled vessels were found among your holdings.' });
       body.addEventListener('click', async (e) => {
         const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-ship]');
         const ship = btn && ships.find((s) => s.itemId === Number(btn.dataset.ship));
