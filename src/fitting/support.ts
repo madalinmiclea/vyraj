@@ -76,13 +76,19 @@ export function createSupportPanels(env: FitEnv) {
       ${flows ? `<div class="mini-kv">${flows}</div>` : ''}`;
   }
 
-  function supportPanel(f: Fit, d: Dogma) {
-    const active = (f.fleet?.charges.length ?? 0) + (f.projected?.length ?? 0);
-    return panel({
-      title: tx('Flotă și efecte proiectate'),
-      count: active ? String(active) : undefined,
-      body: `<div class="window-title sub">${tx('Boost-uri flotă')}</div>${fleetBody(f)}
-        <div class="window-title sub">${tx('Efecte proiectate')}</div>${projectedBody(f, d)}`,
+  function isBurst(id: number) {
+    return bursts.some((g) => g.charges.some((c) => c.id === id));
+  }
+
+  function addBurst(id: number) {
+    env.change((draft) => { const b = draft.fleet ?? (draft.fleet = emptyBoost()); if (!b.charges.includes(id)) b.charges.push(id); });
+  }
+
+  function addProjected(id: number) {
+    env.change((draft) => {
+      const list = draft.projected ?? (draft.projected = []);
+      const same = list.find((p) => p.typeId === id);
+      if (same) same.count++; else list.push({ typeId: id, count: 1 });
     });
   }
 
@@ -130,11 +136,7 @@ export function createSupportPanels(env: FitEnv) {
       const input = document.querySelector<HTMLInputElement>('#projName');
       const t = input?.value.trim() ? sde.findType(input.value.trim()) : undefined;
       if (!t || !isProjectable(sde, t.id)) { toast(tx('Alege un modul din listă')); return true; }
-      env.change((draft) => {
-        const list = draft.projected ?? (draft.projected = []);
-        const same = list.find((p) => p.typeId === t.id);
-        if (same) same.count++; else list.push({ typeId: t.id, count: 1 });
-      });
+      addProjected(t.id);
       return true;
     }
     return false;
@@ -144,12 +146,12 @@ export function createSupportPanels(env: FitEnv) {
     if (target.id === 'fitMode') { env.change((draft) => { draft.mode = Number(target.value); }); return true; }
     if (target.id === 'fleetAddBurst') {
       const id = Number(target.value);
-      if (id) env.change((draft) => { const b = draft.fleet ?? (draft.fleet = emptyBoost()); if (!b.charges.includes(id)) b.charges.push(id); });
+      if (id) addBurst(id);
       return true;
     }
     if (target.id === 'fleetShipBonus') { env.change((draft) => { (draft.fleet ?? (draft.fleet = emptyBoost())).shipBonus = Number(target.value); }); return true; }
     return false;
   }
 
-  return { modeSelect, ensureMode, supportPanel, heatPanel, handleClick, handleChange };
+  return { modeSelect, ensureMode, fleetBody, projectedBody, isBurst, addBurst, addProjected, heatPanel, handleClick, handleChange };
 }

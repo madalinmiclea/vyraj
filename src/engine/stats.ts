@@ -26,6 +26,7 @@ export interface Resources {
   droneBandwidth: Resource;
   droneBay: Resource;
   fighterBay: Resource;
+  cargo: Resource;
   fighterTubes: Resource;
   fighterLight: Resource;
   fighterSupport: Resource;
@@ -62,6 +63,7 @@ export function resources(sde: Sde, fit: Fit, d: Dogma): Resources {
     droneBandwidth: { used: activeDrones, total: ship.get('droneBandwidth') },
     droneBay: { used: bayVolume, total: ship.get('droneCapacity') },
     fighterBay: { used: fighterVolume, total: ship.get('fighterCapacity') },
+    cargo: { used: fit.cargo.reduce((a, x) => a + volume(x.typeId) * x.count, 0), total: ship.get('capacity') },
     fighterTubes: { used: launchedSquads.reduce((a, x) => a + x.active, 0), total: Math.round(ship.get('fighterTubes')) },
     fighterLight: { used: squadsOf('fighterSquadronIsLight'), total: Math.round(ship.get('fighterLightSlots')) },
     fighterSupport: { used: squadsOf('fighterSquadronIsSupport'), total: Math.round(ship.get('fighterSupportSlots')) },

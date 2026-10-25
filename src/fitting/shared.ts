@@ -7,6 +7,11 @@ import { tx } from '../i18n';
 import type { Sde } from '../data/sde';
 
 export const CURRENT_KEY = 'eve-fit:current';
+export const OPEN_KEY = 'eve-fit:open-fits';
+export const EXTRAS_KEY = 'eve-fit:extras-tab';
+export const MAX_TABS = 16;
+
+export type ExtrasTab = 'drones' | 'fighters' | 'cargo' | 'implants' | 'boosters' | 'projected' | 'command' | 'notes';
 
 export function capTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));

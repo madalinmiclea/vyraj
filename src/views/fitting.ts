@@ -4,6 +4,7 @@ import {
   addToFit, droneLimit, ensureDroneLimits, mergeImplants, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
   type Fit, type FitModule, type SlotKind,
 } from '../engine/fit';
+import { isProjectable } from '../engine/projected';
 import { isBoosterSideEffect, type Dogma, type DogmaItem, type ModuleState } from '../engine/dogma';
 import { applyChecked, violations } from '../engine/rules';
 import { computeStats, type FitStats } from '../engine/stats';
@@ -28,7 +29,7 @@ import { addItemToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import { tx } from '../i18n';
 import { allEveItems } from '../data/items';
 import type { BrowserScope } from '../ui/sidebar';
-import { CURRENT_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type TargetState, type FitEnv } from '../fitting/shared';
+import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type ExtrasTab, type TargetState, type FitEnv } from '../fitting/shared';
 import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
 import { createSupportPanels } from '../fitting/support';
@@ -44,9 +45,13 @@ export interface FittingView {
 export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
   const sde = ctx.sde;
   const limitDrones = (f: Fit) => ensureDroneLimits(sde, f, droneLimit(sde, f, ctx.character.skills, ctx.character.implants));
-  let fit: Fit | null = loadJson<Fit | null>(CURRENT_KEY, null);
-  if (fit && !sde.types.has(fit.shipId)) fit = null;
-  if (fit) limitDrones(fit);
+  const usable = (f: Fit | null | undefined) => (f && sde.types.has(f.shipId) ? limitDrones(f) : null);
+  const stored = loadJson<{ fits: (Fit | null)[]; active: number } | null>(OPEN_KEY, null);
+  let tabs: (Fit | null)[] = stored?.fits?.length ? stored.fits.map(usable) : [usable(loadJson<Fit | null>(CURRENT_KEY, null))];
+  let active = Math.min(Math.max(0, stored?.active ?? 0), tabs.length - 1);
+  let fit: Fit | null = tabs[active];
+  let extrasTab = loadJson<ExtrasTab>(EXTRAS_KEY, 'drones');
+  let dragFrom = -1;
   let profileId = loadJson<string>(PROFILE_KEY, 'Generic/Uniform');
   let targetState = loadJson<TargetState>(TARGET_KEY, { id: 'cruiser', signature: 125, velocity: 200, distanceKm: 30 });
   let priceRequest = 0;
@@ -89,12 +94,14 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         </div>
       </div>
     </section>
+    <div class="fit-tabs" id="fitTabs"></div>
     <div class="fit-layout">
       <div class="stack" id="fitLeft"></div>
       <div class="stack" id="fitRight"></div>
     </div>
   `;
   const left = el.querySelector<HTMLElement>('#fitLeft')!;
+  const tabsEl = el.querySelector<HTMLElement>('#fitTabs')!;
   const right = el.querySelector<HTMLElement>('#fitRight')!;
   const tips = new Map<string, string>();
   bindBreakdownTips(right, (k) => tips.get(k));
@@ -102,7 +109,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     sde,
     ctx,
     getFit: () => fit,
-    setFit: (next) => { fit = next ? limitDrones(next) : next; render(); },
+    setFit: (next) => { if (next) openFit(next); },
     change: (fn) => change(fn),
     profileId: () => profileId,
     targetState: () => targetState,
@@ -118,7 +125,91 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     charSelect.innerHTML = allCharacters(sde).map((c) => `<option value="${esc(c.id)}" ${c.id === ctx.character.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   }
 
+  function persist() {
+    tabs[active] = fit;
+    saveJson(OPEN_KEY, { fits: tabs, active });
+    saveJson(CURRENT_KEY, fit);
+  }
+
+  function isDirty(f: Fit, saved: Map<string, string>) {
+    const was = saved.get(f.id);
+    if (was != null) return was !== JSON.stringify(f);
+    return SLOT_KINDS.some((k) => f.slots[k].some(Boolean)) || f.drones.length > 0 || f.cargo.length > 0 || f.implants.length > 0 || !!f.notes?.trim();
+  }
+
+  function savedJson() {
+    return new Map(loadFits().map((f) => [f.id, JSON.stringify(f)]));
+  }
+
+  function renderTabs() {
+    const saved = savedJson();
+    tabsEl.innerHTML = tabs.map((f, i) => `<div class="fit-tab ${i === active ? 'active' : ''}" data-fit-tab="${i}" draggable="true" title="${f ? esc(`${f.name} · ${name(f.shipId)}`) : ''}">
+        ${f ? `<img src="${typeIconUrl(f.shipId, 32)}" alt="" />` : `<span class="fit-tab-ico">${icon('ship')}</span>`}
+        <span class="fit-tab-name">${f ? esc(f.name) : tx('Tab gol')}</span>
+        ${f && isDirty(f, saved) ? `<span class="fit-tab-dirty" title="${tx('Modificări nesalvate')}"></span>` : ''}
+        <button class="fit-tab-close" data-fit-close="${i}" title="${tx('Închide tab-ul')}">${icon('close')}</button>
+      </div>`).join('') + `<button class="fit-tab-add" data-fit-add="1" title="${tx('Tab nou')}">${icon('plus')}</button>`;
+  }
+
+  function switchTab(i: number) {
+    if (i === active || i < 0 || i >= tabs.length) return;
+    tabs[active] = fit;
+    active = i;
+    fit = tabs[i];
+    if (fit) limitDrones(fit);
+    if (pickedSlot) pickSlot(null);
+    render();
+  }
+
+  function addTab(next: Fit | null): boolean {
+    if (tabs.length >= MAX_TABS) { toast(tx('Poți avea maxim {n} fit-uri deschise. Închide un tab ca să deschizi altul.', { n: MAX_TABS })); return false; }
+    tabs[active] = fit;
+    tabs.push(next);
+    active = tabs.length - 1;
+    fit = next;
+    if (pickedSlot) pickSlot(null);
+    render();
+    return true;
+  }
+
+  function openFit(next: Fit): boolean {
+    const f = limitDrones(next);
+    const same = tabs.findIndex((x) => x?.id === f.id);
+    if (same < 0 && fit) return addTab(f);
+    if (same >= 0) active = same;
+    fit = f;
+    tabs[active] = f;
+    if (pickedSlot) pickSlot(null);
+    render();
+    return true;
+  }
+
+  function closeTab(i: number) {
+    const f = tabs[i];
+    if (f && isDirty(f, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Închizi tab-ul?', { name: f.name }))) return;
+    tabs[active] = fit;
+    tabs.splice(i, 1);
+    if (!tabs.length) tabs = [null];
+    if (i < active || active >= tabs.length) active = Math.max(0, active - 1);
+    fit = tabs[active];
+    if (fit) limitDrones(fit);
+    if (pickedSlot) pickSlot(null);
+    render();
+  }
+
+  function moveTab(from: number, to: number) {
+    if (from === to || from < 0 || to < 0 || from >= tabs.length || to >= tabs.length) return;
+    tabs[active] = fit;
+    const current = tabs[active];
+    const [moved] = tabs.splice(from, 1);
+    tabs.splice(to, 0, moved);
+    active = tabs.indexOf(current);
+    persist();
+    renderTabs();
+  }
+
   function render() {
+    renderTabs();
     nameInput.value = fit?.name ?? '';
     nameInput.disabled = !fit;
     if (!fit) {
@@ -130,6 +221,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         }),
       });
       right.innerHTML = '';
+      persist();
       return;
     }
     support.ensureMode(fit);
@@ -137,10 +229,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
-    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + dronesPanel(fit, stats) + extrasPanel(fit) + support.supportPanel(fit, d);
+    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d);
     buildTips(d);
     right.innerHTML = statsPanels(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
-    saveJson(CURRENT_KEY, fit);
+    persist();
     loadCost(fit);
   }
 
@@ -202,29 +294,21 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return panel({ title: tx('Sloturi'), body: groups.join('') });
   }
 
-  function dronesPanel(f: Fit, s: FitStats) {
-    const r = s.resources;
-    if (!f.drones.length && r.droneBay.total <= 0 && r.fighterBay.total <= 0) return '';
-    const fighterBay = r.fighterBay.total > 0 || r.fighterBay.used > 0;
+  function droneRows(f: Fit, fighters: boolean) {
     const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
-    const rows = f.drones.map((dr, i) => `<div class="slot fitted drone-row">
+    return f.drones.map((dr, i) => ({ dr, i })).filter((x) => isFighter(x.dr.typeId) === fighters).map(({ dr, i }) => `<div class="slot fitted drone-row">
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button>
-        <span class="dim small">${isFighter(dr.typeId) ? tx('{a} escadrile lansate din {n}', { a: dr.active, n: dr.count }) : tx('{a} lansate din {n}', { a: dr.active, n: dr.count })}</span></div>
-      <div class="stepper" title="${tx('Drone lansate')}">
+        <span class="dim small">${fighters ? tx('{a} escadrile lansate din {n}', { a: dr.active, n: dr.count }) : tx('{a} lansate din {n}', { a: dr.active, n: dr.count })}</span></div>
+      <div class="stepper" title="${fighters ? tx('Escadrile lansate') : tx('Drone lansate')}">
         <button data-drone="${i}:active:-1">−</button><span class="num">${dr.active}</span><button data-drone="${i}:active:1">+</button>
       </div>
-      <div class="stepper" title="${tx('Drone în bay')}">
+      <div class="stepper" title="${fighters ? tx('Escadrile în bay') : tx('Drone în bay')}">
         <button data-drone="${i}:count:-1">−</button><span class="num">${dr.count}</span><button data-drone="${i}:count:1">+</button>
       </div>
       <button class="slot-info" data-info="${dr.typeId}" title="Show Info">${icon('info')}</button>
       <button class="slot-remove" data-drone="${i}:remove:0" title="${tx('Scoate')}">${icon('close')}</button>
-    </div>`);
-    return panel({
-      title: fighterBay && r.droneBay.total <= 0 ? 'Fighter bay' : 'Drone bay',
-      count: [r.droneBay.total > 0 || !fighterBay ? `${formatNum(r.droneBay.used, 0)} / ${formatNum(r.droneBay.total, 0)} m³` : '', fighterBay ? `Fighters ${formatNum(r.fighterBay.used, 0)} / ${formatNum(r.fighterBay.total, 0)} m³ · ${tx('tuburi')} ${r.fighterTubes.used}/${r.fighterTubes.total}` : ''].filter(Boolean).join(' · '),
-      body: `<div class="slot-group drones">${rows.join('') || `<p class="dim small">${tx('Apasă pe o dronă din browser ca s-o adaugi.')}</p>`}</div>`,
-    });
+    </div>`).join('');
   }
 
   function implantBonus(id: number) {
@@ -269,33 +353,91 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return v.startsWith('-') || v.startsWith('+') ? v : '+' + v;
   }
 
-  function extrasPanel(f: Fit) {
-    const active = new Set(mergeImplants(sde, ctx.character.implants, f.implants));
-    const own = ctx.character.implants.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id));
-    if (!f.implants.length && !f.cargo.length && !own.length) return '';
+  function extrasPanel(f: Fit, s: FitStats, d: Dogma) {
+    const r = s.resources;
+    const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
+    const isBooster = (id: number) => sde.baseAttr(id, sde.attrId('boosterness')) > 0;
     const slotOfImplant = (id: number) => sde.baseAttr(id, sde.attrId('implantness'));
-    const list = (items: { id: number; label: string; sub?: string; set?: string; sides?: string; attr?: string; tag?: string }[]) => items.map((x) => `<div class="slot fitted">
+    const active = new Set(mergeImplants(sde, ctx.character.implants, f.implants));
+    const own = ctx.character.implants.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id) && !isBooster(id));
+    const drones = f.drones.filter((x) => !isFighter(x.typeId));
+    const fighters = f.drones.filter((x) => isFighter(x.typeId));
+    const implants = f.implants.map((id, i) => ({ id, i })).filter((x) => !isBooster(x.id));
+    const boosters = f.implants.map((id, i) => ({ id, i })).filter((x) => isBooster(x.id));
+    const hasDrones = r.droneBay.total > 0 || drones.length > 0;
+    const hasFighters = r.fighterBay.total > 0 || r.fighterTubes.total > 0 || fighters.length > 0;
+    const sum = (list: { count: number }[]) => list.reduce((a, x) => a + x.count, 0);
+    const tabsList: { key: ExtrasTab; label: string; n: number; show: boolean }[] = [
+      { key: 'drones', label: 'Drones', n: sum(drones), show: hasDrones },
+      { key: 'fighters', label: 'Fighters', n: fighters.length, show: hasFighters },
+      { key: 'cargo', label: 'Cargo', n: f.cargo.length, show: true },
+      { key: 'implants', label: tx('Implanturi'), n: implants.length + own.length, show: true },
+      { key: 'boosters', label: tx('Boostere'), n: boosters.length, show: true },
+      { key: 'projected', label: tx('Proiectate'), n: sum(f.projected ?? []), show: true },
+      { key: 'command', label: tx('Comandă'), n: f.fleet?.charges.length ?? 0, show: true },
+      { key: 'notes', label: tx('Note'), n: f.notes?.trim() ? 1 : 0, show: true },
+    ];
+    const shown = tabsList.filter((x) => x.show);
+    const current = shown.some((x) => x.key === extrasTab) ? extrasTab : shown[0].key;
+    const list = (items: { id: number; label: string; sub?: string; set?: string; sides?: string; attr?: string; tag?: string; extra?: string }[]) => items.map((x) => `<div class="slot fitted">
       <img class="slot-img" src="${typeIconUrl(x.id, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${x.id}">${esc(x.label)}</button>${x.sub ? `<span class="dim small">${esc(x.sub)}</span>` : ''}${x.set ? `<span class="small set-bonus">${esc(x.set)}</span>` : ''}${x.sides ?? ''}</div>
-      ${x.tag ? badge(x.tag, 'accent') : ''}
+      ${x.tag ? badge(x.tag, 'accent') : ''}${x.extra ?? ''}
       <button class="slot-info" data-info="${x.id}" title="Show Info">${icon('info')}</button>
       ${x.attr ? `<button class="slot-remove" ${x.attr} title="${tx('Scoate')}">${icon('close')}</button>` : ''}
     </div>`).join('');
-    const isBooster = (id: number) => sde.baseAttr(id, sde.attrId('boosterness')) > 0;
     const implantRow = (id: number) => {
       const booster = sde.baseAttr(id, sde.attrId('boosterness'));
       const slot = booster || slotOfImplant(id);
       return { id, label: `${slot ? `[${booster ? 'B' : ''}${slot}] ` : ''}${name(id)}`, sub: implantBonus(id), set: implantSetLine(id), sides: booster ? boosterSides(f, id) : '' };
     };
-    return panel({
-      title: tx('Implanturi, boostere și cargo'),
-      body: `<div class="slot-group implants">
-        ${list([...own].sort((a, b) => slotOfImplant(a) - slotOfImplant(b)).map((id) => ({ ...implantRow(id), tag: tx('caracter') })))}
-        ${list(f.implants.map((id, i) => ({ id, i })).filter((x) => !isBooster(x.id)).map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}
-        ${list(f.implants.map((id, i) => ({ id, i })).filter((x) => isBooster(x.id)).map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}
-        ${list(f.cargo.map((c, i) => ({ id: c.typeId, label: `${name(c.typeId)} × ${c.count}`, attr: `data-cargo="${i}"` })))}
-      </div>`,
-    });
+    const hint = (text: string) => `<p class="dim small extras-hint">${text}</p>`;
+    const meta = (parts: string[]) => `<div class="extras-meta">${parts.filter(Boolean).map((x) => `<span>${x}</span>`).join('')}</div>`;
+    const m3 = (x: { used: number; total: number }) => `<b class="num ${x.used > x.total + 1e-6 ? 'neg' : ''}">${formatNum(x.used, Number.isInteger(x.used) || x.used >= 10 ? 0 : 1)}</b> / ${formatNum(x.total, 0)} m³`;
+    const volume = (id: number) => sde.baseAttr(id, sde.attrId('volume'));
+    let body = '';
+    switch (current) {
+      case 'drones': {
+        const launched = drones.reduce((a, x) => a + x.active, 0);
+        body = meta([`Drone bay ${m3(r.droneBay)}`, `Bandwidth <b class="num">${formatNum(r.droneBandwidth.used, 0)}</b> / ${formatNum(r.droneBandwidth.total, 0)} Mbit/s`, `${tx('Lansate')} <b class="num">${launched}</b> / ${formatNum(d.character.get('maxActiveDrones'), 0)}`])
+          + `<div class="slot-group drones">${droneRows(f, false)}</div>` + (drones.length ? '' : hint(tx('Apasă pe o dronă din browser ca s-o adaugi.')));
+        break;
+      }
+      case 'fighters':
+        body = meta([`Fighter bay ${m3(r.fighterBay)}`, `${tx('Tuburi')} <b class="num">${r.fighterTubes.used}</b> / ${r.fighterTubes.total}`,
+          r.fighterLight.total ? `Light ${r.fighterLight.used}/${r.fighterLight.total}` : '', r.fighterSupport.total ? `Support ${r.fighterSupport.used}/${r.fighterSupport.total}` : '', r.fighterHeavy.total ? `Heavy ${r.fighterHeavy.used}/${r.fighterHeavy.total}` : ''])
+          + `<div class="slot-group drones">${droneRows(f, true)}</div>` + (fighters.length ? '' : hint(tx('Apasă pe un fighter din browser ca să-l adaugi.')));
+        break;
+      case 'cargo':
+        body = meta([`Cargo hold ${m3(r.cargo)}`])
+          + `<div class="slot-group implants">${list(f.cargo.map((c, i) => ({ id: c.typeId, label: name(c.typeId), sub: `${formatNum(volume(c.typeId) * c.count, 2)} m³`, attr: `data-cargo="${i}"`,
+            extra: `<input class="input plain sm cargo-count num" type="number" min="1" step="1" value="${c.count}" data-cargo-count="${i}" title="${tx('Cantitate')}" />` })))}</div>`
+          + hint(tx('Cât timp tab-ul Cargo e deschis, orice item apăsat în browser intră în cargo.'));
+        break;
+      case 'implants':
+        body = `<div class="slot-group implants">
+            ${list([...own].sort((a, b) => slotOfImplant(a) - slotOfImplant(b)).map((id) => ({ ...implantRow(id), tag: tx('caracter') })))}
+            ${list(implants.sort((a, b) => slotOfImplant(a.id) - slotOfImplant(b.id)).map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}
+          </div>` + (implants.length || own.length ? '' : hint(tx('Apasă pe un implant din browser ca să-l adaugi.')));
+        break;
+      case 'boosters':
+        body = `<div class="slot-group implants">${list(boosters.map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}</div>`
+          + (boosters.length ? '' : hint(tx('Apasă pe un booster din browser ca să-l adaugi.')));
+        break;
+      case 'projected':
+        body = support.projectedBody(f, d) + hint(tx('Cât timp tab-ul e deschis, modulele proiectabile apăsate în browser se adaugă aici.'));
+        break;
+      case 'command':
+        body = support.fleetBody(f) + hint(tx('Cât timp tab-ul e deschis, burst charge-urile apăsate în browser se adaugă aici.'));
+        break;
+      case 'notes':
+        body = `<textarea class="input area fit-notes" id="fitNotes" rows="8" spellcheck="false" placeholder="${tx('Note despre fit: rol, cum se zboară, ce mai trebuie în cargo…')}">${esc(f.notes ?? '')}</textarea>`;
+        break;
+    }
+    return `<section class="panel fit-extras">
+      <div class="tabs extras-tabs">${shown.map((x) => `<button class="tab ${x.key === current ? 'active' : ''}" data-extras="${x.key}">${x.label}${x.n ? ` <span class="tab-count neutral">${x.n}</span>` : ''}</button>`).join('')}</div>
+      <div class="panel-body">${body}</div>
+    </section>`;
   }
 
   function costPanel() {
@@ -352,20 +494,40 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function newFit(shipId: number) {
-    fit = emptyFit(shipId, `${name(shipId)} PvE`);
-    if (pickedSlot) pickSlot(null);
-    render();
+    return openFit(emptyFit(shipId, `${name(shipId)} PvE`));
+  }
+
+  function showExtras(key: ExtrasTab) {
+    extrasTab = key;
+    saveJson(EXTRAS_KEY, key);
+  }
+
+  function routeToExtras(t: TypeInfo): boolean {
+    if (!fit) return false;
+    if (extrasTab === 'cargo') {
+      const result = applyChecked(sde, fit, ctx.character.skills, (draft) => {
+        const same = draft.cargo.find((c) => c.typeId === t.id);
+        if (same) same.count++; else draft.cargo.push({ typeId: t.id, count: 1 });
+        return { ok: true, message: tx('{name} adăugat în cargo', { name: t.name }) };
+      }, ctx.character.implants);
+      toast(proving(result.message));
+      if (result.ok) render();
+      return true;
+    }
+    if (extrasTab === 'projected' && isProjectable(sde, t.id)) { support.addProjected(t.id); toast(tx('{name} proiectat pe navă', { name: t.name })); return true; }
+    if (extrasTab === 'command' && support.isBurst(t.id)) { support.addBurst(t.id); toast(tx('{name} adăugat la boost-uri', { name: t.name })); return true; }
+    return false;
   }
 
   function selectItem(itemName: string, typeId: number | null) {
     const t = typeId ? sde.types.get(typeId) : sde.findType(itemName);
     if (!t) { toast(tx('„{name}” nu se poate folosi în fitting', { name: itemName })); return; }
     if (t.categoryId === Category.Ship) {
-      newFit(t.id);
-      toast(`${tx('Fit nou')}: ${t.name}`);
+      if (newFit(t.id)) toast(`${tx('Fit nou')}: ${t.name}`);
       return;
     }
     if (!fit) { toast(tx('Alege întâi o navă')); return; }
+    if (routeToExtras(t)) return;
     let result = applyChecked(sde, fit, ctx.character.skills, (draft) => addToFit(sde, draft, t.id), ctx.character.implants);
     if (!result.ok && (t.categoryId === Category.Drone || t.categoryId === Category.Fighter)) {
       const bay = applyChecked(sde, fit, ctx.character.skills, (draft) => {
@@ -379,7 +541,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       if (bay.ok) result = bay;
     }
     toast(proving(result.message));
-    if (result.ok) render();
+    if (!result.ok) return;
+    if (t.categoryId === Category.Drone) showExtras('drones');
+    else if (t.categoryId === Category.Fighter) showExtras('fighters');
+    else if (t.categoryId === Category.Implant) showExtras(sde.baseAttr(t.id, sde.attrId('boosterness')) > 0 ? 'boosters' : 'implants');
+    render();
   }
 
   function change(fn: (draft: Fit) => void) {
@@ -405,6 +571,13 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLElement;
     const at = (sel: string) => target.closest<HTMLElement>(sel);
 
+    const tabClose = at('[data-fit-close]');
+    if (tabClose) { closeTab(Number(tabClose.dataset.fitClose)); return; }
+    if (at('[data-fit-add]')) { addTab(null); return; }
+    const fitTab = at('[data-fit-tab]');
+    if (fitTab) { switchTab(Number(fitTab.dataset.fitTab)); return; }
+    const extras = at('[data-extras]');
+    if (extras) { showExtras(extras.dataset.extras as ExtrasTab); render(); return; }
     if (fit && support.handleClick(target)) return;
     const quick = at('[data-quick]');
     if (quick) { selectItem(quick.dataset.quick!, null); return; }
@@ -461,6 +634,39 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (cargo) change((draft) => { draft.cargo.splice(Number(cargo.dataset.cargo), 1); });
   });
 
+  tabsEl.addEventListener('auxclick', (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-fit-tab]');
+    if (tab && e.button === 1) { e.preventDefault(); closeTab(Number(tab.dataset.fitTab)); }
+  });
+  tabsEl.addEventListener('mousedown', (e) => { if (e.button === 1 && (e.target as HTMLElement).closest('[data-fit-tab]')) e.preventDefault(); });
+  tabsEl.addEventListener('dragstart', (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-fit-tab]');
+    if (!tab) return;
+    dragFrom = Number(tab.dataset.fitTab);
+    e.dataTransfer?.setData('text/plain', String(dragFrom));
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  });
+  tabsEl.addEventListener('dragover', (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-fit-tab]');
+    if (tab && dragFrom >= 0) e.preventDefault();
+  });
+  tabsEl.addEventListener('drop', (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-fit-tab]');
+    if (!tab || dragFrom < 0) return;
+    e.preventDefault();
+    moveTab(dragFrom, Number(tab.dataset.fitTab));
+    dragFrom = -1;
+  });
+  tabsEl.addEventListener('dragend', () => { dragFrom = -1; });
+
+  el.addEventListener('input', (e) => {
+    const target = e.target as HTMLTextAreaElement;
+    if (target.id !== 'fitNotes' || !fit) return;
+    fit.notes = target.value;
+    persist();
+    renderTabs();
+  });
+
   el.addEventListener('contextmenu', (e) => {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-slot]');
     if (!row || !fit) return;
@@ -493,6 +699,12 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       render();
       return;
     }
+    if (target.dataset.cargoCount && fit) {
+      const i = Number(target.dataset.cargoCount);
+      const n = Math.max(1, Math.floor(Number(target.value) || 1));
+      change((draft) => { if (draft.cargo[i]) draft.cargo[i].count = n; });
+      return;
+    }
     if (target.dataset.charge && fit) {
       const [k, i] = parseSlot(target.dataset.charge);
       const m = fit.slots[k][i];
@@ -505,7 +717,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   nameInput.addEventListener('change', () => {
     if (!fit) return;
     fit.name = nameInput.value.trim() || name(fit.shipId);
-    saveJson(CURRENT_KEY, fit);
+    persist();
+    renderTabs();
   });
 
   function runAction(action: string) {
@@ -516,6 +729,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       case 'save':
         if (!fit) return toast(tx('Nu ai niciun fit de salvat'));
         saveFit(fit);
+        renderTabs();
         toast(tx('Fit salvat'));
         break;
       case 'save-as':
@@ -578,7 +792,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   return {
     selectItem,
-    load(f: Fit) { fit = limitDrones(cloneFit(f)); render(); },
+    load(f: Fit) { openFit(cloneFit(f)); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
   };
 }

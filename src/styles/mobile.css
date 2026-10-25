@@ -81,6 +81,8 @@
   .ship-render { width: 72px; height: 72px; }
 
   .tabs, .advice-sort { flex-wrap: wrap; row-gap: 6px; }
+  .fit-tab { max-width: 160px; }
+  .fit-extras .extras-tabs { flex-wrap: nowrap; }
   .tab, .advice-sort > * { flex: none; }
   .skin-toolbar .field { max-width: none; }
 

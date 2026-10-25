@@ -42,6 +42,7 @@ export interface Fit {
   mode?: number;
   fleet?: FleetBoost;
   projected?: FitProjected[];
+  notes?: string;
 }
 
 export interface FitProjected {
