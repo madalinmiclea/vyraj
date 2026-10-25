@@ -438,8 +438,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       change((draft) => {
         const dr = draft.drones[Number(i)];
         if (field === 'remove') draft.drones.splice(Number(i), 1);
-        else if (field === 'count') { dr.count = Math.max(1, dr.count + Number(delta)); dr.active = Math.min(dr.active, dr.count); }
-        else dr.active = Math.max(0, Math.min(dr.count, dr.active + Number(delta)));
+        else if (field === 'count') { dr.count = Math.max(1, dr.count + Number(delta)); dr.active = Math.min(dr.active, dr.count); if (dr.wanted != null) dr.wanted = Math.min(dr.wanted, dr.count); }
+        else { dr.active = Math.max(0, Math.min(dr.count, dr.active + Number(delta))); delete dr.wanted; }
       });
       return;
     }

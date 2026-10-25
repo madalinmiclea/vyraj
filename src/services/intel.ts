@@ -128,7 +128,6 @@ export async function scanJita(depth: number, onProgress: (p: Progress) => void)
   return scan;
 }
 
-export const spreadPct = (r: IntelRow) => (r.buyMax > 0 ? ((r.sellMin - r.buyMax) / r.buyMax) * 100 : 0);
 export const priceTrend = (r: IntelRow) => (r.avg30 > 0 ? (r.avg7 / r.avg30 - 1) * 100 : 0);
 export const volumeTrend = (r: IntelRow) => (r.vol30 > 0 ? (r.vol7 / r.vol30 - 1) * 100 : 0);
 export const bookPressure = (r: IntelRow) => {
@@ -136,17 +135,32 @@ export const bookPressure = (r: IntelRow) => {
   return b + s > 0 ? (b / (b + s)) * 100 : 50;
 };
 
-export function flipProfit(r: IntelRow, fees: Fees) {
-  const buyCost = r.buyMax * (1 + fees.brokerFee / 100);
-  const sellNet = r.sellMin * (1 - (fees.salesTax + fees.brokerFee) / 100);
-  const unit = sellNet - buyCost;
-  return { unit, margin: buyCost > 0 ? (unit / buyCost) * 100 : 0 };
+export function orderFlip(buy: number, sell: number, fees: Fees) {
+  if (!(buy > 0 && sell > 0)) return { unit: 0, margin: 0, cost: 0, valid: false };
+  const broker = fees.brokerFee / 100;
+  const tax = fees.salesTax / 100;
+  const cost = buy * (1 + broker);
+  const unit = sell * (1 - tax - broker) - cost;
+  return { unit, margin: (unit / cost) * 100, cost, valid: true };
 }
 
+export function instantFlip(buy: number, sell: number, fees: Fees) {
+  if (!(buy > 0 && sell > 0)) return { unit: 0, margin: 0, valid: false };
+  const unit = sell * (1 - fees.salesTax / 100) - buy;
+  return { unit, margin: (unit / buy) * 100, valid: true };
+}
+
+export function flipProfit(r: IntelRow, fees: Fees) {
+  const { unit, margin, cost } = orderFlip(r.buyMax, r.sellMin, fees);
+  return { unit, margin, cost };
+}
+
+export const netMarginPct = (r: IntelRow, fees: Fees) => flipProfit(r, fees).margin;
+
 export function stationTrade(r: IntelRow, fees: Fees, share: number) {
-  const { unit, margin } = flipProfit(r, fees);
+  const { unit, margin, cost } = flipProfit(r, fees);
   const units = r.vol30 * (share / 100);
-  return { unit, margin, units, daily: unit * units, capital: units * r.buyMax };
+  return { unit, margin, units, daily: unit * units, capital: units * cost };
 }
 
 export interface Hub {
@@ -222,16 +236,14 @@ export interface HaulRow {
 
 export function haulRoutes(rows: IntelRow[], hubPrices: Map<number, HubPrice>, fees: Fees, volumeOf: (typeId: number) => number): HaulRow[] {
   const out: HaulRow[] = [];
-  const tax = fees.salesTax / 100;
   for (const r of rows) {
     const h = hubPrices.get(r.typeId);
     if (!h) continue;
     const m3 = volumeOf(r.typeId);
     const push = (direction: 'out' | 'in', buy: number, sell: number, depth: number) => {
-      if (!(buy > 0 && sell > 0)) return;
-      const unit = sell * (1 - tax) - buy;
-      if (unit <= 0) return;
-      out.push({ row: r, direction, buy, sell, unit, margin: (unit / buy) * 100, m3, perM3: m3 > 0 ? unit / m3 : 0, depth });
+      const { unit, margin, valid } = instantFlip(buy, sell, fees);
+      if (!valid || unit <= 0) return;
+      out.push({ row: r, direction, buy, sell, unit, margin, m3, perM3: m3 > 0 ? unit / m3 : 0, depth });
     };
     push('out', r.sellMin, h.buyMax, h.buyBook);
     push('in', h.sellMin, r.buyMax, Math.min(h.sellBook, r.buyBook));

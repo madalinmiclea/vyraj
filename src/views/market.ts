@@ -1,7 +1,7 @@
 import { icon } from '../ui/icons';
 import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel } from '../ui/components';
 import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
-import { HUBS, fetchHubPrices, BASE_SALES_TAX, type Fees, type HubPrice } from '../services/intel';
+import { HUBS, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { addAlert } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
@@ -52,10 +52,10 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   let hubId = loadJson<string>(HUB_KEY, 'rens');
   if (!HUBS.some((h) => h.id === hubId)) hubId = 'rens';
   let historyMarket = loadJson<string>(HISTORY_MARKET_KEY, 'jita');
-  let getFees: () => Fees = () => ({ salesTax: BASE_SALES_TAX, brokerFee: 3 });
+  let getFees: () => Fees = () => ({ salesTax: BASE_SALES_TAX, brokerFee: BASE_BROKER_FEE });
   let jitaPrices: Aggregates | null = null;
   const hub = () => HUBS.find((h) => h.id === hubId)!;
-  const historyName = () => (historyMarket === 'hub' ? hub().name : 'Jita');
+  const historyName = () => (current && isGlobalMarket(current.typeId) ? tx('piața globală PLEX') : historyMarket === 'hub' ? hub().name : 'Jita');
 
   input.addEventListener('input', () => onType?.(input.value));
   input.addEventListener('keydown', (e) => {
@@ -76,7 +76,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     if (hm && current) { historyMarket = hm.dataset.historyMarket!; saveJson(HISTORY_MARKET_KEY, historyMarket); loadHistory(current.typeId, requestId); return; }
     if (target.closest('[data-alert]') && current) { openAlert(current); return; }
     const copy = target.closest<HTMLElement>('[data-copy]');
-    if (copy && lastPrices) copyText(lastPrices[copy.dataset.copy!], tx('Preț copiat în clipboard'));
+    if (copy && lastPrices?.[copy.dataset.copy!]) copyText(lastPrices[copy.dataset.copy!], tx('Preț copiat în clipboard'));
   });
 
   function renderWelcome() {
@@ -125,7 +125,8 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
 
   function hubTable(j: Aggregates, h: HubPrice) {
     const name = hub().name;
-    const tax = getFees().salesTax;
+    const fees = getFees();
+    const tax = fees.salesTax;
     const diff = (a: number, b: number) => {
       if (!(a > 0 && b > 0)) return '<span class="dim">—</span>';
       const d = (a / b - 1) * 100;
@@ -133,8 +134,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     };
     const route = (from: string, to: string, buy: number, sell: number, depth: number) => {
       if (!(buy > 0 && sell > 0)) return `<tr><td>${from} → ${to}</td><td class="r dim" colspan="5">${tx('fără ordine pe una din părți')}</td></tr>`;
-      const unit = sell * (1 - tax / 100) - buy;
-      const margin = (unit / buy) * 100;
+      const { unit, margin } = instantFlip(buy, sell, fees);
       return `<tr><td>${from} → ${to}</td><td class="r num">${formatISK(buy)}</td><td class="r num">${formatISK(sell)}</td><td class="r num ${unit > 0 ? 'pos' : 'neg-text'}">${formatISK(unit)}</td><td class="r num ${unit > 0 ? 'pos' : 'neg-text'}">${margin > 0 ? '+' : ''}${margin.toFixed(1)}%</td><td class="r num">${formatInt(depth)}</td></tr>`;
     };
     const row = (label: string, p: { sellMin: number; buyMax: number; sellVolume: number; buyVolume: number; sellOrders: number; buyOrders: number }) => `<tr>
@@ -271,9 +271,24 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
         return;
       }
 
-      const spread = p.sellMin - p.buyMax;
-      const pct = p.buyMax > 0 ? (spread / p.buyMax) * 100 : 0;
-      lastPrices = { sell: p.sellMin.toFixed(2), buy: p.buyMax.toFixed(2), median: p.sellMedian.toFixed(2) };
+      const fees = getFees();
+      const flip = orderFlip(p.buyMax, p.sellMin, fees);
+      const pct = flip.margin;
+      lastPrices = { sell: p.sellMin > 0 ? p.sellMin.toFixed(2) : '', buy: p.buyMax > 0 ? p.buyMax.toFixed(2) : '', median: p.sellMedian > 0 ? p.sellMedian.toFixed(2) : '' };
+      const spreadHtml = flip.valid
+        ? `<section class="panel spread">
+          <div>
+            <div class="label">${tx('Profit buy → sell după taxe (buy order, apoi sell order)')}</div>
+            <div class="amount ${flip.unit < 0 ? 'neg-text' : ''}" id="spreadAmount">${formatISK(flip.unit)} <small class="dim" style="font-size:15px">ISK</small></div>
+            <div class="dim small">${tx('Cumpăr la buy max + broker {b}% → vând la sell min − broker {b}% − tax {t}%. Marja e raportată la costul de cumpărare.', { b: fees.brokerFee.toFixed(2), t: fees.salesTax.toFixed(2) })}</div>
+          </div>
+          <div class="spread-gauge">
+            <div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, pct * 2))}%"></div></div>
+            <div class="ticks"><span>0%</span><span>25%</span><span>50%+</span></div>
+          </div>
+          <div class="pct ${pct < 0 ? 'neg' : ''}" id="spreadPercent">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+        </section>`
+        : `<section class="panel spread"><div><div class="label">${tx('Profit buy → sell după taxe (buy order, apoi sell order)')}</div><div class="dim">${p.sellMin > 0 ? tx('Nu există buy orders în Jita, deci nu se poate calcula marja.') : tx('Nu există sell orders în Jita, deci nu se poate calcula marja.')}</div></div></section>`;
 
       state.innerHTML = `
         <section class="panel glow item-head">
@@ -298,17 +313,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           ${statCard({ label: tx('Preț median (sell)'), id: 'medianPrice', tone: 'median' })}
         </div>
 
-        <section class="panel spread">
-          <div>
-            <div class="label">${tx('Marjă buy → sell (cumpăr la buy, vând la sell)')}</div>
-            <div class="amount" id="spreadAmount">${formatISK(spread)} <small class="dim" style="font-size:15px">ISK</small></div>
-          </div>
-          <div class="spread-gauge">
-            <div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, pct * 2))}%"></div></div>
-            <div class="ticks"><span>0%</span><span>25%</span><span>50%+</span></div>
-          </div>
-          <div class="pct ${pct < 0 ? 'neg' : ''}" id="spreadPercent">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
-        </section>
+        ${spreadHtml}
         <div id="hubPanel" class="hub-panel"></div>
         <div id="historyPanel"></div>
       `;
@@ -319,13 +324,13 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
 
       const setStat = (sid: string, value: number, meta: string) => {
         const valueEl = state.querySelector<HTMLElement>('#' + sid)!;
-        valueEl.innerHTML = `${formatISK(value)}<small>ISK</small>`;
-        valueEl.title = `${compactISK(value)} ISK`;
+        valueEl.innerHTML = value > 0 ? `${formatISK(value)}<small>ISK</small>` : '—';
+        valueEl.title = value > 0 ? `${compactISK(value)} ISK` : tx('Niciun ordin pe partea asta');
         state.querySelector('#' + sid + 'Meta')!.innerHTML = meta;
       };
       setStat('sellPrice', p.sellMin, tx('Volum <span class="num">{v}</span> · <span class="num">{n}</span> ordine', { v: formatInt(p.sellVolume), n: formatInt(p.sellOrders) }));
       setStat('buyPrice', p.buyMax, tx('Volum <span class="num">{v}</span> · <span class="num">{n}</span> ordine', { v: formatInt(p.buyVolume), n: formatInt(p.buyOrders) }));
-      setStat('medianPrice', p.sellMedian, `≈ <span class="num">${compactISK(p.sellMedian)}</span> ISK`);
+      setStat('medianPrice', p.sellMedian, p.sellMedian > 0 ? `≈ <span class="num">${compactISK(p.sellMedian)}</span> ISK` : tx('Fără sell orders'));
     } catch (err) {
       if (id !== requestId) return;
       const msg = err instanceof TypeError ? tx('Nu am putut contacta serverul de prețuri (Fuzzwork). Verifică conexiunea și încearcă din nou.') : (err as Error).message;

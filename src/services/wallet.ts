@@ -163,7 +163,7 @@ export interface FlowBucket {
 
 export function flowBuckets(entries: WalletEntry[], period: Period, oldest: number, now = Date.now()): FlowBucket[] {
   const days = period === 'all' ? Math.max(1, Math.ceil((now - oldest) / DAY)) : PERIODS.find((p) => p.id === period)!.days;
-  const start = period === 'all' ? Math.min(oldest, now - DAY) : now - days * DAY;
+  const start = period === 'all' ? Math.min(oldest, now - DAY) : Math.max(now - days * DAY, Math.min(oldest, now - DAY));
   const size = period === '1d' ? HOUR : days > 120 ? 7 * DAY : DAY;
   const align = period === '1d' ? HOUR : DAY;
   const from = Math.floor(start / align) * align;

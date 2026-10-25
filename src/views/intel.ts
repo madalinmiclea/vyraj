@@ -4,7 +4,7 @@ import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import {
-  loadScan, scanJita, SCAN_STALE_MS, feesFromSkills, spreadPct, priceTrend, volumeTrend, bookPressure, stationTrade,
+  loadScan, scanJita, SCAN_STALE_MS, feesFromSkills, netMarginPct, priceTrend, volumeTrend, bookPressure, stationTrade,
   HUBS, fetchHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
   type Scan, type IntelRow, type Fees, type HaulRow,
 } from '../services/intel';
@@ -100,6 +100,11 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       </div>`;
   }
 
+  function markStale() {
+    if (!scan || Date.now() - scan.at <= SCAN_STALE_MS) return;
+    body.insertAdjacentHTML('afterbegin', alertBox(tx('Prețurile sunt din scanarea de {age}. Ordinele din Jita se schimbă des, rescanează înainte să pui ordine.', { age: age(scan.at) }), 'warn'));
+  }
+
   function renderTabs() {
     tabsEl.innerHTML = TABS.map((t) => `<button class="tab ${t.id === tab ? 'active' : ''}" data-intel-tab="${t.id}">${t.label}</button>`).join('');
   }
@@ -113,6 +118,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       return;
     }
     ({ ideas, volume, trading, trend, haul: transport } as Record<Tab, () => void>)[tab]();
+    if (tab !== 'haul') markStale();
   }
 
   function sorted<T>(id: string, list: T[], keys: Record<string, (x: T) => number | string>, fallback: string): T[] {
@@ -164,17 +170,19 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
   }
 
   function volume() {
+    const f = fees();
+    const net = (r: IntelRow) => netMarginPct(r, f);
     const list = sorted('volume', rows(), {
       name: (r) => r.name, vol: (r) => r.vol30, isk: (r) => r.isk30, buy: (r) => r.buyMax, sell: (r) => r.sellMin,
-      spread: spreadPct, pt: priceTrend, vt: volumeTrend, press: bookPressure,
+      spread: net, pt: priceTrend, vt: volumeTrend, press: bookPressure,
     }, 'isk').slice(0, 300);
     body.innerHTML = panel({
       title: tx('Cele mai tranzacționate'),
       count: tx('{n} iteme', { n: formatInt(list.length) }),
       body: `<div class="table-scroll"><table class="table compact intel-table"><thead><tr>
-          ${th('volume', 'name', 'Item', false)}${th('volume', 'vol', 'Buc / zi')}${th('volume', 'isk', 'ISK / zi')}${th('volume', 'buy', 'Buy max')}${th('volume', 'sell', 'Sell min')}${th('volume', 'spread', 'Buy → sell')}${th('volume', 'pt', 'Preț 7z')}${th('volume', 'vt', 'Volum 7z')}${th('volume', 'press', 'Buy %')}<th class="r">${tx('30 zile')}</th>
+          ${th('volume', 'name', 'Item', false)}${th('volume', 'vol', 'Buc / zi')}${th('volume', 'isk', 'ISK / zi')}${th('volume', 'buy', 'Buy max')}${th('volume', 'sell', 'Sell min')}${th('volume', 'spread', 'Marjă netă')}${th('volume', 'pt', 'Preț 7z')}${th('volume', 'vt', 'Volum 7z')}${th('volume', 'press', 'Buy %')}<th class="r">${tx('30 zile')}</th>
         </tr></thead><tbody>
-        ${list.map((r) => `<tr>${itemCell(r)}<td class="r num">${formatInt(r.vol30)}</td><td class="r">${isk(r.isk30)}</td><td class="r">${isk(r.buyMax)}</td><td class="r">${isk(r.sellMin)}</td><td class="r">${pct(spreadPct(r))}</td><td class="r">${pct(priceTrend(r))}</td><td class="r">${pct(volumeTrend(r), 0)}</td><td class="r num">${formatNum(bookPressure(r), 0)}</td><td class="r">${spark(r.spark)}</td></tr>`).join('')}
+        ${list.map((r) => `<tr>${itemCell(r)}<td class="r num">${formatInt(r.vol30)}</td><td class="r">${isk(r.isk30)}</td><td class="r">${isk(r.buyMax)}</td><td class="r">${isk(r.sellMin)}</td><td class="r" title="${esc(tx('Cumpăr la buy max + broker {b}% → vând la sell min − broker {b}% − tax {t}%. Marja e raportată la costul de cumpărare.', { b: formatNum(f.brokerFee, 2), t: formatNum(f.salesTax, 2) }))}">${pct(net(r))}</td><td class="r">${pct(priceTrend(r))}</td><td class="r">${pct(volumeTrend(r), 0)}</td><td class="r num">${formatNum(bookPressure(r), 0)}</td><td class="r">${spark(r.spark)}</td></tr>`).join('')}
         </tbody></table></div>`,
     });
   }
@@ -269,6 +277,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
         }).join('') : `<tr><td colspan="9" class="dim">${tx('Nicio rută profitabilă peste prag.')}</td></tr>`}
         </tbody></table></div>`,
     });
+    markStale();
   }
 
   async function runScan() {

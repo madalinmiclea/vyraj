@@ -3,7 +3,7 @@ import { esiFetch } from '../services/esiClient';
 import { resolveNames, systemInfo, type SystemInfo } from '../services/recon';
 import { loadStoredCharacters, ROSTER_KEY, type StoredCharacter } from './characters';
 import { STRUCTURES_KEY } from './esi';
-import { spPerMinute, withImplants } from './training';
+import { spPerMinute } from './training';
 import { loadJson, saveJson } from '../storage';
 import type { Sde } from '../data/sde';
 
@@ -109,18 +109,20 @@ interface EsiSkills {
 function detectClone(sde: Sde, c: StoredCharacter, skills: EsiSkills | null, queue: RosterQueueEntry[]): CloneState {
   if (skills?.skills.some((s) => s.active_skill_level < s.trained_skill_level)) return 'alpha';
   const now = Date.now();
-  const cur = queue.find((q) => q.start && q.finish && q.startSp != null && q.endSp != null && new Date(q.finish).getTime() > now);
-  if (cur) {
-    const minutes = (new Date(cur.finish!).getTime() - new Date(cur.start!).getTime()) / 60000;
-    const actual = (cur.endSp! - cur.startSp!) / minutes;
-    const expected = spPerMinute(sde, cur.skillId, withImplants(sde, c.attributes, c.implants));
-    if (minutes > 0 && expected > 0) {
-      const ratio = actual / expected;
-      if (ratio < 0.7) return 'alpha';
-      if (ratio > 0.8) return 'omega';
-    }
-  }
-  return 'unknown';
+  const cur = queue.find((q) => q.start && q.finish && q.startSp != null && q.endSp != null && new Date(q.start).getTime() <= now && new Date(q.finish).getTime() > now);
+  if (!cur) return 'unknown';
+  const minutes = (new Date(cur.finish!).getTime() - new Date(cur.start!).getTime()) / 60000;
+  if (!(minutes > 0) || cur.endSp! <= cur.startSp!) return 'unknown';
+  const actual = (cur.endSp! - cur.startSp!) / minutes;
+  const expected = spPerMinute(sde, cur.skillId, c.attributes);
+  if (!(expected > 0) || !Number.isFinite(actual)) return 'unknown';
+  return actual / expected < 0.65 ? 'alpha' : 'omega';
+}
+
+function cloneState(sde: Sde, c: StoredCharacter, skills: EsiSkills | null, queue: RosterQueueEntry[]): CloneState {
+  const detected = detectClone(sde, c, skills, queue);
+  if (detected !== 'unknown' || skills) return detected;
+  return loadRoster()[c.id]?.clone ?? 'unknown';
 }
 
 export async function fetchRosterEntry(sde: Sde, c: StoredCharacter): Promise<RosterEntry> {
@@ -152,7 +154,7 @@ export async function fetchRosterEntry(sde: Sde, c: StoredCharacter): Promise<Ro
     shipTypeId: ship?.ship_type_id,
     shipName: ship?.ship_name,
     queue: q,
-    clone: detectClone(sde, c, skills, q),
+    clone: cloneState(sde, c, skills, q),
     totalSp: skills?.total_sp ?? c.totalSp,
     wallet: wallet ?? undefined,
     error: [location, online, ship, queue, skills, wallet].every((x) => x == null) ? 'failed' : undefined,

@@ -51,7 +51,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
   }
 
   function trainingCell(e: RosterEntry | undefined, now: number) {
-    if (!e) return '<span class="dim">—</span>';
+    if (!e || e.error) return '<span class="dim">—</span>';
     if (e.missing.includes('esi-skills.read_skillqueue.v1')) return '<span class="dim">—</span>';
     const cur = e.queue[0];
     if (!cur) return badge(tx('Coadă goală'), 'danger', true);
@@ -77,10 +77,10 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
     const sec = sys ? `<span class="num ${secClass(sys.sec)}">${displaySec(sys.sec).toFixed(1)}</span> ` : '';
     const dock = e.stationId ?? e.structureId;
     const where = dock != null ? places.names.get(dock) ?? (e.structureId != null ? tx('Structură privată') : '') : tx('În spațiu');
-    const ship = e.shipTypeId ? `${esc(sde.types.get(e.shipTypeId)?.name ?? '')}${e.shipName ? ` · ${esc(e.shipName)}` : ''}` : '';
+    const ship = e.shipTypeId ? `${sde.types.get(e.shipTypeId)?.name ?? ''}${e.shipName ? ` · ${e.shipName}` : ''}` : '';
     return `<div>${sec}<b>${esc(sys?.name ?? String(e.systemId))}</b></div>
-      ${where ? `<div class="small dim roster-ellipsis">${esc(where)}</div>` : ''}
-      ${ship ? `<div class="small dim roster-ellipsis">${ship}</div>` : ''}`;
+      ${where ? `<div class="small dim roster-ellipsis" title="${esc(where)}">${esc(where)}</div>` : ''}
+      ${ship ? `<div class="small dim roster-ellipsis" title="${esc(ship)}">${esc(ship)}</div>` : ''}`;
   }
 
   function omegaCell(c: StoredCharacter, e: RosterEntry | undefined, now: number) {
@@ -96,7 +96,11 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
         ? badge(tx('Expirat {date}', { date }), 'danger', true)
         : badge(`${date} · ${tx('{n} zile', { n: days })}`, days <= 7 ? 'warn' : 'ok', true)}</button>`;
     }
-    const detected = e?.clone === 'alpha' ? badge('Alpha', 'warn') : e?.clone === 'omega' ? badge(tx('Omega activ'), 'accent') : '';
+    const detected = e?.clone === 'alpha'
+      ? `<span title="${esc(tx('Detectat din skill-uri sau din viteza de antrenament'))}">${badge('Alpha', 'warn')}</span>`
+      : e?.clone === 'omega'
+        ? `<span title="${esc(tx('Detectat din viteza de antrenament'))}">${badge('Omega', 'accent')}</span>`
+        : e ? `<span title="${esc(e.error ? tx('Nu am date ESI pentru caracter (delogat sau eroare la citire)') : tx('Nu se poate determina: niciun skill peste limita Alpha și nimic în antrenament acum'))}">${badge('?', '')}</span>` : '';
     return `${main}<div class="roster-tags">${detected}${account ? `<span class="small dim">${esc(account)}</span>` : ''}</div>`;
   }
 

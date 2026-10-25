@@ -153,7 +153,7 @@
 .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--gap); }
-.stat { padding: 16px 18px 18px; }
+.stat { padding: 16px 18px 18px; container-type: inline-size; min-width: 0; }
 .stat .stat-label {
   display: flex;
   align-items: center;
@@ -169,12 +169,10 @@
 .stat .stat-value {
   margin-top: 10px;
   font-family: var(--font-mono);
-  font-size: 23px;
+  font-size: clamp(15px, 9cqi, 23px);
   font-weight: 600;
   color: var(--tone, var(--text-bright));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .stat .stat-value small { font-size: 13px; color: var(--text-dim); margin-left: 4px; }
 .stat .stat-meta { margin-top: 8px; font-size: 13px; color: var(--text-faint); }

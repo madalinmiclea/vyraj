@@ -10,6 +10,7 @@ import {
   type RouteFlag, type SystemInfo, type SystemActivity, type SystemIntel, type Pilot, type DscanRow, type DpsEstimate,
 } from '../services/recon';
 import { tx } from '../i18n';
+import { allEveItems } from '../data/items';
 
 type Tab = 'route' | 'local';
 
@@ -70,7 +71,16 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   const routeEl = el.querySelector<HTMLElement>('#reconRoute')!;
   const localEl = el.querySelector<HTMLElement>('#reconLocal')!;
 
-  const shipName = (id?: number) => (id ? ctx.sde.types.get(id)?.name ?? `#${id}` : '—');
+  let itemNames: Map<number, string> | null = null;
+  const localName = (id: number) => {
+    itemNames ??= new Map(allEveItems.map((i) => [i.t, i.n.trim()]));
+    return ctx.sde.types.get(id)?.name ?? itemNames.get(id);
+  };
+  const remoteName = (id: number) => {
+    const n = cachedName(id);
+    return n && n !== String(id) ? n : '';
+  };
+  const shipName = (id?: number) => (id ? localName(id) ?? (remoteName(id) || `#${id}`) : '—');
   const shipCell = (id?: number) => (id ? `<span class="recon-ship"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" /><span>${esc(shipName(id))}</span></span>` : '<span class="dim">—</span>');
 
   function renderTabs() {
@@ -141,7 +151,8 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     renderRoute();
     try {
       const r = await recentKills(id);
-      await resolveNames(r.kills.flatMap((k) => k.attackerAlliances));
+      const unknownShips = r.kills.flatMap((k) => [k.victimShip, k.topShip ?? 0]).filter((t) => t && !localName(t));
+      await resolveNames([...r.kills.flatMap((k) => k.attackerAlliances), ...unknownShips]);
       if (run !== routeRun) return;
       intel.set(id, r);
       if (r.camp || r.kills.length) open.add(id);
@@ -350,7 +361,19 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     for (const s of ships) byGroup.set(s.group, (byGroup.get(s.group) ?? 0) + s.n);
     const otherGroups = new Map<string, number>();
     for (const o of other) otherGroups.set(o.group || o.typeName, (otherGroups.get(o.group || o.typeName) ?? 0) + o.n);
-    const bubbles = other.filter((o) => /Warp Disrupt|Interdiction/i.test(o.group) || /Warp Disrupt(or|ion)|Interdiction Sphere/i.test(o.typeName)).reduce((n, o) => n + o.n, 0);
+    const isBubble = (group: string, name: string) => /Warp Disrupt|Interdiction/i.test(group) || /Warp Disrupt(or|ion)|Interdiction Sphere/i.test(name);
+    const bubbleRows = rows.filter((r) => {
+      const t = ctx.sde.types.get(r.typeId) ?? ctx.sde.findType(r.typeName);
+      return !(t?.categoryId === 6) && isBubble(t?.groupName ?? '', t?.name ?? r.typeName);
+    });
+    const nearBubbles = bubbleRows.filter((r) => r.km != null && r.km <= 10_000).sort((a, b) => a.km! - b.km!);
+    const farBubbles = bubbleRows.length - nearBubbles.length;
+    const bubbleAlerts = [
+      nearBubbles.length ? alertBox(nearBubbles.length === 1
+        ? tx('Bulă de warp pe grid, la {dist}', { dist: nearBubbles[0].distance })
+        : tx('{n} bule de warp pe grid, cea mai apropiată la {dist}', { n: nearBubbles.length, dist: nearBubbles[0].distance }), 'danger') : '',
+      farBubbles ? alertBox(farBubbles === 1 ? tx('O bulă de warp în sistem, departe de tine (AU)') : tx('{n} bule de warp în sistem, departe de tine (AU)', { n: farBubbles }), 'warn') : '',
+    ].join('');
     const caps = ships.filter((s) => /Carrier|Dreadnought|Titan|Supercarrier|Force Auxiliary/i.test(s.group));
     localResult.innerHTML = `<div class="history-kpis intel-kpis">
         <div><span class="label">${tx('Nave')}</span><span class="value">${formatInt(shipCount)}</span></div>
@@ -359,7 +382,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div title="${esc(tx('Suma DPS-ului estimat pentru navele văzute. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
         <div><span class="label">${tx('Alte obiecte')}</span><span class="value">${formatInt(other.reduce((n, x) => n + x.n, 0))}</span></div>
       </div>
-      ${bubbles ? alertBox(bubbles === 1 ? tx('O bulă de warp pe scan') : tx('{n} bule de warp pe scan', { n: bubbles }), 'danger') : ''}
+      ${bubbleAlerts}
       ${caps.length ? alertBox(tx('Capitale pe scan: {list}', { list: caps.map((c) => `${c.n}× ${c.typeName}`).join(', ') }), 'danger') : ''}
       <div class="recon-grid">
         ${panel({

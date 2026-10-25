@@ -30,6 +30,7 @@ export interface KillSummary {
   attackerShips: number[];
   attackerAlliances: number[];
   topShip?: number;
+  location?: number;
   npc: boolean;
   solo: boolean;
 }
@@ -112,7 +113,8 @@ export async function resolveNames(ids: number[]): Promise<Map<number, string>> 
           const r = await esiJson<{ id: number; name: string }[]>('/universe/names/', post([id]));
           for (const x of r) nameCache.set(x.id, x.name);
         } catch {
-          nameCache.set(id, String(id));
+          const t = await esiJson<{ name: string }>(`/universe/types/${id}/`).catch(() => null);
+          nameCache.set(id, t?.name ?? String(id));
         }
       }
     }
@@ -173,7 +175,7 @@ const killCache = new Map<number, KillSummary>();
 const CAPSULES = new Set([670, 33328]);
 
 export async function recentKills(systemId: number, limit = 15): Promise<SystemIntel> {
-  const list = await zkbJson<{ killmail_id: number; zkb: { hash: string; totalValue: number; npc: boolean; solo: boolean } }[]>(`/kills/systemID/${systemId}/pastSeconds/3600/`);
+  const list = await zkbJson<{ killmail_id: number; zkb: { hash: string; totalValue: number; npc: boolean; solo: boolean; locationID?: number } }[]>(`/kills/systemID/${systemId}/pastSeconds/3600/`);
   const picked = (Array.isArray(list) ? list : []).slice(0, limit);
   const kills = await Promise.all(picked.map(async (k) => {
     const hit = killCache.get(k.killmail_id);
@@ -199,6 +201,7 @@ export async function recentKills(systemId: number, limit = 15): Promise<SystemI
       attackerShips: ships,
       attackerAlliances: [...new Set(km.attackers.map((a) => a.alliance_id).filter((x): x is number => !!x))],
       topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
+      location: k.zkb.locationID,
       npc: k.zkb.npc,
       solo: k.zkb.solo,
     };
@@ -210,9 +213,16 @@ export async function recentKills(systemId: number, limit = 15): Promise<SystemI
   const seen = new Map<number, number>();
   for (const k of player) for (const id of new Set(k.attackerIds)) seen.set(id, (seen.get(id) ?? 0) + 1);
   const repeat = [...seen.values()].filter((n) => n >= 2).length;
-  const victims = player.filter((k) => !CAPSULES.has(k.victimShip)).length;
-  const camp = player.length >= 2 && repeat > 0 && victims >= 1;
+  const gang = player.filter((k) => k.attackers >= 2 && !k.solo);
+  const gangSeen = new Map<number, number>();
+  for (const k of gang) for (const id of new Set(k.attackerIds)) gangSeen.set(id, (gangSeen.get(id) ?? 0) + 1);
+  const gangRepeat = [...gangSeen.values()].filter((n) => n >= 2).length;
+  const victims = gang.filter((k) => !CAPSULES.has(k.victimShip)).length;
+  const perSpot = new Map<number, number>();
+  for (const k of player) if (k.location) perSpot.set(k.location, (perSpot.get(k.location) ?? 0) + 1);
+  const sameSpot = Math.max(0, ...perSpot.values()) >= 3 && repeat > 0;
   const smartbomb = repeat > 0 && player.filter((k) => CAPSULES.has(k.victimShip)).length >= 3;
+  const camp = (gang.length >= 2 && gangRepeat > 0 && victims >= 1) || sameSpot || smartbomb;
   return { kills, camp, campers: repeat, smartbomb };
 }
 

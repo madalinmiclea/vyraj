@@ -22,6 +22,7 @@ export interface FitDrone {
   typeId: number;
   count: number;
   active: number;
+  wanted?: number;
 }
 
 export interface FitCargo {
@@ -147,7 +148,7 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
 
   if (t.categoryId === Category.Drone || t.categoryId === Category.Fighter) {
     const existing = fit.drones.find((d) => d.typeId === typeId);
-    if (existing) { existing.count++; existing.active++; } else fit.drones.push({ typeId, count: 1, active: 1 });
+    if (existing) { existing.count++; existing.active++; if (existing.wanted != null) existing.wanted++; } else fit.drones.push({ typeId, count: 1, active: 1 });
     return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în fighter bay', { name: t.name }) : tx('{name} adăugată în drone bay', { name: t.name }) };
   }
 
@@ -226,6 +227,7 @@ export function launchDrones(sde: Sde, fit: Fit, maxActive = 5) {
     const same = merged.find((x) => x.typeId === d.typeId);
     if (same) same.count += d.count; else merged.push({ ...d });
   }
+  for (const d of merged) delete d.wanted;
   const shipAttr = (n: string) => (sde.hasAttr(n) ? Math.round(sde.baseAttr(fit.shipId, sde.attrId(n))) : 0);
   let bandwidth = sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth'));
   let slots = maxActive;
@@ -262,12 +264,21 @@ export function droneLimit(sde: Sde, fit: Fit, skills: Map<number, number>, impl
 }
 
 export function ensureDroneLimits(sde: Sde, fit: Fit, maxActive = 5) {
-  const drones = fit.drones.filter((d) => !isFighterType(sde, d.typeId));
-  const used = drones.reduce((a, d) => a + d.active * sde.baseAttr(d.typeId, sde.attrId('droneBandwidthUsed')), 0);
-  const launched = drones.reduce((a, d) => a + d.active, 0);
   const dupes = new Set(fit.drones.map((d) => d.typeId)).size !== fit.drones.length;
   const fighters = fighterLimits(sde, fit).some((x) => x.used > x.total);
-  if (dupes || fighters || launched > maxActive || used > sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth')) + 1e-6) launchDrones(sde, fit, maxActive);
+  if (dupes || fighters) launchDrones(sde, fit, maxActive);
+  let bandwidth = sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth'));
+  let slots = maxActive;
+  for (const d of fit.drones) {
+    if (isFighterType(sde, d.typeId)) continue;
+    const want = Math.max(0, Math.min(d.count, d.wanted ?? d.active));
+    const per = sde.baseAttr(d.typeId, sde.attrId('droneBandwidthUsed'));
+    const n = Math.max(0, Math.min(want, slots, per > 0 ? Math.floor((bandwidth + 1e-6) / per) : want));
+    if (n < want) d.wanted = want; else delete d.wanted;
+    d.active = n;
+    bandwidth -= n * per;
+    slots -= n;
+  }
   return fit;
 }
 
