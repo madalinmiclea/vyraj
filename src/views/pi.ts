@@ -2,12 +2,12 @@ import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactIS
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, typeIconUrl, type Aggregates } from '../services/market';
 import { rosterCharacters } from '../character/roster';
-import { hasTokens } from '../character/sso';
+import { hasTokens, hasScope } from '../character/sso';
 import { formatDuration } from '../character/training';
 import { systemInfo, displaySec, secClass, type SystemInfo } from '../services/recon';
 import {
   loadPi, chainRows, fetchColonies, loadColonies, saveColonies, planetNames, priceOf, perDay, exportTax,
-  TIER_NAMES, EXPORT_BASE,
+  PI_SCOPE, TIER_NAMES, EXPORT_BASE,
   type PiData, type ChainRow, type ChainOptions, type ColonyEntry, type Colony, type PriceSide,
 } from '../services/pi';
 import { tx, locale } from '../i18n';
@@ -110,7 +110,10 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   async function refreshColonies(force = false) {
     if (busy) return;
     const chars = rosterCharacters().filter((c) => hasTokens(c.characterId!));
-    const due = chars.filter((c) => force || !colonies[c.characterId!] || Date.now() - colonies[c.characterId!].fetched > STALE);
+    const due = chars.filter((c) => {
+      const e = colonies[c.characterId!];
+      return force || !e || Date.now() - e.fetched > STALE || (e.missingScope && hasScope(c.characterId!, PI_SCOPE));
+    });
     if (!due.length) return;
     busy = true;
     drawColonies();
