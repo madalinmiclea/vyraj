@@ -76,20 +76,24 @@ export interface FlowPoint {
 export function flowChart(points: FlowPoint[]) {
   if (!points.length) return '';
   const w = 760, h = 240, pl = 58, pr = 10, pt = 10, pb = 24;
-  const max = Math.max(1, ...points.map((p) => Math.max(p.earned, p.spent)));
-  const half = (h - pt - pb) / 2;
-  const mid = pt + half;
+  const maxIn = Math.max(0, ...points.map((p) => p.earned));
+  const maxOut = Math.max(0, ...points.map((p) => p.spent));
+  const total = maxIn + maxOut || 1;
+  const plotH = h - pt - pb;
+  const mid = pt + (maxIn / total) * plotH;
   const step = (w - pl - pr) / points.length;
   const x = (i: number) => pl + step * (i + 0.5);
   const bw = Math.max(0.6, step * 0.7);
   const bars = points.map((p, i) => {
-    const up = (p.earned / max) * half, down = (p.spent / max) * half;
+    const up = (p.earned / total) * plotH, down = (p.spent / total) * plotH;
     const left = (x(i) - bw / 2).toFixed(1);
     return `<rect class="in" x="${left}" width="${bw.toFixed(1)}" y="${(mid - up).toFixed(1)}" height="${up.toFixed(1)}" /><rect class="out" x="${left}" width="${bw.toFixed(1)}" y="${mid.toFixed(1)}" height="${down.toFixed(1)}" />`;
   }).join('');
   const every = Math.max(1, Math.ceil(points.length / 8));
   const hits = points.map((_, i) => `<rect class="hit" data-i="${i}" x="${(x(i) - step / 2).toFixed(1)}" width="${step.toFixed(1)}" y="${pt}" height="${h - pt - pb}" />`).join('');
-  const ticks: [number, string][] = [[pt, '+' + compactISK(max)], [mid, '0'], [pt + 2 * half, '−' + compactISK(max)]];
+  const ticks: [number, string][] = [[mid, '0']];
+  if (maxIn) ticks.push([pt, '+' + compactISK(maxIn)]);
+  if (maxOut) ticks.push([pt + plotH, '−' + compactISK(maxOut)]);
   return `<div class="series-wrap"><svg class="series-chart flow-chart" viewBox="0 0 ${w} ${h}" role="img">
     ${ticks.map(([y, t]) => `<line x1="${pl}" x2="${w - pr}" y1="${y}" y2="${y}" class="grid" /><text x="${pl - 6}" y="${y + 4}" text-anchor="end">${t}</text>`).join('')}
     ${points.map((p, i) => (i % every === 0 ? `<text x="${x(i)}" y="${h - 6}" text-anchor="middle">${p.label}</text>` : '')).join('')}
