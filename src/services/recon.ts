@@ -33,6 +33,7 @@ export interface KillSummary {
   weapons: number[];
   attackerAlliances: number[];
   topShip?: number;
+  shipList: { id: number; n: number }[];
   location?: number;
   npc: boolean;
   solo: boolean;
@@ -183,7 +184,7 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
   const picked = all.slice(0, limit);
   const kills = await Promise.all(picked.map(async (k) => {
     const hit = killCache.get(k.killmail_id);
-    if (hit?.players !== undefined) return hit;
+    if (hit?.shipList) return hit;
     const km = await esiJson<{
       killmail_time: string; solar_system_id: number;
       victim: { ship_type_id: number; alliance_id?: number; corporation_id?: number };
@@ -210,6 +211,8 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
       weapons: [...new Set(km.attackers.map((a) => a.weapon_type_id).filter((x): x is number => !!x))],
       attackerAlliances: [...new Set(main.map((a) => a.alliance_id).filter((x): x is number => !!x))],
       topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
+      shipList: [...main.reduce((m, a) => (a.ship_type_id ? m.set(a.ship_type_id, (m.get(a.ship_type_id) ?? 0) + 1) : m), new Map<number, number>())]
+        .sort((a, b) => b[1] - a[1] || (counts.get(b[0]) ?? 0) - (counts.get(a[0]) ?? 0)).map(([id, n]) => ({ id, n })),
       location: k.zkb.locationID,
       npc: k.zkb.npc,
       solo: k.zkb.solo,

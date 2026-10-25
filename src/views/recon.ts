@@ -155,7 +155,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     renderRoute();
     try {
       const r = await recentKills(id, isSmartbomb);
-      const unknownShips = r.kills.flatMap((k) => [k.victimShip, k.topShip ?? 0]).filter((t) => t && !localName(t));
+      const unknownShips = r.kills.flatMap((k) => [k.victimShip, ...k.shipList.map((x) => x.id)]).filter((t) => t && !localName(t));
       await resolveNames([...r.kills.flatMap((k) => k.attackerAlliances), ...unknownShips]);
       if (run !== routeRun) return;
       intel.set(id, r);
@@ -175,6 +175,12 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     return parts.join(' · ');
   }
 
+  function shipsCell(k: SystemIntel['kills'][number]) {
+    if (!k.shipList.length) return shipCell(k.topShip);
+    const names = k.shipList.map((x) => `${esc(shipName(x.id))}${x.n > 1 ? ` <span class="dim">×${x.n}</span>` : ''}`).join(', ');
+    return `<span class="recon-ships"><img class="row-icon" src="${typeIconUrl(k.shipList[0].id, 32)}" alt="" /><span>${names}</span></span>`;
+  }
+
   function killsTable(r: SystemIntel) {
     if (!r.kills.length) return `<p class="dim small">${tx('Niciun kill în ultimele 60 de minute pe zKillboard.')}</p>`;
     const shown = r.kills.length < r.total ? tx('Afișez {n} din {total} kill-uri pe zKillboard în ultima oră (cele mai recente).', { n: r.kills.length, total: r.total }) : tx('{n} kill-uri pe zKillboard în ultima oră.', { n: r.kills.length });
@@ -184,8 +190,8 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <td>${shipCell(k.victimShip)}</td>
         <td class="r num">${compactISK(k.value)}</td>
         <td class="r num" title="${esc(attackersTitle(k))}">${k.npc ? badge(tx('Doar NPC')) : `${k.players}${k.npcAttackers ? ` <span class="dim">+ ${k.npcAttackers} NPC</span>` : ''}${k.solo ? ` ${badge('solo', 'gold')}` : ''}`}</td>
-        <td>${shipCell(k.topShip)}</td>
-        <td class="dim">${k.attackerAlliances.slice(0, 2).map((a) => esc(cachedName(a))).join(', ') || '—'}</td>
+        <td>${shipsCell(k)}</td>
+        <td class="dim recon-list">${k.attackerAlliances.map((a) => esc(cachedName(a))).join(', ') || '—'}</td>
         <td class="r">${zkbLink('kill', k.id, icon('external'))}</td>
       </tr>`).join('')}
     </tbody></table>`;
