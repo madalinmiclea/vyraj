@@ -80,6 +80,10 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const n = cachedName(id);
     return n && n !== String(id) ? n : '';
   };
+  const isSmartbomb = (id: number) => {
+    const t = ctx.sde.types.get(id);
+    return t ? t.groupName === 'Smart Bomb' : /smartbomb/i.test(localName(id) ?? '');
+  };
   const shipName = (id?: number) => (id ? localName(id) ?? (remoteName(id) || `#${id}`) : '—');
   const shipCell = (id?: number) => (id ? `<span class="recon-ship"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" /><span>${esc(shipName(id))}</span></span>` : '<span class="dim">—</span>');
 
@@ -150,7 +154,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     intel.set(id, 'loading');
     renderRoute();
     try {
-      const r = await recentKills(id);
+      const r = await recentKills(id, isSmartbomb);
       const unknownShips = r.kills.flatMap((k) => [k.victimShip, k.topShip ?? 0]).filter((t) => t && !localName(t));
       await resolveNames([...r.kills.flatMap((k) => k.attackerAlliances), ...unknownShips]);
       if (run !== routeRun) return;

@@ -391,6 +391,11 @@ select.input option, select.input optgroup { background: var(--bg-panel-solid); 
 .flow-chart .in { fill: var(--ok); opacity: 0.8; }
 .flow-chart .out { fill: var(--danger); opacity: 0.75; }
 .flow-chart .zero { stroke: var(--line-strong); stroke-width: 1; }
+.flow-chart .grid.faint { opacity: 0.5; stroke-dasharray: 2 4; }
+.flow-totals { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; margin: 4px 0 8px; }
+.flow-totals div { display: flex; flex-direction: column; gap: 2px; }
+.flow-totals .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.flow-totals .value { font-family: var(--font-mono); font-size: 22px; }
 .wallet-periods tbody tr { cursor: pointer; }
 .wallet-periods tbody tr:hover td { background: var(--bg-hover); }
 .wallet-periods tbody tr.active td { background: rgba(var(--accent-rgb), 0.08); }

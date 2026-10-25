@@ -833,4 +833,6 @@ export const EN: Record<string, string> = {
   "{n} bule de warp în sistem, departe de tine (AU)": "{n} warp bubbles in system, far from you (AU)",
   "Prețurile sunt din scanarea de {age}. Ordinele din Jita se schimbă des, rescanează înainte să pui ordine.": "Prices come from the scan made {age}. Jita orders change often, rescan before placing orders.",
   "Nu am date ESI pentru caracter (delogat sau eroare la citire)": "No ESI data for this character (logged out or read error)",
+  "Câștigat total": "Total earned",
+  "Cheltuit total": "Total spent",
 };

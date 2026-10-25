@@ -75,7 +75,7 @@ export interface FlowPoint {
 
 export function flowChart(points: FlowPoint[]) {
   if (!points.length) return '';
-  const w = 760, h = 240, pl = 58, pr = 10, pt = 10, pb = 24;
+  const w = 760, h = 240, pl = 10, pr = 10, pt = 10, pb = 24;
   const maxIn = Math.max(0, ...points.map((p) => p.earned));
   const maxOut = Math.max(0, ...points.map((p) => p.spent));
   const total = maxIn + maxOut || 1;
@@ -91,11 +91,9 @@ export function flowChart(points: FlowPoint[]) {
   }).join('');
   const every = Math.max(1, Math.ceil(points.length / 8));
   const hits = points.map((_, i) => `<rect class="hit" data-i="${i}" x="${(x(i) - step / 2).toFixed(1)}" width="${step.toFixed(1)}" y="${pt}" height="${h - pt - pb}" />`).join('');
-  const ticks: [number, string][] = [[mid, '0']];
-  if (maxIn) ticks.push([pt, '+' + compactISK(maxIn)]);
-  if (maxOut) ticks.push([pt + plotH, '−' + compactISK(maxOut)]);
+  const grid = [maxIn ? pt : null, maxOut ? pt + plotH : null].filter((y): y is number => y != null);
   return `<div class="series-wrap"><svg class="series-chart flow-chart" viewBox="0 0 ${w} ${h}" role="img">
-    ${ticks.map(([y, t]) => `<line x1="${pl}" x2="${w - pr}" y1="${y}" y2="${y}" class="grid" /><text x="${pl - 6}" y="${y + 4}" text-anchor="end">${t}</text>`).join('')}
+    ${grid.map((y) => `<line x1="${pl}" x2="${w - pr}" y1="${y}" y2="${y}" class="grid faint" />`).join('')}
     ${points.map((p, i) => (i % every === 0 ? `<text x="${x(i)}" y="${h - 6}" text-anchor="middle">${p.label}</text>` : '')).join('')}
     ${bars}
     <line x1="${pl}" x2="${w - pr}" y1="${mid}" y2="${mid}" class="zero" />

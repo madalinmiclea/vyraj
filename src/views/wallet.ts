@@ -118,8 +118,13 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           </div>
           ${partial ? `<p class="dim small wallet-note">${tx('EVE dă doar ultimele 30 de zile din jurnal. Vyraj păstrează local tot ce citește, așa că perioadele mai lungi se completează pe măsură ce deschizi Wallet. Acum ai date din {date}.', { date: day(oldest) })}</p>` : ''}
           <h4 class="sub-head">${tx('Câștigat și cheltuit {bucket}', { bucket: bucketName })}</h4>
+          <div class="flow-totals">
+            <div><span class="label">${tx('Câștigat total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
+            <div><span class="label">${tx('Cheltuit total')}</span><span class="value down">${compactISK(f.spent)}</span></div>
+            <div><span class="label">Net</span><span class="value ${f.net >= 0 ? 'up' : 'down'}">${f.net >= 0 ? '+' : '−'}${compactISK(Math.abs(f.net))}</span></div>
+          </div>
           ${flowChart(points)}
-          ${partial ? `<p class="dim small wallet-note">${tx('Graficul începe la {date}, prima zi cu date salvate local.', { date: day(oldest) })}</p>` : ''}`,
+          ${partial || (period === 'all' && entries.length) ? `<p class="dim small wallet-note">${tx('Graficul începe la {date}, prima zi cu date salvate local.', { date: day(oldest) })}</p>` : ''}`,
       })}
       ${panel({
         title: tx('Toate perioadele'),
