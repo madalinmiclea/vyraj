@@ -26,6 +26,8 @@ export interface KillSummary {
   victimCorp?: number;
   value: number;
   attackers: number;
+  players: number;
+  npcAttackers: number;
   attackerIds: number[];
   attackerShips: number[];
   weapons: number[];
@@ -36,7 +38,7 @@ export interface KillSummary {
   solo: boolean;
 }
 
-export interface SystemIntel { kills: KillSummary[]; camp: boolean; campers: number; smartbomb: boolean }
+export interface SystemIntel { kills: KillSummary[]; total: number; camp: boolean; campers: number; smartbomb: boolean }
 
 export interface PilotStats {
   kills: number;
@@ -175,20 +177,23 @@ export async function systemActivity(): Promise<{ at: number; map: Map<number, S
 const killCache = new Map<number, KillSummary>();
 const CAPSULES = new Set([670, 33328]);
 
-export async function recentKills(systemId: number, isSmartbomb: (typeId: number) => boolean, limit = 15): Promise<SystemIntel> {
+export async function recentKills(systemId: number, isSmartbomb: (typeId: number) => boolean, limit = 50): Promise<SystemIntel> {
   const list = await zkbJson<{ killmail_id: number; zkb: { hash: string; totalValue: number; npc: boolean; solo: boolean; locationID?: number } }[]>(`/kills/systemID/${systemId}/pastSeconds/3600/`);
-  const picked = (Array.isArray(list) ? list : []).slice(0, limit);
+  const all = Array.isArray(list) ? list : [];
+  const picked = all.slice(0, limit);
   const kills = await Promise.all(picked.map(async (k) => {
     const hit = killCache.get(k.killmail_id);
-    if (hit?.weapons) return hit;
+    if (hit?.players !== undefined) return hit;
     const km = await esiJson<{
       killmail_time: string; solar_system_id: number;
       victim: { ship_type_id: number; alliance_id?: number; corporation_id?: number };
       attackers: { character_id?: number; ship_type_id?: number; alliance_id?: number; final_blow?: boolean; weapon_type_id?: number }[];
     }>(`/killmails/${k.killmail_id}/${k.zkb.hash}/`);
+    const pilots = km.attackers.filter((a) => a.character_id);
+    const main = pilots.length ? pilots : km.attackers;
     const ships = km.attackers.map((a) => a.ship_type_id).filter((x): x is number => !!x);
     const counts = new Map<number, number>();
-    for (const s of ships) counts.set(s, (counts.get(s) ?? 0) + 1);
+    for (const a of main) if (a.ship_type_id) counts.set(a.ship_type_id, (counts.get(a.ship_type_id) ?? 0) + (a.final_blow ? 1.5 : 1));
     const summary: KillSummary = {
       id: k.killmail_id,
       time: Date.parse(km.killmail_time),
@@ -198,10 +203,12 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
       victimCorp: km.victim.corporation_id,
       value: k.zkb.totalValue,
       attackers: km.attackers.length,
+      players: pilots.length,
+      npcAttackers: km.attackers.length - pilots.length,
       attackerIds: km.attackers.map((a) => a.character_id).filter((x): x is number => !!x),
       attackerShips: ships,
       weapons: [...new Set(km.attackers.map((a) => a.weapon_type_id).filter((x): x is number => !!x))],
-      attackerAlliances: [...new Set(km.attackers.map((a) => a.alliance_id).filter((x): x is number => !!x))],
+      attackerAlliances: [...new Set(main.map((a) => a.alliance_id).filter((x): x is number => !!x))],
       topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
       location: k.zkb.locationID,
       npc: k.zkb.npc,
@@ -215,7 +222,7 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
   const seen = new Map<number, number>();
   for (const k of player) for (const id of new Set(k.attackerIds)) seen.set(id, (seen.get(id) ?? 0) + 1);
   const repeat = [...seen.values()].filter((n) => n >= 2).length;
-  const gang = player.filter((k) => k.attackers >= 2 && !k.solo);
+  const gang = player.filter((k) => k.players >= 2);
   const gangSeen = new Map<number, number>();
   for (const k of gang) for (const id of new Set(k.attackerIds)) gangSeen.set(id, (gangSeen.get(id) ?? 0) + 1);
   const gangRepeat = [...gangSeen.values()].filter((n) => n >= 2).length;
@@ -227,7 +234,7 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
   const bombed = player.filter((k) => CAPSULES.has(k.victimShip) && (k.weapons.some(isSmartbomb) || onGate(k)));
   const smartbomb = repeat > 0 && bombed.length >= 3;
   const camp = (gang.length >= 2 && gangRepeat > 0 && victims >= 1) || sameSpot || smartbomb;
-  return { kills, camp, campers: repeat, smartbomb };
+  return { kills, total: all.length, camp, campers: repeat, smartbomb };
 }
 
 let pilotCache = loadJson<Record<number, PilotStats | null>>(PILOTS_KEY, {});

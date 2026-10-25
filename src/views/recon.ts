@@ -167,14 +167,23 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     renderRoute();
   }
 
+  function attackersTitle(k: SystemIntel['kills'][number]) {
+    if (k.npc) return tx('Omorât doar de NPC-uri (CONCORD, sentry gun-uri sau rați), fără jucători.');
+    const parts = [tx('{n} jucători', { n: k.players })];
+    if (k.npcAttackers) parts.push(tx('{n} NPC (sentry gun, CONCORD, rați)', { n: k.npcAttackers }));
+    if (k.solo) parts.push(tx('Solo pe zKillboard: un singur jucător, NPC-urile nu se pun la socoteală.'));
+    return parts.join(' · ');
+  }
+
   function killsTable(r: SystemIntel) {
     if (!r.kills.length) return `<p class="dim small">${tx('Niciun kill în ultimele 60 de minute pe zKillboard.')}</p>`;
-    return `<table class="table compact recon-kills"><thead><tr><th>${tx('Când')}</th><th>${tx('Victimă')}</th><th class="r">${tx('Valoare')}</th><th class="r">${tx('Atacatori')}</th><th>${tx('Navă atacator')}</th><th>${tx('Alianță atacator')}</th><th></th></tr></thead><tbody>
+    const shown = r.kills.length < r.total ? tx('Afișez {n} din {total} kill-uri pe zKillboard în ultima oră (cele mai recente).', { n: r.kills.length, total: r.total }) : tx('{n} kill-uri pe zKillboard în ultima oră.', { n: r.kills.length });
+    return `<p class="dim small">${shown}</p><table class="table compact recon-kills"><thead><tr><th>${tx('Când')}</th><th>${tx('Victimă')}</th><th class="r">${tx('Valoare')}</th><th class="r" title="${esc(tx('Jucători care au participat la kill. NPC-urile (sentry gun-uri, CONCORD, rați) apar separat.'))}">${tx('Atacatori')}</th><th>${tx('Navă atacator')}</th><th>${tx('Alianță atacator')}</th><th></th></tr></thead><tbody>
       ${r.kills.map((k) => `<tr>
         <td class="num">${ago(k.time)}</td>
         <td>${shipCell(k.victimShip)}</td>
         <td class="r num">${compactISK(k.value)}</td>
-        <td class="r num">${k.attackers}${k.solo ? ` ${badge('solo', 'gold')}` : ''}${k.npc ? ` ${badge('NPC')}` : ''}</td>
+        <td class="r num" title="${esc(attackersTitle(k))}">${k.npc ? badge(tx('Doar NPC')) : `${k.players}${k.npcAttackers ? ` <span class="dim">+ ${k.npcAttackers} NPC</span>` : ''}${k.solo ? ` ${badge('solo', 'gold')}` : ''}`}</td>
         <td>${shipCell(k.topShip)}</td>
         <td class="dim">${k.attackerAlliances.slice(0, 2).map((a) => esc(cachedName(a))).join(', ') || '—'}</td>
         <td class="r">${zkbLink('kill', k.id, icon('external'))}</td>
@@ -206,7 +215,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         </div>
         ${verdict}
         <div class="table-scroll"><table class="table compact recon-route"><thead><tr>
-          <th class="r">#</th><th>${tx('Sistem')}</th><th class="r">Sec</th><th class="r">${tx('Nave')}</th><th class="r">${tx('Capsule')}</th><th class="r">NPC</th><th class="r">${tx('Sărituri / h')}</th><th>${tx('Risc')}</th><th></th>
+          <th class="r">#</th><th>${tx('Sistem')}</th><th class="r" title="${esc(tx('Nivelul de securitate al sistemului.'))}">Sec</th><th class="r" title="${esc(tx('Nave de jucători distruse în sistem în ultima oră, fără capsule. Sursa: ESI, actualizat de CCP o dată pe oră. Include și navele de gank omorâte de CONCORD.'))}">${tx('Nave distruse / h')}</th><th class="r" title="${esc(tx('Capsule distruse în sistem în ultima oră (ESI).'))}">${tx('Capsule / h')}</th><th class="r" title="${esc(tx('NPC-uri (rați) omorâte de jucători în ultima oră (ESI). Arată cât de mult se face PvE aici, nu pericol.'))}">${tx('NPC uciși / h')}</th><th class="r" title="${esc(tx('Nave care au intrat în sistem prin stargate în ultima oră (ESI). Arată traficul.'))}">${tx('Sărituri / h')}</th><th>${tx('Risc')}</th><th></th>
         </tr></thead><tbody>
         ${rows.map(({ s, i, a, r }) => {
           const det = typeof r === 'object' ? r : undefined;
