@@ -73,3 +73,6 @@
 .skin-combo-menu .skin-swatch.xs { width: 20px; height: 20px; }
 .table.skin-shop tr.skin-owned td { color: var(--text-dim); }
 .skin-shop-empty { padding: 18px 8px; text-align: center; }
+.skin-order select { width: 190px; }
+.table.skin-shop .skin-link { text-align: left; }
+.table.skin-shop .skin-link:hover { text-decoration: underline; text-underline-offset: 3px; }

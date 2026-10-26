@@ -9,10 +9,10 @@ import { showItemInfo } from '../ui/itemInfo';
 import { listAssets, walletTransactions } from '../character/esi';
 import { hasTokens, hasScope } from '../character/sso';
 import { tx, locale } from '../i18n';
+import { allEveItems } from '../data/items';
 import { fold } from '../ui/fold';
 
-type Filter = 'all' | 'started' | 'complete' | 'missing';
-type Sort = 'name' | 'progress' | 'size';
+type Sort = 'name' | 'owned' | 'progress';
 type Mode = 'all' | 'mine' | 'shop';
 type ShopOrder = 'cheap' | 'expensive';
 type ComboKind = 'ship' | 'line';
@@ -30,17 +30,10 @@ interface ShopRow {
   own?: boolean;
 }
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: tx('Toate') },
-  { id: 'started', label: tx('Începute') },
-  { id: 'complete', label: tx('Complete') },
-  { id: 'missing', label: tx('Neîncepute') },
-];
-
 const SORTS: { id: Sort; label: string }[] = [
   { id: 'name', label: tx('Nume') },
-  { id: 'progress', label: tx('Progres') },
-  { id: 'size', label: tx('Nr. nave') },
+  { id: 'owned', label: tx('Nave deținute') },
+  { id: 'progress', label: tx('Progres %') },
 ];
 
 const PREFS_KEY = 'eve-skins:prefs';
@@ -50,14 +43,14 @@ const COMBO_LIMIT = 60;
 const PRICES_KEY = 'eve-skins:prices';
 
 export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
-  const prefs = loadJson<{ filter: Filter; sort: Sort; mode?: string; shopOrder?: ShopOrder }>(PREFS_KEY, { filter: 'all', sort: 'name' });
-  let filter = prefs.filter;
-  let sort = prefs.sort;
+  const prefs = loadJson<{ sort?: string; mode?: string; shopOrder?: ShopOrder }>(PREFS_KEY, {});
+  let sort: Sort = SORTS.some((x) => x.id === prefs.sort) ? prefs.sort as Sort : 'name';
   let mode: Mode = prefs.mode === 'shop' || prefs.mode === 'mine' ? prefs.mode : 'all';
   let shopOrder: ShopOrder = prefs.shopOrder ?? 'cheap';
   let shopToken = 0;
   let query = '';
   let priceCache = loadJson<{ at: number; p: Record<string, number> }>(PRICES_KEY, { at: 0, p: {} });
+  const licenseNames = new Map<number, string>();
   let pickShip: number | null = null;
   let pickLine: string | null = null;
   let combo: { input: HTMLInputElement; kind: ComboKind; menu: HTMLElement; items: ComboItem[]; active: number } | null = null;
@@ -76,18 +69,18 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   el.innerHTML = loader(tx('Încărcăm SKIN-urile'));
 
   const count = (l: SkinLine) => l.ships.reduce((a, s) => a + (owned.has(skinKey(l.name, s.id)) ? 1 : 0), 0);
-  const savePrefs = () => saveJson(PREFS_KEY, { filter, sort, mode, shopOrder });
+  const savePrefs = () => saveJson(PREFS_KEY, { sort, mode, shopOrder });
 
   function shell() {
     el.innerHTML = `<div id="skinHead"></div>
       <div class="skin-toolbar">
         ${searchField({ id: 'skinSearch', placeholder: tx('Caută SKIN sau navă') })}
-        <div class="advice-sort" id="skinFilters"></div>
-        <div class="advice-sort" id="skinSorts"></div>
+        <label class="select-field skin-order" id="skinSorts"><span>${tx('Ordonează după')}</span><select class="input" id="skinSortSel">${SORTS.map((o) => `<option value="${o.id}">${o.label}</option>`).join('')}</select></label>
       </div>
       <div id="skinBody"></div>`;
     const search = el.querySelector<HTMLInputElement>('#skinSearch')!;
     search.addEventListener('input', () => { query = search.value.trim().toLowerCase(); renderBody(); });
+    el.querySelector<HTMLSelectElement>('#skinSortSel')!.addEventListener('change', (e) => { sort = (e.target as HTMLSelectElement).value as Sort; savePrefs(); renderGrid(); });
     el.addEventListener('click', onClick);
     side.addEventListener('click', onClick);
     el.addEventListener('input', (e) => { const i = (e.target as HTMLElement).closest<HTMLInputElement>('[data-skin-combo]'); if (i) showCombo(i); });
@@ -114,10 +107,8 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div><span class="label">${tx('Colecții complete')}</span><span class="value">${formatInt(complete)}</span></div>
         <div><span class="label">${tx('Progres')}</span><span class="value">${total ? ((have / total) * 100).toFixed(1) : '0.0'}%</span></div>
       </div>${mode === 'mine' ? actions() : ''}</div>`}`;
-    el.querySelector<HTMLElement>('#skinFilters')!.style.display = mode === 'shop' ? 'none' : '';
-    el.querySelector<HTMLElement>('#skinSorts')!.style.display = mode === 'shop' ? 'none' : '';
-    el.querySelector('#skinFilters')!.innerHTML = FILTERS.filter((f) => mode !== 'mine' || f.id !== 'missing').map((f) => `<button class="chip-btn ${f.id === filter ? 'active' : ''}" data-skin-filter="${f.id}">${f.label}</button>`).join('');
-    el.querySelector('#skinSorts')!.innerHTML = SORTS.map((s) => `<button class="chip-btn ${s.id === sort ? 'active' : ''}" data-skin-sort="${s.id}">${s.label}</button>`).join('');
+    el.querySelector<HTMLElement>('#skinSorts')!.style.display = mode === 'mine' ? '' : 'none';
+    el.querySelector<HTMLSelectElement>('#skinSortSel')!.value = sort;
   }
 
   function actions() {
@@ -134,14 +125,13 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const list = lines.filter((l) => {
       const n = count(l);
       if (mode === 'mine' && n === 0) return false;
-      if (filter === 'started' && (n === 0 || n === l.ships.length)) return false;
-      if (filter === 'complete' && n !== l.ships.length) return false;
-      if (filter === 'missing' && mode !== 'mine' && n > 0) return false;
       if (!query) return true;
       return l.name.toLowerCase().includes(query) || l.ships.some((s) => s.name.toLowerCase().includes(query));
     });
-    if (sort === 'progress') list.sort((a, b) => count(b) / b.ships.length - count(a) / a.ships.length || a.name.localeCompare(b.name));
-    if (sort === 'size') list.sort((a, b) => b.ships.length - a.ships.length || a.name.localeCompare(b.name));
+    const order = mode === 'mine' ? sort : 'name';
+    if (order === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+    if (order === 'owned') list.sort((a, b) => count(b) - count(a) || count(b) / b.ships.length - count(a) / a.ships.length || a.name.localeCompare(b.name));
+    if (order === 'progress') list.sort((a, b) => count(b) / b.ships.length - count(a) / a.ships.length || count(b) - count(a) || a.name.localeCompare(b.name));
     return list;
   }
 
@@ -253,25 +243,30 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         count: rows.length > limit ? `${limit} / ${formatInt(rows.length)}` : formatInt(rows.length),
         actions: `${pricesButton()}<div class="advice-sort"><button class="chip-btn ${shopOrder === 'cheap' ? 'active' : ''}" data-skin-order="cheap">${tx('Ieftine')}</button><button class="chip-btn ${shopOrder === 'expensive' ? 'active' : ''}" data-skin-order="expensive">${tx('Scumpe')}</button></div>`,
         body: `<table class="table compact skin-shop"><thead>
-          <tr class="skin-filter-row"><th></th><th></th><th>${comboField('ship')}</th><th>${comboField('line')}</th><th colspan="3"></th></tr>
-          <tr><th class="r">#</th><th></th><th>${tx('Navă')}</th><th>SKIN</th><th class="r">${tx('Preț Jita')}</th><th class="r">${tx('Total cumulat')}</th><th></th></tr></thead><tbody>
+          <tr class="skin-filter-row"><th></th><th></th><th>${comboField('ship')}</th><th>${comboField('line')}</th><th colspan="2"></th></tr>
+          <tr><th class="r">#</th><th></th><th>${tx('Navă')}</th><th>SKIN</th><th class="r">${tx('Preț Jita')}</th><th class="r">${tx('Total cumulat')}</th></tr></thead><tbody>
           ${shown.length ? shown.map((r, i) => {
             if (!r.own) running += r.price;
             return `<tr class="${r.own ? 'skin-owned' : ''}">
               <td class="r num dim">${i + 1}</td>
               <td>${swatch(r.line, 'xs')}</td>
-              <td><button class="skin-link" data-skin-info="${r.ship.id}"><img class="row-icon" src="${typeIconUrl(r.ship.id, 32)}" alt="" loading="lazy" />${esc(r.ship.name)}</button></td>
-              <td>${esc(r.line.name)}${r.own ? ` ${badge(tx('Deținut'), 'ok')}` : ''}</td>
+              <td><button class="skin-link" data-skin-copy="${esc(licenseName(r))}" title="${esc(tx('Click pentru a copia: {name}', { name: licenseName(r) }))}"><img class="row-icon" src="${typeIconUrl(r.ship.id, 32)}" alt="" loading="lazy" />${esc(r.ship.name)}</button></td>
+              <td><button class="skin-link" data-skin-copy="${esc(licenseName(r))}" title="${esc(tx('Click pentru a copia: {name}', { name: licenseName(r) }))}">${esc(r.line.name)}</button>${r.own ? ` ${badge(tx('Deținut'), 'ok')}` : ''}</td>
               <td class="r num">${r.price ? compactISK(r.price) : `<span class="dim">${tx('Fără ordere')}</span>`}</td>
               <td class="r num dim">${r.own || !r.price ? '' : compactISK(running)}</td>
-              <td class="r"><button class="btn sm ghost icon-only" data-skin-copy="${esc(`${r.ship.name} ${r.line.name} SKIN`)}">${icon('copy')}</button></td>
             </tr>`;
-          }).join('') : `<tr><td colspan="7" class="dim skin-shop-empty">${tx('Niciun SKIN pentru filtrul ales.')}</td></tr>`}
+          }).join('') : `<tr><td colspan="6" class="dim skin-shop-empty">${tx('Niciun SKIN pentru filtrul ales.')}</td></tr>`}
         </tbody></table>`,
       })}`;
     } catch (err) {
       if (token === shopToken) body.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
+  }
+
+  function licenseName(r: ShopRow) {
+    if (!licenseNames.size) for (const it of allEveItems) if (it.c === 'Ship SKINs') licenseNames.set(it.t, it.n);
+    const id = r.license || r.ship.license;
+    return licenseNames.get(id) ?? r.ship.licenses.map((x) => licenseNames.get(x)).find(Boolean) ?? `${r.ship.name} ${r.line.name} SKIN`;
   }
 
   function pricesButton() {
@@ -422,10 +417,6 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
 
   function onClick(e: Event) {
     const t = e.target as HTMLElement;
-    const f = t.closest<HTMLElement>('[data-skin-filter]');
-    if (f) { filter = f.dataset.skinFilter as Filter; savePrefs(); render(); return; }
-    const s = t.closest<HTMLElement>('[data-skin-sort]');
-    if (s) { sort = s.dataset.skinSort as Sort; savePrefs(); render(); return; }
     if (t.closest('[data-skin-list]')) { openImport(); return; }
     if (t.closest('[data-skin-sync]')) { sync(); return; }
     if (t.closest('[data-skin-close]')) { open = null; renderGrid(); return; }
@@ -439,7 +430,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const so = t.closest<HTMLElement>('[data-skin-order]');
     if (so) { shopOrder = so.dataset.skinOrder as ShopOrder; savePrefs(); renderShop(); return; }
     const cp = t.closest<HTMLElement>('[data-skin-copy]');
-    if (cp) { copyText(cp.dataset.skinCopy!, tx('Nume copiat, caută-l în market')); return; }
+    if (cp) { copyText(cp.dataset.skinCopy!, tx('Copiat: {name}', { name: cp.dataset.skinCopy! })); return; }
     const line = lines.find((l) => l.name === open);
     const ship = t.closest<HTMLElement>('[data-skin-ship]');
     if (ship && line) {
