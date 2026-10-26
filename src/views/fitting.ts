@@ -324,12 +324,14 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return f.drones.map((dr, i) => ({ dr, i })).filter((x) => isFighter(x.dr.typeId) === fighters).map(({ dr, i }) => `<div class="slot fitted drone-row">
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button>
-        <span class="dim small">${fighters ? tx('{a} escadrile lansate din {n}', { a: dr.active, n: dr.count }) : tx('{a} lansate din {n}', { a: dr.active, n: dr.count })}</span></div>
-      <div class="stepper" title="${fighters ? tx('Escadrile lansate') : tx('Drone lansate')}">
-        <button data-drone="${i}:active:-1">−</button><span class="num">${dr.active}</span><button data-drone="${i}:active:1">+</button>
+        <span class="dim small">${tx('{n} în total', { n: dr.count })}</span></div>
+      <div class="drone-step" title="${fighters ? tx('Escadrile lansate din fighter bay, cele care contează la DPS') : tx('Drone lansate în spațiu, cele care contează la DPS și bandwidth')}">
+        <span class="drone-step-label">${tx('În spațiu')}</span>
+        <div class="stepper"><button data-drone="${i}:space:-1" ${dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.active}</span><button data-drone="${i}:space:1">+</button></div>
       </div>
-      <div class="stepper" title="${fighters ? tx('Escadrile în bay') : tx('Drone în bay')}">
-        <button data-drone="${i}:count:-1">−</button><span class="num">${dr.count}</span><button data-drone="${i}:count:1">+</button>
+      <div class="drone-step" title="${fighters ? tx('Escadrile de rezervă, rămase în fighter bay') : tx('Drone de rezervă, rămase în drone bay')}">
+        <span class="drone-step-label">${tx('În bay')}</span>
+        <div class="stepper"><button data-drone="${i}:bay:-1" ${dr.count - dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.count - dr.active}</span><button data-drone="${i}:bay:1">+</button></div>
       </div>
       <button class="slot-info" data-info="${dr.typeId}" title="Show Info">${icon('info')}</button>
       <button class="slot-remove" data-drone="${i}:remove:0" title="${tx('Scoate')}">${icon('close')}</button>
@@ -390,7 +392,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     switch (current) {
       case 'drones': {
         const launched = drones.reduce((a, x) => a + x.active, 0);
-        body = meta([`Drone bay ${m3(r.droneBay)}`, `Bandwidth <b class="num">${formatNum(r.droneBandwidth.used, 0)}</b> / ${formatNum(r.droneBandwidth.total, 0)} Mbit/s`, `${tx('Lansate')} <b class="num">${launched}</b> / ${formatNum(d.character.get('maxActiveDrones'), 0)}`])
+        body = meta([`Drone bay ${m3(r.droneBay)}`, `Bandwidth <b class="num">${formatNum(r.droneBandwidth.used, 0)}</b> / ${formatNum(r.droneBandwidth.total, 0)} Mbit/s`, `${tx('În spațiu')} <b class="num">${launched}</b> / ${formatNum(d.character.get('maxActiveDrones'), 0)}`])
           + `<div class="slot-group drones">${droneRows(f, false)}</div>` + (drones.length ? '' : hint(tx('Apasă pe o dronă din browser ca s-o adaugi.')));
         break;
       }
@@ -599,8 +601,15 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       change((draft) => {
         const dr = draft.drones[Number(i)];
         if (field === 'remove') draft.drones.splice(Number(i), 1);
-        else if (field === 'count') { dr.count = Math.max(1, dr.count + Number(delta)); dr.active = Math.min(dr.active, dr.count); if (dr.wanted != null) dr.wanted = Math.min(dr.wanted, dr.count); }
-        else { dr.active = Math.max(0, Math.min(dr.count, dr.active + Number(delta))); delete dr.wanted; }
+        else if (field === 'bay') {
+          if (Number(delta) > 0) dr.count++;
+          else if (dr.count > dr.active) dr.count--;
+          if (dr.count === 0) draft.drones.splice(Number(i), 1);
+          else if (dr.wanted != null) dr.wanted = Math.min(dr.wanted, dr.count);
+        } else {
+          if (Number(delta) > 0) { if (dr.active === dr.count) dr.count++; dr.active++; } else dr.active = Math.max(0, dr.active - 1);
+          delete dr.wanted;
+        }
       });
       return;
     }
