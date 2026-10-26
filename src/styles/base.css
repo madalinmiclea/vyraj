@@ -34,6 +34,7 @@ body::before {
 #app { position: relative; z-index: 1; }
 
 button, input, select { font: inherit; color: inherit; }
+p { line-height: 1.5; }
 button { cursor: pointer; background: none; border: none; }
 
 ::selection { background: var(--accent-glow); color: var(--text-bright); }
@@ -45,5 +46,6 @@ button { cursor: pointer; background: none; border: none; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table, input, .value, .count, .item-tile small { font-variant-numeric: tabular-nums; }
 .dim { color: var(--text-dim); }
 .hidden { display: none !important; }

@@ -86,14 +86,19 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         <label class="select-field"><span>${tx('Caracter')}</span><select class="input plain" id="fitCharacter"></select></label>
         <div class="toolbar-actions">
           ${button(tx('Salvează'), { iconName: 'save', cls: 'sm', attrs: 'data-action="save"' })}
-          ${button(tx('Salvează ca nou'), { iconName: 'plus', cls: 'ghost sm', attrs: `data-action="save-as" title="${tx('Păstrează fit-ul salvat și creează o copie nouă')}"` })}
           ${button(tx('Fit-uri'), { iconName: 'fitting', cls: 'ghost sm', attrs: 'data-action="saved"' })}
           ${button(tx('Importă'), { iconName: 'upload', cls: 'ghost sm', attrs: 'data-action="import"' })}
           ${button(tx('Exportă'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-action="export"' })}
           ${button(tx('Link'), { iconName: 'link', cls: 'ghost sm', attrs: `data-action="share" title="${tx('Copiază un link care deschide fit-ul direct în Vyraj')}"` })}
-          ${button(tx('Compară'), { iconName: 'compare', cls: 'ghost sm', attrs: 'data-action="compare"' })}
-          ${button('EVE', { iconName: 'login', cls: 'ghost sm', attrs: `data-action="esi" title="${tx('Fit-urile salvate în joc')}"` })}
-          ${button(tx('Navele mele'), { iconName: 'ship', cls: 'ghost sm', attrs: `data-action="ships" title="${tx('Navele asamblate din hangare, cu ce au montat')}"` })}
+          <details class="more-menu">
+            <summary class="btn ghost sm">${icon('chevron')}${tx('Mai mult')}</summary>
+            <div class="more-list">
+              ${button(tx('Salvează ca nou'), { iconName: 'plus', cls: 'ghost sm', attrs: `data-action="save-as" title="${tx('Păstrează fit-ul salvat și creează o copie nouă')}"` })}
+              ${button(tx('Compară'), { iconName: 'compare', cls: 'ghost sm', attrs: 'data-action="compare"' })}
+              ${button('EVE', { iconName: 'login', cls: 'ghost sm', attrs: `data-action="esi" title="${tx('Fit-urile salvate în joc')}"` })}
+              ${button(tx('Navele mele'), { iconName: 'ship', cls: 'ghost sm', attrs: `data-action="ships" title="${tx('Navele asamblate din hangare, cu ce au montat')}"` })}
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -124,6 +129,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   const { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi } = createFitModals(env);
   const nameInput = el.querySelector<HTMLInputElement>('#fitName')!;
   const charSelect = el.querySelector<HTMLSelectElement>('#fitCharacter')!;
+  document.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('.more-menu')) el.querySelectorAll<HTMLDetailsElement>('.more-menu[open]').forEach((d) => { d.open = false; });
+  });
 
   function renderCharacters() {
     charSelect.innerHTML = allCharacters(sde).map((c) => `<option value="${esc(c.id)}" ${c.id === ctx.character.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -220,13 +228,19 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       left.innerHTML = panel({
         body: emptyState({
           title: tx('Alege o navă'),
-          text: tx('Deschide „Ships” în browserul din stânga și apasă pe o navă. Apoi apasă pe module, muniție sau drone ca să le montezi. Poți și importa un fit EFT din joc sau din Pyfa.'),
+          text: tx('Deschide „Ships” în browserul de iteme și apasă pe o navă. Apoi apasă pe module, muniție sau drone ca să le montezi. Poți și importa un fit EFT din joc sau din Pyfa.'),
           vy: 'Choose the Hull to Prove',
-          vyText: 'Open “Ships” in the browser on the left and select a hull. Then bind modules, charges or drones to it. A fit from the game or from Pyfa may also be woven in through EFT import.',
+          vyText: 'Open “Ships” in the item browser and select a hull. Then bind modules, charges or drones to it. A fit from the game or from Pyfa may also be woven in through EFT import.',
           extra: `<div class="chips">${['Rifter', 'Drake', 'Gila', 'Ishtar', 'Golem'].map((n) => button(n, { cls: 'ghost sm', attrs: `data-quick="${n}"` })).join('')}</div>`,
         }),
       });
-      right.innerHTML = '';
+      const saved = loadFits().slice(0, 12);
+      right.innerHTML = saved.length ? panel({
+        title: tx('Fit-uri salvate'),
+        count: loadFits().length,
+        actions: button(tx('Toate'), { cls: 'ghost sm', attrs: 'data-action="saved"' }),
+        body: `<div class="item-tiles one-col">${saved.map((f) => `<button class="item-tile" data-open-fit="${esc(f.id)}"><img src="${typeIconUrl(f.shipId, 32)}" alt="" loading="lazy" /><span class="tile-text"><span>${esc(f.name)}</span><small>${esc(name(f.shipId))}</small></span></button>`).join('')}</div>`,
+      }) : '';
       persist();
       return;
     }
@@ -249,9 +263,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <div class="ship-info">
         <h2><button class="link" data-info="${f.shipId}">${esc(t.name)}</button></h2>
         <div class="meta">${badge(t.groupName)}${support.modeSelect(f)}${s.warnings.length ? badge(tx('{n} probleme', { n: s.warnings.length }), 'danger', true) : ''}</div>
-        <div class="ship-dps"><span class="big num">${formatNum(s.offense.totalDps, 0)}</span><span class="dim">DPS</span>
-          <span class="big num">${compactISK(s.defense.ehp)}</span><span class="dim">EHP</span>
-          <span class="big num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</span><span class="dim">Cap</span></div>
+        <div class="ship-dps">
+          <div class="ship-stat"><b class="num">${formatNum(s.offense.totalDps, 0)}</b><span>DPS</span></div>
+          <div class="ship-stat"><b class="num">${compactISK(s.defense.ehp)}</b><span>EHP</span></div>
+          <div class="ship-stat"><b class="num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</b><span>Cap</span></div>
+        </div>
       </div>
       <div class="ship-actions">${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}</div>
     </section>`;
@@ -286,11 +302,13 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const total = Math.max(counts[g.key], list.length);
       const used = list.filter(Boolean).length;
       const rows: string[] = [];
+      let free = 0;
       for (let i = 0; i < total; i++) {
         const m = list[i];
         if (m) rows.push(moduleRow(g.key, i, m, i >= counts[g.key]));
-        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
+        else if (i < counts[g.key]) free++;
       }
+      if (free) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${free === 1 ? tx('1 slot liber') : tx('{n} sloturi libere', { n: free })}</span></div>`);
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
         <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div><span class="pips">${pips}</span></div>
@@ -586,6 +604,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const extras = at('[data-extras]');
     if (extras) { showExtras(extras.dataset.extras as ExtrasTab); render(); return; }
     if (fit && support.handleClick(target)) return;
+    const openSaved = at('[data-open-fit]');
+    if (openSaved) { const f = loadFits().find((x) => x.id === openSaved.dataset.openFit); if (f) openFit(cloneFit(f)); return; }
     const quick = at('[data-quick]');
     if (quick) { selectItem(quick.dataset.quick!, null); return; }
     const info = at('[data-info]');
@@ -730,6 +750,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   });
 
   function runAction(action: string) {
+    el.querySelectorAll<HTMLDetailsElement>('.more-menu[open]').forEach((d) => { d.open = false; });
     switch (action) {
       case 'clear':
         if (fit) newFit(fit.shipId);

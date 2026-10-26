@@ -47,6 +47,7 @@
 :root[data-theme='vyraj'] .sidebar { background: rgba(11, 10, 10, 0.9); }
 :root[data-theme='vyraj'] .modal-backdrop { background: rgba(4, 2, 2, 0.75); }
 
+:root:not([data-theme='vyraj']) .topbar-title { visibility: hidden; }
 .lore-vy { display: none; }
 :root[data-theme='vyraj'] .lore-std { display: none; }
 :root[data-theme='vyraj'] .lore-vy { display: inline; }

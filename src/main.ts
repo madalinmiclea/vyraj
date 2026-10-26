@@ -34,6 +34,7 @@ import { readSharedFit } from './io/shareLink';
 
 type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining';
 
+const MOBILE_MAIN: string[] = ['market', 'fitting', 'tools', 'character'];
 const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
@@ -71,8 +72,12 @@ document.querySelector('#app')!.innerHTML = `
 
     <nav class="neocom">
       ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
-      ${VIEWS.map((v) => `<button class="neocom-btn" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
+      ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''}" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
+      <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}</button>
     </nav>
+    <div class="neocom-sheet" id="neocomSheet" hidden>
+      ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<button class="sheet-btn" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></button>`).join('')}
+    </div>
 
     <aside class="sidebar">
       <div class="side-pane active" id="pane-items">
@@ -187,12 +192,28 @@ function switchView(id: ViewId) {
   document.querySelectorAll('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + id));
   const pane = (SIDE_VIEWS as readonly string[]).includes(id) ? id : 'items';
   document.querySelectorAll('.side-pane').forEach((el) => el.classList.toggle('active', el.id === 'pane-' + pane));
-  document.querySelectorAll<HTMLElement>('.neocom-btn[data-view]').forEach((el) => el.classList.toggle('active', el.dataset.view === id));
+  document.querySelectorAll<HTMLElement>('.neocom-btn[data-view], .sheet-btn').forEach((el) => el.classList.toggle('active', el.dataset.view === id));
+  document.getElementById('neocomMore')!.classList.toggle('active', !MOBILE_MAIN.includes(id));
+  document.getElementById('neocomSheet')!.hidden = true;
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   setSide(false);
 }
+
+document.getElementById('neocomMore')!.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const sheet = document.getElementById('neocomSheet')!;
+  sheet.hidden = !sheet.hidden;
+});
+document.getElementById('neocomSheet')!.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sheet-btn[data-view]');
+  if (btn) switchView(btn.dataset.view as ViewId);
+});
+document.addEventListener('click', (e) => {
+  const sheet = document.getElementById('neocomSheet')!;
+  if (!sheet.hidden && !sheet.contains(e.target as Node)) sheet.hidden = true;
+});
 
 document.querySelector('.neocom')!.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.neocom-btn[data-view]');

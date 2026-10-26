@@ -3,7 +3,7 @@ import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, b
 import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
 import { HUBS, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
-import { addAlert } from '../services/alerts';
+import { addAlert, loadAlerts, hit } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 import { allEveItems } from '../data/items';
@@ -87,10 +87,23 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     };
     const section = (title: string, names: string[]) => names.length ? `<section class="item-tiles-block"><h4 class="window-title">${title}</h4><div class="item-tiles">${names.map(tile).join('')}</div></section>` : '';
     state.innerHTML = `<div class="market-welcome">
-      <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul din stânga sau caută-l mai sus. Prețurile vin live din ordinele din Jita 4-4.'), 'Pick an item from the browser on the left or search above. Prices flow live from the Jita 4-4 orders.')}</p></div></div>
+      <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul de iteme sau caută-l mai sus. Prețurile vin live din ordinele din Jita 4-4.'), 'Pick an item from the item browser or search above. Prices flow live from the Jita 4-4 orders.')}</p></div></div>
+      ${alertsBlock()}
       ${section(tx('Vizitate recent'), recent)}
       ${section(tx('Populare'), QUICK.filter((n) => !recent.includes(n)))}
     </div>`;
+  }
+
+  function alertsBlock() {
+    const alerts = loadAlerts();
+    if (!alerts.length) return '';
+    const tiles = alerts.map((a) => {
+      const on = a.current != null && hit(a, a.current);
+      const rule = `${a.side === 'sell' ? 'Sell' : 'Buy'} ${a.op === 'below' ? '≤' : '≥'} ${compactISK(a.price)}`;
+      const now = a.current != null ? ` · ${tx('acum {p}', { p: compactISK(a.current) })}` : '';
+      return `<button class="item-tile ${on ? 'hit' : ''}" data-item="${esc(a.name)}"><img src="${typeIconUrl(a.typeId, 32)}" alt="" loading="lazy" /><span class="tile-text"><span>${esc(a.name)}</span><small>${rule}${now}</small></span></button>`;
+    }).join('');
+    return `<section class="item-tiles-block"><h4 class="window-title">${tx('Alerte de preț')}</h4><div class="item-tiles">${tiles}</div></section>`;
   }
 
   function openAlert(item: { typeId: number; name: string; sell: number; buy: number }) {

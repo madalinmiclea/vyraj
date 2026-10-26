@@ -70,7 +70,7 @@
 }
 .topbar-stat .label {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 1.8px;
   text-transform: uppercase;
   color: var(--text-faint);

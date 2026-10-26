@@ -21,6 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 const TAB_KEY = 'eve-recon:tab';
 const ROUTE_KEY = 'eve-recon:route';
+const RECENT_ROUTES_KEY = 'eve-recon:recent-routes';
 const MAX_PILOTS = 300;
 const AUTO_DETAILS = 5;
 
@@ -114,6 +115,28 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   const routeForm = routeEl.querySelector<HTMLFormElement>('#routeForm')!;
   const routeResult = routeEl.querySelector<HTMLElement>('#routeResult')!;
 
+  type SavedRoute = { from: string; to: string; flag: RouteFlag };
+  const recentRoutes = () => loadJson<SavedRoute[]>(RECENT_ROUTES_KEY, []);
+  function renderRecentRoutes() {
+    const list = recentRoutes();
+    if (!list.length) return;
+    routeResult.innerHTML = panel({
+      title: tx('Rute recente'),
+      body: `<div class="item-tiles">${list.map((r, i) => `<button class="item-tile" data-recent-route="${i}"><span>${icon('jump')}</span><span class="tile-text"><span>${esc(r.from)} → ${esc(r.to)}</span><small>${FLAGS.find((f) => f.id === r.flag)?.label ?? ''}</small></span></button>`).join('')}</div>`,
+    });
+  }
+  routeResult.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-recent-route]');
+    if (!b) return;
+    const r = recentRoutes()[Number(b.dataset.recentRoute)];
+    if (!r) return;
+    routeForm.querySelector<HTMLInputElement>('[name="from"]')!.value = r.from;
+    routeForm.querySelector<HTMLInputElement>('[name="to"]')!.value = r.to;
+    routeForm.querySelector<HTMLSelectElement>('[name="flag"]')!.value = r.flag;
+    routeForm.requestSubmit();
+  });
+  renderRecentRoutes();
+
   let routeRun = 0;
   let path: SystemInfo[] = [];
   let act = new Map<number, SystemActivity>();
@@ -126,6 +149,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const fd = new FormData(routeForm);
     const q = { from: String(fd.get('from') ?? '').trim(), to: String(fd.get('to') ?? '').trim(), flag: fd.get('flag') as RouteFlag };
     saveJson(ROUTE_KEY, q);
+    saveJson(RECENT_ROUTES_KEY, [q, ...recentRoutes().filter((r) => r.from.toLowerCase() !== q.from.toLowerCase() || r.to.toLowerCase() !== q.to.toLowerCase() || r.flag !== q.flag)].slice(0, 8));
     const run = ++routeRun;
     routeResult.innerHTML = loader(tx('Calculez ruta'));
     try {

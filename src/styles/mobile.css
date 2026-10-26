@@ -1,4 +1,4 @@
-.side-toggle, .side-scrim { display: none; }
+.side-toggle, .side-scrim, .neocom-more, .neocom-sheet { display: none; }
 
 @media (max-width: 760px) {
   :root { --topbar-h: 52px; --neocom-h: 58px; }
@@ -39,6 +39,25 @@
   .neocom-btn { width: 44px; height: 44px; flex: none; }
   .neocom-btn.active::before { left: 8px; right: 8px; top: -7px; bottom: auto; width: auto; height: 2px; }
   .neocom-btn[data-tip]::after { display: none; }
+  .neocom-btn[data-view]:not(.nc-main) { display: none; }
+  .neocom .neocom-more { display: grid; order: 99; }
+  .neocom-sheet:not([hidden]) {
+    position: fixed;
+    z-index: 85;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--neocom-h) + env(safe-area-inset-bottom) + 8px);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px;
+    background: var(--bg-panel-solid);
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+  }
+  .sheet-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; color: var(--text-dim); border: 1px solid var(--line); background: var(--bg-inset); font-size: 12px; text-align: center; }
+  .sheet-btn svg { width: 24px; height: 24px; }
+  .sheet-btn.active { color: var(--accent-bright); border-color: var(--line-accent); }
 
   .sidebar {
     position: fixed;
@@ -66,10 +85,10 @@
   }
   .shell.side-open .side-scrim { opacity: 1; pointer-events: auto; }
 
-  .view { padding: 16px 12px 28px; }
+  .view { padding: 16px 16px 28px; }
   .page-head { flex-wrap: wrap; gap: 4px 12px; }
   .page-head h1 { font-size: 26px; }
-  .page-head .sub { font-size: 11px; letter-spacing: 1.5px; }
+  .page-head .sub { font-size: 12px; letter-spacing: 1.5px; }
 
   .fit-layout, .grid-2, .grid-2.wide-right, .tool-grid, .tool-grid.even { grid-template-columns: minmax(0, 1fr); }
   .view table { display: block; max-width: 100%; overflow-x: auto; }

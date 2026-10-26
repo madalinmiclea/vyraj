@@ -89,14 +89,14 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     const f = fees();
     bar.innerHTML = `<div class="intel-status">
         ${scan ? `<span class="badge ${Date.now() - scan.at > SCAN_STALE_MS ? 'warn' : 'ok'}" >${age(scan.at)}</span><span class="dim small">${tx('{n} iteme listate · {m} analizate pe 30 zile', { n: formatInt(scan.scanned), m: formatInt(scan.rows.length) })}</span>` : `<span class="dim small">${tx('Nicio scanare încă')}</span>`}
+        <button class="btn sm" data-scan ${scanning ? 'disabled' : ''}>${icon('refresh')}${scan ? tx('Rescanează') : tx('Scanează Jita')}</button>
       </div>
       <div class="form-grid intel-form">
         <label>${tx('Adâncime')}<select class="input" data-set="depth">${[200, 400, 800, 1500].map((n) => `<option value="${n}" ${settings.depth === n ? 'selected' : ''}>top ${n}</option>`).join('')}</select></label>
         <label>${tx('Categorie')}<select class="input" data-set="category"><option value="">${tx('Toate')}</option>${categories().map((c) => `<option ${settings.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
         <label>Sales tax %<input class="input sm-input" type="number" step="0.01" min="0" data-fee="salesTax" value="${f.salesTax}" /></label>
         <label>Broker fee %<input class="input sm-input" type="number" step="0.01" min="0" data-fee="brokerFee" value="${f.brokerFee}" /></label>
-        <button class="btn ghost sm" data-fee-reset ${settings.fees ? '' : 'disabled'}>${tx('Taxe din skill-uri')}</button>
-        <button class="btn sm" data-scan ${scanning ? 'disabled' : ''}>${icon('refresh')}${scan ? tx('Rescanează') : tx('Scanează Jita')}</button>
+        <button class="btn ghost form-btn" data-fee-reset ${settings.fees ? '' : 'disabled'}>${tx('Taxe din skill-uri')}</button>
       </div>`;
   }
 
@@ -264,7 +264,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
           </select></label>
           <label>Cargo m³<input class="input sm-input" type="number" step="1000" min="1" data-set="cargo" value="${cargo}" /></label>
           <label>${tx('Marjă min %')}<input class="input sm-input" type="number" step="1" data-set="minMargin" value="${settings.minMargin}" /></label>
-          <button class="btn ghost sm" data-haul-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
+          <button class="btn ghost form-btn" data-haul-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
         </div>
         <p class="dim small">${tx('Cumpăr instant din sell orders → vând instant în buy orders la destinație, după sales tax {t}%. Fără ordine de așteptat.', { t: formatNum(fees().salesTax, 2) })}</p>
         ${haulError ? alertBox(haulError) : ''}
