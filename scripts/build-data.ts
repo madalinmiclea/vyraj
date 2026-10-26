@@ -23,6 +23,14 @@ const FIT_CATEGORIES = new Set([
 
 const MODE_GROUP = 1306;
 
+const WEATHER_ENVIRONMENTS: Record<string, [string, number]> = {
+    electric_storm: ['electrical', 47865],
+    darkness: ['dark', 47863],
+    caustic_toxin: ['exotic', 47862],
+    infernal: ['firestorm', 47864],
+    xenon_gas: ['gamma', 47866],
+};
+
 const TYPE_FIELD_ATTRS: Record<string, number> = { mass: 4, capacity: 38, volume: 161, radius: 162 };
 
 class HttpError extends Error {
@@ -209,6 +217,22 @@ async function generate() {
         locSkill: (b.locationRequiredSkillModifiers ?? []).map((m: Row) => [m.dogmaAttributeID, m.skillID]),
     }));
 
+    const attrIdByName = new Map(Object.values(attributes as Row).map((at: Row) => [at.name, at.attributeID]));
+    const outWeathers = Object.entries(types as Row).flatMap(([id, t]) => {
+        const m = /^([a-z_]+)_weather_(\d)$/.exec(en(t.typeName));
+        const env = m ? WEATHER_ENVIRONMENTS[m[1]] : undefined;
+        if (!m || !env) return [];
+        const a: Record<number, number> = {};
+        for (const { attributeID, value } of typeDogma[id]?.dogmaAttributes ?? []) a[attributeID] = value;
+        const b: [number, number][] = [];
+        for (let n = 1; n <= 4; n++) {
+            const buff = a[attrIdByName.get(`warfareBuff${n}ID`)];
+            const value = a[attrIdByName.get(`warfareBuff${n}Value`)];
+            if (buff > 0 && value) b.push([buff, value]);
+        }
+        return b.length ? [{ k: env[0], i: Number(id), n: en(types[env[1]]?.typeName) || env[0], lvl: Number(m[2]), b }] : [];
+    }).sort((x, y) => x.k.localeCompare(y.k) || x.lvl - y.lvl);
+
     const build = metadata.find?.((r: Row) => r.field_name === 'client_build')?.field_value;
     const sde = {
         version: { build, generated: new Date().toISOString() },
@@ -220,6 +244,7 @@ async function generate() {
         cloneGrades: outClones,
         mutaplasmids: outMutaplasmids,
         buffs: outBuffs,
+        weathers: outWeathers,
         units: Object.fromEntries(Object.entries(units as Row).map(([id, u]) => [id, en(u.displayName)]).filter(([, n]) => n)),
     };
 

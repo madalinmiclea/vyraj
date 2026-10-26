@@ -63,6 +63,15 @@ export interface RawSde {
   units?: Record<string, string>;
   mutaplasmids?: RawMutaplasmid[];
   buffs?: RawBuff[];
+  weathers?: RawWeather[];
+}
+
+export interface RawWeather {
+  k: string;
+  i: number;
+  n: string;
+  lvl: number;
+  b: [number, number][];
 }
 
 export interface RawBuff {
@@ -155,6 +164,7 @@ export class Sde {
   readonly cloneGrades: { id: number; name: string; skills: Map<number, number> }[];
   readonly mutaplasmids = new Map<number, Mutaplasmid>();
   readonly buffs = new Map<number, RawBuff>();
+  readonly weathers: RawWeather[];
   private readonly mutaplasmidsByBase = new Map<number, Mutaplasmid[]>();
   private readonly abyssalBase = new Map<number, number[]>();
   private readonly attrByName = new Map<string, number>();
@@ -194,6 +204,7 @@ export class Sde {
       id: c.i, name: c.n, skills: new Map(Object.entries(c.skills).map(([k, v]) => [Number(k), v])),
     }));
     for (const b of raw.buffs ?? []) this.buffs.set(b.i, b);
+    this.weathers = raw.weathers ?? [];
     for (const m of raw.mutaplasmids ?? []) {
       const mp: Mutaplasmid = {
         id: m.i,

@@ -39,6 +39,7 @@ export interface Fit {
   cargo: FitCargo[];
   implants: number[];
   boosterSides?: Record<string, string[]>;
+  charImplants?: boolean;
   mode?: number;
   fleet?: FleetBoost;
   projected?: FitProjected[];
@@ -301,7 +302,7 @@ export function toDogmaInput(sde: Sde, fit: Fit, skills: Map<number, number>, im
   return {
     shipId: fit.shipId,
     skills,
-    implants: mergeImplants(sde, implants, fit.implants),
+    implants: mergeImplants(sde, fit.charImplants === false ? [] : implants, fit.implants),
     modules,
     drones: fit.drones.map((d) => ({ typeId: d.typeId, count: d.active })),
     boosterSides: fit.boosterSides,
@@ -311,8 +312,8 @@ export function toDogmaInput(sde: Sde, fit: Fit, skills: Map<number, number>, im
   };
 }
 
-export function buildDogma(sde: Sde, fit: Fit, character: CharacterSkills): Dogma {
-  return new Dogma(sde, toDogmaInput(sde, fit, character.skills, character.implants));
+export function buildDogma(sde: Sde, fit: Fit, character: CharacterSkills, buffs?: { id: number; value: number; label?: string }[]): Dogma {
+  return new Dogma(sde, { ...toDogmaInput(sde, fit, character.skills, character.implants), buffs });
 }
 
 export function fitContents(sde: Sde, fit: Fit): Map<number, number> {

@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
 import { Category, type TypeInfo } from '../data/sde';
 import {
-  addToFit, droneLimit, ensureDroneLimits, mergeImplants, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
+  addToFit, droneLimit, ensureDroneLimits, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
   type Fit, type FitModule, type SlotKind,
 } from '../engine/fit';
 import { isProjectable } from '../engine/projected';
@@ -22,7 +22,6 @@ import { theme } from '../theme';
 
 const proving = (message: string) => (theme === 'vyraj' ? `Proving failed · ${message}` : message);
 import { showItemInfo, skillPlanText } from '../ui/itemInfo';
-import { attributeSections } from '../ui/attributes';
 import { moduleName } from '../engine/mutation';
 import { bindBreakdownTips } from '../ui/breakdown';
 import { TARGETS } from '../engine/application';
@@ -34,6 +33,7 @@ import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, G
 import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
 import { createSupportPanels } from '../fitting/support';
+import { createImplantPanel } from '../fitting/implants';
 import { createNpcPanel } from '../fitting/npc';
 
 export const FITTING_CATEGORIES = ['Ships', 'Ship Equipment', 'Ship and Module Modifications', 'Ammunition & Charges', 'Drones', 'Implants & Boosters'];
@@ -125,7 +125,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   };
   const { buildTips, statsPanels, requirementsPanel } = createStatsPanels(env, tips);
   const support = createSupportPanels(env);
-  const npc = createNpcPanel(env);
+  const implantPanel = createImplantPanel(env);
+  const npc = createNpcPanel(env, tips);
   const { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi } = createFitModals(env);
   const nameInput = el.querySelector<HTMLInputElement>('#fitName')!;
   const charSelect = el.querySelector<HTMLSelectElement>('#fitCharacter')!;
@@ -335,30 +336,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     </div>`).join('');
   }
 
-  function implantBonus(id: number) {
-    const PERCENT_UNITS = [105, 109, 111, 121, 124, 127];
-    const rows = attributeSections(sde, id).flatMap((sec) => sec.rows).filter((r) => {
-      const a = sde.attributes.get(r.id);
-      return a && (/bonus/i.test(a.name) || PERCENT_UNITS.includes(a.unitId ?? 0)) && a.name !== 'implantness';
-    });
-    return rows.slice(0, 2).map((r) => `${r.name} ${signed(r.base ?? r.value)}`).join(' · ');
-  }
-
-  function implantSetLine(id: number): string {
-    const setAttr = [...sde.type(id).attrs.keys()].find((a) => /^implantSet/.test(sde.attributes.get(a)?.name ?? ''));
-    const item = lastDogma?.implants.find((i) => i.typeId === id);
-    if (!setAttr || !item) return '';
-    const pieces = lastDogma!.implants.filter((i) => sde.type(i.typeId).attrs.has(setAttr)).length;
-    const PERCENT_UNITS = [105, 109, 111, 121, 124, 127];
-    const changed = attributeSections(sde, id, item).flatMap((sec) => sec.rows).filter((r) => {
-      const a = sde.attributes.get(r.id);
-      return r.base && a && (/bonus/i.test(a.name) || PERCENT_UNITS.includes(a.unitId ?? 0));
-    });
-    if (!changed.length) return '';
-    const setName = name(id).replace(/\s+\S+$/, '');
-    return `${tx('Set {name}', { name: setName })} · ${pieces === 1 ? tx('{n} piesă', { n: pieces }) : tx('{n} piese', { n: pieces })}: ${changed.map((r) => `${r.name} ${signed(r.value)}`).join(' · ')}`;
-  }
-
   function boosterSides(f: Fit, id: number): string {
     const on = f.boosterSides?.[id] ?? [];
     const sides = sde.type(id).effects.map((e) => sde.effects.get(e)).filter((e): e is NonNullable<typeof e> => !!e && isBoosterSideEffect(e.name));
@@ -373,20 +350,12 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return `<div class="booster-sides"><span class="dim small">${tx('Efecte secundare')}:</span>${chips}</div>`;
   }
 
-  function signed(v: string) {
-    return v.startsWith('-') || v.startsWith('+') ? v : '+' + v;
-  }
-
   function extrasPanel(f: Fit, s: FitStats, d: Dogma) {
     const r = s.resources;
     const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
     const isBooster = (id: number) => sde.baseAttr(id, sde.attrId('boosterness')) > 0;
-    const slotOfImplant = (id: number) => sde.baseAttr(id, sde.attrId('implantness'));
-    const active = new Set(mergeImplants(sde, ctx.character.implants, f.implants));
-    const own = ctx.character.implants.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id) && !isBooster(id));
     const drones = f.drones.filter((x) => !isFighter(x.typeId));
     const fighters = f.drones.filter((x) => isFighter(x.typeId));
-    const implants = f.implants.map((id, i) => ({ id, i })).filter((x) => !isBooster(x.id));
     const boosters = f.implants.map((id, i) => ({ id, i })).filter((x) => isBooster(x.id));
     const hasDrones = r.droneBay.total > 0 || drones.length > 0;
     const hasFighters = r.fighterBay.total > 0 || r.fighterTubes.total > 0 || fighters.length > 0;
@@ -395,7 +364,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       { key: 'drones', label: 'Drones', n: sum(drones), show: hasDrones },
       { key: 'fighters', label: 'Fighters', n: fighters.length, show: hasFighters },
       { key: 'cargo', label: 'Cargo', n: f.cargo.length, show: true },
-      { key: 'implants', label: tx('Implanturi'), n: implants.length + own.length, show: true },
+      { key: 'implants', label: tx('Implanturi'), n: implantPanel.count(f), show: true },
       { key: 'boosters', label: tx('Boostere'), n: boosters.length, show: true },
       { key: 'projected', label: tx('Proiectate'), n: sum(f.projected ?? []), show: true },
       { key: 'command', label: tx('Comandă'), n: f.fleet?.charges.length ?? 0, show: true },
@@ -410,10 +379,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <button class="slot-info" data-info="${x.id}" title="Show Info">${icon('info')}</button>
       ${x.attr ? `<button class="slot-remove" ${x.attr} title="${tx('Scoate')}">${icon('close')}</button>` : ''}
     </div>`).join('');
-    const implantRow = (id: number) => {
-      const booster = sde.baseAttr(id, sde.attrId('boosterness'));
-      const slot = booster || slotOfImplant(id);
-      return { id, label: `${slot ? `[${booster ? 'B' : ''}${slot}] ` : ''}${name(id)}`, sub: implantBonus(id), set: implantSetLine(id), sides: booster ? boosterSides(f, id) : '' };
+    const boosterRow = (id: number) => {
+      const slot = sde.baseAttr(id, sde.attrId('boosterness'));
+      return { id, label: `${slot ? `[B${slot}] ` : ''}${name(id)}`, sub: implantPanel.bonusLine(id), sides: boosterSides(f, id) };
     };
     const hint = (text: string) => `<p class="dim small extras-hint">${text}</p>`;
     const meta = (parts: string[]) => `<div class="extras-meta">${parts.filter(Boolean).map((x) => `<span>${x}</span>`).join('')}</div>`;
@@ -439,13 +407,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           + hint(tx('Cât timp tab-ul Cargo e deschis, orice item apăsat în browser intră în cargo.'));
         break;
       case 'implants':
-        body = `<div class="slot-group implants">
-            ${list([...own].sort((a, b) => slotOfImplant(a) - slotOfImplant(b)).map((id) => ({ ...implantRow(id), tag: tx('caracter') })))}
-            ${list(implants.sort((a, b) => slotOfImplant(a.id) - slotOfImplant(b.id)).map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}
-          </div>` + (implants.length || own.length ? '' : hint(tx('Apasă pe un implant din browser ca să-l adaugi.')));
+        body = implantPanel.body(f, d);
         break;
       case 'boosters':
-        body = `<div class="slot-group implants">${list(boosters.map((x) => ({ ...implantRow(x.id), attr: `data-implant="${x.i}"` })))}</div>`
+        body = `<div class="slot-group implants">${list(boosters.map((x) => ({ ...boosterRow(x.id), attr: `data-implant="${x.i}"` })))}</div>`
           + (boosters.length ? '' : hint(tx('Apasă pe un booster din browser ca să-l adaugi.')));
         break;
       case 'projected':
@@ -604,6 +569,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const extras = at('[data-extras]');
     if (extras) { showExtras(extras.dataset.extras as ExtrasTab); render(); return; }
     if (fit && support.handleClick(target)) return;
+    if (fit && implantPanel.handleClick(target)) return;
     const openSaved = at('[data-open-fit]');
     if (openSaved) { const f = loadFits().find((x) => x.id === openSaved.dataset.openFit); if (f) openFit(cloneFit(f)); return; }
     const quick = at('[data-quick]');
@@ -711,6 +677,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLSelectElement;
     if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
     if (fit && support.handleChange(target)) return;
+    if (fit && implantPanel.handleChange(target)) return;
     if (npc.handleChange(target)) { render(); return; }
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
     if (target.id === 'fitTarget') {

@@ -69,6 +69,7 @@ export class DogmaItem {
   private readonly computing = new Set<number>();
   readonly baseOverrides = new Map<number, number>();
   other?: DogmaItem;
+  label?: string;
 
   constructor(
     readonly dogma: Dogma,
@@ -183,7 +184,7 @@ export interface DogmaInput {
   drones?: { typeId: number; count: number }[];
   boosterSides?: Record<string, string[]>;
   mode?: number;
-  buffs?: { id: number; value: number }[];
+  buffs?: { id: number; value: number; label?: string }[];
   fleet?: FleetBoost;
   projected?: ProjectedInput[];
 }
@@ -254,20 +255,21 @@ export class Dogma {
     if (input.projected?.length) applyProjected(this, input.projected);
   }
 
-  private applyBuffs(buffs: { id: number; value: number }[]) {
-    const best = new Map<number, number>();
+  private applyBuffs(buffs: { id: number; value: number; label?: string }[]) {
+    const best = new Map<number, { value: number; label?: string }>();
     for (const b of buffs) {
       const def = this.sde.buffs.get(b.id);
       if (!def) continue;
       const prev = best.get(b.id);
-      const better = prev == null || (def.agg === 'Minimum' ? b.value < prev : b.value > prev);
-      if (better) best.set(b.id, b.value);
+      const better = prev == null || (def.agg === 'Minimum' ? b.value < prev.value : b.value > prev.value);
+      if (better) best.set(b.id, { value: b.value, label: b.label });
     }
-    for (const [id, value] of best) {
+    for (const [id, { value, label }] of best) {
       const def = this.sde.buffs.get(id)!;
       const op = ({ PostPercent: Op.PostPercent, PostMul: Op.PostMul, PostAssignment: Op.PostAssign, ModAdd: Op.ModAdd, PreAssignment: Op.PreAssign } as Record<string, number>)[def.op];
       if (op == null) continue;
       const source = new DogmaItem(this, 0, 'buff');
+      source.label = label;
       this.buffSources.push(source);
       const mod = { source, op, value: () => value, penalized: !UNPENALIZED_BUFFS.has(id) };
       const located = this.shipLocated;

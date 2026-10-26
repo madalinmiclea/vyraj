@@ -213,13 +213,13 @@ export function offense(sde: Sde, d: Dogma): Offense {
 export type Layer = 'shield' | 'armor' | 'hull';
 export const LAYERS: Layer[] = ['shield', 'armor', 'hull'];
 
-const RESONANCE: Record<Layer, Record<DamageType, string>> = {
+export const RESONANCE: Record<Layer, Record<DamageType, string>> = {
   shield: { em: 'shieldEmDamageResonance', thermal: 'shieldThermalDamageResonance', kinetic: 'shieldKineticDamageResonance', explosive: 'shieldExplosiveDamageResonance' },
   armor: { em: 'armorEmDamageResonance', thermal: 'armorThermalDamageResonance', kinetic: 'armorKineticDamageResonance', explosive: 'armorExplosiveDamageResonance' },
   hull: { em: 'emDamageResonance', thermal: 'thermalDamageResonance', kinetic: 'kineticDamageResonance', explosive: 'explosiveDamageResonance' },
 };
 
-const HP_ATTR: Record<Layer, string> = { shield: 'shieldCapacity', armor: 'armorHP', hull: 'hp' };
+export const HP_ATTR: Record<Layer, string> = { shield: 'shieldCapacity', armor: 'armorHP', hull: 'hp' };
 
 export interface LayerStat {
   hp: number;

@@ -1,15 +1,34 @@
 import type { Dogma } from '../engine/dogma';
-import type { DamageType, FitStats } from '../engine/stats';
-import { DAMAGE_TYPES } from '../engine/stats';
-import { assessNpc, factionsFor, findFaction, findSite, NPC_KINDS, NPC_SITES, type Ewar, type NpcKind } from '../engine/npc';
+import type { DamageType, FitStats, Layer } from '../engine/stats';
+import { computeStats, DAMAGE_TYPES, HP_ATTR, LAYERS, profileWeights, RESONANCE } from '../engine/stats';
+import { assessNpc, factionsFor, findFaction, findSite, NPC_KINDS, NPC_SITES, type Ewar, type NpcAssessment, type NpcKind, type NpcSite } from '../engine/npc';
+import { buildDogma } from '../engine/fit';
+import { findWeather, weatherBuffs, weatherLevels, weatherPenalty, WEATHER_KEYS, type WeatherKey } from '../engine/weather';
 import { loadJson, saveJson } from '../storage';
 import { badge, esc, formatInt, formatNum, panel } from '../ui/components';
+import { breakdownHtml, derive } from '../ui/breakdown';
 import { tx } from '../i18n';
-import { DMG_LABEL, capTime, damageBar, type FitEnv } from './shared';
+import { DMG_LABEL, LAYER_LABEL, capTime, damageBar, type FitEnv } from './shared';
 
 const NPC_KEY = 'eve-fit:npc';
 
-interface NpcState { site: string; faction: string; dps: number | null; neut: number | null }
+interface NpcState { site: string; faction: string; dps: number | null; neut: number | null; weather?: WeatherKey | ''; weatherLevel?: number | null }
+
+const WEATHER_LABEL: Record<WeatherKey, string> = {
+  electrical: 'Electrical',
+  dark: 'Dark',
+  exotic: 'Exotic',
+  firestorm: 'Firestorm',
+  gamma: 'Gamma',
+};
+
+const WEATHER_TEXT: Record<WeatherKey, string> = {
+  electrical: tx('Scade rezistența EM pe shield, armor și hull. Capacitorul se reîncarcă de două ori mai repede.'),
+  dark: tx('Optimal și falloff mai mici la turete. Viteza maximă crește.'),
+  exotic: tx('Scade rezistența kinetic pe shield, armor și hull. Scan resolution crește.'),
+  firestorm: tx('Scade rezistența thermal pe shield, armor și hull. Armor HP crește.'),
+  gamma: tx('Scade rezistența explosive pe shield, armor și hull. Shield HP crește.'),
+};
 
 const KIND_LABEL: Record<NpcKind, string> = {
   mission: tx('Misiuni'),
@@ -39,7 +58,11 @@ const EWAR_TEXT: Record<Ewar, string> = {
   rr: tx('NPC-urile se repară între ele. Omoară întâi navele de suport.'),
 };
 
-export function createNpcPanel(env: FitEnv) {
+function abyssTier(site: NpcSite): number | null {
+  return site.kind === 'abyss' ? Number(site.id.replace(/^abyss\/t/, '')) : null;
+}
+
+export function createNpcPanel(env: FitEnv, tips: Map<string, string>) {
   const { sde } = env;
   let state = loadJson<NpcState>(NPC_KEY, { site: 'mission/l4', faction: 'guristas', dps: null, neut: null });
 
@@ -58,9 +81,37 @@ export function createNpcPanel(env: FitEnv) {
     return types.map((t, i) => `<span class="badge ${t}" style="color:var(--dmg)">${i + 1}. ${DMG_LABEL[t]}</span>`).join(' ');
   }
 
+  function weatherFor(site: NpcSite) {
+    const tier = abyssTier(site);
+    if (tier == null || !state.weather || !sde.weathers.length) return { tier, levels: tier == null ? [] : weatherLevels(tier), weather: undefined };
+    const levels = weatherLevels(tier);
+    const level = state.weatherLevel != null && levels.includes(state.weatherLevel) ? state.weatherLevel : levels[levels.length - 1];
+    return { tier, levels, weather: findWeather(sde, state.weather, level) };
+  }
+
+  function ehpTips(d: Dogma, a: NpcAssessment) {
+    const w = profileWeights(a.profile);
+    const id = (n: string) => sde.attrId(n);
+    const layerFn = (v: number[]) => v[0] / (DAMAGE_TYPES.reduce((x, t, i) => x + w[t] * v[i + 1], 0) || 1);
+    const traces = (l: Layer) => [d.ship.trace(id(HP_ATTR[l])), ...DAMAGE_TYPES.map((t) => d.ship.trace(id(RESONANCE[l][t])))];
+    const all = LAYERS.flatMap(traces);
+    const fmt = (n: number) => formatInt(n);
+    tips.set('npc-ehp', breakdownHtml(derive(all, (v) => LAYERS.reduce((x, _, i) => x + layerFn(v.slice(i * 5, i * 5 + 5)), 0), a.ehp), fmt, tx('navă')));
+    tips.set('npc-layers', LAYERS.map((l) => `<div class="bd-title">${LAYER_LABEL[l]}</div>${breakdownHtml(derive(traces(l), layerFn, a.layerEhp[l]), fmt, tx('navă'))}`).join(''));
+  }
+
   function render(s: FitStats, d: Dogma) {
     const sc = scenario();
-    const a = assessNpc(sde, d, s, sc);
+    const base = assessNpc(sde, d, s, sc);
+    const wx = weatherFor(sc.site);
+    const fit = env.getFit();
+    const buffs = weatherBuffs(sde, wx.weather);
+    let a = base, dw = d;
+    if (fit && buffs.length) {
+      dw = buildDogma(sde, fit, env.ctx.character, buffs);
+      a = assessNpc(sde, dw, computeStats(sde, fit, dw, a.profile), sc);
+    }
+    ehpTips(dw, a);
     const verdict = a.verdict === 'ok'
       ? badge(tx('Tankează nelimitat'), 'ok', true)
       : a.verdict === 'warn'
@@ -97,20 +148,28 @@ export function createNpcPanel(env: FitEnv) {
           </select></label>
           <label>${tx('DPS primit')} <input class="input plain sm num" type="number" min="0" step="10" data-npc-field="dps" value="${Math.round(sc.dps)}" /></label>
           ${sc.faction.ewar.includes('neut') ? `<label>Neut <input class="input plain sm num" type="number" min="0" step="1" data-npc-field="neut" value="${Math.round(sc.neut)}" /> GJ/s</label>` : ''}
+          ${wx.tier != null && sde.weathers.length ? `<label>${tx('Vreme')} <select class="input plain sm" id="npcWeather">
+            <option value="" ${!state.weather ? 'selected' : ''}>${tx('Fără')}</option>
+            ${WEATHER_KEYS.map((k) => `<option value="${k}" ${k === state.weather ? 'selected' : ''}>${WEATHER_LABEL[k]}</option>`).join('')}
+          </select></label>
+          ${wx.weather ? `<label>${tx('Intensitate')} <select class="input plain sm" id="npcWeatherLevel">
+            ${wx.levels.map((l) => { const w = findWeather(sde, state.weather || undefined, l); return w ? `<option value="${l}" ${l === wx.weather!.lvl ? 'selected' : ''}>−${formatNum(weatherPenalty(w), 0)}%</option>` : ''; }).join('')}
+          </select></label>` : ''}` : ''}
           ${custom ? `<button class="btn ghost sm" data-npc-reset>${tx('Valori tipice')}</button>` : ''}
         </div>
         <div class="big-stats">
-          <div><span class="label">${tx('EHP pe profil')}</span><span class="value num">${formatInt(a.ehp)}</span></div>
+          <div data-bd="npc-ehp"><span class="label">${tx('EHP pe profil')}</span><span class="value num">${formatInt(a.ehp)}</span></div>
           <div><span class="label">${tx('Tank sustenabil')} · EHP/s</span><span class="value num">${formatNum(a.sustained, 1)}</span></div>
           <div><span class="label">${tx('DPS primit')}</span><span class="value num">${formatInt(a.incoming)}</span></div>
           <div><span class="label">${tx('Acoperire')}</span><span class="value num">${margin}</span></div>
         </div>
+        ${wx.weather ? weatherBox(wx.weather, buffs, base, a) : ''}
         <div class="dim small">${tx('Damage primit')}: ${DAMAGE_TYPES.filter((t) => incoming[t] / total >= 0.005).map((t) => `${DMG_LABEL[t]} ${formatNum((incoming[t] / total) * 100, 0)}%`).join(' · ')}</div>
         ${damageBar(incoming)}
         <dl class="mini-dl">
           <div><dt>${tx('Tank activ')}</dt><dd class="num">${formatNum(a.active * a.capFraction, 1)} EHP/s${a.active > 0 && a.capFraction < 1 ? ` <span class="dim">(${tx('limitat la {p}% de cap', { p: formatNum(a.capFraction * 100, 0) })})</span>` : ''}</dd></div>
           <div><dt>${tx('Pasiv shield')}</dt><dd class="num">${formatNum(a.passive, 1)} EHP/s</dd></div>
-          <div><dt>Shield / Armor / Hull</dt><dd class="num">${formatInt(a.layerEhp.shield)} / ${formatInt(a.layerEhp.armor)} / ${formatInt(a.layerEhp.hull)}</dd></div>
+          <div data-bd="npc-layers"><dt>Shield / Armor / Hull</dt><dd class="num">${formatInt(a.layerEhp.shield)} / ${formatInt(a.layerEhp.armor)} / ${formatInt(a.layerEhp.hull)}</dd></div>
           <div><dt>${tx('Timp până la moarte')}</dt><dd class="num">${Number.isFinite(a.timeToDie) ? time(a.timeToDie) : '∞'}</dd></div>
         </dl>
         <div class="npc-shoot"><span class="label">${tx('Damage de folosit')}</span> ${dmgChips(sc.faction.weak)} ${shareBadge}</div>
@@ -119,15 +178,32 @@ export function createNpcPanel(env: FitEnv) {
     });
   }
 
+  function weatherBox(w: NonNullable<ReturnType<typeof weatherFor>['weather']>, buffs: ReturnType<typeof weatherBuffs>, base: NpcAssessment, a: NpcAssessment) {
+    const resonance = (id: number) => (sde.buffs.get(id)?.item ?? []).some((x) => /DamageResonance$/.test(sde.attributes.get(x)?.name ?? ''));
+    const chips = buffs.map((b) => {
+      const v = resonance(b.id) ? -b.value : b.value;
+      const name = sde.buffs.get(b.id)?.n ?? '';
+      return `<span class="badge ${resonance(b.id) ? 'danger' : 'ok'}">${esc(name)} ${v > 0 ? '+' : '−'}${formatNum(Math.abs(v), 0)}%</span>`;
+    }).join(' ');
+    const diff = base.ehp > 0 ? (a.ehp / base.ehp - 1) * 100 : 0;
+    const key = w.k as WeatherKey;
+    return `<div class="npc-weather">
+        <div class="npc-shoot"><span class="label">${esc(w.n)}</span> ${chips}</div>
+        <div class="dim small">${WEATHER_TEXT[key] ?? ''} ${tx('EHP față de spațiu normal: {d}%', { d: `${diff >= 0 ? '+' : '−'}${formatNum(Math.abs(diff), 1)}` })} (${formatInt(base.ehp)} → ${formatInt(a.ehp)}).</div>
+      </div>`;
+  }
+
   function save() { saveJson(NPC_KEY, state); }
 
   function handleChange(target: HTMLInputElement | HTMLSelectElement): boolean {
     if (target.id === 'npcSite') {
       const site = findSite(target.value);
-      state = { site: site.id, faction: findFaction(site.kind, state.faction).id, dps: null, neut: null };
+      state = { ...state, site: site.id, faction: findFaction(site.kind, state.faction).id, dps: null, neut: null, weatherLevel: null };
       save();
       return true;
     }
+    if (target.id === 'npcWeather') { state = { ...state, weather: (WEATHER_KEYS as string[]).includes(target.value) ? target.value as WeatherKey : '', weatherLevel: null }; save(); return true; }
+    if (target.id === 'npcWeatherLevel') { state = { ...state, weatherLevel: Number(target.value) || null }; save(); return true; }
     if (target.id === 'npcFaction') { state = { ...state, faction: target.value }; save(); return true; }
     const field = target.dataset.npcField as 'dps' | 'neut' | undefined;
     if (field) { state = { ...state, [field]: Math.max(0, Number(target.value) || 0) }; save(); return true; }
