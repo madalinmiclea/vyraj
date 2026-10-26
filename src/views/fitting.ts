@@ -323,8 +323,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
     return f.drones.map((dr, i) => ({ dr, i })).filter((x) => isFighter(x.dr.typeId) === fighters).map(({ dr, i }) => `<div class="slot fitted drone-row">
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
-      <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button>
-        <span class="dim small">${tx('{n} în total', { n: dr.count })}</span></div>
+      <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button></div>
+      <span class="dim small drone-total">${tx('{n} în total', { n: dr.count })}</span>
       <div class="drone-step" title="${fighters ? tx('Escadrile lansate din fighter bay, cele care contează la DPS') : tx('Drone lansate în spațiu, cele care contează la DPS și bandwidth')}">
         <span class="drone-step-label">${tx('În spațiu')}</span>
         <div class="stepper"><button data-drone="${i}:space:-1" ${dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.active}</span><button data-drone="${i}:space:1">+</button></div>

@@ -147,8 +147,10 @@ td thead th { top: 30px; z-index: 1; }
 .stepper button:hover { color: var(--text-bright); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.22); }
 .stepper span { min-width: 22px; text-align: center; font-size: 13px; }
 .stepper button:disabled { opacity: 0.35; cursor: default; color: var(--text-dim); border-color: var(--line-strong); background: var(--bg-raised); }
-.drone-step { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.drone-step-label { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.drone-row { flex-wrap: nowrap; }
+.drone-total { white-space: nowrap; min-width: 64px; text-align: right; }
+.drone-step { display: flex; align-items: center; gap: 8px; margin-left: 10px; }
+.drone-step-label { min-width: 62px; text-align: right; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
 
 .big-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
 .big-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--bg-inset); border: 1px solid var(--line); }

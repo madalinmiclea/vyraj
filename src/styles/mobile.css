@@ -1,6 +1,8 @@
 .side-toggle, .side-scrim, .neocom-more, .neocom-sheet { display: none; }
 
 @media (max-width: 760px) {
+  .drone-row { flex-wrap: wrap; }
+  .drone-step { margin-left: 0; }
   :root { --topbar-h: 52px; --neocom-h: 58px; }
 
   .shell {
