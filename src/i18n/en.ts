@@ -493,7 +493,6 @@ export const EN: Record<string, string> = {
   "Vârf reîncărcare": "Peak recharge",
   "z": "d",
   "{n} în total": "{n} total",
-  "În spațiu": "In space",
   "În bay": "In bay",
   "Escadrile lansate din fighter bay, cele care contează la DPS": "Squadrons launched from the fighter bay, the ones that count for DPS",
   "Drone lansate în spațiu, cele care contează la DPS și bandwidth": "Drones launched in space, the ones that count for DPS and bandwidth",
