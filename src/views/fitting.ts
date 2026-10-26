@@ -250,7 +250,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
-    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d);
+    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d) + implantPanel.render(fit, d);
     buildTips(d);
     right.innerHTML = statsPanels(stats, d) + npc.render(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
     persist();
@@ -364,7 +364,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       { key: 'drones', label: 'Drones', n: sum(drones), show: hasDrones },
       { key: 'fighters', label: 'Fighters', n: fighters.length, show: hasFighters },
       { key: 'cargo', label: 'Cargo', n: f.cargo.length, show: true },
-      { key: 'implants', label: tx('Implanturi'), n: implantPanel.count(f), show: true },
       { key: 'boosters', label: tx('Boostere'), n: boosters.length, show: true },
       { key: 'projected', label: tx('Proiectate'), n: sum(f.projected ?? []), show: true },
       { key: 'command', label: tx('Comandă'), n: f.fleet?.charges.length ?? 0, show: true },
@@ -405,9 +404,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           + `<div class="slot-group implants">${list(f.cargo.map((c, i) => ({ id: c.typeId, label: name(c.typeId), sub: `${formatNum(volume(c.typeId) * c.count, 2)} m³`, attr: `data-cargo="${i}"`,
             extra: `<input class="input plain sm cargo-count num" type="number" min="1" step="1" value="${c.count}" data-cargo-count="${i}" title="${tx('Cantitate')}" />` })))}</div>`
           + hint(tx('Cât timp tab-ul Cargo e deschis, orice item apăsat în browser intră în cargo.'));
-        break;
-      case 'implants':
-        body = implantPanel.body(f, d);
         break;
       case 'boosters':
         body = `<div class="slot-group implants">${list(boosters.map((x) => ({ ...boosterRow(x.id), attr: `data-implant="${x.i}"` })))}</div>`
@@ -533,7 +529,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (!result.ok) return;
     if (t.categoryId === Category.Drone) showExtras('drones');
     else if (t.categoryId === Category.Fighter) showExtras('fighters');
-    else if (t.categoryId === Category.Implant) showExtras(sde.baseAttr(t.id, sde.attrId('boosterness')) > 0 ? 'boosters' : 'implants');
+    else if (t.categoryId === Category.Implant && sde.baseAttr(t.id, sde.attrId('boosterness')) > 0) showExtras('boosters');
     render();
   }
 
@@ -569,7 +565,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const extras = at('[data-extras]');
     if (extras) { showExtras(extras.dataset.extras as ExtrasTab); render(); return; }
     if (fit && support.handleClick(target)) return;
-    if (fit && implantPanel.handleClick(target)) return;
     const openSaved = at('[data-open-fit]');
     if (openSaved) { const f = loadFits().find((x) => x.id === openSaved.dataset.openFit); if (f) openFit(cloneFit(f)); return; }
     const quick = at('[data-quick]');
@@ -677,7 +672,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLSelectElement;
     if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
     if (fit && support.handleChange(target)) return;
-    if (fit && implantPanel.handleChange(target)) return;
     if (npc.handleChange(target)) { render(); return; }
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
     if (target.id === 'fitTarget') {

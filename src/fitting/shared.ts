@@ -11,7 +11,7 @@ export const OPEN_KEY = 'eve-fit:open-fits';
 export const EXTRAS_KEY = 'eve-fit:extras-tab';
 export const MAX_TABS = 16;
 
-export type ExtrasTab = 'drones' | 'fighters' | 'cargo' | 'implants' | 'boosters' | 'projected' | 'command' | 'notes';
+export type ExtrasTab = 'drones' | 'fighters' | 'cargo' | 'boosters' | 'projected' | 'command' | 'notes';
 
 export function capTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));

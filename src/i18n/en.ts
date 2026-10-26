@@ -1182,11 +1182,6 @@ export const EN: Record<string, string> = {
   "Fără": "None",
   "Intensitate": "Intensity",
   "EHP față de spațiu normal: {d}%": "EHP vs normal space: {d}%",
-  "Slot {n} liber, alege un implant": "Slot {n} empty, pick an implant",
-  "Multiplicator set": "Set multiplier",
-  "total cu bonusul de set": "total with set bonus",
-  "Set de implanturi": "Implant set",
-  "Folosește și implanturile clonei active a caracterului": "Also use the character's active clone implants",
-  "Implanturile caracterului": "Character implants",
-  "Scoate implanturile fitului": "Remove fit implants",
+  "Set {name}": "{name} set",
+  "Apasă pe un implant din browser ca să-l adaugi.": "Click an implant in the browser to add it.",
 };
