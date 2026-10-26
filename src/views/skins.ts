@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, emptyState, esc, badge, formatInt, compactISK, searchField, toast, openModal, closeModal, copyText, windowTitle } from '../ui/components';
+import { pageHead, panel, loader, alertBox, emptyState, esc, badge, formatInt, compactISK, searchField, toast, openModal, closeModal, copyText, windowTitle, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl, fetchListedTypes, fetchPrices } from '../services/market';
@@ -47,6 +47,7 @@ const PREFS_KEY = 'eve-skins:prefs';
 const SHOP_LIMIT = 400;
 const EXPENSIVE_LIMIT = 100;
 const COMBO_LIMIT = 60;
+const PRICES_KEY = 'eve-skins:prices';
 
 export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   const prefs = loadJson<{ filter: Filter; sort: Sort; mode?: string; shopOrder?: ShopOrder }>(PREFS_KEY, { filter: 'all', sort: 'name' });
@@ -56,6 +57,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   let shopOrder: ShopOrder = prefs.shopOrder ?? 'cheap';
   let shopToken = 0;
   let query = '';
+  let priceCache = loadJson<{ at: number; p: Record<string, number> }>(PRICES_KEY, { at: 0, p: {} });
   let pickShip: number | null = null;
   let pickLine: string | null = null;
   let combo: { input: HTMLInputElement; kind: ComboKind; menu: HTMLElement; items: ComboItem[]; active: number } | null = null;
@@ -201,18 +203,26 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       .map((ship) => ({ line, ship, own: owned.has(skinKey(line.name, ship.id)) })))
       .filter(({ line, ship }) => !query || line.name.toLowerCase().includes(query) || ship.name.toLowerCase().includes(query));
     if (!cands.length && !picked) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de cumpărat'), text: tx('Ai toate SKIN-urile din filtrul curent.'), vy: 'All Raiment Gathered', vyText: 'Every SKIN in the current filter is already yours.' }) }); return; }
-    body.innerHTML = panel({ body: loader(tx('Citesc prețurile din Jita')) });
     try {
-      const listed = await fetchListedTypes().catch(() => null);
-      const ids = [...new Set(cands.flatMap((m) => m.ship.licenses))].filter((id) => !listed || listed.has(id));
-      const prices = ids.length ? await fetchPrices(ids) : new Map<number, { sellMin?: number }>();
+      const need = [...new Set(cands.flatMap((m) => m.ship.licenses))].filter((id) => !(id in priceCache.p));
+      if (need.length) {
+        body.innerHTML = panel({ body: loader(tx('Citesc prețurile din Jita')) });
+        const listed = await fetchListedTypes().catch(() => null);
+        const ids = need.filter((id) => !listed || listed.has(id));
+        const fetched = ids.length ? await fetchPrices(ids) : new Map<number, { sellMin?: number }>();
+        if (token !== shopToken) return;
+        const next = { at: priceCache.at || Date.now(), p: { ...priceCache.p } };
+        for (const id of need) next.p[id] = fetched.get(id)?.sellMin ?? 0;
+        priceCache = next;
+        saveJson(PRICES_KEY, priceCache);
+      }
       if (token !== shopToken) return;
       const rows: ShopRow[] = [];
       let unpriced = 0;
       for (const m of cands) {
         let best: { license: number; price: number } | null = null;
         for (const id of m.ship.licenses) {
-          const p = prices.get(id)?.sellMin ?? 0;
+          const p = priceCache.p[id] ?? 0;
           if (p > 0 && (!best || p < best.price)) best = { license: id, price: p };
         }
         if (!best && !m.own) unpriced++;
@@ -241,7 +251,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       ${panel({
         title: picked ? tx('SKIN-uri filtrate') : shopOrder === 'cheap' ? tx('Cele mai ieftine') : tx('Cele mai scumpe'),
         count: rows.length > limit ? `${limit} / ${formatInt(rows.length)}` : formatInt(rows.length),
-        actions: `<div class="advice-sort"><button class="chip-btn ${shopOrder === 'cheap' ? 'active' : ''}" data-skin-order="cheap">${tx('Ieftine')}</button><button class="chip-btn ${shopOrder === 'expensive' ? 'active' : ''}" data-skin-order="expensive">${tx('Scumpe')}</button></div>`,
+        actions: `${pricesButton()}<div class="advice-sort"><button class="chip-btn ${shopOrder === 'cheap' ? 'active' : ''}" data-skin-order="cheap">${tx('Ieftine')}</button><button class="chip-btn ${shopOrder === 'expensive' ? 'active' : ''}" data-skin-order="expensive">${tx('Scumpe')}</button></div>`,
         body: `<table class="table compact skin-shop"><thead>
           <tr class="skin-filter-row"><th></th><th></th><th>${comboField('ship')}</th><th>${comboField('line')}</th><th colspan="3"></th></tr>
           <tr><th class="r">#</th><th></th><th>${tx('Navă')}</th><th>SKIN</th><th class="r">${tx('Preț Jita')}</th><th class="r">${tx('Total cumulat')}</th><th></th></tr></thead><tbody>
@@ -262,6 +272,10 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     } catch (err) {
       if (token === shopToken) body.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
+  }
+
+  function pricesButton() {
+    return dataStamp(priceCache.at, 'data-skin-prices');
   }
 
   function comboField(kind: ComboKind) {
@@ -419,6 +433,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (m) { mode = m.dataset.skinMode as Mode; open = null; closeCombo(); savePrefs(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
     const info = t.closest<HTMLElement>('[data-skin-info]');
     if (info) { showItemInfo(ctx, Number(info.dataset.skinInfo)); return; }
+    if (t.closest('[data-skin-prices]')) { priceCache = { at: 0, p: {} }; saveJson(PRICES_KEY, priceCache); renderShop(); return; }
     const cl = t.closest<HTMLElement>('[data-skin-clear]');
     if (cl) { if (cl.dataset.skinClear === 'ship') pickShip = null; else pickLine = null; renderShop(); return; }
     const so = t.closest<HTMLElement>('[data-skin-order]');

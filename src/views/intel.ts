@@ -1,11 +1,11 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, toast } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, toast, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import {
   loadScan, scanJita, SCAN_STALE_MS, feesFromSkills, netMarginPct, priceTrend, volumeTrend, bookPressure, stationTrade,
-  HUBS, fetchHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
+  HUBS, fetchHubPrices, hubPricesAt, forgetHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
   type Scan, type IntelRow, type Fees, type HaulRow,
 } from '../services/intel';
 import { tx } from '../i18n';
@@ -264,7 +264,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
           </select></label>
           <label>Cargo m³<input class="input sm-input" type="number" step="1000" min="1" data-set="cargo" value="${cargo}" /></label>
           <label>${tx('Marjă min %')}<input class="input sm-input" type="number" step="1" data-set="minMargin" value="${settings.minMargin}" /></label>
-          <button class="btn ghost form-btn" data-haul-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
+          ${dataStamp(hubPricesAt(hub), 'data-haul-reload', { label: tx('Prețuri {hub} din {time}').replace('{hub}', hub.name), title: tx('Prețurile hub-ului sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') })}
         </div>
         <p class="dim small">${tx('Cumpăr instant din sell orders → vând instant în buy orders la destinație, după sales tax {t}%. Fără ordine de așteptat.', { t: formatNum(fees().salesTax, 2) })}</p>
         ${haulError ? alertBox(haulError) : ''}
@@ -309,7 +309,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     if (tb) { tab = tb.dataset.intelTab as Tab; saveJson(TAB_KEY, tab); render(); return; }
     if (at('[data-scan]')) { runScan(); return; }
     if (at('[data-fee-reset]')) { settings.fees = null; save(); render(); return; }
-    if (at('[data-haul-reload]')) { haul = null; haulError = ''; render(); return; }
+    if (at('[data-haul-reload]')) { forgetHubPrices(HUBS.find((h) => h.id === settings.hub) ?? HUBS[0]); haul = null; haulError = ''; render(); return; }
     const s = at('[data-sort]');
     if (s) {
       const [id, key] = s.dataset.sort!.split(':');

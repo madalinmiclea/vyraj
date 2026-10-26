@@ -1,5 +1,5 @@
 import type { WalletEntry, WalletTransaction } from '../character/esi';
-import { loadJson, removeKey } from '../storage';
+import { loadJson, saveJson, removeKey } from '../storage';
 import { tx } from '../i18n';
 
 export const PVE_REFS = new Set([
@@ -201,4 +201,8 @@ export function tradeSummary(rows: WalletTransaction[]): TradeRow[] {
 export function forgetWallet(characterId: number) {
   removeKey(`eve-fit:wallet:${characterId}`);
   removeKey(`eve-fit:wallet-trades:${characterId}`);
+  removeKey(`eve-tools:assets:${characterId}`);
+  const fetched = loadJson<Record<string, unknown>>('eve-tools:wallet-fetched', {});
+  delete fetched[characterId];
+  saveJson('eve-tools:wallet-fetched', fetched);
 }

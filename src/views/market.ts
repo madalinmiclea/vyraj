@@ -177,7 +177,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     const actions = `<div class="advice-sort">${HUBS.map((x) => `<button class="chip-btn ${x.id === h.id ? 'active' : ''}" data-hub="${x.id}">${x.name}</button>`).join('')}</div>`;
     el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: loader(tx('Prețuri {name}', { name: h.name })) });
     try {
-      const prices = await fetchHubPrices(h, [typeId]);
+      const prices = await fetchHubPrices(h, [typeId], { fresh: true });
       if (id !== requestId || !jitaPrices) return;
       const hp = prices.get(typeId) ?? { sellMin: 0, buyMax: 0, sellBook: 0, buyBook: 0, sellOrders: 0, buyOrders: 0 };
       el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: hubTable(jitaPrices, hp) });

@@ -35,7 +35,7 @@ export const hit = (a: PriceAlert, value: number) => value > 0 && (a.op === 'bel
 async function runCheck() {
   const ids = loadAlerts().map((a) => a.typeId);
   if (!ids.length) return;
-  const prices = await fetchPrices(ids);
+  const prices = await fetchPrices(ids, { fresh: true });
   const now = Date.now();
   const list = loadAlerts();
   const fired: PriceAlert[] = [];

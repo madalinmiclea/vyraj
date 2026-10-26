@@ -13,11 +13,11 @@ import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { allCharacters } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
-import { fetchPrices, typeIconUrl, typeRenderUrl } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, typeRenderUrl } from '../services/market';
 import { loadFits, saveFit } from '../fitting/savedFits';
 import { loadJson, saveJson } from '../storage';
 import { icon } from '../ui/icons';
-import { alertBox, badge, button, compactISK, copyText, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
+import { alertBox, badge, button, compactISK, copyText, dataStamp, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
 import { theme } from '../theme';
 
 const proving = (message: string) => (theme === 'vyraj' ? `Proving failed · ${message}` : message);
@@ -57,6 +57,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   let profileId = loadJson<string>(PROFILE_KEY, 'Generic/Uniform');
   let targetState = loadJson<TargetState>(TARGET_KEY, { id: 'cruiser', signature: 125, velocity: 200, distanceKm: 30 });
   let priceRequest = 0;
+  let costIds: number[] = [];
   let lastDogma: Dogma | null = null;
 
   const chargeCache = new Map<number, TypeInfo[]>();
@@ -439,8 +440,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const req = requirementsFor(sde, fitTypeIds(f), ctx.character);
     const books = req.missing.filter((s) => s.current === 0).map((s) => s.skillId);
     try {
-      const prices = await fetchPrices([...contents.keys(), ...abyssal.keys(), ...books]);
+      const ids = [...contents.keys(), ...abyssal.keys(), ...books];
+      const prices = await fetchPrices(ids);
       if (id !== priceRequest) return;
+      costIds = ids;
       const lines = [...[...contents].map(([typeId, n]) => ({ typeId, n, abyssal: false })), ...[...abyssal].map(([typeId, n]) => ({ typeId, n, abyssal: true }))]
         .map((x) => ({ ...x, price: prices.get(x.typeId)?.sellMin ?? 0 }))
         .map((x) => ({ ...x, total: x.price * x.n }))
@@ -453,7 +456,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         <div class="cost-total">${abyssal.size ? '<span class="dim">min.</span> ' : ''}<span class="num">${formatISK(total, 0)}</span> ISK <span class="dim">(${compactISK(total)})</span></div>
         <table class="table compact"><tbody>${lines.map((x) => `<tr><td>${x.abyssal ? '<span class="abyssal-tag">Abyssal</span> ' : ''}${esc(name(x.typeId))}${x.n > 1 ? ` <span class="dim">×${formatInt(x.n)}</span>` : ''}</td><td class="r num">${x.price ? `${x.abyssal ? '<span class="dim">min.</span> ' : ''}${compactISK(x.total)}` : `<span class="dim">${tx('fără ordine')}</span>`}</td></tr>`).join('')}</tbody></table>
         ${noPrice ? `<p class="dim small">${tx('{n} iteme nu au ordine de vânzare în Jita.', { n: noPrice })}</p>` : ''}
-        <div class="row-actions">${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-action="multibuy"' })}</div>`;
+        <div class="row-actions">${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-action="multibuy"' })}${dataStamp(pricesAt(ids), 'data-action="cost-refresh"')}</div>`;
       const booksEl = el.querySelector('#skillbookCost');
       if (booksEl && books.length) {
         const cost = books.reduce((a, b) => a + (prices.get(b)?.sellMin ?? 0), 0);
@@ -760,6 +763,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         return openEsi();
       case 'ships':
         return openShips();
+      case 'cost-refresh':
+        forgetPrices(costIds);
+        if (fit) loadCost(fit);
+        break;
       case 'multibuy':
         if (fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Lista Multibuy copiată'));
         break;

@@ -1,8 +1,8 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, badge, emptyState, windowTitle } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, badge, emptyState, windowTitle, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
-import { fetchPrices, typeIconUrl } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, typeIconUrl } from '../services/market';
 import { allEveItems } from '../data/items';
 import { buildDogma, emptyFit, type Fit } from '../engine/fit';
 import { loadFits } from '../fitting/savedFits';
@@ -340,6 +340,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
           ${panel({
             title: tx('Filamente Pochven'),
             count: POCHVEN_FILAMENTS.length,
+            actions: prices ? dataStamp(pricesAt(POCHVEN_FILAMENTS), 'data-pochven-prices') : '',
             body: `<div class="table-scroll"><table class="table compact"><thead><tr>
                 <th>${tx('Filament')}</th><th class="r">${tx('Piloți max')}</th><th class="r">Jita sell</th><th class="r">Jita buy</th><th>${tx('Unde te duce')}</th>
               </tr></thead><tbody>
@@ -362,7 +363,15 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
 
       render();
       systemStats().then((s) => { stats = s; }).catch((err) => { statsErr = tx('ESI nu a răspuns: {msg}', { msg: (err as Error).message }); }).finally(render);
-      fetchPrices(POCHVEN_FILAMENTS).then((p) => { prices = p; render(); }).catch(() => {  });
+      const loadPrices = () => fetchPrices(POCHVEN_FILAMENTS).then((p) => { prices = p; render(); }).catch(() => {  });
+      loadPrices();
+      pane.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLElement>('[data-pochven-prices]');
+        if (!b) return;
+        b.classList.add('busy');
+        forgetPrices(POCHVEN_FILAMENTS);
+        loadPrices();
+      });
     }).catch((err) => failed(pane, err));
   }
 

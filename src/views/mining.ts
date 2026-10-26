@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, formatISK, badge, emptyState, windowTitle, button } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, formatISK, badge, emptyState, windowTitle, button, dataStamp } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
-import { fetchPrices, typeIconUrl, type Aggregates } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt as cachedAt, typeIconUrl, type Aggregates } from '../services/market';
 import { buildDogma, type Fit } from '../engine/fit';
 import { loadFits } from '../fitting/savedFits';
 import { OPEN_KEY } from '../fitting/shared';
@@ -63,7 +63,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   let data: MiningData | null = null;
   let prices = new Map<number, Aggregates>();
-  let pricesAt = 0;
+  let priceIds: number[] = [];
   const ready = loadMining().then(async (d) => {
     data = d;
     await loadPrices();
@@ -71,27 +71,44 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   });
 
   async function loadPrices() {
-    if (!data || Date.now() - pricesAt < 5 * 60 * 1000) return;
+    if (!data || prices.size) return;
     const ids = new Set<number>();
     for (const o of data.ores) {
       ids.add(o.id);
       if (o.compressedId) ids.add(o.compressedId);
     }
     for (const id of data.minerals.keys()) ids.add(id);
-    prices = await fetchPrices([...ids]);
-    pricesAt = Date.now();
+    priceIds = [...ids];
+    prices = await fetchPrices(priceIds);
+    renderStamp();
+  }
+
+  function renderStamp() {
+    const box = side.querySelector<HTMLElement>('.side-stamp');
+    if (box) box.innerHTML = dataStamp(cachedAt(priceIds), 'data-mine-prices');
   }
 
   const price = (basis: Basis) => (id: number) => priceOf(prices.get(id), basis);
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Mining'))}</div>
-      <div class="side-nav">${TABS().map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-mine-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+      <div class="side-nav">${TABS().map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-mine-tab="${t.id}">${t.label}</button>`).join('')}</div>
+      <div class="side-stamp"></div>`;
+    renderStamp();
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
     render();
   }
 
-  side.addEventListener('click', (e) => {
+  side.addEventListener('click', async (e) => {
+    const stamp = (e.target as HTMLElement).closest<HTMLElement>('[data-mine-prices]');
+    if (stamp) {
+      stamp.classList.add('busy');
+      forgetPrices(priceIds);
+      prices = new Map();
+      try { await loadPrices(); } catch (err) { panes[tab].innerHTML = panel({ body: alertBox((err as Error).message) }); return; }
+      render();
+      return;
+    }
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mine-tab]');
     if (!b) return;
     tab = b.dataset.mineTab as Tab;

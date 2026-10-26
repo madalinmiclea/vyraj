@@ -85,7 +85,7 @@ export async function scanJita(depth: number, onProgress: (p: Progress) => void)
   let done = 0;
   onProgress({ stage: tx('Ordine Jita'), done, total: chunks.length });
   await pool(chunks, 6, async (chunk) => {
-    const res = await fetchPrices(chunk);
+    const res = await fetchPrices(chunk, { fresh: true });
     res.forEach((v, k) => prices.set(k, v));
   }, () => onProgress({ stage: tx('Ordine Jita'), done: ++done, total: chunks.length }));
 
@@ -186,15 +186,33 @@ export interface HubPrice {
   buyOrders: number;
 }
 
-const hubCache = new Map<string, { at: number; value: Map<number, HubPrice> }>();
+const HUB_KEY = 'eve-intel:hub-prices';
+type HubStore = Record<string, { at: number; p: Record<string, number[]> }>;
+let hubStore: HubStore | null = null;
+const hubs = () => (hubStore ??= loadJson<HubStore>(HUB_KEY, {}));
 
-export async function fetchHubPrices(hub: Hub, typeIds: number[]): Promise<Map<number, HubPrice>> {
-  const key = hub.id + ':' + typeIds.join(',');
-  const hit = hubCache.get(key);
-  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.value;
+export function hubPricesAt(hub: Hub): number {
+  return hubs()[hub.id]?.at ?? 0;
+}
+
+export function forgetHubPrices(hub: Hub) {
+  delete hubs()[hub.id];
+  saveJson(HUB_KEY, hubs());
+}
+
+export async function fetchHubPrices(hub: Hub, typeIds: number[], { fresh = false }: { fresh?: boolean } = {}): Promise<Map<number, HubPrice>> {
+  const entry = fresh ? undefined : hubs()[hub.id];
   const out = new Map<number, HubPrice>();
+  const missing: number[] = [];
+  for (const id of new Set(typeIds)) {
+    const v = entry?.p[id];
+    if (v) out.set(id, { sellMin: v[0], buyMax: v[1], sellBook: v[2], buyBook: v[3], sellOrders: v[4], buyOrders: v[5] });
+    else missing.push(id);
+  }
+  if (!missing.length) return out;
+  const got = new Map<number, HubPrice>();
   const chunks: number[][] = [];
-  for (let i = 0; i < typeIds.length; i += 100) chunks.push(typeIds.slice(i, i + 100));
+  for (let i = 0; i < missing.length; i += 100) chunks.push(missing.slice(i, i + 100));
   await pool(chunks, 4, async (chunk) => {
     const json = await fetch(`https://market.fuzzwork.co.uk/aggregates/?station=${hub.station}&types=${chunk.join(',')}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -202,13 +220,13 @@ export async function fetchHubPrices(hub: Hub, typeIds: number[]): Promise<Map<n
     if (!json) {
       await Promise.all(chunk.map(async (id) => {
         const a = await esiAggregates(hub.region, id, hub.station).catch(() => null);
-        if (a) out.set(id, { sellMin: a.sellMin, buyMax: a.buyMax, sellBook: a.sellVolume, buyBook: a.buyVolume, sellOrders: a.sellOrders, buyOrders: a.buyOrders });
+        if (a) got.set(id, { sellMin: a.sellMin, buyMax: a.buyMax, sellBook: a.sellVolume, buyBook: a.buyVolume, sellOrders: a.sellOrders, buyOrders: a.buyOrders });
       }));
       return;
     }
     for (const id of chunk) {
       const d = json[id] ?? {};
-      out.set(id, {
+      got.set(id, {
         sellMin: parseFloat(d.sell?.min || '0'),
         buyMax: parseFloat(d.buy?.max || '0'),
         sellBook: parseFloat(d.sell?.volume || '0'),
@@ -218,7 +236,14 @@ export async function fetchHubPrices(hub: Hub, typeIds: number[]): Promise<Map<n
       });
     }
   }, () => {});
-  hubCache.set(key, { at: Date.now(), value: out });
+  got.forEach((v, k) => out.set(k, v));
+  if (!fresh && got.size) {
+    const store = hubs();
+    const cur = store[hub.id] ?? { at: Date.now(), p: {} };
+    got.forEach((v, k) => { cur.p[k] = [v.sellMin, v.buyMax, v.sellBook, v.buyBook, v.sellOrders, v.buyOrders]; });
+    store[hub.id] = cur;
+    saveJson(HUB_KEY, store);
+  }
   return out;
 }
 

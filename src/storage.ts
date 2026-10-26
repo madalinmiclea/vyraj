@@ -1,4 +1,4 @@
-const EVICTABLE = ['eve-intel:scan', 'eve-market:listed-types'];
+const EVICTABLE = ['eve-market:listed-types', 'eve-intel:hub-prices', 'eve-market:prices', 'eve-intel:scan'];
 
 const errorListeners = new Set<(key: string) => void>();
 

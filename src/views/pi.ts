@@ -1,6 +1,6 @@
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, button, windowTitle, emptyState, lore } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, button, windowTitle, emptyState, lore, dataStamp } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
-import { fetchPrices, typeIconUrl, type Aggregates } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { rosterCharacters } from '../character/roster';
 import { hasTokens, hasScope } from '../character/sso';
 import { formatDuration } from '../character/training';
@@ -64,7 +64,6 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
 
   let pi: PiData | null = null;
   let prices: Map<number, Aggregates> | null = null;
-  let pricesAt = 0;
   const ready = loadPi().then((d) => {
     pi = d;
     datalist.innerHTML = [...d.byOutput.keys()].map((id) => d.types.get(id)!).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)).map((t) => `<option value="${esc(t.name)}">${TIER_NAMES[t.tier]}</option>`).join('');
@@ -72,19 +71,26 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   });
   const priced = async () => {
     const d = await ready;
-    if (!prices || Date.now() - pricesAt > 30 * 60_000) {
+    if (!prices) {
       prices = await fetchPrices([...d.types.keys()]);
-      pricesAt = Date.now();
+      renderStamp();
     }
     return { d, p: prices };
   };
+
+  function renderStamp() {
+    const box = side.querySelector<HTMLElement>('.side-stamp');
+    if (box) box.innerHTML = pi && prices ? dataStamp(pricesAt(pi.types.keys()), 'data-pi-prices') : '';
+  }
 
   const loaded = new Set<Tab>();
   const renderers: Record<Tab, () => void> = { colonies: renderColonies, chains: renderChains, planner: renderPlanner };
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle('Planetary Interaction')}</div>
-      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-pi-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-pi-tab="${t.id}">${t.label}</button>`).join('')}</div>
+      <div class="side-stamp"></div>`;
+    renderStamp();
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
     if (!loaded.has(tab)) {
       loaded.add(tab);
@@ -93,6 +99,13 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   }
 
   side.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-pi-prices]')) {
+      if (pi) forgetPrices(pi.types.keys());
+      prices = null;
+      loaded.clear();
+      renderTabs();
+      return;
+    }
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-pi-tab]');
     if (!b) return;
     tab = b.dataset.piTab as Tab;

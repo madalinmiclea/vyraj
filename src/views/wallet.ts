@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { panel, loader, esc, formatInt, formatNum, compactISK, button } from '../ui/components';
+import { panel, loader, esc, formatInt, formatNum, compactISK, button, dataStamp } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
 import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, tradeSummary, type Period } from '../services/wallet';
@@ -10,6 +10,8 @@ import { tx, locale } from '../i18n';
 
 const PERIOD_KEY = 'eve-tools:wallet-period';
 const JOURNAL_LIMIT = 300;
+const FETCHED_KEY = 'eve-tools:wallet-fetched';
+const ARCHIVE_GAP_MS = 7 * 86400000;
 
 type Direction = 'all' | 'in' | 'out';
 
@@ -18,14 +20,24 @@ const signed = (v: number) => `<span class="num ${v >= 0 ? 'up' : 'down'}">${v >
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean) {
-  body.innerHTML = panel({ body: loader(tx('Citesc wallet journal')) });
-  const [fresh, balance, freshTrades] = await Promise.all([
-    walletJournal(characterId),
-    walletBalance(characterId),
-    walletTransactions(characterId).catch(() => [] as WalletTransaction[]),
-  ]);
+export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, force = false) {
+  const fetchedAll = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {});
+  let fetched = fetchedAll[characterId];
+  let fresh: WalletEntry[] = [];
+  let freshTrades: WalletTransaction[] = [];
+  if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS) {
+    body.innerHTML = panel({ body: loader(tx('Citesc wallet journal')) });
+    let balance: number;
+    [fresh, balance, freshTrades] = await Promise.all([
+      walletJournal(characterId),
+      walletBalance(characterId),
+      walletTransactions(characterId).catch(() => [] as WalletTransaction[]),
+    ]);
+    fetched = { at: Date.now(), balance };
+    saveJson(FETCHED_KEY, { ...loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {}), [characterId]: fetched });
+  }
   if (!alive()) return;
+  const { balance, at: fetchedAt } = fetched;
   const entries = archiveJournal(characterId, fresh);
   const trades = archiveTrades(characterId, freshTrades);
   const oldest = entries.length ? Date.parse(entries[entries.length - 1].date) : Date.now();
@@ -107,7 +119,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     root.innerHTML = `${panel({
         title: 'Wallet',
         count: entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal'),
-        actions: `<div class="advice-sort">${chips}</div>`,
+        actions: `${dataStamp(fetchedAt, 'data-wallet-refresh', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') })}<div class="advice-sort">${chips}</div>`,
         body: `<div class="history-kpis">
             <div><span class="label">${tx('Sold')}</span><span class="value">${compactISK(balance)}</span></div>
             <div title="${tx('Suma tuturor intrărilor pozitive din perioadă ({n})', { n: formatInt(inCount) })}"><span class="label">${tx('Venit total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
@@ -172,6 +184,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
 
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    if (t.closest('[data-wallet-refresh]')) { renderWallet(body, ctx, characterId, alive, true).catch((err) => { if (alive()) body.innerHTML = panel({ body: `<p class="dim">${esc((err as Error).message)}</p>` }); }); return; }
     const p = t.closest<HTMLElement>('[data-wallet-period]');
     if (p) { period = p.dataset.walletPeriod as Period; saveJson(PERIOD_KEY, period); render(); return; }
     const d = t.closest<HTMLElement>('[data-wallet-dir]');

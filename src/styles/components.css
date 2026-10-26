@@ -443,3 +443,12 @@ select:disabled { cursor: not-allowed; opacity: 0.55; }
 .xsel-opt.selected .xsel-check { opacity: 1; }
 .xsel-opt.disabled { color: var(--text-faint); cursor: default; opacity: 0.6; }
 .xsel-group .xsel-opt { padding-left: 18px; }
+
+.data-stamp { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.btn.ghost.data-stamp svg { color: var(--text-dim); transition: transform 0.3s var(--ease); }
+.btn.ghost.data-stamp:hover svg { color: var(--accent); transform: rotate(90deg); }
+.data-stamp.busy svg { color: var(--accent); animation: spin 0.9s linear infinite; }
+.data-stamp-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.data-stamp.busy .data-stamp-dot { background: var(--accent); box-shadow: none; }
+.side-stamp { padding: 12px 10px 0; }
+.side-stamp:empty { display: none; }

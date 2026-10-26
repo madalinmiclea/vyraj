@@ -1,13 +1,14 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyText, toast, emptyState, windowTitle } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyText, toast, emptyState, windowTitle, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { parseItems, type AppraisalLine } from '../services/appraisal';
-import { fetchPrices, fetchLpOffers, resolveIds, typeIconUrl, type Aggregates } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, fetchLpOffers, resolveIds, typeIconUrl, type Aggregates, type LpOffer } from '../services/market';
 import { loadAlerts, saveAlerts, addAlert, checkAlerts, hit, ALERTS_EVENT } from '../services/alerts';
 import { TIERS, WEATHERS, loadRuns, saveRuns, filamentTypeId, profitOf, summarize, iskPerHour, type AbyssalRun } from '../services/abyssal';
 import { renderWallet } from './wallet';
 import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
+import { removeKey } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
 import { allEveItems } from '../data/items';
 import { tx, locale } from '../i18n';
@@ -28,6 +29,11 @@ const APPRAISAL_KEY = 'eve-tools:appraisal-text';
 const BASIS_KEY = 'eve-tools:price-basis';
 const LP_CORP_KEY = 'eve-tools:lp-corp';
 const LAST_RUN_KEY = 'eve-tools:abyssal-last';
+const ASSETS_KEY = 'eve-tools:assets:';
+const LP_OFFERS_KEY = 'eve-tools:lp-offers';
+
+interface AssetSnapshot { at: number; items: number; rows: [number, number, number][]; names: [number, string][] }
+type OfferStore = Record<string, { at: number; offers: LpOffer[] }>;
 
 type Basis = 'sell' | 'buy';
 
@@ -74,12 +80,16 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     ({ appraisal, abyssal, wallet, assets, lp, alerts } as Record<Tab, () => void>)[tab]();
   }
 
+  let apIds: number[] = [];
+  const lpPoints = new Map<number, { mine: { corporation_id: number; loyalty_points: number }[]; corpNames: Map<number, string> }>();
+
   async function priceTable(lines: AppraisalLine[]) {
     const prices = await fetchPrices(lines.map((l) => l.typeId));
     const rows = lines.map((l) => {
       const p = prices.get(l.typeId);
       return { ...l, sell: (p?.sellMin ?? 0) * l.quantity, buy: (p?.buyMax ?? 0) * l.quantity, unit: priceOf(p, basis) };
     }).sort((a, b) => (basis === 'sell' ? b.sell - a.sell : b.buy - a.buy));
+    apIds = lines.map((l) => l.typeId);
     return { rows, sell: rows.reduce((a, r) => a + r.sell, 0), buy: rows.reduce((a, r) => a + r.buy, 0) };
   }
 
@@ -109,7 +119,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       out.innerHTML = panel({
         title: tx('Evaluare'),
         count: tx('{n} tipuri · {q} bucăți', { n: lines.length, q: formatInt(lines.reduce((a, l) => a + l.quantity, 0)) }),
-        actions: basisChips(),
+        actions: dataStamp(pricesAt(apIds), 'data-ap-refresh') + basisChips(),
         body: `<div class="history-kpis">
             <div><span class="label">Jita sell</span><span class="value">${compactISK(t.sell)}</span></div>
             <div><span class="label">Jita buy</span><span class="value">${compactISK(t.buy)}</span></div>
@@ -177,7 +187,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const fil = filamentTypeId(tier, weather);
     toast(tx('Calculez valorile…'));
     try {
-      const prices = await fetchPrices([...lines.map((l) => l.typeId), ...(fil ? [fil] : [])]);
+      const prices = await fetchPrices([...lines.map((l) => l.typeId), ...(fil ? [fil] : [])], { fresh: true });
       const lootValue = lines.reduce((a, l) => a + priceOf(prices.get(l.typeId), 'sell') * l.quantity, 0);
       const filamentCost = fil ? priceOf(prices.get(fil), 'sell') : 0;
       saveRuns([...loadRuns(), { id: `${Date.now()}`, date: Date.now(), tier, weather, ship, minutes, filamentCost, lootValue, shipLoss }]);
@@ -202,35 +212,57 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     }
   }
 
+  async function assetSnapshot(characterId: number): Promise<AssetSnapshot> {
+    const cached = loadJson<AssetSnapshot | null>(ASSETS_KEY + characterId, null);
+    if (cached?.rows) return cached;
+    const list = await listAssets(characterId);
+    const byId = new Map(list.map((a) => [a.item_id, a]));
+    const root = (a: EsiAsset) => { let cur = a; for (let i = 0; i < 10 && byId.has(cur.location_id); i++) cur = byId.get(cur.location_id)!; return cur.location_id; };
+    const agg = new Map<string, [number, number, number]>();
+    for (const a of list) {
+      if (a.is_blueprint_copy) continue;
+      const loc = root(a);
+      const k = `${loc}:${a.type_id}`;
+      const row = agg.get(k) ?? [loc, a.type_id, 0];
+      row[2] += a.quantity;
+      agg.set(k, row);
+    }
+    const rows = [...agg.values()];
+    const names = await universeNames([...new Set(rows.map((r) => r[0]))], characterId).catch(() => new Map<number, string>());
+    const snap: AssetSnapshot = { at: Date.now(), items: list.length, rows, names: [...names] };
+    saveJson(ASSETS_KEY + characterId, snap);
+    return snap;
+  }
+
   async function assets() {
     const c = esiCharacter('esi-assets.read_assets.v1');
     if (c === 'scope') { body.innerHTML = scopePrompt(); return; }
     if (typeof c === 'string') { body.innerHTML = panel({ body: alertBox(c) }); return; }
     body.innerHTML = panel({ body: loader(tx('Citesc asset-urile și prețurile')) });
     try {
-      const list = await listAssets(c.id);
-      const byId = new Map(list.map((a) => [a.item_id, a]));
-      const root = (a: EsiAsset) => { let cur = a; for (let i = 0; i < 10 && byId.has(cur.location_id); i++) cur = byId.get(cur.location_id)!; return cur.location_id; };
-      const prices = await fetchPrices(list.map((a) => a.type_id));
-      const valued = list.map((a) => ({ a, value: a.is_blueprint_copy ? 0 : priceOf(prices.get(a.type_id), basis) * a.quantity, loc: root(a) }));
+      const snap = await assetSnapshot(c.id);
+      const typeIds = [...new Set(snap.rows.map((r) => r[1]))];
+      const prices = await fetchPrices(typeIds);
       const locs = new Map<number, number>();
       const types = new Map<number, { qty: number; value: number }>();
-      for (const v of valued) {
-        locs.set(v.loc, (locs.get(v.loc) ?? 0) + v.value);
-        const t = types.get(v.a.type_id) ?? { qty: 0, value: 0 };
-        t.qty += v.a.quantity; t.value += v.value;
-        types.set(v.a.type_id, t);
+      for (const [loc, typeId, qty] of snap.rows) {
+        const value = priceOf(prices.get(typeId), basis) * qty;
+        locs.set(loc, (locs.get(loc) ?? 0) + value);
+        const t = types.get(typeId) ?? { qty: 0, value: 0 };
+        t.qty += qty; t.value += value;
+        types.set(typeId, t);
       }
-      const names = await universeNames([...locs.keys()], c.id).catch(() => new Map<number, string>());
+      const names = new Map(snap.names);
       if (tab !== 'assets') return;
-      const total = valued.reduce((a, v) => a + v.value, 0);
+      const total = [...locs.values()].reduce((a, v) => a + v, 0);
+      const at = Math.min(snap.at, pricesAt(typeIds) || snap.at);
       const locName = (id: number) => names.get(id) ?? (id === ASSET_SAFETY ? 'Asset Safety' : id > 1e12 ? tx('Structură {id}', { id }) : tx('Locație {id}', { id }));
       body.innerHTML = `${panel({
           title: tx('Valoare assets'),
-          actions: basisChips(),
+          actions: dataStamp(at, 'data-assets-refresh', { label: tx('Date din {time}'), title: tx('Asset-urile și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }) + basisChips(),
           body: `<div class="history-kpis">
               <div><span class="label">Total</span><span class="value">${compactISK(total)}</span></div>
-              <div><span class="label">${tx('Iteme')}</span><span class="value">${formatInt(list.length)}</span></div>
+              <div><span class="label">${tx('Iteme')}</span><span class="value">${formatInt(snap.items)}</span></div>
               <div><span class="label">${tx('Locații')}</span><span class="value">${formatInt(locs.size)}</span></div>
             </div>`,
         })}
@@ -243,14 +275,30 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     }
   }
 
+  function refreshAssets() {
+    const id = ctx.character.characterId;
+    if (!id) return;
+    const snap = loadJson<AssetSnapshot | null>(ASSETS_KEY + id, null);
+    if (snap?.rows) forgetPrices(snap.rows.map((r) => r[1]));
+    removeKey(ASSETS_KEY + id);
+    assets();
+  }
+
   async function lp() {
     const saved = loadJson<{ id: number; name: string } | null>(LP_CORP_KEY, null);
     const c = esiCharacter('esi-characters.read_loyalty.v1');
     let mine: { corporation_id: number; loyalty_points: number }[] = [];
     let corpNames = new Map<number, string>();
     if (typeof c !== 'string') {
-      mine = await loyaltyPoints(c.id).catch(() => []);
-      corpNames = await universeNames(mine.map((m) => m.corporation_id)).catch(() => new Map());
+      let known = lpPoints.get(c.id);
+      if (!known) {
+        const list = await loyaltyPoints(c.id).catch(() => null);
+        const names = list ? await universeNames(list.map((m) => m.corporation_id)).catch(() => new Map<number, string>()) : new Map<number, string>();
+        known = { mine: list ?? [], corpNames: names };
+        if (list) lpPoints.set(c.id, known);
+      }
+      mine = [...known.mine];
+      corpNames = known.corpNames;
     }
     body.innerHTML = `${panel({
         title: 'LP Store',
@@ -271,8 +319,17 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (!out) return;
     out.innerHTML = panel({ body: loader(tx('Oferte {name}', { name: corp.name })) });
     try {
-      const offers = await fetchLpOffers(corp.id);
-      const prices = await fetchPrices(offers.flatMap((o) => [o.type_id, ...o.required_items.map((r) => r.type_id)]));
+      const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});
+      let entry = store[corp.id];
+      if (!entry) {
+        entry = { at: Date.now(), offers: await fetchLpOffers(corp.id) };
+        const keep = Object.entries(store).sort((a, b) => b[1].at - a[1].at).slice(0, 4);
+        saveJson(LP_OFFERS_KEY, Object.fromEntries([...keep, [String(corp.id), entry]]));
+      }
+      const offers = entry.offers;
+      const ids = offers.flatMap((o) => [o.type_id, ...o.required_items.map((r) => r.type_id)]);
+      const prices = await fetchPrices(ids);
+      const at = Math.min(entry.at, pricesAt(ids) || entry.at);
       const rows = offers.filter((o) => o.lp_cost > 0).map((o) => {
         const p = prices.get(o.type_id);
         const value = priceOf(p, basis) * o.quantity;
@@ -284,6 +341,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       out.innerHTML = panel({
         title: corp.name,
         count: tx('{n} oferte cu preț', { n: rows.length }),
+        actions: dataStamp(at, `data-lp-refresh="${corp.id}"`, { label: tx('Date din {time}'), title: tx('Ofertele LP și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }),
         body: `<table class="table compact"><thead><tr><th>Item</th><th class="r">LP</th><th class="r">ISK</th><th class="r">${tx('Iteme cerute')}</th><th class="r">${tx('Valoare')}</th><th class="r">ISK/LP</th><th class="r">${tx('Pe piață')}</th>${points ? `<th class="r">${tx('Cu LP-ul tău')}</th>` : ''}</tr></thead><tbody>
           ${rows.slice(0, 80).map((r) => `<tr><td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${r.o.quantity > 1 ? `${formatInt(r.o.quantity)}× ` : ''}${esc(typeName(r.o.type_id))}</td>
             <td class="r num">${formatInt(r.o.lp_cost)}</td><td class="r">${isk(r.o.isk_cost)}</td>
@@ -368,6 +426,19 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       return;
     }
     if (at('[data-appraise]')) { runAppraisal(); return; }
+    if (at('[data-ap-refresh]')) { forgetPrices(apIds); runAppraisal(); return; }
+    if (at('[data-assets-refresh]')) { refreshAssets(); return; }
+    const lpr = at('[data-lp-refresh]');
+    if (lpr) {
+      const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});
+      const entry = store[lpr.dataset.lpRefresh!];
+      if (entry) forgetPrices(entry.offers.flatMap((o) => [o.type_id, ...o.required_items.map((r) => r.type_id)]));
+      delete store[lpr.dataset.lpRefresh!];
+      saveJson(LP_OFFERS_KEY, store);
+      lpPoints.clear();
+      lp();
+      return;
+    }
     if (at('[data-ap-clear]')) { saveJson(APPRAISAL_KEY, ''); appraisal(); return; }
     const ct = at('[data-copy-total]');
     if (ct) { copyText(ct.dataset.copyTotal!, tx('Total copiat')); return; }

@@ -49,11 +49,51 @@ function toAggregates(d: { sell?: FuzzworkSide; buy?: FuzzworkSide } = {}): Aggr
 }
 
 export async function fetchJitaAggregates(typeId: number): Promise<Aggregates> {
-  return (await fetchPrices([typeId])).get(typeId) ?? toAggregates();
+  return (await fetchPrices([typeId], { fresh: true })).get(typeId) ?? toAggregates();
 }
 
-const CACHE_MS = 5 * 60 * 1000;
+const PRICES_KEY = 'eve-market:prices';
+const PRICES_MAX = 6000;
 const cache = new Map<number, { at: number; value: Aggregates }>();
+let restored = false;
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+function restore() {
+  if (restored) return;
+  restored = true;
+  const raw = loadJson<Record<string, number[]>>(PRICES_KEY, {});
+  for (const [id, v] of Object.entries(raw)) {
+    if (!Array.isArray(v) || v.length !== 8) continue;
+    cache.set(Number(id), { at: v[0], value: { sellMin: v[1], sellMedian: v[2], sellVolume: v[3], sellOrders: v[4], buyMax: v[5], buyVolume: v[6], buyOrders: v[7] } });
+  }
+}
+
+function persist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    const list = [...cache.entries()].sort((a, b) => b[1].at - a[1].at);
+    for (const [id] of list.slice(PRICES_MAX)) cache.delete(id);
+    const out: Record<string, number[]> = {};
+    for (const [id, { at, value: v }] of list.slice(0, PRICES_MAX)) out[id] = [at, v.sellMin, v.sellMedian, v.sellVolume, v.sellOrders, v.buyMax, v.buyVolume, v.buyOrders];
+    saveJson(PRICES_KEY, out);
+  }, 300);
+}
+
+export function pricesAt(typeIds: Iterable<number>): number {
+  restore();
+  let at = 0;
+  for (const id of typeIds) {
+    const hit = cache.get(id);
+    if (hit && (!at || hit.at < at)) at = hit.at;
+  }
+  return at;
+}
+
+export function forgetPrices(typeIds: Iterable<number>) {
+  restore();
+  for (const id of typeIds) cache.delete(id);
+  persist();
+}
 
 async function fuzzworkChunk(chunk: number[]): Promise<Record<string, { sell?: FuzzworkSide; buy?: FuzzworkSide }> | null> {
   try {
@@ -64,13 +104,20 @@ async function fuzzworkChunk(chunk: number[]): Promise<Record<string, { sell?: F
   }
 }
 
-export async function fetchPrices(typeIds: number[]): Promise<Map<number, Aggregates>> {
+export async function fetchPrices(typeIds: number[], { fresh = false }: { fresh?: boolean } = {}): Promise<Map<number, Aggregates>> {
+  restore();
   const now = Date.now();
   const out = new Map<number, Aggregates>();
   const missing: number[] = [];
+  let changed = false;
+  const remember = (id: number, value: Aggregates) => {
+    if (fresh && !cache.has(id)) return;
+    cache.set(id, { at: now, value });
+    changed = true;
+  };
   for (const id of new Set(typeIds)) {
-    const hit = cache.get(id);
-    if (hit && now - hit.at < CACHE_MS) out.set(id, hit.value);
+    const hit = fresh ? undefined : cache.get(id);
+    if (hit) out.set(id, hit.value);
     else missing.push(id);
   }
   for (let i = 0; i < missing.length; i += 100) {
@@ -81,7 +128,7 @@ export async function fetchPrices(typeIds: number[]): Promise<Map<number, Aggreg
       if (values.every((v) => v === null)) throw new Error(tx('Nu pot încărca prețurile nici de la Fuzzwork, nici de la ESI.'));
       chunk.forEach((id, j) => {
         const value = values[j];
-        if (value) cache.set(id, { at: now, value });
+        if (value) remember(id, value);
         out.set(id, value ?? toAggregates());
       });
       continue;
@@ -89,10 +136,11 @@ export async function fetchPrices(typeIds: number[]): Promise<Map<number, Aggreg
     for (const id of chunk) {
       let value = toAggregates(json[id]);
       if (isGlobalMarket(id) && !value.sellMin && !value.buyMax) value = await esiAggregates(GLOBAL_PLEX_REGION, id).catch(() => value);
-      cache.set(id, { at: now, value });
+      remember(id, value);
       out.set(id, value);
     }
   }
+  if (changed) persist();
   return out;
 }
 

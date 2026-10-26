@@ -1194,4 +1194,12 @@ export const EN: Record<string, string> = {
   "{n} SKIN-uri": "{n} SKINs",
   "{n} nave": "{n} ships",
   "Nicio potrivire": "No matches",
+  "Prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.": "Jita prices are kept until you refresh them. Click to read them again.",
+  "Prețuri Jita din {time}": "Jita prices from {time}",
+  "Prețuri {hub} din {time}": "{hub} prices from {time}",
+  "Prețurile hub-ului sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.": "Hub prices are kept until you refresh them. Click to read them again.",
+  "Date din {time}": "Data from {time}",
+  "Asset-urile și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.": "Assets and Jita prices are kept until you refresh them. Click to read them again.",
+  "Ofertele LP și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.": "LP offers and Jita prices are kept until you refresh them. Click to read them again.",
+  "Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.": "The journal and balance are kept until you refresh them. Click to read them again from ESI.",
 };

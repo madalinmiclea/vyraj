@@ -1,9 +1,9 @@
 import '../styles/industry.css';
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, emptyState, windowTitle, badge } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, emptyState, windowTitle, badge, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
-import { fetchPrices, typeIconUrl, type Aggregates } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { feesFromSkills } from '../services/intel';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { hasScope, loginProblem } from '../character/sso';
@@ -71,6 +71,19 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   let data: IndustryData | null = null;
   let map: NavMap | null = null;
+  let priceIds: number[] = [];
+
+  async function jitaPrices(ids: number[]) {
+    const p = await fetchPrices(ids);
+    priceIds = ids;
+    renderStamp();
+    return p;
+  }
+
+  function renderStamp() {
+    const box = side.querySelector<HTMLElement>('.side-stamp');
+    if (box) box.innerHTML = tab === 'jobs' ? '' : dataStamp(pricesAt(priceIds), 'data-ind-prices');
+  }
   const ready = Promise.all([loadIndustry(), loadMap().catch(() => null)]).then(([d, m]) => { data = d; map = m; return d; });
 
   const skillName = (id: number) => ctx.sde.types.get(id)?.name ?? data?.name(id) ?? `#${id}`;
@@ -144,12 +157,19 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Industrie'))}</div>
-      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-ind-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-ind-tab="${t.id}">${t.label}</button>`).join('')}</div>
+      <div class="side-stamp"></div>`;
+    renderStamp();
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
     settingsEl.hidden = tab === 'jobs';
   }
 
   side.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-ind-prices]')) {
+      forgetPrices(priceIds);
+      refresh();
+      return;
+    }
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-ind-tab]');
     if (!b) return;
     tab = b.dataset.indTab as Tab;
@@ -241,7 +261,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     result.innerHTML = loader(tx('Calculez costul de producție'));
     try {
       const useInv = inv && calc.source === 'invention' ? inv : null;
-      const [prices, adjusted, fac] = await Promise.all([fetchPrices(allIds([bp], d, Boolean(useInv))), adjustedPrices(), facility(bp.reaction)]);
+      const [prices, adjusted, fac] = await Promise.all([jitaPrices(allIds([bp], d, Boolean(useInv))), adjustedPrices(), facility(bp.reaction)]);
       const base = { bp, runs: calc.runs, me: calc.me, te: calc.te, facility: fac.f, basis: settings.basis, fees: fees(), skills: ctx.character.skills, prices, adjusted, labels: labels() };
       const dec = d.decryptors.find((x) => x.id === calc.decryptor) ?? null;
       const r = computeBuild({ ...base, invention: useInv ? { inv: useInv, decryptor: dec } : null });
@@ -385,7 +405,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
         return;
       }
       const bps = [...list.map((g) => d.blueprints.get(g.o.type_id)!), ...inventTargets.map((id) => d.blueprints.get(id)!)];
-      const [prices, adjusted, facM, facR] = await Promise.all([fetchPrices(allIds(bps, d, true)), adjustedPrices(), facility(false), facility(true)]);
+      const [prices, adjusted, facM, facR] = await Promise.all([jitaPrices(allIds(bps, d, true)), adjustedPrices(), facility(false), facility(true)]);
       if (seq !== mineSeq) return;
       const common = { basis: settings.basis, fees: fees(), skills: ctx.character.skills, prices, adjusted, labels: labels() };
       const rows = list.map((g) => {

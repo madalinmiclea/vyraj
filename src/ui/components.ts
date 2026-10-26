@@ -1,5 +1,5 @@
 import { icon, reticle } from './icons';
-import { tx } from '../i18n';
+import { tx, locale } from '../i18n';
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
@@ -23,6 +23,18 @@ export function lore(std: string, vy: string) {
 
 export function pageHead(title: string, sub = '', vy = '') {
   return `<div class="page-head"><h1>${vy ? lore(esc(title), esc(vy)) : esc(title)}</h1>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</div>`;
+}
+
+export function stampTime(at: number) {
+  const d = new Date(at);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+export function dataStamp(at: number, attrs: string, { label = tx('Prețuri Jita din {time}'), title = tx('Prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }: { label?: string; title?: string } = {}) {
+  if (!at) return '';
+  return `<button class="btn ghost sm data-stamp" ${attrs} title="${esc(title)}"><i class="data-stamp-dot"></i>${esc(tx(label, { time: stampTime(at) }))}${icon('refresh')}</button>`;
 }
 
 export function searchField({ id, placeholder = tx('Caută...'), large = false, hint = '' }: { id: string; placeholder?: string; large?: boolean; hint?: string }) {
