@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, emptyState, esc, formatInt, compactISK, searchField, toast, openModal, closeModal, copyText, windowTitle } from '../ui/components';
+import { pageHead, panel, loader, alertBox, emptyState, esc, badge, formatInt, compactISK, searchField, toast, openModal, closeModal, copyText, windowTitle } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl, fetchListedTypes, fetchPrices } from '../services/market';
@@ -9,17 +9,25 @@ import { showItemInfo } from '../ui/itemInfo';
 import { listAssets, walletTransactions } from '../character/esi';
 import { hasTokens, hasScope } from '../character/sso';
 import { tx, locale } from '../i18n';
+import { fold } from '../ui/fold';
 
 type Filter = 'all' | 'started' | 'complete' | 'missing';
 type Sort = 'name' | 'progress' | 'size';
 type Mode = 'all' | 'mine' | 'shop';
 type ShopOrder = 'cheap' | 'expensive';
+type ComboKind = 'ship' | 'line';
+
+interface ComboItem {
+  value: string;
+  html: string;
+}
 
 interface ShopRow {
   line: SkinLine;
   ship: SkinLine['ships'][number];
   license: number;
   price: number;
+  own?: boolean;
 }
 
 const FILTERS: { id: Filter; label: string }[] = [
@@ -38,6 +46,7 @@ const SORTS: { id: Sort; label: string }[] = [
 const PREFS_KEY = 'eve-skins:prefs';
 const SHOP_LIMIT = 400;
 const EXPENSIVE_LIMIT = 100;
+const COMBO_LIMIT = 60;
 
 export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   const prefs = loadJson<{ filter: Filter; sort: Sort; mode?: string; shopOrder?: ShopOrder }>(PREFS_KEY, { filter: 'all', sort: 'name' });
@@ -47,6 +56,9 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   let shopOrder: ShopOrder = prefs.shopOrder ?? 'cheap';
   let shopToken = 0;
   let query = '';
+  let pickShip: number | null = null;
+  let pickLine: string | null = null;
+  let combo: { input: HTMLInputElement; kind: ComboKind; menu: HTMLElement; items: ComboItem[]; active: number } | null = null;
   let open: string | null = null;
   let syncing = false;
   let lines: SkinLine[] = [];
@@ -70,13 +82,18 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         ${searchField({ id: 'skinSearch', placeholder: tx('Caută SKIN sau navă') })}
         <div class="advice-sort" id="skinFilters"></div>
         <div class="advice-sort" id="skinSorts"></div>
-        <div class="skin-toolbar-actions" id="skinActions"></div>
       </div>
       <div id="skinBody"></div>`;
     const search = el.querySelector<HTMLInputElement>('#skinSearch')!;
     search.addEventListener('input', () => { query = search.value.trim().toLowerCase(); renderBody(); });
     el.addEventListener('click', onClick);
     side.addEventListener('click', onClick);
+    el.addEventListener('input', (e) => { const i = (e.target as HTMLElement).closest<HTMLInputElement>('[data-skin-combo]'); if (i) showCombo(i); });
+    el.addEventListener('focusin', (e) => { const i = (e.target as HTMLElement).closest<HTMLInputElement>('[data-skin-combo]'); if (i) { i.select(); showCombo(i); } });
+    el.addEventListener('focusout', (e) => { if ((e.target as HTMLElement).closest('[data-skin-combo]')) closeCombo(); });
+    el.addEventListener('keydown', onComboKey);
+    addEventListener('scroll', placeCombo, true);
+    addEventListener('resize', placeCombo);
   }
 
   function renderHead() {
@@ -89,22 +106,26 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       <div class="side-nav">${([['all', tx('SKIN-uri nave'), formatInt(total)], ['mine', tx('Colecția mea'), formatInt(have)], ['shop', tx('De cumpărat'), '']] as [Mode, string, string][])
         .map(([id, label, n]) => `<button class="side-link ${mode === id ? 'active' : ''}" data-skin-mode="${id}"><span>${label}</span>${n ? `<span class="count">${n}</span>` : ''}</button>`).join('')}</div>`;
     el.querySelector('#skinHead')!.innerHTML = `${pageHead(title, ctx.character.name, 'Raiment')}
-      ${mode === 'shop' ? '' : `<div class="history-kpis">
+      ${mode === 'shop' ? '' : `<div class="skin-head-row"><div class="history-kpis">
         <div><span class="label">${tx('SKIN-uri deținute')}</span><span class="value">${formatInt(have)} / ${formatInt(total)}</span></div>
         <div><span class="label">${tx('Colecții începute')}</span><span class="value">${formatInt(started)} / ${formatInt(lines.length)}</span></div>
         <div><span class="label">${tx('Colecții complete')}</span><span class="value">${formatInt(complete)}</span></div>
         <div><span class="label">${tx('Progres')}</span><span class="value">${total ? ((have / total) * 100).toFixed(1) : '0.0'}%</span></div>
-      </div>`}`;
+      </div>${mode === 'mine' ? actions() : ''}</div>`}`;
     el.querySelector<HTMLElement>('#skinFilters')!.style.display = mode === 'shop' ? 'none' : '';
     el.querySelector<HTMLElement>('#skinSorts')!.style.display = mode === 'shop' ? 'none' : '';
     el.querySelector('#skinFilters')!.innerHTML = FILTERS.filter((f) => mode !== 'mine' || f.id !== 'missing').map((f) => `<button class="chip-btn ${f.id === filter ? 'active' : ''}" data-skin-filter="${f.id}">${f.label}</button>`).join('');
     el.querySelector('#skinSorts')!.innerHTML = SORTS.map((s) => `<button class="chip-btn ${s.id === sort ? 'active' : ''}" data-skin-sort="${s.id}">${s.label}</button>`).join('');
+  }
+
+  function actions() {
     const c = ctx.character;
     const esi = c.kind === 'esi' && c.characterId && hasTokens(c.characterId) ? c.characterId : 0;
     const at = lastSync(c.id);
+    const label = syncing ? tx('Sincronizez...') : at ? tx('Sincronizat {time}', { time: new Date(at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) }) : tx('Nesincronizat');
     const status = !esi ? ''
-      : `<span class="skin-sync small dim">${icon('refresh')}${syncing ? tx('Sincronizez...') : at ? tx('Sincronizat {time}', { time: new Date(at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) }) : tx('Nesincronizat')}</span>`;
-    el.querySelector('#skinActions')!.innerHTML = mode !== 'mine' ? '' : `${status}<button class="btn sm" data-skin-list>${icon('upload')}${tx('Importă listă')}</button>`;
+      : `<button class="btn ghost sm skin-sync ${syncing ? 'busy' : at ? 'ok' : ''}" data-skin-sync title="${esc(tx('Se sincronizează automat din ESI la fiecare 10 minute. Click pentru sincronizare acum.'))}"><i class="skin-sync-dot"></i>${label}${icon('refresh')}</button>`;
+    return `<div class="skin-head-actions">${status}<button class="btn sm" data-skin-list>${icon('upload')}${tx('Importă listă')}</button></div>`;
   }
 
   function visible(): SkinLine[] {
@@ -171,67 +192,172 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   }
 
   async function renderShop() {
+    closeCombo();
     const body = el.querySelector<HTMLElement>('#skinBody')!;
     const token = ++shopToken;
-    const missing = lines.flatMap((line) => line.ships
-      .filter((ship) => ship.licenses.length && !owned.has(skinKey(line.name, ship.id)))
-      .map((ship) => ({ line, ship })))
+    const picked = pickShip !== null || pickLine !== null;
+    const cands = lines.flatMap((line) => pickLine !== null && line.name !== pickLine ? [] : line.ships
+      .filter((ship) => (pickShip === null || ship.id === pickShip) && (picked || (ship.licenses.length && !owned.has(skinKey(line.name, ship.id)))))
+      .map((ship) => ({ line, ship, own: owned.has(skinKey(line.name, ship.id)) })))
       .filter(({ line, ship }) => !query || line.name.toLowerCase().includes(query) || ship.name.toLowerCase().includes(query));
-    if (!missing.length) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de cumpărat'), text: tx('Ai toate SKIN-urile din filtrul curent.'), vy: 'All Raiment Gathered', vyText: 'Every SKIN in the current filter is already yours.' }) }); return; }
+    if (!cands.length && !picked) { body.innerHTML = panel({ body: emptyState({ title: tx('Nimic de cumpărat'), text: tx('Ai toate SKIN-urile din filtrul curent.'), vy: 'All Raiment Gathered', vyText: 'Every SKIN in the current filter is already yours.' }) }); return; }
     body.innerHTML = panel({ body: loader(tx('Citesc prețurile din Jita')) });
     try {
       const listed = await fetchListedTypes().catch(() => null);
-      const ids = [...new Set(missing.flatMap((m) => m.ship.licenses))].filter((id) => !listed || listed.has(id));
-      const prices = await fetchPrices(ids);
+      const ids = [...new Set(cands.flatMap((m) => m.ship.licenses))].filter((id) => !listed || listed.has(id));
+      const prices = ids.length ? await fetchPrices(ids) : new Map<number, { sellMin?: number }>();
       if (token !== shopToken) return;
       const rows: ShopRow[] = [];
       let unpriced = 0;
-      for (const m of missing) {
+      for (const m of cands) {
         let best: { license: number; price: number } | null = null;
         for (const id of m.ship.licenses) {
           const p = prices.get(id)?.sellMin ?? 0;
           if (p > 0 && (!best || p < best.price)) best = { license: id, price: p };
         }
-        if (best) rows.push({ ...m, ...best }); else unpriced++;
+        if (!best && !m.own) unpriced++;
+        if (best) rows.push({ ...m, ...best }); else if (picked) rows.push({ ...m, license: 0, price: 0 });
       }
-      rows.sort((a, b) => a.price - b.price || a.ship.name.localeCompare(b.ship.name));
-      const total = rows.reduce((a, r) => a + r.price, 0);
-      const cheapest = rows[0]?.price ?? 0;
-      const limit = shopOrder === 'cheap' ? SHOP_LIMIT : EXPENSIVE_LIMIT;
-      if (shopOrder === 'expensive') rows.reverse();
+      rows.sort((a, b) => (a.price ? 0 : 1) - (b.price ? 0 : 1) || a.price - b.price || a.ship.name.localeCompare(b.ship.name) || a.line.name.localeCompare(b.line.name));
+      const buy = rows.filter((r) => !r.own && r.price > 0);
+      const total = buy.reduce((a, r) => a + r.price, 0);
+      const limit = picked ? rows.length : shopOrder === 'cheap' ? SHOP_LIMIT : EXPENSIVE_LIMIT;
+      if (shopOrder === 'expensive') {
+        const n = rows.findIndex((r) => !r.price);
+        const pricedRows = n < 0 ? rows : rows.slice(0, n);
+        rows.splice(0, pricedRows.length, ...pricedRows.reverse());
+      }
       let running = 0;
       const shown = rows.slice(0, limit);
       body.innerHTML = `${panel({
         body: `<div class="history-kpis">
-          <div><span class="label">${tx('De cumpărat din Jita')}</span><span class="value">${formatInt(rows.length)}</span></div>
+          <div><span class="label">${tx('De cumpărat din Jita')}</span><span class="value">${formatInt(buy.length)}</span></div>
           <div><span class="label">${tx('Cost total')}</span><span class="value">${compactISK(total)}</span></div>
-          <div><span class="label">${tx('Cel mai ieftin')}</span><span class="value">${rows.length ? compactISK(cheapest) : '—'}</span></div>
-          <div><span class="label">${tx('Cel mai scump')}</span><span class="value">${rows.length ? compactISK(Math.max(...rows.map((x) => x.price))) : '—'}</span></div>
+          <div><span class="label">${tx('Cel mai ieftin')}</span><span class="value">${buy.length ? compactISK(Math.min(...buy.map((x) => x.price))) : '—'}</span></div>
+          <div><span class="label">${tx('Cel mai scump')}</span><span class="value">${buy.length ? compactISK(Math.max(...buy.map((x) => x.price))) : '—'}</span></div>
           <div><span class="label">${tx('Fără ordere în Jita')}</span><span class="value">${formatInt(unpriced)}</span></div>
         </div>`,
       })}
       ${panel({
-        title: shopOrder === 'cheap' ? tx('Cele mai ieftine') : tx('Cele mai scumpe'),
+        title: picked ? tx('SKIN-uri filtrate') : shopOrder === 'cheap' ? tx('Cele mai ieftine') : tx('Cele mai scumpe'),
         count: rows.length > limit ? `${limit} / ${formatInt(rows.length)}` : formatInt(rows.length),
         actions: `<div class="advice-sort"><button class="chip-btn ${shopOrder === 'cheap' ? 'active' : ''}" data-skin-order="cheap">${tx('Ieftine')}</button><button class="chip-btn ${shopOrder === 'expensive' ? 'active' : ''}" data-skin-order="expensive">${tx('Scumpe')}</button></div>`,
-        body: `<table class="table compact skin-shop"><thead><tr><th class="r">#</th><th></th><th>${tx('Navă')}</th><th>SKIN</th><th class="r">${tx('Preț Jita')}</th><th class="r">${tx('Total cumulat')}</th><th></th></tr></thead><tbody>
-          ${shown.map((r, i) => {
-            running += r.price;
-            return `<tr>
+        body: `<table class="table compact skin-shop"><thead>
+          <tr class="skin-filter-row"><th></th><th></th><th>${comboField('ship')}</th><th>${comboField('line')}</th><th colspan="3"></th></tr>
+          <tr><th class="r">#</th><th></th><th>${tx('Navă')}</th><th>SKIN</th><th class="r">${tx('Preț Jita')}</th><th class="r">${tx('Total cumulat')}</th><th></th></tr></thead><tbody>
+          ${shown.length ? shown.map((r, i) => {
+            if (!r.own) running += r.price;
+            return `<tr class="${r.own ? 'skin-owned' : ''}">
               <td class="r num dim">${i + 1}</td>
               <td>${swatch(r.line, 'xs')}</td>
               <td><button class="skin-link" data-skin-info="${r.ship.id}"><img class="row-icon" src="${typeIconUrl(r.ship.id, 32)}" alt="" loading="lazy" />${esc(r.ship.name)}</button></td>
-              <td>${esc(r.line.name)}</td>
-              <td class="r num">${compactISK(r.price)}</td>
-              <td class="r num dim">${compactISK(running)}</td>
+              <td>${esc(r.line.name)}${r.own ? ` ${badge(tx('Deținut'), 'ok')}` : ''}</td>
+              <td class="r num">${r.price ? compactISK(r.price) : `<span class="dim">${tx('Fără ordere')}</span>`}</td>
+              <td class="r num dim">${r.own || !r.price ? '' : compactISK(running)}</td>
               <td class="r"><button class="btn sm ghost icon-only" data-skin-copy="${esc(`${r.ship.name} ${r.line.name} SKIN`)}">${icon('copy')}</button></td>
             </tr>`;
-          }).join('')}
+          }).join('') : `<tr><td colspan="7" class="dim skin-shop-empty">${tx('Niciun SKIN pentru filtrul ales.')}</td></tr>`}
         </tbody></table>`,
       })}`;
     } catch (err) {
       if (token === shopToken) body.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
+  }
+
+  function comboField(kind: ComboKind) {
+    const value = kind === 'ship' ? (pickShip !== null ? shipName(pickShip) : '') : pickLine ?? '';
+    return `<div class="field skin-combo ${value ? 'picked' : ''}">${icon('search')}<input class="input" type="text" data-skin-combo="${kind}" value="${esc(value)}" placeholder="${esc(kind === 'ship' ? tx('Filtrează navă') : tx('Filtrează colecție'))}" autocomplete="off" spellcheck="false" />${value ? `<button class="skin-combo-clear" data-skin-clear="${kind}" title="${esc(tx('Șterge filtrul'))}">${icon('close')}</button>` : ''}</div>`;
+  }
+
+  function shipName(id: number) {
+    for (const l of lines) for (const s of l.ships) if (s.id === id) return s.name;
+    return shipRefs.get(id)?.name ?? String(id);
+  }
+
+  function comboOptions(kind: ComboKind, q: string): ComboItem[] {
+    const needle = fold(q.trim());
+    const rank = (name: string) => { const f = fold(name); return !needle || f.startsWith(needle) ? 0 : f.includes(needle) ? 1 : f.split(/[\s-]+/).some((w) => w.startsWith(needle)) ? 1 : -1; };
+    if (kind === 'ship') {
+      const ships = new Map<number, { ship: SkinLine['ships'][number]; n: number }>();
+      for (const l of lines) {
+        if (pickLine !== null && l.name !== pickLine) continue;
+        for (const s of l.ships) { const e = ships.get(s.id); if (e) e.n++; else ships.set(s.id, { ship: s, n: 1 }); }
+      }
+      return [...ships.values()].map((e) => ({ e, k: rank(e.ship.name) })).filter((x) => x.k >= 0)
+        .sort((a, b) => a.k - b.k || a.e.ship.name.localeCompare(b.e.ship.name)).slice(0, COMBO_LIMIT)
+        .map(({ e }) => ({ value: String(e.ship.id), html: `<img src="${typeIconUrl(e.ship.id, 32)}" alt="" loading="lazy" /><span>${esc(e.ship.name)}</span><small>${esc(e.ship.group)} · ${tx('{n} SKIN-uri', { n: e.n })}</small>` }));
+    }
+    return lines.filter((l) => pickShip === null || l.ships.some((s) => s.id === pickShip)).map((l) => ({ l, k: rank(l.name) })).filter((x) => x.k >= 0)
+      .sort((a, b) => a.k - b.k || a.l.name.localeCompare(b.l.name)).slice(0, COMBO_LIMIT)
+      .map(({ l }) => ({ value: l.name, html: `${swatch(l, 'xs')}<span>${esc(l.name)}</span><small>${tx('{n} nave', { n: l.ships.length })}</small>` }));
+  }
+
+  function placeCombo() {
+    if (!combo) return;
+    const r = combo.input.getBoundingClientRect();
+    const below = innerHeight - r.bottom - 8;
+    const up = below < 220 && r.top - 8 > below;
+    combo.menu.style.minWidth = `${Math.max(r.width, 280)}px`;
+    combo.menu.style.maxHeight = `${Math.min(380, Math.max(140, up ? r.top - 8 : below))}px`;
+    combo.menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - combo.menu.offsetWidth - 8))}px`;
+    if (up) { combo.menu.style.top = ''; combo.menu.style.bottom = `${innerHeight - r.top + 4}px`; } else { combo.menu.style.bottom = ''; combo.menu.style.top = `${r.bottom + 4}px`; }
+  }
+
+  function showCombo(input: HTMLInputElement) {
+    const kind = input.dataset.skinCombo as ComboKind;
+    if (!combo || combo.input !== input) {
+      closeCombo();
+      const menu = document.createElement('div');
+      menu.className = 'xsel-menu skin-combo-menu';
+      menu.setAttribute('role', 'listbox');
+      menu.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const o = (e.target as HTMLElement).closest<HTMLElement>('[data-i]');
+        if (o) chooseCombo(Number(o.dataset.i));
+      });
+      document.body.appendChild(menu);
+      combo = { input, kind, menu, items: [], active: 0 };
+    }
+    const typed = (kind === 'ship' ? (pickShip !== null ? shipName(pickShip) : '') : pickLine ?? '') === input.value ? '' : input.value;
+    combo.items = comboOptions(kind, typed);
+    combo.active = 0;
+    combo.menu.innerHTML = `<div class="xsel-list">${combo.items.length
+      ? combo.items.map((it, i) => `<div class="xsel-opt ${i === 0 ? 'active' : ''}" role="option" data-i="${i}">${it.html}</div>`).join('')
+      : `<div class="xsel-opt disabled"><span>${tx('Nicio potrivire')}</span></div>`}</div>`;
+    placeCombo();
+  }
+
+  function moveCombo(step: number) {
+    if (!combo || !combo.items.length) return;
+    combo.active = (combo.active + step + combo.items.length) % combo.items.length;
+    combo.menu.querySelectorAll('.xsel-opt.active').forEach((o) => o.classList.remove('active'));
+    const o = combo.menu.querySelector<HTMLElement>(`[data-i="${combo.active}"]`);
+    o?.classList.add('active');
+    o?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function chooseCombo(i: number) {
+    if (!combo) return;
+    const it = combo.items[i];
+    if (!it) return;
+    if (combo.kind === 'ship') pickShip = Number(it.value); else pickLine = it.value;
+    renderShop();
+  }
+
+  function closeCombo() {
+    if (!combo) return;
+    const { input, kind, menu } = combo;
+    combo = null;
+    menu.remove();
+    if (input.isConnected) input.value = kind === 'ship' ? (pickShip !== null ? shipName(pickShip) : '') : pickLine ?? '';
+  }
+
+  function onComboKey(e: KeyboardEvent) {
+    const input = (e.target as HTMLElement).closest<HTMLInputElement>('[data-skin-combo]');
+    if (!input) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!combo) showCombo(input); else moveCombo(e.key === 'ArrowDown' ? 1 : -1); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (combo) chooseCombo(combo.active); return; }
+    if (e.key === 'Escape') { e.preventDefault(); closeCombo(); input.blur(); }
   }
 
   function persist() {
@@ -287,11 +413,14 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const s = t.closest<HTMLElement>('[data-skin-sort]');
     if (s) { sort = s.dataset.skinSort as Sort; savePrefs(); render(); return; }
     if (t.closest('[data-skin-list]')) { openImport(); return; }
+    if (t.closest('[data-skin-sync]')) { sync(); return; }
     if (t.closest('[data-skin-close]')) { open = null; renderGrid(); return; }
     const m = t.closest<HTMLElement>('[data-skin-mode]');
-    if (m) { mode = m.dataset.skinMode as Mode; open = null; savePrefs(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
+    if (m) { mode = m.dataset.skinMode as Mode; open = null; closeCombo(); savePrefs(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
     const info = t.closest<HTMLElement>('[data-skin-info]');
     if (info) { showItemInfo(ctx, Number(info.dataset.skinInfo)); return; }
+    const cl = t.closest<HTMLElement>('[data-skin-clear]');
+    if (cl) { if (cl.dataset.skinClear === 'ship') pickShip = null; else pickLine = null; renderShop(); return; }
     const so = t.closest<HTMLElement>('[data-skin-order]');
     if (so) { shopOrder = so.dataset.skinOrder as ShopOrder; savePrefs(); renderShop(); return; }
     const cp = t.closest<HTMLElement>('[data-skin-copy]');
