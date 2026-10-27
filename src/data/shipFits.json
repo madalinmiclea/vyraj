@@ -711,11 +711,6 @@
    "eft": "[Erebus, Orha Duren's Erebus]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCentum A-Type Multispectrum Energized Membrane\nCentum A-Type Multispectrum Energized Membrane\nReactive Armor Hardener\nSyndicate Damage Control\n\n50000MN Y-T8 Compact Microwarpdrive\nCapital Capacitor Booster II\nFederation Navy Tracking Computer, Tracking Speed Script\nSentient Sensor Booster, Scan Resolution Script\nSentient Sensor Booster, Scan Resolution Script\nTracking Computer II, Tracking Speed Script\n\nBosonic Field Generator\nCynosural Field Generator I\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II",
    "source": "https://eveworkbench.com/fit/fc6bf8b2-b234-4d5e-a9be-08d69fd91672",
    "title": "Orha Duren's Erebus"
-  },
-  "pvp": {
-   "eft": "[Erebus, Orha Duren's Erebus]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCentum A-Type Multispectrum Energized Membrane\nCentum A-Type Multispectrum Energized Membrane\nReactive Armor Hardener\nSyndicate Damage Control\n\n50000MN Y-T8 Compact Microwarpdrive\nCapital Capacitor Booster II\nFederation Navy Tracking Computer, Tracking Speed Script\nSentient Sensor Booster, Scan Resolution Script\nSentient Sensor Booster, Scan Resolution Script\nTracking Computer II, Tracking Speed Script\n\nBosonic Field Generator\nCynosural Field Generator I\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\nTriple Neutron Blaster Cannon II, Shadow Antimatter Charge XL\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II",
-   "source": "https://eveworkbench.com/fit/fc6bf8b2-b234-4d5e-a9be-08d69fd91672",
-   "title": "Orha Duren's Erebus"
   }
  },
  "1944": {
@@ -940,9 +935,9 @@
    "title": "Winter Nexus 2025 scanner"
   },
   "pvp": {
-   "eft": "[Helios, Winter Nexus 2025 scanner]\nInertial Stabilizers II\nInertial Stabilizers II\nDamage Control II\n\n5MN Microwarpdrive II\nData Analyzer II\nScan Rangefinding Array II\nScan Rangefinding Array II\nScan Acquisition Array II\n\nCovert Ops Cloaking Device II\nCore Probe Launcher II\n\nSmall Gravity Capacitor Upgrade II\nSmall Low Friction Nozzle Joints II\n\n\nHornet EC-300 x1\n\n\nSisters Core Scanner Probe x16",
-   "source": "https://eveworkbench.com/fit/0f25f2db-9f29-4ab6-ae02-6caff8092027",
-   "title": "Winter Nexus 2025 scanner"
+   "eft": "[Helios,  Winter Nexus]\nInertial Stabilizers II\nInertial Stabilizers II\nWarp Core Stabilizer I\n\nData Analyzer II\nPL-0 Scoped Cargo Scanner\n1MN Y-S8 Compact Afterburner\nSmall Shield Extender II\nScan Rangefinding Array II\n\nSisters Core Probe Launcher\nCovert Ops Cloaking Device II\nInterdiction Nullifier II\n\nSmall Low Friction Nozzle Joints II\nSmall EM Shield Reinforcer II\n\n\nHornet EC-300 x1\n\n\nSisters Core Scanner Probe x16",
+   "source": "https://eveworkbench.com/fit/5044ad0a-db78-492d-6919-08dbf84daea3",
+   "title": "Winter Nexus"
   }
  },
  "11174": {
@@ -1139,9 +1134,9 @@
  },
  "11377": {
   "pve": {
-   "eft": "[Nemesis, Standard Stealth Bomber]\nBallistic Control System II\nBallistic Control System II\n\n1MN Afterburner II\nSmall F-S9 Regolith Compact Shield Extender\nWarp Disruptor II\nSmall F-S9 Regolith Compact Shield Extender\n\nTorpedo Launcher II\nTorpedo Launcher II\nCovert Ops Cloaking Device II\nTorpedo Launcher II\n\nSmall Processor Overclocking Unit I\nSmall Polycarbon Engine Housing II\n\n\nInferno Rage Torpedo x1120\nCaldari Navy Inferno Torpedo x374",
-   "source": "https://eveworkbench.com/fit/fe78a9ef-5d44-4df3-6594-08da19330e40",
-   "title": "Standard Stealth Bomber"
+   "eft": "[Nemesis, ~BB~ Habakuk Newbro Nemisis]\nBallistic Control System II\nMicro Auxiliary Power Core II\n\nPhased Scoped Target Painter\nMultispectrum Shield Hardener II\nMedium Azeotropic Restrained Shield Extender\n1MN Monopropellant Enduring Afterburner\n\nPrototype 'Arbalest' Torpedo Launcher\nPrototype 'Arbalest' Torpedo Launcher\nPrototype 'Arbalest' Torpedo Launcher\nCovert Ops Cloaking Device II\n\nSmall Warhead Calefaction Catalyst I\nSmall EM Shield Reinforcer II\n\n\nNanite Repair Paste x50\nCaldari Navy Inferno Torpedo x716",
+   "source": "https://eveworkbench.com/fit/1f6dbed4-8e09-45f5-b386-08d87bba2441",
+   "title": "~BB~ Habakuk Newbro Nemisis"
   },
   "pvp": {
    "eft": "[Nemesis, Standard Stealth Bomber]\nBallistic Control System II\nBallistic Control System II\n\n1MN Afterburner II\nSmall F-S9 Regolith Compact Shield Extender\nWarp Disruptor II\nSmall F-S9 Regolith Compact Shield Extender\n\nTorpedo Launcher II\nTorpedo Launcher II\nCovert Ops Cloaking Device II\nTorpedo Launcher II\n\nSmall Processor Overclocking Unit I\nSmall Polycarbon Engine Housing II\n\n\nInferno Rage Torpedo x1120\nCaldari Navy Inferno Torpedo x374",
@@ -1216,9 +1211,9 @@
    "title": "Pulse"
   },
   "pvp": {
-   "eft": "[Avatar, Pulse]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCentum A-Type Multispectrum Energized Membrane\nCentum A-Type Multispectrum Energized Membrane\nCorpum A-Type Explosive Energized Membrane\nCorpum A-Type Kinetic Energized Membrane\nCorpum A-Type Thermal Energized Membrane\nSyndicate Damage Control\n\n10000MN Monopropellant Enduring Afterburner\nShadow Serpentis Sensor Booster, Scan Resolution Script\nShadow Serpentis Tracking Computer, Tracking Speed Script\nShadow Serpentis Tracking Computer, Tracking Speed Script\nCapital Capacitor Booster II, Navy Cap Booster 3200\n\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nDual Giga Pulse Laser II, Sanshas Multifrequency XL\nImperial Navy Large EMP Smartbomb\n'Judgment' Electromagnetic Doomsday\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II",
-   "source": "https://eveworkbench.com/fit/1197abff-fd2e-437d-940d-08d7a5bfb70f",
-   "title": "Pulse"
+   "eft": "[Avatar, Beam]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nSyndicate Damage Control\nCorpum A-Type Multispectrum Energized Membrane\nCorpus X-Type EM Armor Hardener\nCorpus X-Type Explosive Armor Hardener\nCorpus X-Type Kinetic Armor Hardener\nCorpus X-Type Thermal Armor Hardener\n\n10000MN Monopropellant Enduring Afterburner\nShadow Serpentis Sensor Booster, Scan Resolution Script\nShadow Serpentis Tracking Computer, Tracking Speed Script\nFederation Navy Tracking Computer, Tracking Speed Script\nCapital F-RX Compact Capacitor Booster, Navy Cap Booster 3200\n\nDual Giga Beam Laser II, Sanshas Multifrequency XL\nDual Giga Beam Laser II, Sanshas Multifrequency XL\nDual Giga Beam Laser II, Sanshas Multifrequency XL\nDual Giga Beam Laser II, Sanshas Multifrequency XL\nDual Giga Beam Laser II, Sanshas Multifrequency XL\nDual Giga Beam Laser II, Sanshas Multifrequency XL\n'Judgment' Electromagnetic Doomsday\nHeavy Gremlin Compact Energy Neutralizer\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II",
+   "source": "https://eveworkbench.com/fit/baa5dfb5-fd0a-46eb-940c-08d7a5bfb70f",
+   "title": "Beam"
   }
  },
  "11936": {
@@ -1422,9 +1417,9 @@
  },
  "12003": {
   "pve": {
-   "eft": "[Zealot,  F.A.R.T. Heavy Amour - (Zealot)]\nHeat Sink II\n1600mm Crystalline Carbonide Restrained Plates\nCoreli A-Type EM Coating\nCorpum C-Type Thermal Energized Membrane\nMultispectrum Energized Membrane II\nHeat Sink II\nAssault Damage Control II\n\n50MN Quad LiF Restrained Microwarpdrive\nWarp Disruptor II\nMedium F-RX Compact Capacitor Booster\n\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\n\nMedium Trimark Armor Pump I\nMedium Trimark Armor Pump I\n\n\nValkyrie II x5\n\n\nNavy Cap Booster 800 x17\nImperial Navy Multifrequency M x5\nAurora M x5\nImperial Navy Standard M x5\nGleam M x5\nNanite Repair Paste x50",
-   "source": "https://eveworkbench.com/fit/f21dd38c-063e-40eb-780c-08db46767d62",
-   "title": "F.A.R.T. Heavy Amour - (Zealot)"
+   "eft": "[Zealot,  nanoish]\nCorelum A-Type Medium Armor Repairer\nImperial Navy Heat Sink\nHeat Sink II\nNanofiber Internal Structure II\nAssault Damage Control II\nImperial Navy Multispectrum Energized Membrane\nImperial Navy Multispectrum Energized Membrane\n\nShadow Serpentis 50MN Microwarpdrive\nMedium Capacitor Booster II, Navy Cap Booster 400\nRepublic Fleet Warp Disruptor\n\nHeavy Pulse Laser II, Scorch M\nHeavy Pulse Laser II, Scorch M\nHeavy Pulse Laser II, Scorch M\nHeavy Pulse Laser II, Scorch M\nHeavy Pulse Laser II, Scorch M\n\nMedium Energy Locus Coordinator II\nMedium Polycarbon Engine Housing II\n\n\nAcolyte II x5\nHornet EC-300 x5\n\n\nInherent Implants 'Noble' Repair Systems RS-604\nEifyr and Co. 'Rogue' Evasive Maneuvering EM-705\nInherent Implants 'Lancer' Medium Energy Turret ME-804\nInherent Implants 'Noble' Repair Proficiency RP-904\n\nStandard Exile Booster\nAgency 'Hardshell' TB7 Dose III\n\n\nConflagration M x10\nScorch M x10\nNavy Cap Booster 400 x30\nImperial Navy Multifrequency M x10\nNanite Repair Paste x200",
+   "source": "https://eveworkbench.com/fit/9d66df47-156d-4c32-2b46-08d9b763938c",
+   "title": "nanoish"
   },
   "pvp": {
    "eft": "[Zealot,  F.A.R.T. Heavy Amour - (Zealot)]\nHeat Sink II\n1600mm Crystalline Carbonide Restrained Plates\nCoreli A-Type EM Coating\nCorpum C-Type Thermal Energized Membrane\nMultispectrum Energized Membrane II\nHeat Sink II\nAssault Damage Control II\n\n50MN Quad LiF Restrained Microwarpdrive\nWarp Disruptor II\nMedium F-RX Compact Capacitor Booster\n\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\nFocused Medium Beam Laser II\n\nMedium Trimark Armor Pump I\nMedium Trimark Armor Pump I\n\n\nValkyrie II x5\n\n\nNavy Cap Booster 800 x17\nImperial Navy Multifrequency M x5\nAurora M x5\nImperial Navy Standard M x5\nGleam M x5\nNanite Repair Paste x50",
@@ -1607,9 +1602,9 @@
    "title": "Video Budget Bustard"
   },
   "pvp": {
-   "eft": "[Bustard, Video Budget Bustard]\nDamage Control II\nPower Diagnostic System II\nMark I Compact Power Diagnostic System\n\nEM Shield Hardener II\nMultispectrum Shield Hardener II\n50MN Y-T8 Compact Microwarpdrive\nCompact Explosive Shield Hardener\nLarge F-S9 Regolith Compact Shield Extender\nEM Shield Hardener II\n\nImproved Cloaking Device II\n\nMedium Core Defense Field Extender II\nMedium Core Defense Field Extender II",
-   "source": "https://eveworkbench.com/fit/d7bf457f-416e-47d5-a7d5-e1c18822dff0",
-   "title": "Video Budget Bustard"
+   "eft": "[Bustard, Brick 1.0]\nDamage Control II\nInertial Stabilizers II\nWarp Core Stabilizer II\n\nCaldari Navy Medium Shield Extender\nMultispectrum Shield Hardener II\nCaldari Navy Medium Shield Extender\nCompact Multispectrum Shield Hardener\nDread Guristas EM Shield Hardener\n50MN Y-T8 Compact Microwarpdrive\n\nImproved Cloaking Device II\nCompact Interdiction Nullifier\n\nMedium Core Defense Field Extender II\nMedium Core Defense Field Extender II",
+   "source": "https://eveworkbench.com/fit/3d53972b-6914-49fa-b213-e1e02d198777",
+   "title": "Brick 1.0"
   }
  },
  "12733": {
@@ -1619,9 +1614,9 @@
    "title": "HS/LS Prorator"
   },
   "pvp": {
-   "eft": "[Prorator,  HS/LS Prorator]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II\n\nEM Shield Amplifier II\nLarge Shield Extender II\n\nCovert Ops Cloaking Device II\n\nMedium Cargohold Optimization II\nMedium Cargohold Optimization II\n\n\n'Accord' Core Compensation x1\nInertial Stabilizers II x4",
-   "source": "https://eveworkbench.com/fit/ffdbfc61-2b12-4333-28a8-08d9464eb95e",
-   "title": "HS/LS Prorator"
+   "eft": "[Prorator,  Null Prorator]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II\n\n5MN Microwarpdrive II\nLarge Shield Extender II\n\nCovert Ops Cloaking Device II\nInterdiction Nullifier I\n\nMedium Cargohold Optimization II\nMedium Cargohold Optimization II\n\n\n'Accord' Core Compensation x1\nInertial Stabilizers II x4",
+   "source": "https://eveworkbench.com/fit/c36259bb-84b8-496b-28ac-08d9464eb95e",
+   "title": "Null Prorator"
   }
  },
  "12735": {
@@ -1655,9 +1650,9 @@
    "title": "Hi-Sec Transport fit"
   },
   "pvp": {
-   "eft": "[Occator, Hi-Sec Transport fit]\nCorpus X-Type Thermal Armor Hardener\nCorpus X-Type EM Armor Hardener\nCorpus X-Type EM Armor Hardener\nCorpus X-Type Explosive Armor Hardener\nCorpus X-Type Explosive Armor Hardener\nCorpus X-Type Kinetic Armor Hardener\n\n10MN Afterburner II\nSmall Capacitor Booster II\nMedium Micro Jump Drive\n\n125mm Prototype Gauss Gun\nCaldari Navy Cloaking Device\n\nMedium Trimark Armor Pump II\nMedium Trimark Armor Pump II\n\n\nNavy Cap Booster 400 x1\nCaldari Navy Iron Charge S x80",
-   "source": "https://eveworkbench.com/fit/9203b4fc-fa5a-454d-f099-08da86e855f8",
-   "title": "Hi-Sec Transport fit"
+   "eft": "[Occator,  Occator Tank Fit (80 EHP)]\nWarp Core Stabilizer II\nDamage Control II\nExplosive Armor Hardener II\n800mm Rolled Tungsten Compact Plates\nMultispectrum Coating II\nReactive Armor Hardener\n\n50MN Cold-Gas Enduring Microwarpdrive\nEutectic Compact Cap Recharger\nTrue Sansha Cap Recharger\n\nImproved Cloaking Device II\nInterdiction Nullifier II\n\nMedium Trimark Armor Pump II\nMedium Trimark Armor Pump II",
+   "source": "https://eveworkbench.com/fit/19b0e4aa-d764-4e51-49cd-08dacd9da65a",
+   "title": "Occator Tank Fit (80 EHP)"
   }
  },
  "12747": {
@@ -1811,9 +1806,9 @@
    "title": "Ice Retriever"
   },
   "pvp": {
-   "eft": "[Retriever,  Ice Retriever]\nIce Harvester Upgrade II\nIce Harvester Upgrade II\nIFFA Compact Damage Control\n\nMedium Shield Extender II\nCompact Multispectrum Shield Hardener\n\nIce Harvester II\nIce Harvester II\n\nMedium EM Shield Reinforcer II\nMedium Core Defense Field Extender II\nMedium Core Defense Field Extender II\n\n\nVespa II x5",
-   "source": "https://eveworkbench.com/fit/ab54152d-568a-4a3f-f128-08d9fa31231d",
-   "title": "Ice Retriever"
+   "eft": "[Retriever,  Gas Retriever]\nPower Diagnostic System II\nShield Power Relay II\nIFFA Compact Damage Control\n\nMedium Shield Extender II\nCompact Multispectrum Shield Hardener\n\nGas Cloud Harvester II\nGas Cloud Harvester II\n\nMedium EM Shield Reinforcer II\nMedium Core Defense Field Extender II\nMedium Core Defense Field Extender II\n\n\nSalvage Drone II x2\nVespa II x4",
+   "source": "https://eveworkbench.com/fit/7f4caed7-01b8-4425-f125-08d9fa31231d",
+   "title": "Gas Retriever"
   }
  },
  "17480": {
@@ -2217,11 +2212,6 @@
    "eft": "[Providence, Providence refit]\nReinforced Bulkheads II\nReinforced Bulkheads II\nReinforced Bulkheads II",
    "source": "https://eveworkbench.com/fit/50a96d11-6700-4958-0308-08dbaba5276e",
    "title": "Providence refit"
-  },
-  "pvp": {
-   "eft": "[Providence, Providence refit]\nReinforced Bulkheads II\nReinforced Bulkheads II\nReinforced Bulkheads II",
-   "source": "https://eveworkbench.com/fit/50a96d11-6700-4958-0308-08dbaba5276e",
-   "title": "Providence refit"
   }
  },
  "20185": {
@@ -2231,9 +2221,9 @@
    "title": "Charon Fitting, Caldari Barge"
   },
   "pvp": {
-   "eft": "[Charon, Charon Cargo]\nReinforced Bulkheads II\nReinforced Bulkheads II\nReinforced Bulkheads II",
-   "source": "https://eveworkbench.com/fit/7b3b59d9-8277-4eb7-2001-08d7fd9b40f2",
-   "title": "Charon Cargo"
+   "eft": "[Charon,  MHS Aloona]\nORE Expanded Cargohold\nORE Expanded Cargohold\nORE Expanded Cargohold",
+   "source": "https://eveworkbench.com/fit/324abbe6-c962-42c2-56a4-08d89c75bccd",
+   "title": "MHS Aloona"
   }
  },
  "20187": {
@@ -2243,9 +2233,9 @@
    "title": "Flying Brick"
   },
   "pvp": {
-   "eft": "[Obelisk, Flying Brick]\nReinforced Bulkheads II\nReinforced Bulkheads II\nReinforced Bulkheads II\n\n\nInherent Implants 'Noble' Hull Upgrades HG-1003 x1",
-   "source": "https://eveworkbench.com/fit/3e3a25ac-eb32-46fa-6196-08debd31d056",
-   "title": "Flying Brick"
+   "eft": "[Obelisk, Cargo Obelisk]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II",
+   "source": "https://eveworkbench.com/fit/30fca230-1be6-4ce1-b1f5-49b49388708c",
+   "title": "Cargo Obelisk"
   }
  },
  "20189": {
@@ -2253,11 +2243,6 @@
    "eft": "[Fenrir, Reduced Alignment]\nShadow Serpentis Inertial Stabilizers\nShadow Serpentis Inertial Stabilizers\nShadow Serpentis Inertial Stabilizers\n\n\nType-D Restrained Expanded Cargo x1",
    "source": "https://eveworkbench.com/fit/3143d534-a1ea-4a13-b073-08d7e7c91bab",
    "title": "Reduced Alignment"
-  },
-  "pvp": {
-   "eft": "[Fenrir, Fenrir - Ausrichtezeit (+Imps)]\nInertial Stabilizers II\nInertial Stabilizers II\nInertial Stabilizers II\n\n\nMid-grade Nomad Alpha\nMid-grade Nomad Beta\nMid-grade Nomad Gamma\nMid-grade Nomad Delta\nMid-grade Nomad Epsilon\nMid-grade Nomad Omega\nEifyr and Co. 'Rogue' Evasive Maneuvering EM-706\nInherent Implants 'Noble' Mechanic MC-806\nInherent Implants 'Noble' Hull Upgrades HG-1006\n\n\nExpanded Cargohold II x3\nReinforced Bulkheads II x3",
-   "source": "https://eveworkbench.com/fit/e988318b-35c4-4d4d-7660-08dcc15f0bdf",
-   "title": "Fenrir - Ausrichtezeit (+Imps)"
   }
  },
  "22428": {
@@ -2328,11 +2313,6 @@
   }
  },
  "22448": {
-  "pve": {
-   "eft": "[Absolution, Absolution]\nImperial Navy Heat Sink\nMultispectrum Energized Membrane II\nDamage Control II\nCorpum C-Type Medium Armor Repairer\nCorpum C-Type Multispectrum Energized Membrane\nCorpum C-Type EM Energized Membrane\n1600mm Rolled Tungsten Compact Plates\n\nMedium Capacitor Booster II\n50MN Cold-Gas Enduring Microwarpdrive\nWarp Scrambler II\n\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\n\nMedium Ancillary Current Router I\nMedium Nanobot Accelerator I\n\n\nHobgoblin II x5\n\n\nScorch M x6\nImperial Navy Multifrequency M x6\nNanite Repair Paste x100\nNavy Cap Booster 800 x14",
-   "source": "https://eveworkbench.com/fit/b4467324-2988-4363-4218-08d715ee4468",
-   "title": "Absolution"
-  },
   "pvp": {
    "eft": "[Absolution, Absolution]\nImperial Navy Heat Sink\nMultispectrum Energized Membrane II\nDamage Control II\nCorpum C-Type Medium Armor Repairer\nCorpum C-Type Multispectrum Energized Membrane\nCorpum C-Type EM Energized Membrane\n1600mm Rolled Tungsten Compact Plates\n\nMedium Capacitor Booster II\n50MN Cold-Gas Enduring Microwarpdrive\nWarp Scrambler II\n\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\n\nMedium Ancillary Current Router I\nMedium Nanobot Accelerator I\n\n\nHobgoblin II x5\n\n\nScorch M x6\nImperial Navy Multifrequency M x6\nNanite Repair Paste x100\nNavy Cap Booster 800 x14",
    "source": "https://eveworkbench.com/fit/b4467324-2988-4363-4218-08d715ee4468",
@@ -2425,9 +2405,9 @@
  },
  "22474": {
   "pve": {
-   "eft": "[Damnation,  HA Damnation]\nDamage Control II\nBallistic Control System II\nBallistic Control System II\nImperial Navy 1600mm Steel Plates\nImperial Navy Multispectrum Energized Membrane\nCoreli A-Type Multispectrum Coating\n\n50MN Quad LiF Restrained Microwarpdrive\nStasis Webifier II\nWarp Scrambler II\nTarget Painter II\n\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\n\nMedium Trimark Armor Pump II\nMedium Trimark Armor Pump II\n\n\nVespa EC-600 x5\nFederation Navy Hammerhead x5\n\n\nLow-grade Amulet Omega\nMid-grade Amulet Alpha\nMid-grade Amulet Beta\nMid-grade Amulet Delta\nMid-grade Amulet Epsilon\nMid-grade Amulet Gamma\n\nAgency 'Pyrolancea' DB7 Dose III\n\n\nECCM Script x2\nInferno Rage Heavy Assault Missile x2500\nNova Rage Heavy Assault Missile x2500\nCaldari Navy Nova Heavy Assault Missile x2500\nMjolnir Rage Heavy Assault Missile x2500\nCaldari Navy Inferno Heavy Assault Missile x2500\nArmor Energizing Charge x300\nTargeting Range Script x3\nMissile Range Script x2\nScan Resolution Script x3\nCaldari Navy Scourge Heavy Assault Missile x2500\nArmor Reinforcement Charge x300\nScourge Rage Heavy Assault Missile x2830\nCaldari Navy Mjolnir Heavy Assault Missile x2500\nNanite Repair Paste x350\nMissile Precision Script x2\nSensor Booster II x1\nArmor Command Burst II x2\nMagnetometric ECM II x2\nBurst Jammer II x1\nGravimetric ECM II x2\nRemote Sensor Booster II x2\nMissile Guidance Computer II x2\nRadar ECM II x2\nRemote Sensor Dampener II x1\n10MN Monopropellant Enduring Afterburner x1\nMedium Knave Scoped Energy Nosferatu x2\nLadar ECM II x2",
-   "source": "https://eveworkbench.com/fit/91ff81bb-3954-4752-234b-08dac5a8abaa",
-   "title": "HA Damnation"
+   "eft": "[Damnation, Heavy Missiles MJD]\nBallistic Control System II\nBallistic Control System II\nImperial Navy 1600mm Steel Plates\nMultispectrum Energized Membrane II\nDamage Control II\nCentum C-Type Medium Armor Repairer\n\n10MN Y-S8 Compact Afterburner\nRepublic Fleet Medium Cap Battery\nMissile Guidance Computer II\nMedium Micro Jump Drive\n\nHeavy Missile Launcher II\nHeavy Missile Launcher II\nHeavy Missile Launcher II\nHeavy Missile Launcher II\nHeavy Missile Launcher II\nArmor Command Burst II\nSmall Tractor Beam II\n\nMedium Thermal Armor Reinforcer II\nMedium EM Armor Reinforcer II\n\n\nCaldari Navy Hornet x5\nFederation Navy Hobgoblin x5\nVespa II x5\n\n\nScourge Precision Heavy Missile x2655\nInferno Precision Heavy Missile x2000\nScourge Fury Heavy Missile x3097\nMissile Range Script x1\nArmor Energizing Charge x875\nRapid Repair Charge x900\nArmor Reinforcement Charge x900\nMissile Precision Script x1\nMjolnir Precision Heavy Missile x2025\nNanite Repair Paste x120\nMjolnir Fury Heavy Missile x2465\nInferno Fury Heavy Missile x4350",
+   "source": "https://eveworkbench.com/fit/4a2bbc09-cc61-4cdb-b146-559dd67ae4b2",
+   "title": "Heavy Missiles MJD"
   },
   "pvp": {
    "eft": "[Damnation,  HA Damnation]\nDamage Control II\nBallistic Control System II\nBallistic Control System II\nImperial Navy 1600mm Steel Plates\nImperial Navy Multispectrum Energized Membrane\nCoreli A-Type Multispectrum Coating\n\n50MN Quad LiF Restrained Microwarpdrive\nStasis Webifier II\nWarp Scrambler II\nTarget Painter II\n\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nHeavy Assault Missile Launcher II\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\n\nMedium Trimark Armor Pump II\nMedium Trimark Armor Pump II\n\n\nVespa EC-600 x5\nFederation Navy Hammerhead x5\n\n\nLow-grade Amulet Omega\nMid-grade Amulet Alpha\nMid-grade Amulet Beta\nMid-grade Amulet Delta\nMid-grade Amulet Epsilon\nMid-grade Amulet Gamma\n\nAgency 'Pyrolancea' DB7 Dose III\n\n\nECCM Script x2\nInferno Rage Heavy Assault Missile x2500\nNova Rage Heavy Assault Missile x2500\nCaldari Navy Nova Heavy Assault Missile x2500\nMjolnir Rage Heavy Assault Missile x2500\nCaldari Navy Inferno Heavy Assault Missile x2500\nArmor Energizing Charge x300\nTargeting Range Script x3\nMissile Range Script x2\nScan Resolution Script x3\nCaldari Navy Scourge Heavy Assault Missile x2500\nArmor Reinforcement Charge x300\nScourge Rage Heavy Assault Missile x2830\nCaldari Navy Mjolnir Heavy Assault Missile x2500\nNanite Repair Paste x350\nMissile Precision Script x2\nSensor Booster II x1\nArmor Command Burst II x2\nMagnetometric ECM II x2\nBurst Jammer II x1\nGravimetric ECM II x2\nRemote Sensor Booster II x2\nMissile Guidance Computer II x2\nRadar ECM II x2\nRemote Sensor Dampener II x1\n10MN Monopropellant Enduring Afterburner x1\nMedium Knave Scoped Energy Nosferatu x2\nLadar ECM II x2",
@@ -2488,11 +2468,6 @@
    "eft": "[Ragnarok, Ragnarok passing ray k space fit  2020/11]\nSyndicate Damage Control\nRepublic Fleet Tracking Enhancer\nRepublic Fleet Tracking Enhancer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\n\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPith X-Type EM Shield Hardener\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nCapital Capacitor Booster II\n\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\n'Gjallarhorn' Explosive Doomsday\nImperial Navy Large EMP Smartbomb\n\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\n\n\nArch Angel Depleted Uranium XL x12\nNavy Cap Booster 3200 x2",
    "source": "https://eveworkbench.com/fit/d6ef7742-99f9-47d6-43a2-08d8b6f5b9d9",
    "title": "Ragnarok passing ray k space fit  2020/11"
-  },
-  "pvp": {
-   "eft": "[Ragnarok, Ragnarok passing ray k space fit  2020/11]\nSyndicate Damage Control\nRepublic Fleet Tracking Enhancer\nRepublic Fleet Tracking Enhancer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\n\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPith X-Type EM Shield Hardener\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nCapital Capacitor Booster II\n\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\nQuad 3500mm Siege Artillery II\n'Gjallarhorn' Explosive Doomsday\nImperial Navy Large EMP Smartbomb\n\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\n\n\nArch Angel Depleted Uranium XL x12\nNavy Cap Booster 3200 x2",
-   "source": "https://eveworkbench.com/fit/d6ef7742-99f9-47d6-43a2-08d8b6f5b9d9",
-   "title": "Ragnarok passing ray k space fit  2020/11"
   }
  },
  "23911": {
@@ -2514,20 +2489,10 @@
    "eft": "[Chimera,  Chimera]\nDamage Control II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\n\nCapital Capacitor Booster I\nCapital Shield Extender II\nCapital Shield Extender II\nDrone Navigation Computer II\nEM Shield Hardener II\nMultispectrum Shield Hardener II\nThermal Shield Hardener II\n\nCynosural Field Generator I\nFighter Support Unit I\nFighter Support Unit I\nFighter Support Unit I\nNetworked Sensor Array\n\nCapital Core Defense Field Extender I\nCapital Core Defense Field Extender I\nCapital Core Defense Field Extender I",
    "source": "https://eveworkbench.com/fit/eadd0eb8-00d5-42e7-20a2-08dac5a8abaa",
    "title": "Chimera"
-  },
-  "pvp": {
-   "eft": "[Chimera,  Chimera]\nDamage Control II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\n\nCapital Capacitor Booster I\nCapital Shield Extender II\nCapital Shield Extender II\nDrone Navigation Computer II\nEM Shield Hardener II\nMultispectrum Shield Hardener II\nThermal Shield Hardener II\n\nCynosural Field Generator I\nFighter Support Unit I\nFighter Support Unit I\nFighter Support Unit I\nNetworked Sensor Array\n\nCapital Core Defense Field Extender I\nCapital Core Defense Field Extender I\nCapital Core Defense Field Extender I",
-   "source": "https://eveworkbench.com/fit/eadd0eb8-00d5-42e7-20a2-08dac5a8abaa",
-   "title": "Chimera"
   }
  },
  "23917": {
   "pve": {
-   "eft": "[Wyvern,  Vogan Hussain's Wyvern]\nDread Guristas Omnidirectional Tracking Enhancer\nSyndicate Damage Control\nImperial Navy Drone Damage Amplifier\nImperial Navy Drone Damage Amplifier\n\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nPith X-Type EM Shield Hardener\nPith X-Type Thermal Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nTrue Sansha Capital Capacitor Booster\n\nTrue Sansha Large EMP Smartbomb\nFederation Navy Large Plasma Smartbomb\nSentient Fighter Support Unit\nSentient Fighter Support Unit\nSentient Fighter Support Unit\nNetworked Sensor Array\n\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\n\n\nSynth Crash Booster\nMaster-at-Arms Cerebral Accelerator\nSynth Frentix Booster\nAntipharmakon Thureo\nAntipharmakon Toxot\nAgency 'Hardshell' TB9 Dose IV\nNanoheuristic Clone Mapper\n\n\nNavy Cap Booster 3200 x18\nAmetat I x7\nTermite I x14\nDragonfly I x19\nFirbolg I x19\nScarab I x9\nCenobite I x9",
-   "source": "https://eveworkbench.com/fit/dd82bf55-458d-49f8-3c75-08d9cfd3169a",
-   "title": "Vogan Hussain's Wyvern"
-  },
-  "pvp": {
    "eft": "[Wyvern,  Vogan Hussain's Wyvern]\nDread Guristas Omnidirectional Tracking Enhancer\nSyndicate Damage Control\nImperial Navy Drone Damage Amplifier\nImperial Navy Drone Damage Amplifier\n\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nCONCORD Capital Shield Extender\nPith X-Type EM Shield Hardener\nPith X-Type Thermal Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nPithum A-Type Multispectrum Shield Hardener\nTrue Sansha Capital Capacitor Booster\n\nTrue Sansha Large EMP Smartbomb\nFederation Navy Large Plasma Smartbomb\nSentient Fighter Support Unit\nSentient Fighter Support Unit\nSentient Fighter Support Unit\nNetworked Sensor Array\n\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\nCapital Core Defense Field Extender II\n\n\nSynth Crash Booster\nMaster-at-Arms Cerebral Accelerator\nSynth Frentix Booster\nAntipharmakon Thureo\nAntipharmakon Toxot\nAgency 'Hardshell' TB9 Dose IV\nNanoheuristic Clone Mapper\n\n\nNavy Cap Booster 3200 x18\nAmetat I x7\nTermite I x14\nDragonfly I x19\nFirbolg I x19\nScarab I x9\nCenobite I x9",
    "source": "https://eveworkbench.com/fit/dd82bf55-458d-49f8-3c75-08d9cfd3169a",
    "title": "Vogan Hussain's Wyvern"
@@ -2679,16 +2644,16 @@
    "title": "*Simulated Rorqual"
   },
   "pvp": {
-   "eft": "[Rorqual, *Simulated Rorqual]\nDamage Control II\nPower Diagnostic System II\nPower Diagnostic System II\nPower Diagnostic System II\n\nPithum C-Type Multispectrum Shield Hardener\nPithum C-Type Multispectrum Shield Hardener\nCONCORD Capital Shield Booster\nCapital Capacitor Booster II\nCapital Capacitor Booster II\nDrone Navigation Computer II\nDrone Navigation Computer II\n\nCapital Industrial Core II\nCynosural Field Generator I\nCapital Remote Shield Booster I\nPulse Activated Nexus Invulnerability Core\nDark Blood Heavy Energy Neutralizer\nImperial Navy Large EMP Smartbomb\nDrone Link Augmentor I\nShield Command Burst II\n\nCapital Drone Mining Augmentor I\nCapital Drone Mining Augmentor II\nCapital Drone Mining Augmentor II\n\n\nPraetor I x10\nCurator I x5\nFederation Navy Hammerhead x5\nRepublic Fleet Warrior x10\n'Excavator' Mining Drone x7\n\n\nNavy Cap Booster 3200 x199\nShield Harmonizing Charge x1",
-   "source": "https://eveworkbench.com/fit/24fa65ea-557d-4925-3541-08d84157b738",
-   "title": "*Simulated Rorqual"
+   "eft": "[Rorqual,  Mascot]\nShadow Serpentis Inertial Stabilizers\nShadow Serpentis Inertial Stabilizers\nShadow Serpentis Inertial Stabilizers\nShadow Serpentis Inertial Stabilizers\n\nCapital Shield Extender II\nCapital Shield Extender II\nCapital Shield Extender II\nCapital Shield Extender II\nEM Shield Hardener II\nThermal Shield Hardener II\nMultispectrum Shield Hardener II\n\nFestival Launcher\nFestival Launcher\nFestival Launcher\nFestival Launcher\nFestival Launcher\nFestival Launcher\nFestival Launcher\nFestival Launcher\n\nCapital Low Friction Nozzle Joints II\nCapital Low Friction Nozzle Joints II\nCapital Low Friction Nozzle Joints II",
+   "source": "https://eveworkbench.com/fit/c99ae80c-4acf-4fcc-40b7-08d88b900943",
+   "title": "Mascot"
   }
  },
  "28606": {
   "pve": {
-   "eft": "[Orca,  Battle Orca]\nDamage Control II\nReinforced Bulkheads II\n\nStasis Webifier II\nMedium F-RX Compact Capacitor Booster\nWarp Scrambler II\nMedium F-RX Compact Capacitor Booster\nStasis Webifier II\n\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\n\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\n\n\nAcolyte II x5\nHammerhead II x5\nHobgoblin II x5\nHornet EC-300 x5\nVespa II x5\nWarrior II x5\n\n\nNavy Cap Booster 800 x200",
-   "source": "https://eveworkbench.com/fit/7be3ff6c-3965-4628-6f04-08db46767d62",
-   "title": "Battle Orca"
+   "eft": "[Orca, Orca]\nDamage Control II\nReinforced Bulkheads II\n\nStasis Webifier II\nStasis Webifier II\nWarp Scrambler II\nWarp Disruptor II\nMedium Capacitor Booster II\n\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\nMedium Infectious Scoped Energy Neutralizer\n\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\n\n\nHammerhead II x10\nWarrior II x10\nVespa EC-600 x5\n\n\nNavy Cap Booster 800 x1",
+   "source": "https://eveworkbench.com/fit/9617bb8a-27f8-4a37-b81c-08d6c4709780",
+   "title": "Orca"
   },
   "pvp": {
    "eft": "[Orca,  Battle Orca]\nDamage Control II\nReinforced Bulkheads II\n\nStasis Webifier II\nMedium F-RX Compact Capacitor Booster\nWarp Scrambler II\nMedium F-RX Compact Capacitor Booster\nStasis Webifier II\n\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\nMedium Energy Neutralizer II\n\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\nLarge Transverse Bulkhead II\n\n\nAcolyte II x5\nHammerhead II x5\nHobgoblin II x5\nHornet EC-300 x5\nVespa II x5\nWarrior II x5\n\n\nNavy Cap Booster 800 x200",
@@ -2751,18 +2716,13 @@
    "title": "Rhea"
   },
   "pvp": {
-   "eft": "[Rhea, Rhea]\nReinforced Bulkheads II\nReinforced Bulkheads II\nReinforced Bulkheads II",
-   "source": "https://eveworkbench.com/fit/e41589cb-c459-4a04-0ceb-08de2ada5af0",
-   "title": "Rhea"
+   "eft": "[Rhea, Cargo Rhea]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II",
+   "source": "https://eveworkbench.com/fit/1e8963c0-9542-4855-8f98-08d972369c18",
+   "title": "Cargo Rhea"
   }
  },
  "28846": {
   "pve": {
-   "eft": "[Nomad, Economy Align Cargo JF]\nExperimental Jump Drive Economizer\nExperimental Jump Drive Economizer\nExperimental Jump Drive Economizer\n\n\nORE Expanded Cargohold x3\nShadow Serpentis Inertial Stabilizers x3",
-   "source": "https://eveworkbench.com/fit/835086a0-b81b-48b1-f85c-08d6a95f7e76",
-   "title": "Economy Align Cargo JF"
-  },
-  "pvp": {
    "eft": "[Nomad, Economy Align Cargo JF]\nExperimental Jump Drive Economizer\nExperimental Jump Drive Economizer\nExperimental Jump Drive Economizer\n\n\nORE Expanded Cargohold x3\nShadow Serpentis Inertial Stabilizers x3",
    "source": "https://eveworkbench.com/fit/835086a0-b81b-48b1-f85c-08d6a95f7e76",
    "title": "Economy Align Cargo JF"
@@ -2775,9 +2735,9 @@
    "title": "Anshar bricktank fit"
   },
   "pvp": {
-   "eft": "[Anshar, Anshar bricktank fit]\nSynthetic Hull Conversion Reinforced Bulkheads\nSynthetic Hull Conversion Reinforced Bulkheads\nSynthetic Hull Conversion Reinforced Bulkheads",
-   "source": "https://eveworkbench.com/fit/64add4f4-eaaa-421d-d0c5-08dceacf1def",
-   "title": "Anshar bricktank fit"
+   "eft": "[Anshar,  Cargo Anshar]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II",
+   "source": "https://eveworkbench.com/fit/148e4c8c-0654-46bf-8fab-08d972369c18",
+   "title": "Cargo Anshar"
   }
  },
  "28850": {
@@ -2787,9 +2747,9 @@
    "title": "No Sex Jokes Please"
   },
   "pvp": {
-   "eft": "[Ark,  No Sex Jokes Please]\nExpanded Cargohold II\nExpanded Cargohold II\nExpanded Cargohold II",
-   "source": "https://eveworkbench.com/fit/35a9da6f-dee8-4ea4-1838-08dbd3f2ee55",
-   "title": "No Sex Jokes Please"
+   "eft": "[Ark,  *Simulated Ark Fitting]\nORE Reinforced Bulkheads\nORE Reinforced Bulkheads\nORE Reinforced Bulkheads",
+   "source": "https://eveworkbench.com/fit/021ad274-6d42-42d2-ec29-08d87bba2441",
+   "title": "*Simulated Ark Fitting"
   }
  },
  "29248": {
@@ -3342,15 +3302,15 @@
   }
  },
  "35781": {
-  "pve": {
-   "eft": "[Fiend, Fiend]\nDamage Control II\nImperial Navy Heat Sink\nImperial Navy Heat Sink\nImperial Navy Heat Sink\nImperial Navy Heat Sink\n\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nWarp Disruptor II\nRepublic Fleet Large Cap Battery\nStasis Webifier II\nPithum A-Type Medium Shield Booster\nShield Boost Amplifier II\n\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\n\nMedium Capacitor Control Circuit I\nMedium Capacitor Control Circuit II\n\n\nConflagration M x6\nScorch M x4\nNavy Cap Booster 800 x5",
-   "source": "https://eveworkbench.com/fit/db4f3202-8a79-43b3-7cd7-08db6c3c2e24",
-   "title": "Fiend"
-  },
   "pvp": {
    "eft": "[Fiend, Fiend]\nDamage Control II\nImperial Navy Heat Sink\nImperial Navy Heat Sink\nImperial Navy Heat Sink\nImperial Navy Heat Sink\n\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nWarp Disruptor II\nRepublic Fleet Large Cap Battery\nStasis Webifier II\nPithum A-Type Medium Shield Booster\nShield Boost Amplifier II\n\nHeavy Pulse Laser II\nHeavy Pulse Laser II\nHeavy Pulse Laser II\n\nMedium Capacitor Control Circuit I\nMedium Capacitor Control Circuit II\n\n\nConflagration M x6\nScorch M x4\nNavy Cap Booster 800 x5",
    "source": "https://eveworkbench.com/fit/db4f3202-8a79-43b3-7cd7-08db6c3c2e24",
    "title": "Fiend"
+  },
+  "pve": {
+   "eft": "[Fiend, Fiend Pulse Nos Ratter]\nDamage Control II\nHeat Sink II\nHeat Sink II\nMedium Armor Repairer II\nMultispectrum Energized Membrane II\n\n10MN Afterburner II\nMedium Capacitor Booster II, Navy Cap Booster 400\nTracking Computer II, Optimal Range Script\nStasis Webifier II\nCap Recharger II\nCap Recharger II\nSensor Booster II, Targeting Range Script\n\nFocused Medium Pulse Laser II, Imperial Navy Multifrequency M\nFocused Medium Pulse Laser II, Imperial Navy Multifrequency M\nFocused Medium Pulse Laser II, Imperial Navy Multifrequency M\nMedium Energy Nosferatu II\nMedium Energy Nosferatu II\n\nMedium Auxiliary Nano Pump I\nMedium Capacitor Control Circuit I\n\n\nScorch M x3\nNavy Cap Booster 400 x20",
+   "source": "generated",
+   "title": "Fiend Pulse Nos Ratter"
   }
  },
  "37135": {
@@ -3379,9 +3339,9 @@
  },
  "37454": {
   "pve": {
-   "eft": "[Vigil Fleet Issue,  Web Wed Scram]\nDamage Control II\nBallistic Control System II\n200mm Steel Plates II\n\nStasis Webifier II\nStasis Webifier II\n1MN Afterburner II\nInitiated Compact Warp Disruptor\n\n200mm AutoCannon II\nDomination Rocket Launcher\nDomination Rocket Launcher\n\nSmall Hydraulic Bay Thrusters II\nSmall Rocket Fuel Cache Partition II\nSmall Trimark Armor Pump II\n\n\nWarrior II x1\nHobgoblin II x2\n\n\nNova Rage Rocket x3030\nBarrage S x3120",
-   "source": "https://eveworkbench.com/fit/667042a2-8e6f-4b60-65e4-08dacd9da65a",
-   "title": "Web Wed Scram"
+   "eft": "[Vigil Fleet Issue, T1 Dark Vigil Fleet Issue]\nBallistic Control System II\nBallistic Control System II\nType-D Restrained Overdrive Injector\n\nSmall Cap Battery II\n1MN Y-S8 Compact Afterburner\nDread Guristas Small Shield Booster\nSmall Shield Extender II\n\nRocket Launcher II\nRocket Launcher II\nSmall Energy Nosferatu II\n\nSmall Warhead Calefaction Catalyst I\nSmall EM Shield Reinforcer II\nSmall Thermal Shield Reinforcer II\n\n\nRepublic Fleet Warrior x3\n\n\nMjolnir Rage Rocket x4922\nNova Rage Rocket x9696\nCaldari Navy Mjolnir Rocket x5000\nInferno Rage Rocket x5000\nNanite Repair Paste x150\nCaldari Navy Nova Rocket x4790",
+   "source": "https://eveworkbench.com/fit/55a41d0a-54a5-4593-80cc-65f909fd0b3b",
+   "title": "T1 Dark Vigil Fleet Issue"
   },
   "pvp": {
    "eft": "[Vigil Fleet Issue,  Web Wed Scram]\nDamage Control II\nBallistic Control System II\n200mm Steel Plates II\n\nStasis Webifier II\nStasis Webifier II\n1MN Afterburner II\nInitiated Compact Warp Disruptor\n\n200mm AutoCannon II\nDomination Rocket Launcher\nDomination Rocket Launcher\n\nSmall Hydraulic Bay Thrusters II\nSmall Rocket Fuel Cache Partition II\nSmall Trimark Armor Pump II\n\n\nWarrior II x1\nHobgoblin II x2\n\n\nNova Rage Rocket x3030\nBarrage S x3120",
@@ -3523,9 +3483,9 @@
    "title": "Minokawa - Shield No Prop 3Cs 1Cc Basic"
   },
   "pvp": {
-   "eft": "[Minokawa, Minokawa - Shield No Prop 3Cs 1Cc Basic]\nCapital Emergency Hull Energizer I\nPower Diagnostic System II\nReactor Control Unit II\nReactor Control Unit II\n\nCapital Capacitor Booster I\nCapital Capacitor Booster I\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nPithum C-Type EM Shield Amplifier\nCapital Shield Extender I\nCapital Shield Extender I\n\nCapital Remote Capacitor Transmitter I\nCapital Remote Shield Booster I\nCapital Remote Shield Booster I\nCapital Remote Shield Booster I\nTriage Module II\n\nCapital Thermal Shield Reinforcer II\nCapital Ancillary Current Router I\nCapital Core Defense Field Extender I",
-   "source": "https://eveworkbench.com/fit/3d1dbca3-d239-48bb-35a7-08d84157b738",
-   "title": "Minokawa - Shield No Prop 3Cs 1Cc Basic"
+   "eft": "[Minokawa, Minokawa - Shield No Prop 3Cs 1Cc Cap In]\nIFFA Compact Damage Control\nPower Diagnostic System II\nDark Blood Power Diagnostic System\nDark Blood Power Diagnostic System\n\nCapital Clarity Ward Enduring Shield Booster\nCapital Clarity Ward Enduring Shield Booster\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nPithum C-Type EM Shield Amplifier\nCapital Capacitor Booster I\nCapital Capacitor Booster I\n\nCapital Remote Capacitor Transmitter I\nCapital Remote Shield Booster I\nCapital Remote Shield Booster I\nCapital Remote Shield Booster I\nTriage Module II\n\nCapital Ancillary Current Router I\nCapital Thermal Shield Reinforcer II\nCapital Core Defense Capacitor Safeguard I",
+   "source": "https://eveworkbench.com/fit/b0bfac89-f0c0-4d8a-3537-08d84157b738",
+   "title": "Minokawa - Shield No Prop 3Cs 1Cc Cap In"
   }
  },
  "37606": {
@@ -3533,20 +3493,10 @@
    "eft": "[Lif, Active Shield/Armor Lif]\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nDamage Control II\n\nCONCORD Capital Shield Booster\nPith X-Type Shield Boost Amplifier\nPithum C-Type Multispectrum Shield Hardener\nPithum C-Type Multispectrum Shield Hardener\nCapital Cap Battery II\nCapital Capacitor Booster II\n\nCONCORD Capital Remote Armor Repairer\nCapital Ancillary Remote Armor Repairer\nCONCORD Capital Remote Shield Booster\nCapital Ancillary Remote Shield Booster\nShield Command Burst I\nTriage Module II\n\nCapital EM Shield Reinforcer II\nCapital Core Defense Operational Solidifier I\nCapital Core Defense Capacitor Safeguard II\n\n\nHornet EC-300 x5\nHeavy Hull Maintenance Bot II x7\nHeavy Armor Maintenance Bot II x7\nHeavy Shield Maintenance Bot II x5\n\n\nNavy Cap Booster 3200 x30\nNanite Repair Paste x384\nShield Harmonizing Charge x900",
    "source": "https://eveworkbench.com/fit/4f9a2340-adcd-48d3-691d-08db8888ab11",
    "title": "Active Shield/Armor Lif"
-  },
-  "pvp": {
-   "eft": "[Lif, Active Shield/Armor Lif]\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nCaldari Navy Power Diagnostic System\nDamage Control II\n\nCONCORD Capital Shield Booster\nPith X-Type Shield Boost Amplifier\nPithum C-Type Multispectrum Shield Hardener\nPithum C-Type Multispectrum Shield Hardener\nCapital Cap Battery II\nCapital Capacitor Booster II\n\nCONCORD Capital Remote Armor Repairer\nCapital Ancillary Remote Armor Repairer\nCONCORD Capital Remote Shield Booster\nCapital Ancillary Remote Shield Booster\nShield Command Burst I\nTriage Module II\n\nCapital EM Shield Reinforcer II\nCapital Core Defense Operational Solidifier I\nCapital Core Defense Capacitor Safeguard II\n\n\nHornet EC-300 x5\nHeavy Hull Maintenance Bot II x7\nHeavy Armor Maintenance Bot II x7\nHeavy Shield Maintenance Bot II x5\n\n\nNavy Cap Booster 3200 x30\nNanite Repair Paste x384\nShield Harmonizing Charge x900",
-   "source": "https://eveworkbench.com/fit/4f9a2340-adcd-48d3-691d-08db8888ab11",
-   "title": "Active Shield/Armor Lif"
   }
  },
  "37607": {
   "pve": {
-   "eft": "[Ninazu, Master Race Armor WH Ninazu]\nCONCORD Capital Armor Repairer\nCONCORD Capital Armor Repairer\nCorpum B-Type Multispectrum Energized Membrane\nCorpum B-Type Multispectrum Energized Membrane\nCorpum A-Type Explosive Energized Membrane\nCorpum A-Type Kinetic Energized Membrane\n\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nCapital F-RX Compact Capacitor Booster\n\nCONCORD Capital Remote Armor Repairer\nCONCORD Capital Remote Armor Repairer\nCONCORD Capital Remote Capacitor Transmitter\nImperial Navy Large EMP Smartbomb\nImperial Navy Large EMP Smartbomb\nTriage Module II\n\nCapital Thermal Armor Reinforcer II\nCapital Nanobot Accelerator II\nCapital Auxiliary Nano Pump II\n\n\nHeavy Armor Maintenance Bot II x24",
-   "source": "https://eveworkbench.com/fit/8e585de4-9b28-461c-7ce0-08db6c3c2e24",
-   "title": "Master Race Armor WH Ninazu"
-  },
-  "pvp": {
    "eft": "[Ninazu, Master Race Armor WH Ninazu]\nCONCORD Capital Armor Repairer\nCONCORD Capital Armor Repairer\nCorpum B-Type Multispectrum Energized Membrane\nCorpum B-Type Multispectrum Energized Membrane\nCorpum A-Type Explosive Energized Membrane\nCorpum A-Type Kinetic Energized Membrane\n\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nImperial Navy Heavy Capacitor Booster\nCapital F-RX Compact Capacitor Booster\n\nCONCORD Capital Remote Armor Repairer\nCONCORD Capital Remote Armor Repairer\nCONCORD Capital Remote Capacitor Transmitter\nImperial Navy Large EMP Smartbomb\nImperial Navy Large EMP Smartbomb\nTriage Module II\n\nCapital Thermal Armor Reinforcer II\nCapital Nanobot Accelerator II\nCapital Auxiliary Nano Pump II\n\n\nHeavy Armor Maintenance Bot II x24",
    "source": "https://eveworkbench.com/fit/8e585de4-9b28-461c-7ce0-08db6c3c2e24",
    "title": "Master Race Armor WH Ninazu"
@@ -3573,11 +3523,6 @@
  },
  "42126": {
   "pve": {
-   "eft": "[Vanquisher, Cheap Little Nanogank fit]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCapital Emergency Hull Energizer II\nCentus X-Type Explosive Armor Hardener\nCore X-Type EM Armor Hardener\nCore X-Type Thermal Armor Hardener\nCore X-Type Kinetic Armor Hardener\nCentum A-Type Multispectrum Energized Membrane\n\nTuvan's Modified Tracking Computer\nCormack's Modified Tracking Computer\nRepublic Fleet Target Painter\nTrue Sansha Capital Capacitor Booster\nTrue Sansha Capital Capacitor Booster\nSetele's Modified Tracking Computer\n\n'Gjallarhorn' Explosive Doomsday\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nSelynne's Modified Large EMP Smartbomb\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\n\n\nQuafe Zero Classic\nStandard Drop Booster\n\n\nSensor Booster II x1\nDark Blood Cap Recharger x5\nVepas' Modified Cloaking Device x1\nChelm's Modified Cap Recharger x2\nImperial Navy Capacitor Power Relay x4\nCentum A-Type EM Energized Membrane x1\nCentum A-Type Explosive Energized Membrane x1\nCentus X-Type EM Armor Hardener x1\nCentus X-Type Kinetic Armor Hardener x1\nCentus X-Type Thermal Armor Hardener x1\nCore X-Type Explosive Armor Hardener x1\nShadow Antimatter Charge XL x10000\nShadow Iridium Charge XL x10000\nCynosural Field Generator I x1\nGuristas Antimatter Charge XL x40335\nGuristas Iridium Charge XL x1719\nGuristas Thorium Charge XL x2322\nGuristas Tungsten Charge XL x1954\nNanite Repair Paste x2000\nOptimal Range Script x4\nTracking Speed Script x5\nTargeting Range Script x2\nScan Resolution Script x2\nMissile Precision Disruption Script x2\nECCM Script x2\nUnit P-343554's Modified Sensor Booster x1\nVoid XL x10000\nNull XL x434\nJavelin XL x5480\nCapital Cap Battery II x1\nNavy Cap Booster 3200 x18\nArmor Energizing Charge x600\nArmor Reinforcement Charge x600\nEvasive Maneuvers Charge x600\nInterdiction Maneuvers Charge x600\nArmor Command Burst II x3",
-   "source": "https://eveworkbench.com/fit/9893eb61-183c-4834-6863-08dc9792c3b8",
-   "title": "Cheap Little Nanogank fit"
-  },
-  "pvp": {
    "eft": "[Vanquisher, Cheap Little Nanogank fit]\nCONCORD 25000mm Steel Plates\nCONCORD 25000mm Steel Plates\nCapital Emergency Hull Energizer II\nCentus X-Type Explosive Armor Hardener\nCore X-Type EM Armor Hardener\nCore X-Type Thermal Armor Hardener\nCore X-Type Kinetic Armor Hardener\nCentum A-Type Multispectrum Energized Membrane\n\nTuvan's Modified Tracking Computer\nCormack's Modified Tracking Computer\nRepublic Fleet Target Painter\nTrue Sansha Capital Capacitor Booster\nTrue Sansha Capital Capacitor Booster\nSetele's Modified Tracking Computer\n\n'Gjallarhorn' Explosive Doomsday\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nCONCORD Dual 1000mm Railgun\nSelynne's Modified Large EMP Smartbomb\n\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\nCapital Trimark Armor Pump II\n\n\nQuafe Zero Classic\nStandard Drop Booster\n\n\nSensor Booster II x1\nDark Blood Cap Recharger x5\nVepas' Modified Cloaking Device x1\nChelm's Modified Cap Recharger x2\nImperial Navy Capacitor Power Relay x4\nCentum A-Type EM Energized Membrane x1\nCentum A-Type Explosive Energized Membrane x1\nCentus X-Type EM Armor Hardener x1\nCentus X-Type Kinetic Armor Hardener x1\nCentus X-Type Thermal Armor Hardener x1\nCore X-Type Explosive Armor Hardener x1\nShadow Antimatter Charge XL x10000\nShadow Iridium Charge XL x10000\nCynosural Field Generator I x1\nGuristas Antimatter Charge XL x40335\nGuristas Iridium Charge XL x1719\nGuristas Thorium Charge XL x2322\nGuristas Tungsten Charge XL x1954\nNanite Repair Paste x2000\nOptimal Range Script x4\nTracking Speed Script x5\nTargeting Range Script x2\nScan Resolution Script x2\nMissile Precision Disruption Script x2\nECCM Script x2\nUnit P-343554's Modified Sensor Booster x1\nVoid XL x10000\nNull XL x434\nJavelin XL x5480\nCapital Cap Battery II x1\nNavy Cap Booster 3200 x18\nArmor Energizing Charge x600\nArmor Reinforcement Charge x600\nEvasive Maneuvers Charge x600\nInterdiction Maneuvers Charge x600\nArmor Command Burst II x3",
    "source": "https://eveworkbench.com/fit/9893eb61-183c-4834-6863-08dc9792c3b8",
    "title": "Cheap Little Nanogank fit"
@@ -3734,11 +3679,6 @@
    "eft": "[Caiman, soo much isk for nothing]\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDamage Control II\n\nCapital Shield Extender II\nCapital Shield Extender II\nCapital Shield Extender II\nEM Shield Hardener II\nMultispectrum Shield Hardener II\nThermal Shield Hardener II\nMissile Guidance Computer II\n\nFighter Support Unit II\nFighter Support Unit II\nFighter Support Unit II\nAuto Targeting System II\nAuto Targeting System II\n\nCapital Kinetic Shield Reinforcer II\nCapital EM Shield Reinforcer II\nCapital Explosive Shield Reinforcer II\n\n\nTemplar II x32",
    "source": "https://eveworkbench.com/fit/d89ee0da-ed19-4423-8bd1-98f38b75674e",
    "title": "soo much isk for nothing"
-  },
-  "pvp": {
-   "eft": "[Caiman, soo much isk for nothing]\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDrone Damage Amplifier II\nDamage Control II\n\nCapital Shield Extender II\nCapital Shield Extender II\nCapital Shield Extender II\nEM Shield Hardener II\nMultispectrum Shield Hardener II\nThermal Shield Hardener II\nMissile Guidance Computer II\n\nFighter Support Unit II\nFighter Support Unit II\nFighter Support Unit II\nAuto Targeting System II\nAuto Targeting System II\n\nCapital Kinetic Shield Reinforcer II\nCapital EM Shield Reinforcer II\nCapital Explosive Shield Reinforcer II\n\n\nTemplar II x32",
-   "source": "https://eveworkbench.com/fit/d89ee0da-ed19-4423-8bd1-98f38b75674e",
-   "title": "soo much isk for nothing"
   }
  },
  "45649": {
@@ -3809,15 +3749,15 @@
   }
  },
  "48636": {
-  "pve": {
-   "eft": "[Hydra,  Micro-Bestie]\nCo-Processor II\nDamage Control II\nEntropic Radiation Sink II\nSmall Armor Repairer II\n\nRelic Analyzer II\nData Analyzer II\n1MN Afterburner II\nWarp Scrambler II\n\nSisters Core Probe Launcher\nLight Entropic Disintegrator II\nCovert Ops Cloaking Device II\nSmall Energy Nosferatu II\n\nSmall Trimark Armor Pump II\nSmall Auxiliary Nano Pump II\n\n\nWarrior II x5\n\n\nTetryon Exotic Plasma S x500\nBaryon Exotic Plasma S x500\nMeson Exotic Plasma S x1000\nOccult S x500\nMystic S x500\nSisters Core Scanner Probe x8",
-   "source": "https://eveworkbench.com/fit/6ae7f25e-795a-4375-fa3a-08d918903b52",
-   "title": "Micro-Bestie"
-  },
   "pvp": {
    "eft": "[Hydra,  Micro-Bestie]\nCo-Processor II\nDamage Control II\nEntropic Radiation Sink II\nSmall Armor Repairer II\n\nRelic Analyzer II\nData Analyzer II\n1MN Afterburner II\nWarp Scrambler II\n\nSisters Core Probe Launcher\nLight Entropic Disintegrator II\nCovert Ops Cloaking Device II\nSmall Energy Nosferatu II\n\nSmall Trimark Armor Pump II\nSmall Auxiliary Nano Pump II\n\n\nWarrior II x5\n\n\nTetryon Exotic Plasma S x500\nBaryon Exotic Plasma S x500\nMeson Exotic Plasma S x1000\nOccult S x500\nMystic S x500\nSisters Core Scanner Probe x8",
    "source": "https://eveworkbench.com/fit/6ae7f25e-795a-4375-fa3a-08d918903b52",
    "title": "Micro-Bestie"
+  },
+  "pve": {
+   "eft": "[Hydra, Hydra Covert Explorer]\nEntropic Radiation Sink II\nSmall Armor Repairer II\nDamage Control II\nNanofiber Internal Structure II\n\n1MN Afterburner II\nData Analyzer II\nRelic Analyzer II\nScan Rangefinding Array II\n\nCovert Ops Cloaking Device II\nCore Probe Launcher II\nLight Entropic Disintegrator II, Baryon Exotic Plasma S\nSmall Energy Nosferatu II\n\nSmall Memetic Algorithm Bank I\nSmall Gravity Capacitor Upgrade I\n\n\nHobgoblin II x3\n\n\nCore Scanner Probe I x16\nBaryon Exotic Plasma S x400",
+   "source": "generated",
+   "title": "Hydra Covert Explorer"
   }
  },
  "49710": {
@@ -3863,9 +3803,9 @@
    "title": "Pain-Off"
   },
   "pvp": {
-   "eft": "[Zarmazd, Pain-Off]\nSyndicate 800mm Steel Plates\nCorpum A-Type Multispectrum Energized Membrane\nCorpum A-Type EM Energized Membrane\nCorpum A-Type Thermal Energized Membrane\nCorpum A-Type Kinetic Energized Membrane\nSyndicate Damage Control\n\nGistum A-Type 10MN Afterburner\nThukker Large Cap Battery\nImperial Navy Cap Recharger\nImperial Navy Cap Recharger\n\nHeavy Mutadaptive Remote Armor Repairer II\nCentum A-Type Medium Remote Armor Repairer\nCorpum A-Type Medium Remote Capacitor Transmitter\nCorpum A-Type Medium Remote Capacitor Transmitter\n\nMedium Ancillary Current Router II\nMedium Capacitor Control Circuit II\n\n\n'Augmented' Praetor x3\nMedium Shield Maintenance Bot II x5\n\n\nQuafe Zero Classic\nAgency 'Overclocker' SB5 Dose II\n\n\nNanite Repair Paste x500\nHeavy Hull Maintenance Bot II x3",
-   "source": "https://eveworkbench.com/fit/2076f26b-a41d-41c4-4ee1-08d7eeaa77a9",
-   "title": "Pain-Off"
+   "eft": "[Zarmazd, DOC Zarmazd - AB]\nDamage Control II\n1600mm Steel Plates II\nMultispectrum Energized Membrane II\nMultispectrum Energized Membrane II\nThermal Armor Hardener II\nEM Armor Hardener II\n\n10MN Afterburner II\nSensor Booster II\nCap Recharger II\nCap Recharger II\n\nHeavy Mutadaptive Remote Armor Repairer II\nMedium Inductive Compact Remote Capacitor Transmitter\nMedium Inductive Compact Remote Capacitor Transmitter\nSmall Energy Nosferatu II\n\nMedium Trimark Armor Pump II\nMedium Trimark Armor Pump II\n\n\nAcolyte II x5\nMedium Hull Maintenance Bot II x5\nMedium Armor Maintenance Bot II x5\n\n\nTargeting Range Script x1\nScan Resolution Script x1\nNanite Repair Paste x150\nECCM Script x1",
+   "source": "https://eveworkbench.com/fit/3e445b7b-c867-46a6-8978-c3f73a002009",
+   "title": "DOC Zarmazd - AB"
   }
  },
  "52250": {
@@ -4042,9 +3982,9 @@
  },
  "72913": {
   "pve": {
-   "eft": "[Imicus Navy Issue, Snack Attack]\nDamage Control II\nSmall Armor Repairer II\nMultispectrum Energized Membrane II\nSmall Armor Repairer II\n\nJ5 Enduring Warp Disruptor\n1MN Y-S8 Compact Afterburner\nData Analyzer II\nSmall F-RX Compact Capacitor Booster\n\nLight Neutron Blaster II\nLight Neutron Blaster II\nExpanded Probe Launcher II\n\nSmall Explosive Armor Reinforcer I\nSmall Auxiliary Nano Pump I\nSmall Auxiliary Nano Pump I\n\n\nHobgoblin II x10\n\n\nInherent Implants 'Squire' Power Grid Management EG-601\n\nStandard Exile Booster\n\n\nVoid S x3000\nNull S x3000\nNanite Repair Paste x27\nCore Scanner Probe I x16\nNavy Cap Booster 400 x16",
-   "source": "https://eveworkbench.com/fit/8b0a4f00-621b-41bf-a328-5a17c3b24f4b",
-   "title": "Snack Attack"
+   "eft": "[Imicus Navy Issue, Shadow Imi]\nSmall Armor Repairer II\n200mm Crystalline Carbonide Restrained Plates\nCompact Multispectrum Energized Membrane\nType-D Restrained Capacitor Power Relay\n\nFleeting Compact Stasis Webifier\nJ5b Enduring Warp Scrambler\n5MN Y-T8 Compact Microwarpdrive\nSmall Compact Pb-Acid Cap Battery\n\n125mm Light 'Scout' Autocannon I\nSmall Ghoul Compact Energy Nosferatu\nPrototype Cloaking Device I\n\nSmall Trimark Armor Pump I\nSmall Explosive Armor Reinforcer I\nSmall Targeting System Subcontroller II\n\n\nFederation Navy Hobgoblin x5\nCaldari Navy Hornet x5\n\n\nArch Angel Carbonized Lead S x1200\nNanite Repair Paste x20",
+   "source": "https://eveworkbench.com/fit/75f9a607-a1ae-4df4-8cfb-08db302aa244",
+   "title": "Shadow Imi"
   },
   "pvp": {
    "eft": "[Imicus Navy Issue, Snack Attack]\nDamage Control II\nSmall Armor Repairer II\nMultispectrum Energized Membrane II\nSmall Armor Repairer II\n\nJ5 Enduring Warp Disruptor\n1MN Y-S8 Compact Afterburner\nData Analyzer II\nSmall F-RX Compact Capacitor Booster\n\nLight Neutron Blaster II\nLight Neutron Blaster II\nExpanded Probe Launcher II\n\nSmall Explosive Armor Reinforcer I\nSmall Auxiliary Nano Pump I\nSmall Auxiliary Nano Pump I\n\n\nHobgoblin II x10\n\n\nInherent Implants 'Squire' Power Grid Management EG-601\n\nStandard Exile Booster\n\n\nVoid S x3000\nNull S x3000\nNanite Repair Paste x27\nCore Scanner Probe I x16\nNavy Cap Booster 400 x16",
@@ -4069,23 +4009,18 @@
    "eft": "[Revelation Navy Issue, Revelation Navy Issue]\n25000mm Steel Plates II\n25000mm Steel Plates II\n25000mm Steel Plates II\nCoreli A-Type Multispectrum Coating\nCentii A-Type Multispectrum Coating\nDamage Control II\nHeat Sink II\nHeat Sink II\n\nDark Blood Heavy Capacitor Booster, Navy Cap Booster 3200\nDark Blood Heavy Capacitor Booster, Navy Cap Booster 3200\nTracking Computer II, Optimal Range Script\nTracking Computer II, Optimal Range Script\n\nDual Giga Pulse Laser II, Conflagration XL\nDual Giga Pulse Laser II, Conflagration XL\nDual Giga Pulse Laser II, Conflagration XL\nSiege Module II\nCapital Energy Neutralizer II\nCapital Energy Neutralizer II\n\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I",
    "source": "https://eveworkbench.com/fit/d33eaf03-4a4d-41f6-8dcd-08dc394e3290",
    "title": "Revelation Navy Issue"
-  },
-  "pvp": {
-   "eft": "[Revelation Navy Issue, Revelation Navy Issue]\n25000mm Steel Plates II\n25000mm Steel Plates II\n25000mm Steel Plates II\nCoreli A-Type Multispectrum Coating\nCentii A-Type Multispectrum Coating\nDamage Control II\nHeat Sink II\nHeat Sink II\n\nDark Blood Heavy Capacitor Booster, Navy Cap Booster 3200\nDark Blood Heavy Capacitor Booster, Navy Cap Booster 3200\nTracking Computer II, Optimal Range Script\nTracking Computer II, Optimal Range Script\n\nDual Giga Pulse Laser II, Conflagration XL\nDual Giga Pulse Laser II, Conflagration XL\nDual Giga Pulse Laser II, Conflagration XL\nSiege Module II\nCapital Energy Neutralizer II\nCapital Energy Neutralizer II\n\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I",
-   "source": "https://eveworkbench.com/fit/d33eaf03-4a4d-41f6-8dcd-08dc394e3290",
-   "title": "Revelation Navy Issue"
   }
  },
  "73792": {
-  "pve": {
-   "eft": "[Moros Navy Issue, Moros Navy Issue]\n25000mm Steel Plates II\n25000mm Steel Plates II\n25000mm Steel Plates II\nCoreli A-Type Multispectrum Coating\nCentii A-Type Multispectrum Coating\nDamage Control II\nMagnetic Field Stabilizer II\nMagnetic Field Stabilizer II\n\nDomination Warp Disruptor\nDark Blood Heavy Capacitor Booster, Cap Booster 3200\nTrue Sansha Heavy Capacitor Booster, Cap Booster 3200\nTracking Computer II, Optimal Range Script\nTracking Computer II, Optimal Range Script\n\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nSiege Module II\nCapital Energy Neutralizer II\n\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I",
-   "source": "https://eveworkbench.com/fit/b7ed416a-0f96-4388-9029-08dc394e3290",
-   "title": "Moros Navy Issue"
-  },
   "pvp": {
    "eft": "[Moros Navy Issue, Moros Navy Issue]\n25000mm Steel Plates II\n25000mm Steel Plates II\n25000mm Steel Plates II\nCoreli A-Type Multispectrum Coating\nCentii A-Type Multispectrum Coating\nDamage Control II\nMagnetic Field Stabilizer II\nMagnetic Field Stabilizer II\n\nDomination Warp Disruptor\nDark Blood Heavy Capacitor Booster, Cap Booster 3200\nTrue Sansha Heavy Capacitor Booster, Cap Booster 3200\nTracking Computer II, Optimal Range Script\nTracking Computer II, Optimal Range Script\n\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nSiege Module II\nCapital Energy Neutralizer II\n\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I\nCapital Trimark Armor Pump I",
    "source": "https://eveworkbench.com/fit/b7ed416a-0f96-4388-9029-08dc394e3290",
    "title": "Moros Navy Issue"
+  },
+  "pve": {
+   "eft": "[Moros Navy Issue, Moros Navy Issue Wormhole Site Dread]\nMagnetic Field Stabilizer II\nMagnetic Field Stabilizer II\nMagnetic Field Stabilizer II\nTracking Enhancer II\nCapital Armor Repairer II\nReactive Armor Hardener\nDamage Control II\nCapacitor Power Relay II\n\nCapital Cap Battery II\nCapital Cap Battery II\nTracking Computer II, Tracking Speed Script\nTracking Computer II, Optimal Range Script\nRepublic Fleet Target Painter\n\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nIon Siege Blaster II, Void XL\nSiege Module II\nLarge EMP Smartbomb II\n\nCapital Hybrid Metastasis Adjuster II\nCapital Semiconductor Memory Cell II\nCapital Semiconductor Memory Cell I\n\n\nNull XL x1000\nVoid XL x1000\nNanite Repair Paste x100",
+   "source": "generated",
+   "title": "Moros Navy Issue Wormhole Site Dread"
   }
  },
  "73793": {
@@ -4191,11 +4126,6 @@
    "eft": "[Karura, DD - Karura]\nFederation Navy Magnetic Field Stabilizer\nShadow Serpentis Magnetic Field Stabilizer\n'Radical' Damage Control\nDark Blood Power Diagnostic System\nDark Blood Power Diagnostic System\n\nTrue Sansha Capital Shield Booster\nGistum A-Type Multispectrum Shield Hardener\nGistum A-Type Multispectrum Shield Hardener\nGist X-Type Shield Boost Amplifier\nCapital F-RX Compact Capacitor Booster\nCapital F-RX Compact Capacitor Booster\nTracking Computer II\n\nTriple Neutron Blaster Cannon II\nTriple Neutron Blaster Cannon II\nTriple Neutron Blaster Cannon II\nHeavy 'Moat' Energy Neutralizer\n'Steel Yari' Kinetic Disruptive Lance\nSiege Module II\n\nCapital Core Defense Capacitor Safeguard II\nCapital EM Shield Reinforcer II\n\n\nShadow Antimatter Charge XL x2264\nOptimal Range Script x1\nTracking Speed Script x1\nVoid XL x3000\nNull XL x2000\nNavy Cap Booster 3200 x26\nNanite Repair Paste x500",
    "source": "https://eveworkbench.com/fit/7fa8f23c-35b4-4039-aed0-c29849fe548c",
    "title": "DD - Karura"
-  },
-  "pvp": {
-   "eft": "[Karura, DD - Karura]\nFederation Navy Magnetic Field Stabilizer\nShadow Serpentis Magnetic Field Stabilizer\n'Radical' Damage Control\nDark Blood Power Diagnostic System\nDark Blood Power Diagnostic System\n\nTrue Sansha Capital Shield Booster\nGistum A-Type Multispectrum Shield Hardener\nGistum A-Type Multispectrum Shield Hardener\nGist X-Type Shield Boost Amplifier\nCapital F-RX Compact Capacitor Booster\nCapital F-RX Compact Capacitor Booster\nTracking Computer II\n\nTriple Neutron Blaster Cannon II\nTriple Neutron Blaster Cannon II\nTriple Neutron Blaster Cannon II\nHeavy 'Moat' Energy Neutralizer\n'Steel Yari' Kinetic Disruptive Lance\nSiege Module II\n\nCapital Core Defense Capacitor Safeguard II\nCapital EM Shield Reinforcer II\n\n\nShadow Antimatter Charge XL x2264\nOptimal Range Script x1\nTracking Speed Script x1\nVoid XL x3000\nNull XL x2000\nNavy Cap Booster 3200 x26\nNanite Repair Paste x500",
-   "source": "https://eveworkbench.com/fit/7fa8f23c-35b4-4039-aed0-c29849fe548c",
-   "title": "DD - Karura"
   }
  },
  "77288": {
@@ -4291,9 +4221,9 @@
    "title": "Loru's Max PI Hauler"
   },
   "pvp": {
-   "eft": "[Avalanche, Lorulanche]\nSyndicate Damage Control\nORE Reinforced Bulkheads\nORE Reinforced Bulkheads\n\nCapital Flex Shield Hardener II\nCaldari Navy Multispectrum Shield Hardener\nCaldari Navy Multispectrum Shield Hardener\n\nRapid Heavy Missile Launcher II\nRapid Heavy Missile Launcher II\nRapid Heavy Missile Launcher II\nRapid Heavy Missile Launcher II\nRapid Heavy Missile Launcher II\nRapid Heavy Missile Launcher II\n\n\nShield EM Resistance Script x21\nShield Thermal Resistance Script x10\nShield Kinetic Resistance Script x10\nShield Explosive Resistance Script x10\nLegion Inferno Auto-Targeting Heavy Missile x1150",
-   "source": "https://eveworkbench.com/fit/443d2259-729a-4145-896c-282ff25e236d",
-   "title": "Lorulanche"
+   "eft": "[Avalanche, Avalanche Max Tank travel fit]\nReinforced Bulkheads II\nReinforced Bulkheads II\nDamage Control II\n\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\n\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\nCruise Missile Launcher II, Legion Scourge Auto-Targeting Cruise Missile\n\n\nMjolnir Auto-Targeting Cruise Missile I x5000\nNova Auto-Targeting Cruise Missile I x5000\nScourge Auto-Targeting Cruise Missile I x5000\n500MN Cold-Gas Enduring Microwarpdrive x1",
+   "source": "https://eveworkbench.com/fit/f0d3ad13-2971-4f3e-142b-08dcde62cb08",
+   "title": "Avalanche Max Tank travel fit"
   }
  },
  "81046": {
@@ -4580,11 +4510,6 @@
  },
  "95741": {
   "pve": {
-   "eft": "[Akoman,  Akoman 2]\nDamage Control II\nMedium Ancillary Armor Repairer\nNanofiber Internal Structure II\nTrue Sansha Multispectrum Energized Membrane\nTracking Enhancer II\nHeat Sink II\nHeat Sink II\n\nMedium Capacitor Booster II\nTrue Sansha Stasis Webifier\nTrue Sansha Stasis Webifier\nFederation Navy 100MN Afterburner\n\nCorpum A-Type Medium Energy Nosferatu\nCorpum A-Type Medium Energy Nosferatu\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\n\nMedium Explosive Armor Reinforcer I\nMedium Ancillary Current Router II\nMedium Polycarbon Engine Housing II\n\n\nConflagration L x8\nScorch L x4\nNanite Repair Paste x64\nNavy Cap Booster 800 x2",
-   "source": "https://eveworkbench.com/fit/93220b9a-cb64-4930-9012-f51850fd0b19",
-   "title": "Akoman 2"
-  },
-  "pvp": {
    "eft": "[Akoman,  Akoman 2]\nDamage Control II\nMedium Ancillary Armor Repairer\nNanofiber Internal Structure II\nTrue Sansha Multispectrum Energized Membrane\nTracking Enhancer II\nHeat Sink II\nHeat Sink II\n\nMedium Capacitor Booster II\nTrue Sansha Stasis Webifier\nTrue Sansha Stasis Webifier\nFederation Navy 100MN Afterburner\n\nCorpum A-Type Medium Energy Nosferatu\nCorpum A-Type Medium Energy Nosferatu\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\n\nMedium Explosive Armor Reinforcer I\nMedium Ancillary Current Router II\nMedium Polycarbon Engine Housing II\n\n\nConflagration L x8\nScorch L x4\nNanite Repair Paste x64\nNavy Cap Booster 800 x2",
    "source": "https://eveworkbench.com/fit/93220b9a-cb64-4930-9012-f51850fd0b19",
    "title": "Akoman 2"

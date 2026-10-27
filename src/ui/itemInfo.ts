@@ -39,7 +39,7 @@ export function requirementTreeHtml(ctx: AppContext, nodes: RequirementNode[]): 
   return `<ul class="req-tree">${nodes.map((n) => {
     const level = have.get(n.skillId) ?? 0;
     const tone = level >= n.level ? 'ok' : level > 0 ? 'partial' : 'missing';
-    return `<li class="${tone}"><span class="req-dot"></span><span class="req-name">${esc(n.name)}</span>
+    return `<li class="${tone}"><span class="req-dot"></span><button class="link req-name" data-skill-info="${n.skillId}">${esc(n.name)}</button>
       <span class="req-level">${roman(n.level)}</span><span class="req-have dim">(${tx('ai {lvl}', { lvl: level ? roman(level) : '0' })})</span>
       ${requirementTreeHtml(ctx, n.children)}</li>`;
   }).join('')}</ul>`;
@@ -56,7 +56,7 @@ function planTable(plan: FitRequirements): string {
   return `<h3 class="section-title">${tx('Plan de antrenament ({sp} SP)', { sp: formatInt(plan.totalSp) })}</h3>
       <table class="table compact">
         <thead><tr><th>Skill</th><th>${tx('Acum')}</th><th>${tx('Țintă')}</th><th class="r">${tx('Timp')}</th></tr></thead>
-        <tbody>${plan.missing.map((s) => `<tr><td>${esc(s.name)}</td><td>${roman(s.current)}</td><td>${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}</tbody>
+        <tbody>${plan.missing.map((s) => `<tr><td><button class="link" data-skill-info="${s.skillId}">${esc(s.name)}</button></td><td>${roman(s.current)}</td><td>${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}</tbody>
       </table>`;
 }
 
@@ -85,7 +85,7 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
         <table class="table compact attrs"><tbody>${rows.map((s) => {
           const need = s.levels[level - 1];
           const cur = have.get(s.skillId) ?? 0;
-          return `<tr class="${cur >= need ? 'ok' : cur > 0 ? 'partial' : 'missing'}"><td>${esc(ctx.sde.types.get(s.skillId)?.name ?? `Skill ${s.skillId}`)}</td>
+          return `<tr class="${cur >= need ? 'ok' : cur > 0 ? 'partial' : 'missing'}"><td><button class="link" data-skill-info="${s.skillId}">${esc(ctx.sde.types.get(s.skillId)?.name ?? `Skill ${s.skillId}`)}</button></td>
             <td class="r num">${roman(need)} <span class="dim">(${tx('ai {lvl}', { lvl: cur ? roman(cur) : '0' })})</span></td></tr>`;
         }).join('')}</tbody></table></div>`;
     }).join('')}</div>
@@ -106,7 +106,7 @@ function traitsHtml(ctx: AppContext, groups: TraitGroup[]): string {
     const skill = skillName ? ctx.sde.findType(skillName) : undefined;
     const level = skill ? ctx.character.skills.get(skill.id) ?? 0 : 0;
     const head = skill
-      ? `<button class="link" data-trait-skill="${skill.id}">${esc(skill.name)}</button> ${esc(tx('bonusuri (pe nivel de skill)'))} ${badge(roman(level), level >= 5 ? 'ok' : level ? '' : 'accent')}`
+      ? `<button class="link" data-skill-info="${skill.id}">${esc(skill.name)}</button> ${esc(tx('bonusuri (pe nivel de skill)'))} ${badge(roman(level), level >= 5 ? 'ok' : level ? '' : 'accent')}`
       : esc(g.header.replace(/:$/, ''));
     return `<div class="trait-group"><h3 class="section-title">${head}</h3>
       ${g.bonuses.map((b) => `<div class="trait-row"><span class="trait-amount num">${esc(b.amount)}</span><span>${esc(b.text)}</span></div>`).join('')}</div>`;
@@ -186,7 +186,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     ${tree.length ? requirementTreeHtml(ctx, tree) : `<p class="dim">${tx('Nu cere niciun skill.')}</p>`}
     ${plan.missing.length ? `${planTable(plan)}
       <div class="row-actions"><button class="btn ghost sm" data-copy-plan>${tx('Copiază planul')}</button></div>` : ''}
-    <p class="dim small">${tx('Cerințe directe')}: ${directRequirements(sde, typeId).map((r) => `${esc(sde.types.get(r.skillId)?.name ?? r.skillId)} ${roman(r.level)}`).join(', ') || '—'}</p>
+    <p class="dim small">${tx('Cerințe directe')}: ${directRequirements(sde, typeId).map((r) => `<button class="link" data-skill-info="${r.skillId}">${esc(sde.types.get(r.skillId)?.name ?? r.skillId)}</button> ${roman(r.level)}`).join(', ') || '—'}</p>
     </div>
     <div class="tab-panel hidden" data-panel="mastery"></div>
   `;
@@ -228,8 +228,8 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     });
   }
   el.addEventListener('click', (e) => {
-    const traitSkill = (e.target as HTMLElement).closest<HTMLElement>('[data-trait-skill]');
-    if (traitSkill) { showItemInfo(ctx, Number(traitSkill.dataset.traitSkill)); return; }
+    const skillInfo = (e.target as HTMLElement).closest<HTMLElement>('[data-skill-info]');
+    if (skillInfo) { showItemInfo(ctx, Number(skillInfo.dataset.skillInfo)); return; }
     const lvl = (e.target as HTMLElement).closest<HTMLElement>('[data-mastery-level]');
     if (lvl) { masteryLevel = Number(lvl.dataset.masteryLevel); renderMastery(); return; }
     if ((e.target as HTMLElement).closest('[data-plan-mastery]')) {

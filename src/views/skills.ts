@@ -144,7 +144,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         </div>
         ${tree.length ? requirementTreeHtml(ctx, tree) : `<p class="dim">${tx('Nu cere niciun skill.')}</p>`}
         ${plan.missing.length ? `<table class="table compact"><thead><tr><th>${tx('Ordine de antrenament')}</th><th></th><th class="r">${tx('Timp')}</th></tr></thead><tbody>
-          ${plan.missing.map((s) => `<tr class="${s.status}"><td>${esc(s.name)}</td><td>${roman(s.current)} → ${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}
+          ${plan.missing.map((s) => `<tr class="${s.status}"><td><button class="link" data-info="${s.skillId}">${esc(s.name)}</button></td><td>${roman(s.current)} → ${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}
           </tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-copy-plan>${tx('Copiază planul')}</button><button class="btn ghost sm" data-plan-item="${t.id}">${tx('Adaugă în skill plan')}</button></div>` : ''}`,
     });
@@ -163,6 +163,8 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (group) { toggleGroup(group); return; }
     const info = at('[data-info]');
     if (info) { showItemInfo(ctx, Number(info.dataset.info)); return; }
+    const skillInfo = at('[data-skill-info]');
+    if (skillInfo) { showItemInfo(ctx, Number(skillInfo.dataset.skillInfo)); return; }
     const item = at('[data-item]');
     if (item) { selectItem(Number(item.dataset.item)); return; }
     const planItem = at('[data-plan-item]');

@@ -222,7 +222,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
     const ids = fitTypeIds(f);
     const req = requirementsFor(sde, ids, ctx.character);
     const alpha = alphaRaces(sde, ids);
-    const rows = req.missing.map((st) => `<tr class="${st.status}"><td>${esc(st.name)}</td><td>${roman(st.current)} → ${roman(st.required)}</td><td class="r num">${formatDuration(st.seconds)}</td></tr>`).join('');
+    const rows = req.missing.map((st) => `<tr class="${st.status}"><td><button class="link" data-info="${st.skillId}">${esc(st.name)}</button></td><td>${roman(st.current)} → ${roman(st.required)}</td><td class="r num">${formatDuration(st.seconds)}</td></tr>`).join('');
     return panel({
       title: 'Requirements',
       count: ctx.character.name,

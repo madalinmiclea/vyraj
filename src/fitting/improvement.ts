@@ -34,9 +34,9 @@ export function createImprovementPanel(env: FitEnv) {
   function adviceHtml(kind: AdviceKind): string {
     if (!advice) return loader(tx('Calculez fiecare skill pe fit…'));
     const rows = rankAdvice(advice, kind, perDay).slice(0, 20).map((a) => `<tr>
-        <td>${esc(a.name)}
+        <td><button class="link" data-info="${a.skillId}">${esc(a.name)}</button>
           <span class="dim small">${a.from ? roman(a.from) : '0'} → ${roman(a.to)}</span>
-          ${a.missing.length ? `<div class="small warn-text">${tx('cere')} ${a.missing.map((r) => `${esc(name(r.skillId))} ${roman(r.level)}`).join(', ')}</div>` : ''}</td>
+          ${a.missing.length ? `<div class="small warn-text">${tx('cere')} ${a.missing.map((r) => `<button class="link" data-info="${r.skillId}">${esc(name(r.skillId))}</button> ${roman(r.level)}`).join(', ')}</div>` : ''}</td>
         <td class="advice-gain">${a.changes[kind].map((c) => `<span><b class="num">${esc(c.text)}</b> ${esc(c.label)}</span>`).join('')}</td>
         <td class="r num">${formatInt(a.sp)} SP</td>
         <td class="r num">${formatDuration(a.seconds)}</td>
@@ -55,7 +55,7 @@ export function createImprovementPanel(env: FitEnv) {
     if (!plan) return '';
     if (plan.canFly) return `<div class="req-summary">${badge(tx('Mastery {lvl} completă', { lvl: roman(level) }), 'ok', true)}</div>`;
     const rows = plan.missing.map((s) => `<tr class="${s.status}">
-        <td>${esc(s.name)} <span class="dim small">${s.current ? roman(s.current) : '0'} → ${roman(s.required)}</span></td>
+        <td><button class="link" data-info="${s.skillId}">${esc(s.name)}</button> <span class="dim small">${s.current ? roman(s.current) : '0'} → ${roman(s.required)}</span></td>
         <td class="r num">${formatInt(s.sp)} SP</td>
         <td class="r num">${formatDuration(s.seconds)}</td>
         <td><button class="icon-btn" data-improve-plan="${s.skillId}:${s.required}" title="${tx('Adaugă în skill plan')}">+</button></td>
