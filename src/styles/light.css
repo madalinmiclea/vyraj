@@ -21,6 +21,7 @@
   --accent: #0b7f9e;
   --accent-bright: #06647e;
   --accent-glow: rgba(14, 138, 170, 0.22);
+  --accent-rgb: 11, 127, 158;
   --gold: #a8741a;
   --gold-glow: rgba(168, 116, 26, 0.22);
 
@@ -64,3 +65,8 @@
 :root[data-theme='light'] .more-list .btn:hover { background: var(--bg-hover); }
 :root[data-theme='light'] .chip-btn, :root[data-theme='light'] .icon-btn, :root[data-theme='light'] .stepper button { background: #fff; box-shadow: 0 1px 2px rgba(10, 40, 60, 0.12); }
 :root[data-theme='light'] .chip-btn.active { background: rgba(14, 138, 170, 0.18); }
+:root[data-theme='light'] .xtip { box-shadow: 0 10px 28px rgba(20, 36, 52, 0.18); }
+:root[data-theme='light'] .xsel-scrim { background: rgba(20, 36, 52, 0.3); }
+:root[data-theme='light'] input[type="checkbox"]:checked, :root[data-theme='light'] input[type="radio"]:checked { background: var(--accent); }
+:root[data-theme='light'] input[type="checkbox"]::after { border-color: #fff; }
+:root[data-theme='light'] input[type="radio"]::after { background: #fff; }

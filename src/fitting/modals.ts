@@ -13,7 +13,7 @@ import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
 import { typeIconUrl } from '../services/market';
 import { loadFits, deleteFit } from './savedFits';
 import { icon } from '../ui/icons';
-import { alertBox, badge, button, closeModal, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
+import { alertBox, badge, button, closeModal, confirmDialog, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
 import { formatAttribute } from '../ui/attributes';
 import { mutate, mutationRows, moduleName, type MutationRow } from '../engine/mutation';
 import { tx } from '../i18n';
@@ -33,7 +33,7 @@ export function createFitModals(env: FitEnv) {
         </div>`).join('')}</div>`
       : emptyState({ title: tx('Niciun fit salvat'), text: tx('Apasă „Salvează” pe un fit ca să apară aici.'), vy: 'No Provings Kept', vyText: 'Press “Save” on a fit and it shall be kept here.' });
     const modal = openModal(tx('Fit-uri salvate'), body);
-    modal.addEventListener('click', (e) => {
+    modal.addEventListener('click', async (e) => {
       const t = e.target as HTMLElement;
       const open = t.closest<HTMLElement>('[data-open]');
       if (open) {
@@ -41,7 +41,7 @@ export function createFitModals(env: FitEnv) {
         if (f) { closeModal(); env.setFit(cloneFit(f)); }
       }
       const del = t.closest<HTMLElement>('[data-delete]');
-      if (del && confirm(tx('Ștergi fit-ul?'))) { deleteFit(del.dataset.delete!); closeModal(); openSavedFits(); }
+      if (del && await confirmDialog(tx('Ștergi fit-ul?'), { ok: tx('Șterge'), danger: true })) { deleteFit(del.dataset.delete!); closeModal(); openSavedFits(); }
     });
   }
 

@@ -1237,4 +1237,12 @@ export const EN: Record<string, string> = {
   "Ca să încapă în calibration, unele rig-uri au rămas T1 ({n}).": "To fit calibration, some rigs were kept T1 ({n}).",
   "Am redus dronele și încărcătura din cargo ca să încapă în bay.": "Drones and cargo were reduced to fit their bays.",
   "Scrie numele corporației și apasă Enter": "Type the corporation name and press Enter",
+  "Confirmare": "Confirm",
+  "Continuă": "Continue",
+  "Anulează": "Cancel",
+  "Pierde modificările": "Discard changes",
+  "Luna anterioară": "Previous month",
+  "Luna următoare": "Next month",
+  "Azi": "Today",
+  "Alege data": "Pick a date",
 };

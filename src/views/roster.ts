@@ -206,10 +206,10 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
     const modal = openModal(tx('Cont și Omega · {name}', { name: c.name }), `
       <div class="stack roster-form">
         <label class="small dim">${tx('Nume cont (caracterele cu același nume împart data Omega)')}</label>
-        <input class="input plain" id="rosterAccount" list="rosterAccounts" value="${esc(accounts.chars[id] ?? '')}" placeholder="${tx('ex: cont principal')}" spellcheck="false" />
+        <input class="input plain" id="rosterAccount" data-list="rosterAccounts" value="${esc(accounts.chars[id] ?? '')}" placeholder="${tx('ex: cont principal')}" spellcheck="false" />
         <datalist id="rosterAccounts">${names.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
         <label class="small dim">${tx('Omega expiră pe')}</label>
-        <input class="input plain" id="rosterOmega" type="date" value="${esc(current)}" />
+        <input class="input plain date-input" id="rosterOmega" type="text" data-date readonly value="${esc(current)}" placeholder="${tx('Alege data')}" />
         <div class="row-actions">${[30, 90, 180, 365].map((d) => button(`+${d} ${tx('zile')}`, { cls: 'ghost sm', attrs: `data-add-days="${d}"` })).join('')}</div>
         <p class="small dim">${tx('Data o găsești în launcher sau pe secure.eveonline.com, la Account Management.')}</p>
         <div class="row-actions">${button(tx('Salvează'), { cls: 'sm', attrs: 'data-roster-save' })}${button(tx('Șterge data'), { cls: 'ghost sm', attrs: 'data-roster-clear' })}</div>

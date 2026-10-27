@@ -39,11 +39,16 @@ button { cursor: pointer; background: none; border: none; }
 
 ::selection { background: var(--accent-glow); color: var(--text-bright); }
 
-* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--line-strong); }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(var(--accent-rgb), 0.04); }
+::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb), 0.28); border: 2px solid transparent; border-radius: 6px; background-clip: padding-box; min-height: 32px; min-width: 32px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--accent-rgb), 0.55); border-width: 1px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:active { background: var(--accent); border-width: 1px; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), 0.4) transparent; }
+}
 
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 table, input, .value, .count, .item-tile small { font-variant-numeric: tabular-nums; }

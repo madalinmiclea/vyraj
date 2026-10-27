@@ -116,7 +116,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
           <option value="t1" ${settings.rig === 't1' ? 'selected' : ''}>T1</option>
           <option value="t2" ${settings.rig === 't2' ? 'selected' : ''}>T2</option>
         </select></label>
-        <label>${tx('Sistem')}<input class="input" name="system" list="indSystems" value="${esc(settings.system)}" autocomplete="off" spellcheck="false" /></label>
+        <label>${tx('Sistem')}<input class="input" name="system" data-list="indSystems" value="${esc(settings.system)}" autocomplete="off" spellcheck="false" /></label>
         <label>${tx('Taxă facilitate %')}<input class="input ind-num" name="tax" type="number" min="0" max="50" step="0.01" value="${settings.tax}" /></label>
         <div class="advice-sort ind-basis">
           <span class="dim small">${tx('Materiale la')}</span>
@@ -150,7 +150,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   el.addEventListener('input', (e) => {
     const input = e.target as HTMLInputElement;
-    const list = input.getAttribute('list');
+    const list = input.dataset.list;
     if (list === 'indSystems' && map) systemList.innerHTML = map.suggest(input.value).map((s) => `<option value="${esc(s.name)}">${esc(map!.region(s))} · ${formatNum(displaySec(s.sec), 1)}</option>`).join('');
     if (list === 'indProducts' && data) productList.innerHTML = data.suggest(input.value).map((b) => `<option value="${esc(data!.name(b.productId))}">${esc(data!.group(b.productId))}</option>`).join('');
   });
@@ -237,7 +237,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const inv = bp ? d.inventions.get(bp.id) : undefined;
     pane.innerHTML = `${panel({
       body: `<form class="form-grid ind-form" id="indCalcForm">
-          <label class="ind-product">${tx('Produs sau blueprint')}<input class="input" name="product" list="indProducts" value="${esc(calc.product)}" placeholder="${esc(tx('ex: Hammerhead II'))}" autocomplete="off" spellcheck="false" /></label>
+          <label class="ind-product">${tx('Produs sau blueprint')}<input class="input" name="product" data-list="indProducts" value="${esc(calc.product)}" placeholder="${esc(tx('ex: Hammerhead II'))}" autocomplete="off" spellcheck="false" /></label>
           <label>Runs<input class="input ind-num" name="runs" type="number" min="1" max="10000" step="1" value="${calc.runs}" /></label>
           ${inv ? `<label>${tx('Sursă blueprint')}<select class="input" name="source">
             <option value="invention" ${calc.source === 'invention' ? 'selected' : ''}>Invention</option>

@@ -10,7 +10,7 @@ import { forgetWallet } from '../services/wallet';
 import { loadJson, saveJson } from '../storage';
 import { icon } from '../ui/icons';
 import { showItemInfo } from '../ui/itemInfo';
-import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
+import { alertBox, badge, button, confirmDialog, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { tx, locale } from '../i18n';
@@ -148,7 +148,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       return;
     }
     const remove = at('[data-remove]');
-    if (remove && confirm(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric wallet, skill plan, SKIN-uri)?'))) {
+    if (remove && await confirmDialog(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric wallet, skill plan, SKIN-uri)?'), { ok: tx('Șterge'), danger: true })) {
       const c = stored.find((x) => x.id === remove.dataset.remove);
       if (c) {
         forgetPlan(c.id);

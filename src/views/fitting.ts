@@ -17,7 +17,7 @@ import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, typeRenderUrl } from 
 import { loadFits, saveFit } from '../fitting/savedFits';
 import { loadJson, saveJson } from '../storage';
 import { icon } from '../ui/icons';
-import { alertBox, badge, button, compactISK, copyText, dataStamp, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
+import { alertBox, badge, button, compactISK, confirmDialog, copyText, dataStamp, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
 import { theme } from '../theme';
 
 const proving = (message: string) => (theme === 'vyraj' ? `Proving failed · ${message}` : message);
@@ -121,7 +121,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     sde,
     ctx,
     getFit: () => fit,
-    setFit: (next) => { if (next) openFit(next); },
+    setFit: (next) => { if (next) void openFit(next); },
     change: (fn) => change(fn),
     profileId: () => profileId,
     targetState: () => targetState,
@@ -190,8 +190,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
-  function replaceCurrent(f: Fit): boolean {
-    if (fit && fit.id !== f.id && isDirty(fit, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Le pierzi și încarci „{next}” în tab-ul ăsta?', { name: fit.name, next: f.name }))) return false;
+  async function replaceCurrent(f: Fit): Promise<boolean> {
+    if (fit && fit.id !== f.id && isDirty(fit, savedJson()) && !(await confirmDialog(tx('„{name}” are modificări nesalvate. Le pierzi și încarci „{next}” în tab-ul ăsta?', { name: fit.name, next: f.name }), { ok: tx('Pierde modificările'), danger: true }))) return false;
     fit = f;
     tabs[active] = f;
     if (pickedSlot) pickSlot(null);
@@ -199,7 +199,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
-  function openFit(next: Fit): boolean {
+  async function openFit(next: Fit): Promise<boolean> {
     const f = limitDrones(next);
     const same = tabs.findIndex((x) => x?.id === f.id);
     if (same < 0) return replaceCurrent(f);
@@ -212,9 +212,14 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
-  function closeTab(i: number) {
+  async function closeTab(i: number) {
     const f = tabs[i];
-    if (f && isDirty(f, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Închizi tab-ul?', { name: f.name }))) return;
+    if (f && isDirty(f, savedJson())) {
+      if (!(await confirmDialog(tx('„{name}” are modificări nesalvate. Închizi tab-ul?', { name: f.name }), { ok: tx('Închide tab-ul'), danger: true }))) return;
+      tabs[active] = fit;
+      i = tabs.findIndex((x) => x?.id === f.id);
+      if (i < 0) return;
+    }
     tabs[active] = fit;
     tabs.splice(i, 1);
     if (!tabs.length) tabs = [null];
@@ -540,8 +545,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     };
   }
 
-  function newFit(shipId: number) {
-    if (fit && isDirty(fit, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Le pierzi și începi un fit nou pe {ship}?', { name: fit.name, ship: name(shipId) }))) return false;
+  async function newFit(shipId: number): Promise<boolean> {
+    if (fit && isDirty(fit, savedJson()) && !(await confirmDialog(tx('„{name}” are modificări nesalvate. Le pierzi și începi un fit nou pe {ship}?', { name: fit.name, ship: name(shipId) }), { ok: tx('Pierde modificările'), danger: true }))) return false;
     fit = limitDrones(emptyFit(shipId, name(shipId)));
     tabs[active] = fit;
     if (pickedSlot) pickSlot(null);
@@ -554,18 +559,18 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const done = () => { trigger.classList.remove('busy'); trigger.removeAttribute('disabled'); };
     trigger.classList.add('busy');
     trigger.setAttribute('disabled', '');
-    const open = (f: Fit, published: boolean) => {
+    const open = async (f: Fit, published: boolean) => {
       f.id = newFitId();
-      if (!replaceCurrent(limitDrones(f))) { done(); return; }
+      if (!(await replaceCurrent(limitDrones(f)))) { done(); return; }
       const problems = violations(sde, f, ctx.character.skills, ctx.character.implants).size;
       const what = published ? tx('Fit {kind} publicat încărcat în tab-ul curent', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
       toast(problems ? `${what}. ${tx('Ce nu încape cu skill-urile caracterului apare cu roșu.')}` : what);
     };
     findRealFit(sde, shipId, kind).catch(() => null).then((found) => {
-      if (found) { open(cloneFit(found.fit), !found.generated); return; }
+      if (found) { void open(cloneFit(found.fit), !found.generated); return; }
       setTimeout(() => {
         const note = tx('Fit {kind} generat din bonusurile, sloturile, hardpoints, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.', { kind: label });
-        open(buildStarterFit(sde, shipId, kind, allLevels(sde, 5), `${name(shipId)} ${label}`, note), false);
+        void open(buildStarterFit(sde, shipId, kind, allLevels(sde, 5), `${name(shipId)} ${label}`, note), false);
       }, 30);
     });
   }
@@ -596,7 +601,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const t = typeId ? sde.types.get(typeId) : sde.findType(itemName);
     if (!t) { toast(tx('„{name}” nu se poate folosi în fitting', { name: itemName })); return; }
     if (t.categoryId === Category.Ship) {
-      if (newFit(t.id)) toast(`${tx('Fit nou')}: ${t.name}`);
+      void newFit(t.id).then((ok) => { if (ok) toast(`${tx('Fit nou')}: ${t.name}`); });
       return;
     }
     if (!fit) { toast(tx('Alege întâi o navă')); return; }
@@ -647,7 +652,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (improvement.handleClick(target)) return;
 
     const tabClose = at('[data-fit-close]');
-    if (tabClose) { closeTab(Number(tabClose.dataset.fitClose)); return; }
+    if (tabClose) { void closeTab(Number(tabClose.dataset.fitClose)); return; }
     if (at('[data-fit-add]')) { addTab(null); return; }
     const fitTab = at('[data-fit-tab]');
     if (fitTab) { switchTab(Number(fitTab.dataset.fitTab)); return; }
@@ -655,7 +660,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (extras) { showExtras(extras.dataset.extras as ExtrasTab); render(); return; }
     if (fit && support.handleClick(target)) return;
     const openSaved = at('[data-open-fit]');
-    if (openSaved) { const f = loadFits().find((x) => x.id === openSaved.dataset.openFit); if (f) openFit(cloneFit(f)); return; }
+    if (openSaved) { const f = loadFits().find((x) => x.id === openSaved.dataset.openFit); if (f) void openFit(cloneFit(f)); return; }
     const quick = at('[data-quick]');
     if (quick) { selectItem(quick.dataset.quick!, null); return; }
     const info = at('[data-info]');
@@ -726,7 +731,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   tabsEl.addEventListener('auxclick', (e) => {
     const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-fit-tab]');
-    if (tab && e.button === 1) { e.preventDefault(); closeTab(Number(tab.dataset.fitTab)); }
+    if (tab && e.button === 1) { e.preventDefault(); void closeTab(Number(tab.dataset.fitTab)); }
   });
   tabsEl.addEventListener('mousedown', (e) => { if (e.button === 1 && (e.target as HTMLElement).closest('[data-fit-tab]')) e.preventDefault(); });
   tabsEl.addEventListener('dragstart', (e) => {
@@ -820,7 +825,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     el.querySelectorAll<HTMLDetailsElement>('.more-menu[open]').forEach((d) => { d.open = false; });
     switch (action) {
       case 'clear':
-        if (fit) newFit(fit.shipId);
+        if (fit) void newFit(fit.shipId);
         break;
       case 'save':
         if (!fit) return toast(tx('Nu ai niciun fit de salvat'));
@@ -893,7 +898,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   return {
     selectItem,
-    load(f: Fit) { openFit(cloneFit(f)); },
+    load(f: Fit) { void openFit(cloneFit(f)); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
   };
 }

@@ -86,7 +86,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
 
   el.addEventListener('input', (e) => {
     const input = e.target as HTMLInputElement;
-    if (input.getAttribute('list') !== 'navSystems' || !map) return;
+    if (input.dataset.list !== 'navSystems' || !map) return;
     datalist.innerHTML = map.suggest(input.value).map((s) => `<option value="${esc(s.name)}">${esc(map!.region(s))} · ${formatNum(displaySec(s.sec), 1)}</option>`).join('');
   });
 
@@ -116,8 +116,8 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     pane.innerHTML = `${panel({
       body: `<form class="form-grid recon-form nav-form" id="jumpForm">
           <label>${tx('Navă')}<select class="input" name="ship">${fitOptions()}${groups.map((g) => `<optgroup label="${esc(g)}">${ships.filter((s) => s.group === g).map((s) => `<option value="type:${s.id}" ${saved.ship === `type:${s.id}` ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>
-          <label>${tx('Pornire')}<input class="input" name="from" list="navSystems" value="${esc(saved.from)}" autocomplete="off" spellcheck="false" required /></label>
-          <label>${tx('Destinație')}<input class="input" name="to" list="navSystems" value="${esc(saved.to)}" autocomplete="off" spellcheck="false" required /></label>
+          <label>${tx('Pornire')}<input class="input" name="from" data-list="navSystems" value="${esc(saved.from)}" autocomplete="off" spellcheck="false" required /></label>
+          <label>${tx('Destinație')}<input class="input" name="to" data-list="navSystems" value="${esc(saved.to)}" autocomplete="off" spellcheck="false" required /></label>
           <label>${tx('Preferință')}<select class="input" name="mode">
             <option value="jumps" ${saved.mode === 'jumps' ? 'selected' : ''}>${tx('Cele mai puține salturi')}</option>
             <option value="fuel" ${saved.mode === 'fuel' ? 'selected' : ''}>${tx('Cel mai puțin combustibil')}</option>
@@ -380,7 +380,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     const home = loadJson<string>(HOME_KEY, '');
     pane.innerHTML = `${panel({
       body: `<form class="form-grid recon-form" id="whForm">
-          <label>${tx('Sistemul tău')}<input class="input" name="home" list="navSystems" value="${esc(home)}" autocomplete="off" spellcheck="false" /></label>
+          <label>${tx('Sistemul tău')}<input class="input" name="home" data-list="navSystems" value="${esc(home)}" autocomplete="off" spellcheck="false" /></label>
           <button class="btn" type="submit">${icon('refresh')}${tx('Actualizează')}</button>
         </form>
         <p class="dim small">${tx('Conexiunile vin de la EVE-Scout (Signal Cartel), scanate de voluntari. Cu sistemul tău completat, tabelul arată câte salturi pe porți ai până la fiecare ieșire.')}</p>`,

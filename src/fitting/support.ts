@@ -68,7 +68,7 @@ export function createSupportPanels(env: FitEnv) {
       flow.capOut ? `<span>Cap <b class="num neg">−${formatNum(flow.capOut, 1)}</b> GJ/s</span>` : '',
     ].join('');
     return `<div class="proj-add">
-        <input class="input plain sm" id="projName" list="projList" placeholder="${tx('Modul proiectat pe navă')}" />
+        <input class="input plain sm" id="projName" data-list="projList" placeholder="${tx('Modul proiectat pe navă')}" />
         <datalist id="projList">${projectableList().map((t) => `<option value="${esc(t.name)}"></option>`).join('')}</datalist>
         ${button(tx('Adaugă'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-proj-add="1"' })}
       </div>

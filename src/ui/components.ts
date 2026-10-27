@@ -136,7 +136,46 @@ export function openModal(title: string, body: string, { wide = false } = {}): H
 }
 
 export function closeModal() {
-  document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove());
+  document.querySelectorAll('.modal-backdrop:not(.confirm-backdrop)').forEach((m) => m.remove());
+}
+
+export interface ConfirmOptions { title?: string; ok?: string; cancel?: string; danger?: boolean }
+
+export function confirmDialog(message: string, { title = tx('Confirmare'), ok = tx('Continuă'), cancel = tx('Anulează'), danger = false }: ConfirmOptions = {}): Promise<boolean> {
+  return new Promise((resolve) => {
+    const back = document.activeElement as HTMLElement | null;
+    const el = document.createElement('div');
+    el.className = 'modal-backdrop confirm-backdrop';
+    el.innerHTML = `<div class="panel modal confirm-dialog ${danger ? 'danger' : ''}" role="alertdialog" aria-modal="true">
+      <div class="panel-head">${windowTitle(title)}</div>
+      <div class="panel-body">
+        <div class="confirm-message">${icon(danger ? 'alert' : 'info')}<p>${esc(message)}</p></div>
+        <div class="confirm-actions"><button class="btn ghost" data-answer="0">${esc(cancel)}</button><button class="btn ${danger ? 'danger' : ''}" data-answer="1">${esc(ok)}</button></div>
+      </div>
+    </div>`;
+    const finish = (answer: boolean) => {
+      document.removeEventListener('keydown', onKey, true);
+      el.remove();
+      back?.focus?.();
+      resolve(answer);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Escape') return finish(false);
+      const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-answer]');
+      finish(focused ? focused.dataset.answer === '1' : true);
+    };
+    el.addEventListener('click', (e) => {
+      if (e.target === el) return finish(false);
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-answer]');
+      if (b) finish(b.dataset.answer === '1');
+    });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(el);
+    el.querySelector<HTMLElement>('[data-answer="1"]')?.focus();
+  });
 }
 
 export async function copyText(text: string, message = tx('Copiat în clipboard')) {

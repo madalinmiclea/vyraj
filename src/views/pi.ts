@@ -419,7 +419,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
 
     panes.planner.innerHTML = `${panel({
       body: `<form class="form-grid recon-form pi-form" id="piPlanForm">
-          <label>${tx('Produs')}<input class="input pi-product" name="product" list="piProducts" value="${esc(d.name(id))}" autocomplete="off" spellcheck="false" /></label>
+          <label>${tx('Produs')}<input class="input pi-product" name="product" data-list="piProducts" value="${esc(d.name(id))}" autocomplete="off" spellcheck="false" /></label>
           <label>${tx('Cantitate')}<input class="input pi-num" name="qty" type="number" min="1" step="1" value="${qty}" /></label>
         </form>
         <div class="history-kpis">

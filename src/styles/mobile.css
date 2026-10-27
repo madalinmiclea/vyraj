@@ -112,6 +112,7 @@
 
   .modal-backdrop { padding: 12px 8px; }
   .modal { max-height: calc(100dvh - 24px); }
+  .confirm-actions .btn { flex: 1; }
   .toast { left: 12px; right: 12px; bottom: calc(var(--neocom-h) + env(safe-area-inset-bottom) + 12px); transform: none; text-align: center; }
 }
 .slot-group-head { flex-wrap: wrap; }
