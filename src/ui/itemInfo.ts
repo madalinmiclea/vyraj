@@ -6,7 +6,8 @@ import { shipMastery, masterySkills, type ShipMastery } from '../services/master
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
 import { attributeSections } from './attributes';
-import { openModal, badge, badgeHtml, esc, formatInt, copyText, toast } from './components';
+import { openModal, badge, badgeHtml, button, esc, formatInt, copyText, toast } from './components';
+import { icon } from './icons';
 import { fold } from './fold';
 import { tx } from '../i18n';
 
@@ -60,7 +61,7 @@ function planTable(plan: FitRequirements): string {
 
 const CAPITAL_SHIPS = 3344;
 
-function withHullSkills(ctx: AppContext, shipId: number, mastery: ShipMastery): ShipMastery {
+export function withHullSkills(ctx: AppContext, shipId: number, mastery: ShipMastery): ShipMastery {
   const bonus = directRequirements(ctx.sde, shipId).filter((r) => r.skillId !== CAPITAL_SHIPS);
   if (!bonus.length) return mastery;
   const hull = { id: -shipId, name: tx('Skill-urile care dau bonusurile navei'), skills: bonus.map((r) => ({ skillId: r.skillId, levels: [1, 2, 3, 4, 5].map((l) => Math.max(r.level, l)) })) };
@@ -91,7 +92,14 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
     ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-plan-mastery>${tx('Adaugă în skill plan')}</button><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
 }
 
-export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) {
+export interface FitSwap {
+  fittedId: number;
+  fitted: DogmaItem;
+  preview: (typeId: number) => DogmaItem | undefined;
+  replace: (typeId: number) => FitSwap | null;
+}
+
+export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, swap?: FitSwap, startTab = 'attrs') {
   const sde = ctx.sde;
   const t = sde.types.get(typeId);
   if (!t) { toast(tx('Pentru itemul ăsta nu am date (Show Info merge la nave, module, muniție, drone, implanturi și skill-uri)')); return; }
@@ -111,13 +119,17 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
         <tr><td>Meta level</td><td class="r num">${t.metaLevel ?? 0}</td></tr>
       </tbody></table>
     </div>`;
-  const sections = attributeSections(sde, typeId, item);
+  const comparing = !!swap && swap.fittedId !== typeId;
+  const sections = attributeSections(sde, typeId, item, comparing ? swap!.fitted : undefined);
+  const fittedName = swap ? sde.types.get(swap.fittedId)?.name ?? '' : '';
   const family = sde.variations(typeId);
   const attributes = sections.length
     ? `<input class="input plain attr-filter" placeholder="${tx('Filtrează atribute...')}" data-attr-filter />
       ${sections.map((sec) => `<div class="attr-section"><h3 class="section-title">${esc(sec.title)}</h3>
-        <table class="table compact attrs"><tbody>${sec.rows.map((r) => `<tr data-attr-name="${esc(fold(r.name))}"><td>${esc(r.name)}</td>
-          <td class="r num ${r.base ? (r.better ? 'better' : 'worse') : ''}">${r.base ? `<s class="dim">${esc(r.base)}</s> ` : ''}${esc(r.value)}</td></tr>`).join('')}</tbody></table></div>`).join('')}
+        <table class="table compact attrs ${comparing ? 'compare' : ''}">${comparing ? `<thead><tr><th></th><th class="r">${esc(t.name)}</th><th class="r" title="${esc(fittedName)}">${tx('Montat acum')}</th></tr></thead>` : ''}<tbody>${sec.rows.map((r) => `<tr data-attr-name="${esc(fold(r.name))}"><td>${esc(r.name)}</td>
+          ${comparing
+            ? `<td class="r num ${r.delta ?? ''}">${esc(r.value)}</td><td class="r num dim">${esc(r.compare ?? '')}</td>`
+            : `<td class="r num ${r.base ? (r.better ? 'better' : 'worse') : ''}">${r.base ? `<s class="dim">${esc(r.base)}</s> ` : ''}${esc(r.value)}</td>`}</tr>`).join('')}</tbody></table></div>`).join('')}
       <p class="dim hidden" data-attr-empty></p>`
     : `<p class="dim">${tx('Itemul nu are atribute afișabile.')}</p>`;
   const body = `
@@ -125,25 +137,29 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
       <span class="info-icon"><img src="${typeIconUrl(typeId)}" alt="" />${techTag(t.metaGroupId)}</span>
       <div>
         <h2>${esc(t.name)}</h2>
+        ${comparing ? `<p class="dim small">${tx('Comparat cu {name}, montat pe navă', { name: esc(fittedName) })}</p>` : ''}
       </div>
+      ${comparing ? `<div class="info-head-actions">${button(tx('Înlocuiește în fit'), { iconName: 'swap', attrs: `data-swap="${typeId}"` })}</div>` : ''}
     </div>
     <div class="info-status">
       ${plan.canFly ? badge(tx('{name} poate folosi itemul', { name: ctx.character.name }), 'ok', true) : badgeHtml(tx('{name}: lipsesc <span class="unit">{n}</span> skill-uri · {time}', { name: esc(ctx.character.name), n: plan.missing.length, time: durationHtml(plan.totalSeconds) }), 'accent', true)}
       ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
     </div>
     <div class="tabs">
-      <button class="tab active" data-tab="attrs">${tx('Atribute')}</button>
+      <button class="tab" data-tab="attrs">${tx('Atribute')}</button>
       ${family.length > 1 ? `<button class="tab" data-tab="var">Variations <span class="tab-count neutral">${family.length}</span></button>` : ''}
       <button class="tab" data-tab="req">Requirements${plan.canFly ? '' : ` <span class="tab-count">${plan.missing.length}</span>`}</button>
       ${t.categoryId === 6 ? '<button class="tab hidden" data-tab="mastery">Mastery <span class="tab-count neutral" data-mastery-count></span></button>' : ''}
     </div>
     <div class="tab-panel" data-panel="attrs">${identity}${attributes}</div>
     <div class="tab-panel hidden" data-panel="var">
-      <table class="table compact variations"><thead><tr><th></th><th>Item</th><th>${tx('Tip')}</th><th class="r">Meta</th></tr></thead><tbody>
+      <table class="table compact variations"><thead><tr><th></th><th>Item</th><th>${tx('Tip')}</th><th class="r">Meta</th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
         ${family.map((v) => `<tr class="${v.id === typeId ? 'current' : ''}" data-variation="${v.id}" title="${v.id === typeId ? tx('Itemul deschis') : tx('Deschide')}">
           <td><img src="${typeIconUrl(v.id, 32)}" alt="" loading="lazy" /></td>
           <td>${esc(v.name)}</td><td>${v.metaGroupId ? badge(META_GROUPS[v.metaGroupId] ?? `Meta ${v.metaGroupId}`, v.metaGroupId === 5 ? 'gold' : v.metaGroupId === 4 || v.metaGroupId === 6 ? 'accent' : '') : ''}</td>
-          <td class="r num">${v.metaLevel ?? 0}</td></tr>`).join('')}
+          <td class="r num">${v.metaLevel ?? 0}</td>${swap ? `<td class="swap-cell">${v.id === swap.fittedId
+            ? `<span class="swap-fitted" title="${tx('Montat pe navă')}">${icon('check')}</span>`
+            : `<button class="icon-btn" data-swap="${v.id}" title="${tx('Înlocuiește în fit')}" aria-label="${tx('Înlocuiește în fit')}">${icon('swap')}</button>`}</td>` : ''}</tr>`).join('')}
       </tbody></table>
     </div>
     <div class="tab-panel hidden" data-panel="req">
@@ -155,6 +171,12 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
     <div class="tab-panel hidden" data-panel="mastery"></div>
   `;
   const el = openModal(tx('Info item'), body, { wide: true });
+  const showTab = (name: string) => {
+    const tab = el.querySelector<HTMLElement>(`[data-tab="${name}"]`) ?? el.querySelector<HTMLElement>('[data-tab="attrs"]')!;
+    el.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('active', b === tab));
+    el.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab));
+  };
+  showTab(startTab);
   let mastery: ShipMastery | null = null;
   let masteryPlans: FitRequirements[] = [];
   let masteryLevel = 1;
@@ -190,12 +212,23 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem) 
       copyText(skillPlanText(masteryPlans[masteryLevel - 1].missing), tx('Plan copiat (lipește-l în Skill Plans din joc)'));
       return;
     }
+    const swapBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-swap]');
+    if (swapBtn && swap) {
+      const id = Number(swapBtn.dataset.swap);
+      const next = swap.replace(id);
+      if (next) showItemInfo(ctx, id, next.fitted, next, swapBtn.closest('[data-panel="var"]') ? 'var' : 'attrs');
+      return;
+    }
     const variation = (e.target as HTMLElement).closest<HTMLElement>('[data-variation]');
-    if (variation && Number(variation.dataset.variation) !== typeId) { showItemInfo(ctx, Number(variation.dataset.variation)); return; }
+    if (variation && Number(variation.dataset.variation) !== typeId) {
+      const id = Number(variation.dataset.variation);
+      if (swap) showItemInfo(ctx, id, id === swap.fittedId ? swap.fitted : swap.preview(id), swap);
+      else showItemInfo(ctx, id);
+      return;
+    }
     const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
     if (!tab) return;
-    el.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('active', b === tab));
-    el.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab));
+    showTab(tab.dataset.tab!);
   });
   el.querySelector<HTMLInputElement>('[data-attr-filter]')?.addEventListener('input', (e) => {
     const q = fold((e.target as HTMLInputElement).value.trim());

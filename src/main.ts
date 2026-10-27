@@ -30,6 +30,7 @@ import { loadJson, saveJson, onStorageError } from './storage';
 import { tx, lang, setLang, type Lang } from './i18n';
 import { theme, setTheme, type Theme } from './theme';
 import { initSelects } from './ui/select';
+import { initNumberSpin } from './ui/numberSpin';
 import { readSharedFit } from './io/shareLink';
 
 type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining';
@@ -103,6 +104,7 @@ const viewEl = (id: ViewId) => document.getElementById('view-' + id)!;
 const sidePane = (id: SideView) => document.getElementById('pane-' + id)!;
 const treeFilter = document.querySelector<HTMLInputElement>('#treeFilter')!;
 initSelects();
+initNumberSpin();
 onStorageError(() => toast(tx('Spațiul de stocare al browserului e plin, ultima modificare nu s-a salvat. Șterge fit-uri vechi sau datele site-ului.')));
 
 const market = createMarketView(viewEl('market'), {

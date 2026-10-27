@@ -7,8 +7,9 @@ import { formatDuration } from '../character/training';
 import { icon } from '../ui/icons';
 import { alertBox, badge, esc, formatInt, formatNum, meter, panel } from '../ui/components';
 import { roman } from '../ui/itemInfo';
-import { breakdownHtml, derive, single } from '../ui/breakdown';
-import { applied, dpsCurve, TARGETS, type TargetProfile } from '../engine/application';
+import { breakdownHtml, derive, single, type Breakdown } from '../ui/breakdown';
+import { applied, dpsCurve, TARGETS, type Applied, type TargetProfile } from '../engine/application';
+import { stackingFactor } from '../engine/dogma';
 import { tx } from '../i18n';
 import { DMG_LABEL, LAYER_LABEL, capTime, sum, damageBar, groupBy, type FitEnv } from './shared';
 
@@ -75,6 +76,24 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
     </svg>`;
   }
 
+  function paintTip(target: TargetProfile, a: Applied) {
+    const sorted = [...a.painters].sort((x, y) => y.mult - x.mult);
+    let value = target.signature;
+    const parts: Breakdown['parts'] = sorted.map((p, i) => {
+      const next = value * (1 + (p.mult - 1) * stackingFactor(i));
+      const part = { label: p.item.type.name, delta: next - value };
+      value = next;
+      return part;
+    });
+    const m = (n: number) => formatNum(n, 0) + ' m';
+    const pctFmt = (n: number) => formatNum(n, 1) + '%';
+    const seen = new Set<string>();
+    const modules = sorted.filter((p) => !seen.has(p.item.type.name) && seen.add(p.item.type.name)).map((p) =>
+      `<div class="bd-title">${esc(p.item.type.name)}</div>${breakdownHtml(single(p.item.trace(sde.attrId('signatureRadiusBonus'))), pctFmt, tx('modul'))}`
+      + (p.reach < 1 ? `<div class="bd-row dim">${tx('Eficiență la distanță')}: ${formatNum(p.reach * 100, 0)}%</div>` : '')).join('');
+    tips.set('paint', `<div class="bd-title">${tx('Semnătură țintă')}</div>${breakdownHtml({ base: target.signature, parts, value: a.signature }, m, tx('țintă'))}${modules}`);
+  }
+
   function applicationPanel(d: Dogma) {
     const target = currentTarget();
     const distance = env.targetState().distanceKm * 1000;
@@ -82,6 +101,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
     if (!a.weapons.length) return '';
     const pct = a.rawDps ? (a.dps / a.rawDps) * 100 : 0;
     const custom = target.id === 'custom';
+    if (a.painters.length) paintTip(target, a);
     return panel({
       title: tx('DPS aplicat'),
       actions: `<select class="input plain sm" id="fitTarget">
@@ -96,7 +116,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
         <div class="big-stats">
           <div><span class="label">${tx('DPS aplicat')}</span><span class="value num">${formatNum(a.dps, 1)}</span></div>
           <div><span class="label">${tx('Din brut')}</span><span class="value num">${formatNum(pct, 0)}%</span></div>
-          <div><span class="label">${tx('Semnătură cu painter')}</span><span class="value num">${formatNum(a.signature, 0)} m</span></div>
+          ${a.painters.length ? `<div data-bd="paint"><span class="label">${tx('Semnătură cu painter')}</span><span class="value num">${formatNum(a.signature, 0)} m</span></div>` : ''}
         </div>
         ${dpsChart(dpsCurve(sde, d, target), a.rawDps, distance)}
         <table class="table compact"><tbody>${a.weapons.map((w) => `<tr><td>${esc(w.name)}</td><td class="r num">${formatNum(w.dps, 1)}</td><td class="r num dim">${formatNum(w.factor * 100, 0)}%</td></tr>`).join('')}</tbody></table>`,
@@ -215,7 +235,6 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
           <table class="table compact"><tbody>${rows}</tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-action="copy-plan">${icon('copy')}${tx('Copiază planul')}</button><button class="btn ghost sm" data-action="plan-fit">${icon('skills')}${tx('Adaugă în skill plan')}</button></div>
           <div id="skillbookCost" class="dim small"></div>` : ''}
-        <div class="row-actions"><button class="btn ghost sm" data-action="advice">${icon('skills')}${tx('Ce skill-uri să antrenez')}</button></div>
         ${ctx.character.kind === 'all5' ? `<p class="dim small">${tx('Statisticile sunt calculate cu All 5. Importă caracterul tău din ecranul Caracter.')}</p>` : ''}`,
     });
   }

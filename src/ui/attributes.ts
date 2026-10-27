@@ -12,6 +12,7 @@ const CATEGORIES: Record<number, string> = {
 const CATEGORY_ORDER = [37, 1, 29, 30, 10, 5, 2, 3, 4, 6, 17, 20, 21, 22, 24, 25, 26, 27, 28, 36, 40, 34, 38, 7];
 const HIDDEN_CATEGORIES = new Set([8, 9, 12, 19, 31, 32, 33, 41, 42]);
 const SIZES = ['', 'Small', 'Medium', 'Large', 'Capital'];
+const NEUTRAL_UNITS = new Set([115, 116, 117, 137]);
 
 export interface AttributeRow {
   id: number;
@@ -19,6 +20,8 @@ export interface AttributeRow {
   value: string;
   base?: string;
   better?: boolean;
+  compare?: string;
+  delta?: 'better' | 'worse';
 }
 
 export interface AttributeSection {
@@ -46,7 +49,7 @@ export function formatAttribute(sde: Sde, attr: AttributeInfo, v: number): strin
   }
 }
 
-export function attributeSections(sde: Sde, typeId: number, item?: DogmaItem): AttributeSection[] {
+export function attributeSections(sde: Sde, typeId: number, item?: DogmaItem, compare?: DogmaItem): AttributeSection[] {
   const t = sde.types.get(typeId);
   if (!t) return [];
   const byCategory = new Map<number, AttributeRow[]>();
@@ -58,7 +61,12 @@ export function attributeSections(sde: Sde, typeId: number, item?: DogmaItem): A
     if (value === 0 && baseValue === 0 && !a.showWhenZero) continue;
     const changed = item && Math.abs(value - baseValue) > 1e-9 * Math.max(1, Math.abs(baseValue));
     const row: AttributeRow = { id, name: a.displayName, value: formatAttribute(sde, a, value) };
-    if (changed) {
+    if (compare) {
+      const other = compare.attr(id);
+      row.compare = formatAttribute(sde, a, other);
+      const differs = Math.abs(value - other) > 1e-9 * Math.max(1, Math.abs(other));
+      if (differs && !NEUTRAL_UNITS.has(a.unitId ?? 0)) row.delta = (a.highIsGood ? value > other : value < other) ? 'better' : 'worse';
+    } else if (changed) {
       row.base = formatAttribute(sde, a, baseValue);
       row.better = a.highIsGood ? value > baseValue : value < baseValue;
     }

@@ -65,7 +65,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
               <td class="r plan-actions"><button class="icon-btn" data-plan-move="${i}:-1" title="${tx('Sus')}">↑</button><button class="icon-btn" data-plan-move="${i}:1" title="${tx('Jos')}">↓</button><button class="icon-btn" data-plan-remove="${i}" title="${tx('Scoate')}">${icon('close')}</button></td></tr>`).join('')}
           </tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-plan-copy>${tx('Copiază pentru EVE')}</button><button class="btn ghost sm" data-plan-clear>${tx('Golește')}</button></div>`
-        : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de requirements, din grupurile de skill-uri sau din „Ce skill-uri să antrenez” din Fitting.')}</p>`,
+        : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de requirements, din grupurile de skill-uri sau din „Improvement skills” din Fitting.')}</p>`,
     });
   }
 

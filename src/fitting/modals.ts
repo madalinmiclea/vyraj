@@ -13,12 +13,9 @@ import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
 import { typeIconUrl } from '../services/market';
 import { loadFits, deleteFit } from './savedFits';
 import { icon } from '../ui/icons';
-import { alertBox, badge, button, loader, closeModal, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
-import { roman } from '../ui/itemInfo';
-import { adviseSkills, rankAdvice, type AdviceKind } from '../character/skillAdvisor';
+import { alertBox, badge, button, closeModal, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
 import { formatAttribute } from '../ui/attributes';
 import { mutate, mutationRows, moduleName, type MutationRow } from '../engine/mutation';
-import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
 
@@ -233,59 +230,6 @@ export function createFitModals(env: FitEnv) {
     });
   }
 
-  function openAdvice() {
-    const current = env.getFit();
-    if (!current) return;
-    const KINDS: { key: AdviceKind; label: string }[] = [
-      { key: 'dps', label: 'DPS' },
-      { key: 'tank', label: 'Tank' },
-      { key: 'general', label: 'General' },
-    ];
-    let kind: AdviceKind = 'dps';
-    let perDay = false;
-    const modal = openModal(tx('Ce skill-uri să antrenez'), loader(tx('Calculez fiecare skill pe fit…')), { wide: true });
-    const body = modal.querySelector<HTMLElement>('.panel-body')!;
-    setTimeout(() => {
-      const list = adviseSkills(sde, current, ctx.character, findProfile(env.profileId()));
-      const draw = () => {
-        const ranked = rankAdvice(list, kind, perDay).slice(0, 20);
-        const rows = ranked.map((a) => `<tr>
-          <td>${esc(a.name)}
-            <span class="dim small">${a.from ? roman(a.from) : '0'} → ${roman(a.to)}</span>
-            ${a.missing.length ? `<div class="small warn-text">${tx('cere')} ${a.missing.map((r) => `${esc(name(r.skillId))} ${roman(r.level)}`).join(', ')}</div>` : ''}</td>
-          <td class="advice-gain">${a.changes[kind].map((c) => `<span><b class="num">${esc(c.text)}</b> ${esc(c.label)}</span>`).join('')}</td>
-          <td class="r num">${formatInt(a.sp)} SP</td>
-          <td class="r num">${formatDuration(a.seconds)}</td>
-          <td><button class="icon-btn" data-advice-plan="${a.skillId}:${a.to}" title="${tx('Adaugă în skill plan')}">+</button></td>
-        </tr>`).join('');
-        body.innerHTML = `
-          <div class="tabs">${KINDS.map((k) => `<button class="tab ${k.key === kind ? 'active' : ''}" data-advice-kind="${k.key}">${k.label} <span class="tab-count neutral">${rankAdvice(list, k.key, false).length}</span></button>`).join('')}</div>
-          <div class="advice-sort">
-            <button class="chip-btn ${perDay ? '' : 'active'}" data-advice-sort="gain">${tx('Câștig cel mai mare')}</button>
-            <button class="chip-btn ${perDay ? 'active' : ''}" data-advice-sort="day">${tx('Câștig pe zi de antrenament')}</button>
-          </div>
-          ${rows ? `<table class="table compact advice"><thead><tr><th>Skill</th><th>${tx('Câștig la nivelul următor')}</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-            : `<p class="dim">${kind === 'dps' ? tx('Niciun skill nu mai îmbunătățește DPS-ul pe fit-ul ăsta.') : kind === 'tank' ? tx('Niciun skill nu mai îmbunătățește tank-ul pe fit-ul ăsta.') : tx('Niciun skill nu mai îmbunătățește nimic aici pe fit-ul ăsta.')}</p>`}`;
-      };
-      draw();
-      body.addEventListener('click', (e) => {
-        const t = e.target as HTMLElement;
-        const k = t.closest<HTMLElement>('[data-advice-kind]');
-        if (k) { kind = k.dataset.adviceKind as AdviceKind; draw(); return; }
-        const pl = t.closest<HTMLElement>('[data-advice-plan]');
-        if (pl) {
-          const [id, lvl] = pl.dataset.advicePlan!.split(':').map(Number);
-          const c = ctx.character;
-          savePlan(c.id, addToPlan(sde, loadPlan(c.id), c, id, lvl));
-          toast(tx('{name} {lvl} în skill plan', { name: name(id), lvl: roman(lvl) }));
-          return;
-        }
-        const s = t.closest<HTMLElement>('[data-advice-sort]');
-        if (s) { perDay = s.dataset.adviceSort === 'day'; draw(); }
-      });
-    }, 30);
-  }
-
   async function openShips() {
     const c = ctx.character;
     const problem = loginProblem(c);
@@ -387,5 +331,5 @@ export function createFitModals(env: FitEnv) {
     }
   }
 
-  return { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi };
+  return { openSavedFits, openImport, openExport, openCompare, openMutation, openShips, openEsi };
 }

@@ -30,6 +30,7 @@ export interface Applied {
   rawDps: number;
   dps: number;
   signature: number;
+  painters: PainterEffect[];
   weapons: AppliedWeapon[];
 }
 
@@ -40,16 +41,21 @@ function damageOf(item: DogmaItem) {
   return DAMAGE_ATTRS.reduce((a, n) => a + item.get(n), 0);
 }
 
-export function paintedSignature(sde: Sde, d: Dogma, signature: number, distance = 0): number {
-  const mults = d.modules
+export interface PainterEffect {
+  item: DogmaItem;
+  reach: number;
+  mult: number;
+}
+
+export function activePainters(sde: Sde, d: Dogma, distance = 0): PainterEffect[] {
+  return d.modules
     .filter((m) => (m.state === 'active' || m.state === 'overheated') && m.type.effects.some((e) => /TargetPaint/i.test(sde.effects.get(e)?.name ?? '')))
-    .map((m) => {
-      const optimal = m.get('maxRange');
-      const falloff = m.get('falloffEffectiveness');
+    .map((item) => {
+      const optimal = item.get('maxRange');
+      const falloff = item.get('falloffEffectiveness');
       const reach = distance <= optimal ? 1 : falloff > 0 ? 0.5 ** (((distance - optimal) / falloff) ** 2) : 0;
-      return 1 + (m.get('signatureRadiusBonus') / 100) * reach;
+      return { item, reach, mult: 1 + (item.get('signatureRadiusBonus') / 100) * reach };
     });
-  return signature * penalizedProduct(mults);
 }
 
 export function missileFactor(charge: DogmaItem, signature: number, velocity: number): number {
@@ -81,7 +87,8 @@ export function turretChance(item: DogmaItem, signature: number, velocity: numbe
 }
 
 export function applied(sde: Sde, d: Dogma, target: TargetProfile, distance: number): Applied {
-  const signature = paintedSignature(sde, d, target.signature, distance);
+  const painters = activePainters(sde, d, distance);
+  const signature = target.signature * penalizedProduct(painters.map((p) => p.mult));
   const weapons: AppliedWeapon[] = [];
   const push = (w: AppliedWeapon) => {
     const same = weapons.find((x) => x.name === w.name && x.kind === w.kind);
@@ -120,7 +127,7 @@ export function applied(sde: Sde, d: Dogma, target: TargetProfile, distance: num
   }
 
   const rawDps = weapons.reduce((a, w) => a + w.rawDps, 0);
-  return { rawDps, dps: weapons.reduce((a, w) => a + w.dps, 0), signature, weapons };
+  return { rawDps, dps: weapons.reduce((a, w) => a + w.dps, 0), signature, painters, weapons };
 }
 
 export function maxEngagement(sde: Sde, d: Dogma): number {

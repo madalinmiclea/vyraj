@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
 import { Category, type TypeInfo } from '../data/sde';
 import {
-  addToFit, droneLimit, ensureDroneLimits, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, cloneFit, emptyFit, fitContents, slotCounts,
+  addToFit, droneLimit, ensureDroneLimits, newFitId, buildDogma, SLOT_KINDS, slotOf, canActivate, canLoadCharge, canOverheat, defaultState, cloneFit, emptyFit, fitContents, slotCounts,
   type Fit, type FitModule, type SlotKind,
 } from '../engine/fit';
 import { isProjectable } from '../engine/projected';
@@ -10,7 +10,7 @@ import { applyChecked, violations } from '../engine/rules';
 import { computeStats, type FitStats } from '../engine/stats';
 import { findProfile } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
-import { allCharacters } from '../character/characters';
+import { allCharacters, allLevels } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, typeRenderUrl } from '../services/market';
@@ -21,7 +21,7 @@ import { alertBox, badge, button, compactISK, copyText, dataStamp, emptyState, e
 import { theme } from '../theme';
 
 const proving = (message: string) => (theme === 'vyraj' ? `Proving failed · ${message}` : message);
-import { showItemInfo, skillPlanText } from '../ui/itemInfo';
+import { showItemInfo, skillPlanText, type FitSwap } from '../ui/itemInfo';
 import { moduleName } from '../engine/mutation';
 import { bindBreakdownTips } from '../ui/breakdown';
 import { TARGETS } from '../engine/application';
@@ -34,7 +34,10 @@ import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
 import { createSupportPanels } from '../fitting/support';
 import { createImplantPanel } from '../fitting/implants';
+import { createImprovementPanel } from '../fitting/improvement';
 import { createNpcPanel } from '../fitting/npc';
+import { findRealFit, hasFittingSlots, type RealFitKind } from '../services/realFits';
+import { buildStarterFit } from '../engine/starter';
 
 export const FITTING_CATEGORIES = ['Ships', 'Ship Equipment', 'Ship and Module Modifications', 'Ammunition & Charges', 'Drones', 'Implants & Boosters'];
 
@@ -127,8 +130,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   const { buildTips, statsPanels, requirementsPanel } = createStatsPanels(env, tips);
   const support = createSupportPanels(env);
   const implantPanel = createImplantPanel(env);
+  const improvement = createImprovementPanel(env);
   const npc = createNpcPanel(env, tips);
-  const { openSavedFits, openImport, openExport, openCompare, openMutation, openAdvice, openShips, openEsi } = createFitModals(env);
+  const { openSavedFits, openImport, openExport, openCompare, openMutation, openShips, openEsi } = createFitModals(env);
   const nameInput = el.querySelector<HTMLInputElement>('#fitName')!;
   const charSelect = el.querySelector<HTMLSelectElement>('#fitCharacter')!;
   document.addEventListener('click', (e) => {
@@ -251,11 +255,12 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
-    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d) + implantPanel.render(fit, d);
+    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d) + implantPanel.render(fit, d) + improvement.render(fit) + costPanel();
     buildTips(d);
-    right.innerHTML = statsPanels(stats, d) + npc.render(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit) + costPanel();
+    right.innerHTML = statsPanels(stats, d) + npc.render(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit);
     persist();
     loadCost(fit);
+    improvement.refresh(fit);
   }
 
   function shipHeader(f: Fit, s: FitStats) {
@@ -271,7 +276,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           <div class="ship-stat"><b class="num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</b><span>Cap</span></div>
         </div>
       </div>
-      <div class="ship-actions">${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}</div>
+      <div class="ship-actions">
+        ${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}
+        ${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}
+        ${hasFittingSlots(sde, f.shipId) ? `${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Deschide într-un tab nou un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Deschide într-un tab nou un fit PvP publicat, cu module T2')}"` })}` : ''}
+      </div>
     </section>`;
   }
 
@@ -483,8 +492,66 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return d.drones.find((x) => x.item.typeId === typeId)?.item ?? d.implants.find((x) => x.typeId === typeId);
   }
 
+  function swappedModule(m: FitModule, typeId: number): FitModule {
+    let state = m.state;
+    if (state === 'overheated' && !canOverheat(sde, typeId)) state = 'active';
+    if (state === 'active' && !canActivate(sde, typeId)) state = defaultState(sde, typeId);
+    const chargeId = m.chargeId && canLoadCharge(sde, typeId, m.chargeId) ? m.chargeId : undefined;
+    return { typeId, state, ...(chargeId ? { chargeId } : {}) };
+  }
+
+  function swapContext(kind: SlotKind, i: number): FitSwap | undefined {
+    const m = fit?.slots[kind][i];
+    const key = `${kind}${i}`;
+    const fitted = lastDogma?.modules.find((x) => x.slotKey === key);
+    if (!fit || !m || !fitted) return undefined;
+    return {
+      fittedId: m.typeId,
+      fitted,
+      preview: (typeId) => {
+        if (!fit || slotOf(sde, typeId) !== kind) return undefined;
+        const draft = cloneFit(fit);
+        draft.slots[kind][i] = swappedModule(m, typeId);
+        return buildDogma(sde, draft, ctx.character).modules.find((x) => x.slotKey === key);
+      },
+      replace: (typeId) => {
+        if (!fit) return null;
+        if (slotOf(sde, typeId) !== kind) { toast(proving(tx('{name} nu intră în același tip de slot', { name: name(typeId) }))); return null; }
+        const result = applyChecked(sde, fit, ctx.character.skills, (draft) => {
+          draft.slots[kind][i] = swappedModule(m, typeId);
+          return { ok: true, message: tx('{name} montat în locul lui {old}', { name: name(typeId), old: moduleName(sde, m) }) };
+        }, ctx.character.implants);
+        toast(result.ok ? result.message : proving(result.message));
+        if (!result.ok) return null;
+        render();
+        return swapContext(kind, i) ?? null;
+      },
+    };
+  }
+
   function newFit(shipId: number) {
-    return openFit(emptyFit(shipId, `${name(shipId)} PvE`));
+    return openFit(emptyFit(shipId, name(shipId)));
+  }
+
+  function openStarter(shipId: number, kind: RealFitKind, trigger: HTMLElement) {
+    const label = kind === 'pve' ? 'PvE' : 'PvP';
+    const done = () => { trigger.classList.remove('busy'); trigger.removeAttribute('disabled'); };
+    trigger.classList.add('busy');
+    trigger.setAttribute('disabled', '');
+    const open = (f: Fit, published: boolean) => {
+      f.id = newFitId();
+      if (!addTab(limitDrones(f))) { done(); return; }
+      const problems = violations(sde, f, ctx.character.skills, ctx.character.implants).size;
+      const what = published ? tx('Fit {kind} publicat deschis într-un tab nou', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
+      toast(problems ? `${what}. ${tx('Ce nu încape cu skill-urile caracterului apare cu roșu.')}` : what);
+    };
+    findRealFit(sde, shipId, kind).catch(() => null).then((found) => {
+      if (found) { open(cloneFit(found.fit), !found.generated); return; }
+      setTimeout(() => {
+        const note = tx('Fit {kind} generat din bonusurile, sloturile, hardpoints, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.', { kind: label });
+        open(buildStarterFit(sde, shipId, kind, allLevels(sde, 5), `${name(shipId)} ${label}`, note), false);
+      }, 30);
+    });
   }
 
   function showExtras(key: ExtrasTab) {
@@ -561,6 +628,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLElement;
     const at = (sel: string) => target.closest<HTMLElement>(sel);
     if (npc.handleClick(target)) { render(); return; }
+    if (improvement.handleClick(target)) return;
 
     const tabClose = at('[data-fit-close]');
     if (tabClose) { closeTab(Number(tabClose.dataset.fitClose)); return; }
@@ -575,7 +643,13 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const quick = at('[data-quick]');
     if (quick) { selectItem(quick.dataset.quick!, null); return; }
     const info = at('[data-info]');
-    if (info) { showItemInfo(ctx, Number(info.dataset.info), fittedItem(info)); return; }
+    if (info) {
+      const row = info.dataset.infoCharge ? null : info.closest<HTMLElement>('.slot.fitted[data-slot]');
+      showItemInfo(ctx, Number(info.dataset.info), fittedItem(info), row ? swapContext(...parseSlot(row.dataset.slot!)) : undefined);
+      return;
+    }
+    const starter = at('[data-starter]');
+    if (starter) { if (fit) openStarter(fit.shipId, starter.dataset.starter as RealFitKind, starter); return; }
     const action = at('[data-action]')?.dataset.action;
     if (action) { runAction(action); return; }
     if (!fit) return;
@@ -770,9 +844,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       case 'multibuy':
         if (fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Lista Multibuy copiată'));
         break;
-      case 'advice':
-        openAdvice();
-        return;
       case 'plan-fit':
         if (fit) {
           const c = ctx.character;

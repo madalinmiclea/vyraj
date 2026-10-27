@@ -452,3 +452,25 @@ select:disabled { cursor: not-allowed; opacity: 0.55; }
 .data-stamp.busy .data-stamp-dot { background: var(--accent); box-shadow: none; }
 .side-stamp { padding: 12px 10px 0; }
 .side-stamp:empty { display: none; }
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+  --spin-up: var(--text-dim);
+  --spin-down: var(--text-dim);
+  background-image:
+    linear-gradient(135deg, transparent 50%, var(--spin-up) 50%),
+    linear-gradient(45deg, var(--spin-up) 50%, transparent 50%),
+    linear-gradient(45deg, transparent 50%, var(--spin-down) 50%),
+    linear-gradient(135deg, var(--spin-down) 50%, transparent 50%);
+  background-position: calc(100% - 13px) calc(50% - 4px), calc(100% - 8px) calc(50% - 4px), calc(100% - 13px) calc(50% + 4px), calc(100% - 8px) calc(50% + 4px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+input[type="number"], input.input[type="number"] { padding-right: 24px; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+input[type="number"][data-spin] { cursor: pointer; }
+input[type="number"][data-spin="up"] { --spin-up: var(--accent); }
+input[type="number"][data-spin="down"] { --spin-down: var(--accent); }
+input[type="number"]:disabled, input[type="number"][readonly] { background-image: none; padding-right: 6px; }

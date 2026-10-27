@@ -99,6 +99,7 @@
   .panel-head { flex-wrap: wrap; row-gap: 8px; }
   .ship-head { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .ship-head > :nth-child(3) { grid-column: 1 / -1; }
+  .ship-actions { width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ship-render { width: 72px; height: 72px; }
 
   .tabs, .advice-sort { flex-wrap: wrap; row-gap: 6px; }
