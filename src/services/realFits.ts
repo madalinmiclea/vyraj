@@ -8,7 +8,7 @@ import { tx } from '../i18n';
 
 export type RealFitKind = 'pve' | 'pvp';
 
-interface PublishedFit { eft: string; source: string; title?: string }
+export interface PublishedFit { eft: string; source: string; title?: string }
 type ShipFits = Record<string, Partial<Record<RealFitKind, PublishedFit>>>;
 
 export interface RealFit {
@@ -213,7 +213,10 @@ function keepWithinLimits(sde: Sde, fit: Fit, upgraded: Upgraded[]): Adjustments
 
 export async function findRealFit(sde: Sde, shipId: number, kind: RealFitKind): Promise<RealFit | null> {
   const entry = (await loadShipFits())[String(shipId)]?.[kind];
-  if (!entry) return null;
+  return entry ? prepareFit(sde, shipId, kind, entry) : null;
+}
+
+export function prepareFit(sde: Sde, shipId: number, kind: RealFitKind, entry: PublishedFit): RealFit | null {
   const { fit } = parseEft(sde, entry.eft);
   if (fit.shipId !== shipId) return null;
   const upgraded: Upgraded[] = [];

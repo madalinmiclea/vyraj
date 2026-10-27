@@ -76,7 +76,7 @@ function flatten(node: TreeNode, out: Entry[] = []): Entry[] {
   return out;
 }
 
-export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, onScopeClear }: { onSelect: (name: string, typeId: number | null) => void; onInfo?: (typeId: number) => void; onScopeClear?: () => void }): ItemBrowser {
+export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, hasInfo, onScopeClear }: { onSelect: (name: string, typeId: number | null) => void; onInfo?: (typeId: number) => void; hasInfo?: (typeId: number) => boolean; onScopeClear?: () => void }): ItemBrowser {
   let tree: TreeNode[] | null = null;
 
   let query = '';
@@ -177,7 +177,7 @@ export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, on
 
   container.addEventListener('contextmenu', (e) => {
     const item = (e.target as HTMLElement).closest<HTMLElement>('.tree-item');
-    if (!item || !onInfo || !item.dataset.type) return;
+    if (!item || !onInfo || !item.dataset.type || (hasInfo && !hasInfo(Number(item.dataset.type)))) return;
     e.preventDefault();
     onInfo(Number(item.dataset.type));
   });

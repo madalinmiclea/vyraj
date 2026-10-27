@@ -27,7 +27,7 @@ function saveRecent(name: string) {
 export interface MarketView {
   show(itemName: string, knownTypeId?: number | null): Promise<void>;
   focus(): void;
-  setInfo(fn: (typeId: number) => void): void;
+  setInfo(fn: (typeId: number) => void, has: (typeId: number) => boolean): void;
   setFees(fn: () => Fees): void;
   itemsLoaded(): void;
 }
@@ -45,6 +45,8 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   const state = el.querySelector<HTMLElement>('#marketState')!;
   let lastPrices: Record<string, string> | null = null;
   let showInfo: ((typeId: number) => void) | null = null;
+  let hasInfo: ((typeId: number) => boolean) | null = null;
+  const infoButton = (typeId: number) => (isGlobalMarket(typeId) || (hasInfo && !hasInfo(typeId)) ? '' : button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` }));
   let requestId = 0;
   let current: { typeId: number; name: string; sell: number; buy: number } | null = null;
   let history: HistoryDay[] = [];
@@ -274,7 +276,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
               <h2 id="itemTitle">${esc(name)}</h2>
               <div class="meta">${badge(tx('Fără ordine în Jita'), 'warn', true)}</div>
             </div>
-            <div class="actions">${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
+            <div class="actions">${infoButton(typeId)}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
           </section>
           ${emptyState({ title: tx('Nimeni nu vinde sau cumpără acum'), text: tx('Itemul există în joc, dar nu are niciun ordin activ în Jita (des întâlnit la module de officer și iteme rare). Verifică din nou mai târziu; prețurile se reîmprospătează la fiecare căutare.'), vy: 'The Conduit Is Silent', vyText: 'This item exists, but no order flows for it in Jita right now (common for officer modules and rare items). Return later; prices refresh with every search.' })}
           <div id="hubPanel" class="hub-panel"></div>`;
@@ -313,7 +315,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             </div>
           </div>
           <div class="actions">
-            ${isGlobalMarket(typeId) ? '' : button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` })}
+            ${infoButton(typeId)}
             ${button(tx('Copiază sell'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-copy="sell"' })}
             ${button(tx('Alertă preț'), { iconName: 'alert', cls: 'ghost sm', attrs: 'data-alert' })}
             <a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a>
@@ -355,7 +357,11 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   return {
     show,
     focus: () => input.focus(),
-    setInfo: (fn) => { showInfo = fn; },
+    setInfo: (fn, has) => {
+      showInfo = fn;
+      hasInfo = has;
+      state.querySelectorAll<HTMLElement>('[data-show-info]').forEach((b) => { if (!has(Number(b.dataset.showInfo))) b.remove(); });
+    },
     setFees: (fn) => { getFees = fn; },
     itemsLoaded: () => { if (!current && state.querySelector('.market-welcome')) renderWelcome(); },
   };

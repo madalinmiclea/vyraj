@@ -10,6 +10,7 @@ import {
   type RouteFlag, type SystemInfo, type SystemActivity, type SystemIntel, type Pilot, type DscanRow, type DpsEstimate,
 } from '../services/recon';
 import { tx } from '../i18n';
+import { loadStoredCharacters } from '../character/characters';
 import { allEveItems } from '../data/items';
 
 type Tab = 'route' | 'local';
@@ -328,9 +329,19 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     }
   }
 
+  function ownMatcher() {
+    const stored = loadStoredCharacters();
+    const ids = new Set(stored.map((c) => c.characterId).filter((id): id is number => !!id));
+    const names = new Set(stored.filter((c) => c.kind === 'esi').map((c) => c.name.trim().toLowerCase()));
+    return (p: Pilot) => ids.has(p.id) || names.has(p.name.trim().toLowerCase());
+  }
+
   function renderLocal() {
-    const rank = (p: Pilot) => (p.failed ? 1.5 : threat(p.stats));
-    const list = [...pilots].sort((a, b) => rank(b) - rank(a) || (b.stats?.recent ?? 0) - (a.stats?.recent ?? 0) || (b.stats?.kills ?? 0) - (a.stats?.kills ?? 0));
+    const isOwn = ownMatcher();
+    const rank = (p: Pilot) => (isOwn(p) ? -1 : p.failed ? 1.5 : threat(p.stats));
+    const all = [...pilots].sort((a, b) => rank(b) - rank(a) || (b.stats?.recent ?? 0) - (a.stats?.recent ?? 0) || (b.stats?.kills ?? 0) - (a.stats?.kills ?? 0));
+    const list = all.filter((p) => !isOwn(p));
+    const own = all.length - list.length;
     const groups = new Map<string, { id?: number; corp: boolean; n: number; danger: number }>();
     for (const p of list) {
       const key = p.allianceId ? `a${p.allianceId}` : `c${p.corpId}`;
@@ -339,13 +350,14 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       if (threat(p.stats) >= 2) g.danger++;
       groups.set(key, g);
     }
-    const mains = list.map((p) => ({ p, ship: p.stats?.topShips[0]?.id, est: p.stats?.topShips[0] ? estimateDps(ctx.sde, p.stats.topShips[0].id) : null }));
-    const dps = mains.reduce((n, m) => n + (threat(m.p.stats) >= 1 ? m.est?.dps ?? 0 : 0), 0);
+    const mains = all.map((p) => ({ p, ship: p.stats?.topShips[0]?.id, est: p.stats?.topShips[0] ? estimateDps(ctx.sde, p.stats.topShips[0].id) : null }));
+    const dps = mains.reduce((n, m) => n + (!isOwn(m.p) && threat(m.p.stats) >= 1 ? m.est?.dps ?? 0 : 0), 0);
     const dangerous = list.filter((p) => threat(p.stats) >= 2).length;
     const failed = list.filter((p) => p.failed).length;
     const logo = (g: { id?: number; corp: boolean }) => (g.id ? `<img class="row-icon" src="https://images.evetech.net/${g.corp ? 'corporations' : 'alliances'}/${g.id}/logo?size=32" alt="" />` : '');
     localResult.innerHTML = `<div class="history-kpis intel-kpis">
         <div><span class="label">${tx('Piloți')}</span><span class="value">${formatInt(list.length)}</span></div>
+        ${own ? `<div title="${esc(tx('Piloți din listă care sunt caractere logate în aplicație. Nu intră în calculul de risc.'))}"><span class="label">${tx('Caracterele tale')}</span><span class="value accent-text">${formatInt(own)}</span></div>` : ''}
         <div><span class="label">${tx('Grupări')}</span><span class="value">${formatInt(groups.size)}</span></div>
         <div><span class="label">${tx('Activi / periculoși')}</span><span class="value ${dangerous ? 'neg-text' : ''}">${formatInt(dangerous)}</span></div>
         <div title="${esc(tx('Suma DPS-ului estimat pentru nava cea mai folosită de fiecare pilot cu kill-uri. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
@@ -353,26 +365,27 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       </div>
       ${failed ? alertBox(tx('zKillboard nu a răspuns pentru {n} piloți (site căzut sau prea multe cereri). Nu știm nimic despre ei, nu-i considera inofensivi. Apasă din nou Analizează peste un minut.', { n: failed }), 'danger') : ''}
       ${unknown.length ? alertBox(tx('Nume negăsite: {list}', { list: unknown.slice(0, 10).join(', ') + (unknown.length > 10 ? '…' : '') }), 'warn') : ''}
-      ${list.length > MAX_PILOTS ? alertBox(tx('Istoricul zKillboard se încarcă doar pentru primii {n} piloți.', { n: MAX_PILOTS }), 'warn') : ''}
+      ${all.length > MAX_PILOTS ? alertBox(tx('Istoricul zKillboard se încarcă doar pentru primii {n} piloți.', { n: MAX_PILOTS }), 'warn') : ''}
       <div class="recon-grid">
         ${panel({
           title: tx('Piloți'),
-          count: formatInt(list.length),
+          count: formatInt(all.length),
           body: `<div class="table-scroll"><table class="table compact recon-pilots"><thead><tr>
               <th>${tx('Pilot')}</th><th>${tx('Corporație / alianță')}</th><th class="r">Kills</th><th class="r">Losses</th><th class="r">Solo</th><th class="r">Danger</th><th class="r">${tx('Kill-uri 7z')}</th><th>${tx('Navă preferată')}</th><th class="r">DPS ~</th><th>${tx('Amenințare')}</th>
             </tr></thead><tbody>
             ${mains.map(({ p, ship, est }) => {
               const s = p.stats;
               const lvl = threat(s);
-              return `<tr>
+              const mine = isOwn(p);
+              return `<tr class="${mine ? 'recon-own' : ''}">
                 <td><span class="recon-ship"><img class="row-icon round" src="${portraitUrl(p.id, 32)}" alt="" />${zkbLink('character', p.id, esc(p.name))}</span></td>
                 <td class="dim recon-aff">${esc(cachedName(p.corpId))}${p.allianceId ? `<small>${esc(cachedName(p.allianceId))}</small>` : ''}</td>
                 ${s === undefined ? `<td colspan="5" class="dim small">${tx('se încarcă...')}</td>`
                   : p.failed ? `<td colspan="5" class="small warn-text">${tx('zKillboard indisponibil')}</td>`
                   : `<td class="r num">${formatInt(s?.kills ?? 0)}</td><td class="r num dim">${formatInt(s?.losses ?? 0)}</td><td class="r num">${formatInt(s?.solo ?? 0)}</td><td class="r num">${s?.kills ? s.danger + '%' : '—'}</td><td class="r num ${(s?.recent ?? 0) > 0 ? 'neg-text' : 'dim'}">${formatInt(s?.recent ?? 0)}</td>`}
                 <td>${shipCell(ship)}</td>
-                <td class="r num" ${est ? `title="${esc(dpsTip(est))}"` : ''}>${est ? formatInt(est.dps) : '—'}</td>
-                <td>${s === undefined ? '' : p.failed ? badge(tx('Neverificat'), 'warn', true) : badge(THREAT_LABEL()[lvl], RISK_TONE[lvl], true)}</td>
+                <td class="r num" ${est && !mine ? `title="${esc(dpsTip(est))}"` : ''}>${est && !mine ? formatInt(est.dps) : '—'}</td>
+                <td>${mine ? badge(tx('Tu'), 'accent', true) : s === undefined ? '' : p.failed ? badge(tx('Neverificat'), 'warn', true) : badge(THREAT_LABEL()[lvl], RISK_TONE[lvl], true)}</td>
               </tr>`;
             }).join('')}
             </tbody></table></div>`,

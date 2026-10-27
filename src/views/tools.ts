@@ -305,8 +305,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         actions: basisChips(),
         body: `<div class="form-grid">
             ${mine.length ? `<label>${tx('LP-ul meu')} <select class="input sm" id="lpMine"><option value="">—</option>${mine.sort((a, b) => b.loyalty_points - a.loyalty_points).map((m) => `<option value="${m.corporation_id}" ${saved?.id === m.corporation_id ? 'selected' : ''}>${esc(corpNames.get(m.corporation_id) ?? String(m.corporation_id))} · ${formatInt(m.loyalty_points)} LP</option>`).join('')}</select></label>` : ''}
-            <label>${tx('Corporație')} <input class="input sm" id="lpCorp" placeholder="Caldari Navy" value="${esc(saved?.name ?? '')}" /></label>
-            <button class="btn sm" data-lp-load>${icon('search')}${tx('Încarcă')}</button>
+            <label>${tx('Corporație')} <input class="input sm" id="lpCorp" placeholder="Caldari Navy" value="${esc(saved?.name ?? '')}" title="${tx('Scrie numele corporației și apasă Enter')}" /></label>
           </div>
 `,
       })}
@@ -445,7 +444,6 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (at('[data-ab-save]')) { saveRun(); return; }
     const del = at('[data-ab-del]');
     if (del) { saveRuns(loadRuns().filter((r) => r.id !== del.dataset.abDel)); abyssal(); return; }
-    if (at('[data-lp-load]')) { lpLoad(); return; }
     if (at('[data-al-add]')) { addAlertFromForm(); return; }
     if (at('[data-al-check]')) { checkAlerts().then(() => toast(tx('Verificat'))).catch((err) => toast((err as Error).message)); return; }
     const ad = at('[data-al-del]');
@@ -459,6 +457,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       body.querySelector<HTMLInputElement>('#lpCorp')!.value = sel.value ? sel.selectedOptions[0].text.split(' · ')[0] : '';
       if (sel.value) lpLoad();
     }
+    if (t.id === 'lpCorp' && (t as HTMLInputElement).value.trim()) lpLoad();
   });
 
   window.addEventListener(ALERTS_EVENT, () => { if (tab === 'alerts') alerts(); });

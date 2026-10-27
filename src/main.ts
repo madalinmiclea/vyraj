@@ -25,7 +25,7 @@ import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVE
 import { loadStoredCharacters } from './character/characters';
 import { portraitUrl } from './character/esi';
 import { fetchListedTypes } from './services/market';
-import { showItemInfo } from './ui/itemInfo';
+import { showItemInfo, hasItemInfo } from './ui/itemInfo';
 import { loadJson, saveJson, onStorageError } from './storage';
 import { tx, lang, setLang, type Lang } from './i18n';
 import { theme, setTheme, type Theme } from './theme';
@@ -122,12 +122,14 @@ for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', '
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
+let infoAvailable: ((typeId: number) => boolean) | null = null;
 const browser = createItemBrowser(document.getElementById('treeView')!, {
   onSelect: (name, typeId) => {
     if (activeView === 'fitting') fitting?.selectItem(name, typeId);
     else { if (activeView !== 'market') switchView('market'); market.show(name, typeId); }
   },
   onInfo: (typeId) => infoHandler?.(typeId),
+  hasInfo: (typeId) => !infoAvailable || infoAvailable(typeId),
   onScopeClear: () => fitting?.clearSlot(),
 });
 treeFilter.addEventListener('input', () => browser.filter(treeFilter.value));
@@ -329,7 +331,8 @@ async function start() {
   });
 
   infoHandler = (typeId) => showItemInfo(ctx, typeId);
-  market.setInfo(infoHandler);
+  infoAvailable = (typeId) => hasItemInfo(ctx.sde, typeId);
+  market.setInfo(infoHandler, infoAvailable);
   mount(['fitting'], () => { fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); }); });
   let character: ReturnType<typeof createCharacterView> | null = null;
   mount(['character'], () => {

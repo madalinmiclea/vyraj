@@ -531,7 +531,12 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function newFit(shipId: number) {
-    return openFit(emptyFit(shipId, name(shipId)));
+    if (fit && isDirty(fit, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Le pierzi și începi un fit nou pe {ship}?', { name: fit.name, ship: name(shipId) }))) return false;
+    fit = limitDrones(emptyFit(shipId, name(shipId)));
+    tabs[active] = fit;
+    if (pickedSlot) pickSlot(null);
+    render();
+    return true;
   }
 
   function openStarter(shipId: number, kind: RealFitKind, trigger: HTMLElement) {
@@ -786,7 +791,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const m = fit.slots[k][i];
       if (!m) return;
       const chargeId = Number(target.value) || undefined;
-      change((draft) => { for (const other of draft.slots[k]) if (other && other.typeId === m.typeId) other.chargeId = chargeId; });
+      const weapon = sde.hasEffect(m.typeId, 'turretFitted') || sde.hasEffect(m.typeId, 'launcherFitted');
+      change((draft) => {
+        if (!weapon) { const own = draft.slots[k][i]; if (own) own.chargeId = chargeId; return; }
+        for (const other of draft.slots[k]) if (other && other.typeId === m.typeId) other.chargeId = chargeId;
+      });
     }
   });
 

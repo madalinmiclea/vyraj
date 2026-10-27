@@ -106,6 +106,16 @@ async function generate() {
     fs.writeFileSync(path.join(RAW_DIR, 'items.json'), JSON.stringify({ items, groups: usedMarketGroups }));
     console.log(`✅ data/items.json: ${items.length} iteme de market`);
 
+    const traits: Record<string, [string, [string, string][]][]> = {};
+    for (const e of (await getJson('phobos/traits.0.json')) as Row[]) {
+        const t = e.traits?.['en-us'] ?? {};
+        const block = (b: Row): [string, [string, string][]] => [b.header, b.bonuses.map((x: Row) => [x.number ?? '', x.text])];
+        const groups = [...(t.skills ?? []).map(block), ...(t.role ? [block(t.role)] : []), ...(t.misc ? [block(t.misc)] : [])];
+        if (groups.length) traits[e.typeID] = groups;
+    }
+    fs.writeFileSync(path.join(RAW_DIR, 'traits.json'), JSON.stringify(traits));
+    console.log(`✅ data/traits.json: ${Object.keys(traits).length} nave`);
+
     const outTypes: Row[] = [];
     const usedEffects = new Set<number>();
     const usedGroups = new Set<number>();

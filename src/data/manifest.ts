@@ -1,6 +1,6 @@
 import { tx } from '../i18n';
 
-export type DataName = 'sde' | 'items' | 'skins' | 'masteries' | 'map' | 'pi' | 'industry' | 'mining';
+export type DataName = 'sde' | 'items' | 'skins' | 'masteries' | 'map' | 'pi' | 'industry' | 'mining' | 'traits';
 
 let manifest: Promise<Partial<Record<DataName, string>>> | null = null;
 

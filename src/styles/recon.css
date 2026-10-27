@@ -32,3 +32,6 @@
 .recon-ships { display: inline-flex; align-items: flex-start; gap: 0; line-height: 1.35; }
 .recon-ships .row-icon { flex: none; }
 .recon-list { line-height: 1.35; }
+.recon-pilots tr.recon-own td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.recon-pilots tr.recon-own td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.intel-kpis .accent-text { color: var(--accent); }

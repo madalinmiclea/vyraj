@@ -32,8 +32,11 @@ export function fromEsiFitting(sde: Sde, f: EsiFitting): Fit {
   for (const k of SLOT_KINDS) {
     for (const m of fit.slots[k]) {
       if (!m) continue;
-      const c = charges.find((x) => canLoadCharge(sde, m.typeId, x.typeId));
-      if (c) m.chargeId = c.typeId;
+      const options = charges.filter((x) => canLoadCharge(sde, m.typeId, x.typeId));
+      const c = options.find((x) => x.quantity >= chargesPerModule(sde, m.typeId, x.typeId)) ?? options.find((x) => x.quantity > 0) ?? options[0];
+      if (!c) continue;
+      m.chargeId = c.typeId;
+      c.quantity -= chargesPerModule(sde, m.typeId, c.typeId);
     }
   }
   return fit;

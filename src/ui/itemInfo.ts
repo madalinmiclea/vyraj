@@ -3,6 +3,7 @@ import { directRequirements, requirementTree, requirementsFor, skillsPlan, alpha
 import { formatDuration, durationHtml } from '../character/training';
 import { typeIconUrl } from '../services/market';
 import { shipMastery, masterySkills, type ShipMastery } from '../services/masteries';
+import { shipTraits, type TraitGroup } from '../services/traits';
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
 import { attributeSections } from './attributes';
@@ -99,6 +100,23 @@ export interface FitSwap {
   replace: (typeId: number) => FitSwap | null;
 }
 
+function traitsHtml(ctx: AppContext, groups: TraitGroup[]): string {
+  return groups.map((g) => {
+    const skillName = /^(.+) bonuses \(per skill level\):?$/.exec(g.header)?.[1];
+    const skill = skillName ? ctx.sde.findType(skillName) : undefined;
+    const level = skill ? ctx.character.skills.get(skill.id) ?? 0 : 0;
+    const head = skill
+      ? `<button class="link" data-trait-skill="${skill.id}">${esc(skill.name)}</button> ${esc(tx('bonusuri (pe nivel de skill)'))} ${badge(roman(level), level >= 5 ? 'ok' : level ? '' : 'accent')}`
+      : esc(g.header.replace(/:$/, ''));
+    return `<div class="trait-group"><h3 class="section-title">${head}</h3>
+      ${g.bonuses.map((b) => `<div class="trait-row"><span class="trait-amount num">${esc(b.amount)}</span><span>${esc(b.text)}</span></div>`).join('')}</div>`;
+  }).join('');
+}
+
+export function hasItemInfo(sde: AppContext['sde'], typeId: number): boolean {
+  return sde.types.has(typeId);
+}
+
 export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, swap?: FitSwap, startTab = 'attrs') {
   const sde = ctx.sde;
   const t = sde.types.get(typeId);
@@ -146,11 +164,13 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
     </div>
     <div class="tabs">
+      ${t.categoryId === 6 ? `<button class="tab hidden" data-tab="traits">${tx('Bonusuri')}</button>` : ''}
       <button class="tab" data-tab="attrs">${tx('Atribute')}</button>
       ${family.length > 1 ? `<button class="tab" data-tab="var">Variations <span class="tab-count neutral">${family.length}</span></button>` : ''}
       <button class="tab" data-tab="req">Requirements${plan.canFly ? '' : ` <span class="tab-count">${plan.missing.length}</span>`}</button>
       ${t.categoryId === 6 ? '<button class="tab hidden" data-tab="mastery">Mastery <span class="tab-count neutral" data-mastery-count></span></button>' : ''}
     </div>
+    <div class="tab-panel hidden" data-panel="traits"></div>
     <div class="tab-panel" data-panel="attrs">${identity}${attributes}</div>
     <div class="tab-panel hidden" data-panel="var">
       <table class="table compact variations"><thead><tr><th></th><th>Item</th><th>${tx('Tip')}</th><th class="r">Meta</th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
@@ -184,7 +204,15 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     const panel = el.querySelector<HTMLElement>('[data-panel="mastery"]');
     if (panel && mastery) panel.innerHTML = masteryHtml(ctx, mastery, masteryLevel, masteryPlans);
   };
+  let tabPicked = startTab !== 'attrs';
   if (t.categoryId === 6) {
+    shipTraits(typeId).then((groups) => {
+      if (!groups || !el.isConnected) return;
+      const panel = el.querySelector<HTMLElement>('[data-panel="traits"]');
+      if (panel) panel.innerHTML = traitsHtml(ctx, groups);
+      el.querySelector('[data-tab="traits"]')?.classList.remove('hidden');
+      if (!tabPicked) showTab('traits');
+    });
     shipMastery(typeId).then((raw) => {
       if (!raw || !el.isConnected) return;
       const m = withHullSkills(ctx, typeId, raw);
@@ -200,6 +228,8 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     });
   }
   el.addEventListener('click', (e) => {
+    const traitSkill = (e.target as HTMLElement).closest<HTMLElement>('[data-trait-skill]');
+    if (traitSkill) { showItemInfo(ctx, Number(traitSkill.dataset.traitSkill)); return; }
     const lvl = (e.target as HTMLElement).closest<HTMLElement>('[data-mastery-level]');
     if (lvl) { masteryLevel = Number(lvl.dataset.masteryLevel); renderMastery(); return; }
     if ((e.target as HTMLElement).closest('[data-plan-mastery]')) {
@@ -228,6 +258,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     }
     const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
     if (!tab) return;
+    tabPicked = true;
     showTab(tab.dataset.tab!);
   });
   el.querySelector<HTMLInputElement>('[data-attr-filter]')?.addEventListener('input', (e) => {

@@ -97,6 +97,7 @@ export function buildStarterFit(sde: Sde, shipId: number, kind: StarterKind, cha
   fitDrones();
   fitFighters();
   fillRoles(roles());
+  fillRoles(fallbackRoles());
   return fit;
 
   function fitSubsystems() {
@@ -329,7 +330,7 @@ export function buildStarterFit(sde: Sde, shipId: number, kind: StarterKind, cha
         { slot: 'mid', match: shieldHardener },
         { slot: 'low', max: 1, match: inGroup('Damage Control') },
         damageModRole(3),
-        { slot: 'low', match: inGroup('Nanofiber Internal Structure') },
+        { slot: 'low', max: 1, match: inGroup('Nanofiber Internal Structure') },
         { slot: 'rig', match: rig(/Core Defense Field Extender/) },
       ];
     }
@@ -345,6 +346,30 @@ export function buildStarterFit(sde: Sde, shipId: number, kind: StarterKind, cha
       plate,
       { slot: 'low', match: membrane },
       { slot: 'rig', match: rig(/Trimark Armor Pump/) },
+    ];
+  }
+
+  function fallbackRoles(): Role[] {
+    const sameRig = (t: TypeInfo) => slotOf(sde, t.id) === 'rig' && base(t.id, 'rigSize') === base(shipId, 'rigSize');
+    const has = (group: string) => fit.slots.low.some((m) => m && sde.types.get(m.typeId)?.groupName === group);
+    const combat = weaponKind !== 'none';
+    return [
+      { slot: 'high', max: 1, match: inGroup(kind === 'pvp' ? 'Energy Neutralizer' : 'Energy Nosferatu'), strength: (t) => -fitting(t), when: () => combat },
+      { slot: 'high', match: inGroup('Energy Nosferatu'), strength: (t) => -fitting(t), when: () => combat },
+      { slot: 'high', match: (t) => t.groupName === 'Energy Nosferatu', strength: (t) => -fitting(t), when: () => combat },
+      { slot: 'high', match: inGroup(kind === 'pve' ? 'Salvager' : 'Energy Neutralizer'), strength: (t) => -fitting(t), when: () => combat },
+      { slot: 'mid', match: tank === 'shield' ? named('Shield Hardener', /Multispectrum|Adaptive/) : inGroup('Capacitor Battery'), powerShare: 0.2 },
+      { slot: 'mid', match: inGroup('Capacitor Recharger') },
+      { slot: 'mid', match: inGroup('Sensor Booster') },
+      { slot: 'mid', match: inGroup(kind === 'pvp' ? 'Stasis Web' : 'Capacitor Battery'), strength: (t) => -fitting(t) },
+      { slot: 'mid', match: inGroup(weaponKind === 'turret' ? 'Tracking Computer' : weaponKind === 'missile' ? 'Missile Guidance Computer' : 'Sensor Booster', 'Target Painter') },
+      { slot: 'low', max: 1, match: inGroup('Damage Control'), when: () => !has('Damage Control') },
+      { slot: 'low', match: tank === 'shield' ? inGroup('Power Diagnostic System') : named('Energized Armor Membrane', /Multispectrum|Adaptive/) },
+      { slot: 'low', match: inGroup('Power Diagnostic System', 'Reactor Control Unit', 'CPU Enhancer') },
+      { slot: 'low', max: 1, match: inGroup('Nanofiber Internal Structure', 'Inertial Stabilizer'), when: () => !has('Nanofiber Internal Structure') && !has('Overdrive Injector System') },
+      { slot: 'low', match: inGroup('Reinforced Bulkhead') },
+      { slot: 'rig', match: (t) => sameRig(t) && t.groupName === (tank === 'shield' ? 'Rig Shield' : 'Rig Armor') },
+      { slot: 'rig', match: (t) => sameRig(t) && /^Rig (Core|Navigation)$/.test(t.groupName) },
     ];
   }
 
