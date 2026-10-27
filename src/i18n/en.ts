@@ -1225,6 +1225,7 @@ export const EN: Record<string, string> = {
   "Fit {kind} generat din bonusurile, sloturile, hardpoints, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.": "{kind} fit generated from the ship's bonuses, slots, hardpoints, CPU and powergrid, with T2 modules, because no published fit was found. Adjust it to the way you fly.",
   "Fit publicat: „{title}”, sursa {url} . Modulele care au variantă T2 au fost trecute pe T2.": "Published fit: “{title}”, source {url} . Modules with a T2 variant were switched to T2.",
   "Fit {kind} compus din bonusurile și statisticile navei, pentru că nu există un fit publicat. Modulele care au variantă T2 au fost trecute pe T2.": "{kind} fit built from the ship's bonuses and stats, because no published fit exists. Modules with a T2 variant were switched to T2.",
+  "Charges sunt T2 unde există, altfel faction.": "Charges are T2 where available, otherwise faction.",
   "Am scos modulele care nu aveau sloturi sau hardpoints libere pe navă ({n}).": "Removed modules that had no free slot or hardpoint on the ship ({n}).",
   "Ca să încapă în CPU și powergrid cu toate skill-urile la V, unele module au trecut pe varianta faction ({n}).": "To fit CPU and powergrid with all skills at V, some modules were switched to their faction variant ({n}).",
   "Unde nici faction nu a ajuns, unele module au rămas T1 sau meta ({n}).": "Where faction was not enough, some modules were kept T1 or meta ({n}).",

@@ -1,5 +1,5 @@
 import { Category, type Sde } from '../data/sde';
-import { emptyFit, slotCounts, toDogmaInput, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
+import { canLoadCharge, emptyFit, slotCounts, toDogmaInput, SLOT_KINDS, type Fit, type SlotKind } from '../engine/fit';
 import { Dogma } from '../engine/dogma';
 import { resources, type Resource, type Resources } from '../engine/stats';
 import { allLevels } from '../character/characters';
@@ -139,6 +139,59 @@ function trimBays(sde: Sde, fit: Fit, measure: () => Resources): boolean {
   return trimmed;
 }
 
+const DAMAGE_ATTRS = ['emDamage', 'thermalDamage', 'kineticDamage', 'explosiveDamage'];
+
+function damageOf(sde: Sde, typeId: number): number {
+  return DAMAGE_ATTRS.filter((n) => sde.hasAttr(n)).reduce((a, n) => a + sde.baseAttr(typeId, sde.attrId(n)), 0);
+}
+
+function strongest(sde: Sde, ids: number[]): number | undefined {
+  return [...ids].sort((a, b) => damageOf(sde, b) - damageOf(sde, a) || sde.type(a).name.localeCompare(sde.type(b).name))[0];
+}
+
+function upgradeCharge(sde: Sde, chargeId: number, fits: (id: number) => boolean): number {
+  const t = sde.types.get(chargeId);
+  if (!t || t.metaGroupId === 2) return chargeId;
+  const variants = sde.variations(chargeId).filter((v) => fits(v.id));
+  const pick = (meta: number) => strongest(sde, variants.filter((v) => v.metaGroupId === meta).map((v) => v.id));
+  if (t.metaGroupId === 4) return pick(2) ?? chargeId;
+  return pick(2) ?? pick(4) ?? chargeId;
+}
+
+let chargePool: number[] | null = null;
+
+function chargeFor(sde: Sde, moduleId: number, only?: number): number | undefined {
+  chargePool ??= sde.typesInCategory(Category.Charge).filter((c) => c.metaGroupId === 2 || c.metaGroupId === 4).map((c) => c.id);
+  const fit = chargePool.filter((id) => canLoadCharge(sde, moduleId, id) && (only == null || sde.types.get(id)?.metaGroupId === only));
+  return strongest(sde, fit.filter((id) => sde.types.get(id)?.metaGroupId === 2)) ?? strongest(sde, fit.filter((id) => sde.types.get(id)?.metaGroupId === 4));
+}
+
+function loadCharges(sde: Sde, fit: Fit): void {
+  const cargo = new Map<number, number>();
+  for (const c of fit.cargo) {
+    const id = sde.types.get(c.typeId)?.categoryId === Category.Charge ? upgradeCharge(sde, c.typeId, () => true) : c.typeId;
+    cargo.set(id, (cargo.get(id) ?? 0) + c.count);
+  }
+  const fromCargo = (moduleId: number) => [...cargo].filter(([id]) => canLoadCharge(sde, moduleId, id)).sort((a, b) => b[1] - a[1])[0]?.[0];
+  for (const k of SLOT_KINDS) {
+    for (const m of fit.slots[k]) {
+      if (!m) continue;
+      const weapon = sde.hasEffect(m.typeId, 'turretFitted') || sde.hasEffect(m.typeId, 'launcherFitted');
+      if (m.chargeId) m.chargeId = upgradeCharge(sde, m.chargeId, (id) => canLoadCharge(sde, m.typeId, id));
+      else if (weapon) m.chargeId = fromCargo(m.typeId) ?? chargeFor(sde, m.typeId);
+      if (weapon && m.chargeId && sde.types.get(m.chargeId)?.metaGroupId !== 2) m.chargeId = chargeFor(sde, m.typeId, 2) ?? m.chargeId;
+    }
+  }
+  const loaded = new Map<number, number>();
+  for (const k of SLOT_KINDS) for (const m of fit.slots[k]) {
+    if (!m?.chargeId) continue;
+    const rounds = Math.floor(sde.baseAttr(m.typeId, sde.attrId('capacity')) / Math.max(sde.baseAttr(m.chargeId, sde.attrId('volume')), 1e-6));
+    loaded.set(m.chargeId, (loaded.get(m.chargeId) ?? 0) + Math.max(1, rounds) * 10);
+  }
+  for (const [id, n] of loaded) if (!cargo.has(id)) cargo.set(id, n);
+  fit.cargo = [...cargo].map(([typeId, count]) => ({ typeId, count }));
+}
+
 function keepWithinLimits(sde: Sde, fit: Fit, upgraded: Upgraded[]): Adjustments {
   const skills = allLevels(sde, 5).skills;
   const measure = () => resources(sde, fit, new Dogma(sde, toDogmaInput(sde, fit, skills)));
@@ -173,6 +226,7 @@ export async function findRealFit(sde: Sde, shipId: number, kind: RealFitKind): 
     });
   }
   for (const d of fit.drones) if (sde.types.get(d.typeId)?.categoryId === Category.Drone) d.typeId = toT2(sde, d.typeId);
+  loadCharges(sde, fit);
   const swaps = keepWithinLimits(sde, fit, upgraded);
   if (!swaps.valid) return null;
   const label = kind === 'pve' ? 'PvE' : 'PvP';
@@ -182,6 +236,7 @@ export async function findRealFit(sde: Sde, shipId: number, kind: RealFitKind): 
   const notes = [generated
     ? tx('Fit {kind} compus din bonusurile și statisticile navei, pentru că nu există un fit publicat. Modulele care au variantă T2 au fost trecute pe T2.', { kind: label })
     : tx('Fit publicat: „{title}”, sursa {url} . Modulele care au variantă T2 au fost trecute pe T2.', { title, url: entry.source })];
+  notes.push(tx('Charges sunt T2 unde există, altfel faction.'));
   if (swaps.removed) notes.push(tx('Am scos modulele care nu aveau sloturi sau hardpoints libere pe navă ({n}).', { n: swaps.removed }));
   if (swaps.faction) notes.push(tx('Ca să încapă în CPU și powergrid cu toate skill-urile la V, unele module au trecut pe varianta faction ({n}).', { n: swaps.faction }));
   if (swaps.meta) notes.push(tx('Unde nici faction nu a ajuns, unele module au rămas T1 sau meta ({n}).', { n: swaps.meta }));

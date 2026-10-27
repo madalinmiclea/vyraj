@@ -7,7 +7,7 @@ import {
 import { isProjectable } from '../engine/projected';
 import { isBoosterSideEffect, type Dogma, type DogmaItem, type ModuleState } from '../engine/dogma';
 import { applyChecked, violations } from '../engine/rules';
-import { computeStats, type FitStats } from '../engine/stats';
+import { computeStats, type FitStats, type Resource, type Resources } from '../engine/stats';
 import { findProfile } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { allCharacters, allLevels } from '../character/characters';
@@ -255,7 +255,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
-    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts) + extrasPanel(fit, stats, d) + implantPanel.render(fit, d) + improvement.render(fit) + costPanel();
+    left.innerHTML = shipHeader(fit, stats) + slotsPanel(fit, counts, stats.resources) + extrasPanel(fit, stats, d) + implantPanel.render(fit, d) + improvement.render(fit) + costPanel();
     buildTips(d);
     right.innerHTML = statsPanels(stats, d) + npc.render(stats, d) + support.heatPanel(stats.heat) + requirementsPanel(fit);
     persist();
@@ -307,7 +307,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     </div>`;
   }
 
-  function slotsPanel(f: Fit, counts: Record<SlotKind, number>) {
+  function slotsPanel(f: Fit, counts: Record<SlotKind, number>, r: Resources) {
+    const hardpoint = (label: string, x: Resource) => (x.total || x.used ? `<span class="${x.used > x.total ? 'over' : ''}">${label} <b class="num">${x.used}/${x.total}</b></span>` : '');
     const groups = GROUPS.filter((g) => counts[g.key] > 0 || f.slots[g.key].some(Boolean)).map((g) => {
       const list = f.slots[g.key];
       const total = Math.max(counts[g.key], list.length);
@@ -322,7 +323,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       if (free) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${free === 1 ? tx('1 slot liber') : tx('{n} sloturi libere', { n: free })}</span></div>`);
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
-        <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div><span class="pips">${pips}</span></div>
+        <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div>${g.key === 'high' ? `<span class="hardpoints">${hardpoint('Turrets', r.turrets)}${hardpoint('Launchers', r.launchers)}</span>` : ''}<span class="pips">${pips}</span></div>
         ${rows.join('')}
       </div>`;
     });

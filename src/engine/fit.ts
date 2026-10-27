@@ -83,16 +83,33 @@ export function slotOf(sde: Sde, typeId: number): SlotKind | undefined {
   return SLOT_KINDS.find((k) => sde.hasEffect(typeId, SLOT_EFFECTS[k]));
 }
 
+const subsystemPositions = new Map<number, number>();
+
+function subsystemSlots(sde: Sde, shipId: number, max: number): number {
+  if (max <= 0) return 0;
+  let n = subsystemPositions.get(shipId);
+  if (n === undefined) {
+    const fitsTo = sde.attrId('fitsToShipType');
+    const slot = sde.attrId('subSystemSlot');
+    const positions = new Set<number>();
+    for (const t of sde.types.values()) {
+      if (t.categoryId === Category.Subsystem && sde.baseAttr(t.id, fitsTo) === shipId) positions.add(sde.baseAttr(t.id, slot));
+    }
+    n = positions.size;
+    subsystemPositions.set(shipId, n);
+  }
+  return n > 0 ? Math.min(n, Math.round(max)) : Math.round(max);
+}
+
 export function slotCounts(sde: Sde, fit: Fit, dogma?: Dogma): Record<SlotKind, number> {
   const d = dogma ?? new Dogma(sde, toDogmaInput(sde, fit, new Map()));
   const ship = d.ship;
-  const isT3C = ship.get('maxSubSystems') > 0;
   return {
     high: Math.round(ship.get(SLOT_COUNT_ATTR.high)),
     mid: Math.round(ship.get(SLOT_COUNT_ATTR.mid)),
     low: Math.round(ship.get(SLOT_COUNT_ATTR.low)),
     rig: Math.round(ship.get(SLOT_COUNT_ATTR.rig)),
-    subsystem: isT3C ? Math.round(ship.get('maxSubSystems')) : 0,
+    subsystem: subsystemSlots(sde, fit.shipId, ship.get('maxSubSystems')),
   };
 }
 
