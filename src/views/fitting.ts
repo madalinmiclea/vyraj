@@ -190,11 +190,21 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
+  function replaceCurrent(f: Fit): boolean {
+    if (fit && fit.id !== f.id && isDirty(fit, savedJson()) && !confirm(tx('„{name}” are modificări nesalvate. Le pierzi și încarci „{next}” în tab-ul ăsta?', { name: fit.name, next: f.name }))) return false;
+    fit = f;
+    tabs[active] = f;
+    if (pickedSlot) pickSlot(null);
+    render();
+    return true;
+  }
+
   function openFit(next: Fit): boolean {
     const f = limitDrones(next);
     const same = tabs.findIndex((x) => x?.id === f.id);
-    if (same < 0 && fit) return addTab(f);
-    if (same >= 0) active = same;
+    if (same < 0) return replaceCurrent(f);
+    tabs[active] = fit;
+    active = same;
     fit = f;
     tabs[active] = f;
     if (pickedSlot) pickSlot(null);
@@ -279,7 +289,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <div class="ship-actions">
         ${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}
         ${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}
-        ${hasFittingSlots(sde, f.shipId) ? `${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Deschide într-un tab nou un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Deschide într-un tab nou un fit PvP publicat, cu module T2')}"` })}` : ''}
+        ${hasFittingSlots(sde, f.shipId) ? `${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Încarcă în tab-ul curent un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Încarcă în tab-ul curent un fit PvP publicat, cu module T2')}"` })}` : ''}
       </div>
     </section>`;
   }
@@ -546,9 +556,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     trigger.setAttribute('disabled', '');
     const open = (f: Fit, published: boolean) => {
       f.id = newFitId();
-      if (!addTab(limitDrones(f))) { done(); return; }
+      if (!replaceCurrent(limitDrones(f))) { done(); return; }
       const problems = violations(sde, f, ctx.character.skills, ctx.character.implants).size;
-      const what = published ? tx('Fit {kind} publicat deschis într-un tab nou', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
+      const what = published ? tx('Fit {kind} publicat încărcat în tab-ul curent', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
       toast(problems ? `${what}. ${tx('Ce nu încape cu skill-urile caracterului apare cu roșu.')}` : what);
     };
     findRealFit(sde, shipId, kind).catch(() => null).then((found) => {
