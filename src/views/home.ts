@@ -21,7 +21,7 @@ interface Tile { id: string; label: string; icon: string }
 const GROUPS: { title: string; vy: string; ids: string[] }[] = [
   { title: tx('Nave'), vy: 'Svarog', ids: ['fitting', 'doctrines', 'skins'] },
   { title: tx('Pilot'), vy: 'Perun', ids: ['character'] },
-  { title: tx('PvE'), vy: 'Morana', ids: ['missions'] },
+  { title: tx('PvE'), vy: 'Morana', ids: ['missions', 'operations'] },
   { title: tx('Piață și comerț'), vy: 'Veles', ids: ['market', 'intel', 'orders', 'tools'] },
   { title: tx('Producție'), vy: 'Mokosh', ids: ['industry', 'pi', 'mining'] },
   { title: tx('Spațiu'), vy: 'Perun', ids: ['navigation', 'recon'] },
@@ -37,6 +37,7 @@ const ABOUT: Record<string, string> = {
   skins: tx('Colecția de SKIN-uri și cel mai ieftin drum spre o colecție completă.'),
   character: tx('Skill-uri, coada de antrenament, plan de skill-uri și toate caracterele.'),
   missions: tx('Misiuni L1–L5 și complexe DED: contra cui tragi și ce tank îți trebuie.'),
+  operations: tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri de jefuit, citite direct din ESI.'),
   industry: tx('Cost de fabricație și invenție față de prețul din Jita.'),
   pi: tx('Colonii, timere de extractoare și profitul fiecărui lanț.'),
   mining: tx('ISK pe oră pe fiecare minereu și calculator de reprocesare.'),
@@ -77,8 +78,10 @@ export function createHomeView(el: HTMLElement, opts: { tiles: Tile[]; go: (id: 
         <p>${tx('Fitting cu formulele Pyfa, prețuri live din Jita, plan de skill-uri, intel pe rută, industrie și ghid de misiuni. Gratuit, fără cont și fără server: totul rulează în browserul tău.')}</p>
         <div class="home-actions">
           ${button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-home-login' })}
+          ${button(tx('Încearcă cu date demo'), { iconName: 'play', cls: 'ghost', attrs: 'data-demo-start' })}
           ${button(tx('Deschide Fitting'), { iconName: 'fitting', cls: 'ghost', attrs: 'data-go="fitting"' })}
         </div>
+        <p class="dim small home-demo-note">${tx('Demo-ul încarcă un pilot fictiv cu skill-uri, portofel, bunuri, industrie și colonii, ca să vezi fiecare ecran fără login.')}</p>
       </div>
       <ul class="home-trust">
         <li>${icon('shield')}<span><b>${tx('Datele rămân la tine')}</b>${tx('Fiturile, setările și jurnalele stau doar în browserul tău.')}</span></li>

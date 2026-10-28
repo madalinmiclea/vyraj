@@ -1,11 +1,9 @@
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch } from './esiClient';
 import { loadJson, saveJson } from '../storage';
 import type { Sde } from '../data/sde';
 import { tx } from '../i18n';
 
-const ESI = 'https://esi.evetech.net/latest';
 const ZKB = 'https://zkillboard.com/api';
-const DS = 'datasource=tranquility';
 
 const SYSTEMS_KEY = 'eve-recon:systems';
 const PILOTS_KEY = 'eve-recon:pilots';
@@ -13,6 +11,8 @@ const PILOT_TTL = 6 * 3600 * 1000;
 const MAX_PILOTS_CACHED = 2000;
 
 export type RouteFlag = 'shortest' | 'secure' | 'insecure';
+
+const ROUTE_PREFERENCE: Record<RouteFlag, string> = { shortest: 'Shorter', secure: 'Safer', insecure: 'LessSecure' };
 
 export interface SystemInfo { id: number; name: string; sec: number }
 export interface SystemActivity { ship: number; pod: number; npc: number; jumps: number }
@@ -67,7 +67,7 @@ export interface DscanRow { typeId: number; name: string; typeName: string; dist
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 async function esiJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await esiFetch(`${ESI}${path}${path.includes('?') ? '&' : '?'}${DS}`, init);
+  const res = await esiFetch(`${ESI}${path}`, init);
   if (!res.ok) throw new Error(`ESI ${path.split('?')[0]}: ${res.status}`);
   return (await res.json()) as T;
 }
@@ -150,14 +150,54 @@ export async function findSystem(name: string): Promise<SystemInfo> {
   return (await systemInfo([found[0].id])).get(found[0].id)!;
 }
 
-export async function route(origin: number, destination: number, flag: RouteFlag): Promise<number[]> {
-  const res = await esiFetch(`${ESI}/route/${origin}/${destination}/?${DS}&flag=${flag}`);
+export interface RouteConnection { from: number; to: number }
+
+export async function route(origin: number, destination: number, flag: RouteFlag, { avoid = [], connections = [] }: { avoid?: number[]; connections?: RouteConnection[] } = {}): Promise<number[]> {
+  const body: Record<string, unknown> = { preference: ROUTE_PREFERENCE[flag] };
+  const skip = avoid.filter((id) => id !== origin && id !== destination).slice(0, 1000);
+  if (skip.length) body.avoid_systems = [...new Set(skip)];
+  if (connections.length) body.connections = connections.slice(0, 1000);
+  const res = await esiFetch(`${ESI}/route/${origin}/${destination}`, post(body));
   if (res.status === 404) throw new Error(tx('Nu există rută prin stargate-uri între aceste sisteme (wormhole sau sistem izolat).'));
   if (!res.ok) throw new Error(`ESI /route: ${res.status}`);
-  return (await res.json()) as number[];
+  return ((await res.json()) as { route: number[] }).route;
 }
 
 let activity: { at: number; map: Map<number, SystemActivity> } | null = null;
+
+export const isDangerous = (a: SystemActivity | undefined) => !!a && (a.ship + a.pod * 1.5 >= 8 || a.pod >= 3);
+
+export type SovClaim = { kind: 'alliance' | 'faction'; id: number; capital?: boolean } | null;
+
+interface EsiSovSystem {
+  solar_system_id: number;
+  claim: { faction?: { faction_id: number }; alliance?: { alliance_id: number; is_capital_system?: boolean }; unclaimed?: boolean };
+}
+
+let sov: { at: number; map: Map<number, SovClaim> } | null = null;
+
+export async function sovereignty(): Promise<Map<number, SovClaim>> {
+  if (sov && Date.now() - sov.at < 30 * 60 * 1000) return sov.map;
+  const r = await esiJson<{ solar_systems: EsiSovSystem[] }>('/sovereignty/systems');
+  const map = new Map<number, SovClaim>();
+  for (const x of r.solar_systems) {
+    const c = x.claim;
+    map.set(x.solar_system_id, c.alliance ? { kind: 'alliance', id: c.alliance.alliance_id, capital: !!c.alliance.is_capital_system } : c.faction ? { kind: 'faction', id: c.faction.faction_id } : null);
+  }
+  sov = { at: Date.now(), map };
+  return map;
+}
+
+export interface RaidableSkyhook { planetId: number; systemId: number; start: number; end: number }
+
+let skyhooks: { at: number; list: RaidableSkyhook[] } | null = null;
+
+export async function raidableSkyhooks(force = false): Promise<{ at: number; list: RaidableSkyhook[] }> {
+  if (!force && skyhooks && Date.now() - skyhooks.at < 5 * 60 * 1000) return skyhooks;
+  const r = await esiJson<{ skyhooks: { planet_id: number; solar_system_id: number; theft_vulnerability: { start: string; end: string } }[] }>('/skyhooks/raidable');
+  skyhooks = { at: Date.now(), list: r.skyhooks.map((x) => ({ planetId: x.planet_id, systemId: x.solar_system_id, start: Date.parse(x.theft_vulnerability.start), end: Date.parse(x.theft_vulnerability.end) })) };
+  return skyhooks;
+}
 
 export async function systemActivity(): Promise<{ at: number; map: Map<number, SystemActivity> }> {
   if (activity && Date.now() - activity.at < 5 * 60 * 1000) return activity;

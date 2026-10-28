@@ -1,14 +1,12 @@
 import { accessToken, hasScope } from './sso';
-import { esiFetch } from '../services/esiClient';
+import { ESI, esiFetch, esiPages } from '../services/esiClient';
 import { loadJson, saveJson } from '../storage';
-import type { StoredCharacter, SkillState } from './characters';
+import { loadStoredCharacters, type StoredCharacter, type SkillState } from './characters';
 import type { Attributes } from './training';
-
-const ESI = 'https://esi.evetech.net/latest';
 
 async function esi<T>(characterId: number, path: string, init: RequestInit = {}): Promise<T> {
   const token = await accessToken(characterId);
-  const res = await esiFetch(`${ESI}${path}${path.includes('?') ? '&' : '?'}datasource=tranquility`, {
+  const res = await esiFetch(`${ESI}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers ?? {}) },
   });
@@ -90,16 +88,7 @@ export interface EsiAsset {
 
 export async function listAssets(characterId: number): Promise<EsiAsset[]> {
   const token = await accessToken(characterId);
-  const url = (page: number) => `${ESI}/characters/${characterId}/assets/?datasource=tranquility&page=${page}`;
-  const get = async (page: number) => {
-    const res = await esiFetch(url(page), { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`ESI assets: ${res.status} ${await res.text()}`);
-    return res;
-  };
-  const first = await get(1);
-  const pages = Number(first.headers.get('x-pages')) || 1;
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => get(i + 2).then((r) => r.json() as Promise<EsiAsset[]>)));
-  return [...((await first.json()) as EsiAsset[]), ...rest.flat()];
+  return esiPages<EsiAsset>((page) => `${ESI}/characters/${characterId}/assets/?page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 export function currentShip(characterId: number): Promise<{ ship_item_id: number; ship_type_id: number; ship_name: string }> {
@@ -119,7 +108,7 @@ export const STRUCTURES_KEY = 'eve-fit:structure-names';
 const structureMisses = new Set<number>();
 
 async function namesBatch(ids: number[], out: Map<number, string>): Promise<void> {
-  const res = await esiFetch(`${ESI}/universe/names/?datasource=tranquility`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) });
+  const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) });
   if (res.ok) {
     for (const x of (await res.json()) as { id: number; name: string }[]) out.set(x.id, x.name);
     return;
@@ -137,26 +126,63 @@ export async function universeNames(ids: number[], characterId?: number): Promis
   const known = unique.filter((id) => id > 0 && id < 100_000_000);
   for (let i = 0; i < known.length; i += 1000) await namesBatch(known.slice(i, i + 1000), out);
   const structures = unique.filter((id) => id >= 1e12);
-  if (structures.length && characterId && hasScope(characterId, 'esi-universe.read_structures.v1')) {
-    const cache = loadJson<Record<string, string>>(STRUCTURES_KEY, {});
-    let changed = false;
-    for (const id of structures) {
-      if (!cache[id] && !structureMisses.has(id)) {
+  if (!structures.length) return out;
+  const cache = loadJson<Record<string, string>>(STRUCTURES_KEY, {});
+  const readers = [...new Set([characterId, ...loadStoredCharacters().map((c) => c.characterId)])]
+    .filter((id): id is number => !!id && hasScope(id, 'esi-universe.read_structures.v1'));
+  let changed = false;
+  for (const id of structures) {
+    if (!cache[id] && !structureMisses.has(id) && readers.length) {
+      for (const reader of readers) {
         try {
-          cache[id] = (await esi<{ name: string }>(characterId, `/universe/structures/${id}/`)).name;
+          cache[id] = (await esi<{ name: string }>(reader, `/universe/structures/${id}/`)).name;
           changed = true;
+          break;
         } catch {
-          structureMisses.add(id);
+          continue;
         }
       }
-      if (cache[id]) out.set(id, cache[id]);
+      if (!cache[id]) structureMisses.add(id);
     }
-    if (changed) saveJson(STRUCTURES_KEY, cache);
+    if (cache[id]) out.set(id, cache[id]);
   }
+  if (changed) saveJson(STRUCTURES_KEY, cache);
   return out;
 }
 
 export const portraitUrl = (characterId: number, size = 128) => `https://images.evetech.net/characters/${characterId}/portrait?size=${size}`;
+
+export interface EsiType {
+  type_id: number;
+  name: string;
+  description?: string;
+  group_id: number;
+  market_group_id?: number;
+  volume?: number;
+  packaged_volume?: number;
+  capacity?: number;
+  published?: boolean;
+}
+
+const typeCache = new Map<number, Promise<EsiType | null>>();
+const groupCache = new Map<number, Promise<{ name: string; category_id: number } | null>>();
+const categoryCache = new Map<number, Promise<{ name: string } | null>>();
+
+function publicGet<T>(cache: Map<number, Promise<T | null>>, id: number, path: string): Promise<T | null> {
+  let hit = cache.get(id);
+  if (!hit) {
+    hit = esiFetch(`${ESI}${path}`)
+      .then((res) => (res.ok ? (res.json() as Promise<T>) : null))
+      .catch(() => null);
+    hit.then((v) => { if (!v) cache.delete(id); });
+    cache.set(id, hit);
+  }
+  return hit;
+}
+
+export const typeInfo = (id: number) => publicGet<EsiType>(typeCache, id, `/universe/types/${id}/`);
+export const groupInfo = (id: number) => publicGet<{ name: string; category_id: number }>(groupCache, id, `/universe/groups/${id}/`);
+export const categoryInfo = (id: number) => publicGet<{ name: string }>(categoryCache, id, `/universe/categories/${id}/`);
 
 export interface DynamicItem {
   source_type_id: number;
@@ -165,7 +191,7 @@ export interface DynamicItem {
 }
 
 export async function dynamicItem(typeId: number, itemId: number): Promise<DynamicItem> {
-  const res = await esiFetch(`${ESI}/dogma/dynamic/items/${typeId}/${itemId}/?datasource=tranquility`);
+  const res = await esiFetch(`${ESI}/dogma/dynamic/items/${typeId}/${itemId}/`);
   if (!res.ok) throw new Error(`ESI dynamic item: ${res.status}`);
   return res.json() as Promise<DynamicItem>;
 }
@@ -177,19 +203,14 @@ export interface WalletEntry {
   amount?: number;
   balance?: number;
   description: string;
+  reason?: string;
+  context_id?: number;
+  context_id_type?: string;
 }
 
 export async function walletJournal(characterId: number, maxPages = 10): Promise<WalletEntry[]> {
   const token = await accessToken(characterId);
-  const get = async (page: number) => {
-    const res = await esiFetch(`${ESI}/characters/${characterId}/wallet/journal/?datasource=tranquility&page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`ESI wallet: ${res.status} ${await res.text()}`);
-    return res;
-  };
-  const first = await get(1);
-  const pages = Math.min(maxPages, Number(first.headers.get('x-pages')) || 1);
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => get(i + 2).then((r) => r.json() as Promise<WalletEntry[]>)));
-  return [...((await first.json()) as WalletEntry[]), ...rest.flat()];
+  return esiPages<WalletEntry>((page) => `${ESI}/characters/${characterId}/wallet/journal/?page=${page}`, { headers: { Authorization: `Bearer ${token}` } }, maxPages);
 }
 
 export function walletBalance(characterId: number): Promise<number> {

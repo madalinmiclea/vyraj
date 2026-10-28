@@ -11,7 +11,8 @@ import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../char
 import { removeKey } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
 import { permissionGate, type PermId } from '../character/permissions';
-import { allEveItems } from '../data/items';
+import { typeName, resolveTypeNames } from '../services/typeNames';
+import { showItemInfo } from '../ui/itemInfo';
 import { tx, locale } from '../i18n';
 
 type Tab = 'appraisal' | 'abyssal' | 'wallet' | 'assets' | 'lp' | 'alerts';
@@ -33,6 +34,7 @@ const LAST_RUN_KEY = 'eve-tools:abyssal-last';
 const ASSETS_KEY = 'eve-tools:assets:';
 const LP_OFFERS_KEY = 'eve-tools:lp-offers';
 
+interface AssetLine { typeId: number; qty: number; value: number }
 interface AssetSnapshot { at: number; items: number; rows: [number, number, number][]; names: [number, string][] }
 type OfferStore = Record<string, { at: number; offers: LpOffer[] }>;
 
@@ -41,7 +43,6 @@ type Basis = 'sell' | 'buy';
 const priceOf = (p: Aggregates | undefined, basis: Basis) => (p ? (basis === 'sell' ? p.sellMin : p.buyMax) : 0);
 const isk = (v: number) => `<span class="num">${compactISK(v)}</span>`;
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-const typeName = (id: number) => allEveItems.find((i) => i.t === id)?.n.trim() ?? `Type ${id}`;
 
 export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'appraisal');
@@ -235,6 +236,24 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     return snap;
   }
 
+  let assetLines = new Map<number, AssetLine[]>();
+  const openLocs = new Set<number>();
+
+  const assetItemLink = (id: number) => `<button class="link asset-item" data-asset-info="${id}" title="${esc(tx('Deschide informațiile itemului'))}"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />${esc(typeName(id))}</button>`;
+
+  function assetItemsRow(loc: number) {
+    const lines = [...(assetLines.get(loc) ?? [])].sort((a, b) => b.value - a.value || typeName(a.typeId).localeCompare(typeName(b.typeId)));
+    return `<tr class="asset-items" data-asset-items="${loc}"><td colspan="2"><table class="table compact"><tbody>${lines.map((l) => `<tr><td>${assetItemLink(l.typeId)}</td><td class="r num">${formatInt(l.qty)}</td><td class="r">${l.value ? isk(l.value) : '<span class="dim">—</span>'}</td></tr>`).join('')}</tbody></table></td></tr>`;
+  }
+
+  function toggleLocation(row: HTMLElement) {
+    const loc = Number(row.dataset.assetLoc);
+    const open = !openLocs.has(loc);
+    if (open) { openLocs.add(loc); row.insertAdjacentHTML('afterend', assetItemsRow(loc)); }
+    else { openLocs.delete(loc); row.nextElementSibling?.matches('[data-asset-items]') && row.nextElementSibling.remove(); }
+    row.setAttribute('aria-expanded', String(open));
+  }
+
   async function assets() {
     const c = esiCharacter('esi-assets.read_assets.v1');
     if (c === 'scope') { body.innerHTML = scopePrompt('assets'); return; }
@@ -243,21 +262,36 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     try {
       const snap = await assetSnapshot(c.id);
       const typeIds = [...new Set(snap.rows.map((r) => r[1]))];
-      const prices = await fetchPrices(typeIds);
+      const names = new Map(snap.names);
+      const unnamed = [...new Set(snap.rows.map((r) => r[0]))].filter((id) => !names.has(id) && id !== ASSET_SAFETY);
+      const [prices, found] = await Promise.all([
+        fetchPrices(typeIds),
+        unnamed.length ? universeNames(unnamed, c.id).catch(() => new Map<number, string>()) : Promise.resolve(new Map<number, string>()),
+        resolveTypeNames(typeIds),
+      ]);
+      if (found.size) {
+        for (const [id, n] of found) names.set(id, n);
+        saveJson(ASSETS_KEY + c.id, { ...snap, names: [...names] });
+      }
       const locs = new Map<number, number>();
       const types = new Map<number, { qty: number; value: number }>();
+      const byLoc = new Map<number, AssetLine[]>();
       for (const [loc, typeId, qty] of snap.rows) {
         const value = priceOf(prices.get(typeId), basis) * qty;
         locs.set(loc, (locs.get(loc) ?? 0) + value);
         const t = types.get(typeId) ?? { qty: 0, value: 0 };
         t.qty += qty; t.value += value;
         types.set(typeId, t);
+        const list = byLoc.get(loc) ?? [];
+        list.push({ typeId, qty, value });
+        byLoc.set(loc, list);
       }
-      const names = new Map(snap.names);
+      assetLines = byLoc;
       if (tab !== 'assets') return;
       const total = [...locs.values()].reduce((a, v) => a + v, 0);
       const at = Math.min(snap.at, pricesAt(typeIds) || snap.at);
       const locName = (id: number) => names.get(id) ?? (id === ASSET_SAFETY ? 'Asset Safety' : id > 1e12 ? tx('Structură {id}', { id }) : tx('Locație {id}', { id }));
+      const locTitle = (id: number) => (!names.has(id) && id > 1e12 ? ` title="${esc(tx('Niciun caracter logat nu are acces la structură, așa că ESI nu îi dă numele.'))}"` : '');
       body.innerHTML = `${panel({
           title: tx('Valoare bunuri'),
           actions: dataStamp(at, 'data-assets-refresh', { label: tx('Date din {time}'), title: tx('Asset-urile și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }) + basisChips(),
@@ -268,8 +302,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
             </div>`,
         })}
         <div class="tool-grid">
-          ${panel({ title: tx('Pe locație'), body: `<table class="table compact"><tbody>${[...locs.entries()].sort((a, b) => b[1] - a[1]).map(([id, v]) => `<tr><td>${esc(locName(id))}</td><td class="r">${isk(v)}</td></tr>`).join('')}</tbody></table>` })}
-          ${panel({ title: tx('Cele mai valoroase'), body: `<table class="table compact"><tbody>${[...types.entries()].sort((a, b) => b[1].value - a[1].value).slice(0, 40).map(([id, t]) => `<tr><td><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" />${esc(typeName(id))}</td><td class="r num">${formatInt(t.qty)}</td><td class="r">${isk(t.value)}</td></tr>`).join('')}</tbody></table>` })}
+          ${panel({ title: tx('Pe locație'), body: `<table class="table compact asset-locs"><tbody>${[...locs.entries()].sort((a, b) => b[1] - a[1]).map(([id, v]) => `<tr class="asset-loc" data-asset-loc="${id}" aria-expanded="${openLocs.has(id)}"${locTitle(id)}><td><span class="asset-caret"></span>${esc(locName(id))} <span class="dim small">${formatInt(byLoc.get(id)!.length)}</span></td><td class="r">${isk(v)}</td></tr>${openLocs.has(id) ? assetItemsRow(id) : ''}`).join('')}</tbody></table>` })}
+          ${panel({ title: tx('Cele mai valoroase'), body: `<table class="table compact"><tbody>${[...types.entries()].sort((a, b) => b[1].value - a[1].value).slice(0, 40).map(([id, t]) => `<tr><td>${assetItemLink(id)}</td><td class="r num">${formatInt(t.qty)}</td><td class="r">${isk(t.value)}</td></tr>`).join('')}</tbody></table>` })}
         </div>`;
     } catch (err) {
       body.innerHTML = panel({ body: alertBox((err as Error).message) });
@@ -428,6 +462,10 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (at('[data-appraise]')) { runAppraisal(); return; }
     if (at('[data-ap-refresh]')) { forgetPrices(apIds); runAppraisal(); return; }
     if (at('[data-assets-refresh]')) { refreshAssets(); return; }
+    const info = at('[data-asset-info]');
+    if (info) { showItemInfo(ctx, Number(info.dataset.assetInfo)); return; }
+    const loc = at('[data-asset-loc]');
+    if (loc) { toggleLocation(loc); return; }
     const lpr = at('[data-lp-refresh]');
     if (lpr) {
       const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});

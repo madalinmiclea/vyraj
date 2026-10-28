@@ -1,4 +1,4 @@
-import { loadJson, saveJson, removeKey } from '../storage';
+import { loadJson, saveJson, removeKey, isDemo, setDemo } from '../storage';
 import { tx } from '../i18n';
 
 export const SCOPES = [
@@ -18,6 +18,11 @@ export const SCOPES = [
   'esi-planets.manage_planets.v1',
   'esi-characters.read_blueprints.v1',
   'esi-industry.read_character_jobs.v1',
+  'esi-characters.read_freelance_jobs.v1',
+  'esi.activity.char:read',
+  'esi-structures.read_character.v1',
+  'esi-activities.read_character.v1',
+  'esi.cosmetic.char:read',
 ];
 
 export const BASE_SCOPES = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-clones.read_implants.v1'];
@@ -69,6 +74,7 @@ async function challengeFor(verifier: string): Promise<string> {
 }
 
 export async function startLogin(scopes: string[] = BASE_SCOPES, returnTo?: string): Promise<void> {
+  if (isDemo()) setDemo(false);
   const { clientId } = getSettings();
   if (!clientId) throw new Error(tx('Lipsește Client ID-ul aplicației EVE. Îl pui în secțiunea Setări login.'));
   const verifier = randomString(48);

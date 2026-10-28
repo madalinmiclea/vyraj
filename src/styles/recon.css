@@ -35,3 +35,4 @@
 .recon-pilots tr.recon-own td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .recon-pilots tr.recon-own td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 .intel-kpis .accent-text { color: var(--accent); }
+.recon-form label.check { flex-direction: row; align-items: center; gap: 8px; min-height: 38px; white-space: nowrap; }

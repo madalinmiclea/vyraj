@@ -1,8 +1,13 @@
 import type { AppContext } from '../app/context';
 import { panel, loader, esc, formatInt, formatNum, compactISK, button, dataStamp } from '../ui/components';
+import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
-import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, tradeSummary, type Period } from '../services/wallet';
+import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
+import { npcInfo, type NpcInfo } from '../services/npcKills';
+import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
+import { heatmap } from '../ui/heatmap';
+import type { Dmg } from '../services/missions';
 import { flowChart, bindFlowChart, type FlowPoint } from '../ui/charts';
 import { typeIconUrl } from '../services/market';
 import { allEveItems } from '../data/items';
@@ -10,6 +15,9 @@ import { tx, locale } from '../i18n';
 
 const PERIOD_KEY = 'eve-tools:wallet-period';
 const JOURNAL_LIMIT = 300;
+const TICK_LIMIT = 60;
+const DMG_NAME: Record<Dmg, string> = { em: 'EM', th: tx('Termic'), kin: tx('Cinetic'), exp: tx('Exploziv') };
+const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', exp: 'explosive' };
 const FETCHED_KEY = 'eve-tools:wallet-fetched';
 const ARCHIVE_GAP_MS = 7 * 86400000;
 
@@ -86,6 +94,115 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       </tbody></table>` : `<p class="dim">${tx('Nicio intrare pentru filtrele alese.')}</p>`}`;
   }
 
+  let tickSeq = 0;
+  async function renderTicks(rows: WalletEntry[]) {
+    const el = root.querySelector<HTMLElement>('#walletTicks');
+    if (!el) return;
+    const seq = ++tickSeq;
+    const ticks = bountyTicks(rows);
+    const activity = pveActivity(entries);
+    const active = activity.filter((d) => d.isk > 0);
+    const cells = activity.map((d) => ({ day: d.day, value: d.isk, tip: `${day(d.day)} · ${d.isk ? `${compactISK(d.isk)} ISK${d.ticks ? ` · ${tx('{n} tick-uri', { n: d.ticks })}` : ''}` : tx('fără PvE')}` }));
+    const heat = panel({
+      title: tx('Activitate PvE'),
+      count: tx('ultimele {n} zile', { n: activity.length }),
+      body: `<div class="history-kpis compact">
+          <div><span class="label">${tx('Zile active')}</span><span class="value">${formatInt(active.length)}</span></div>
+          <div><span class="label">${tx('Venit PvE')}</span><span class="value up">${compactISK(active.reduce((a, d) => a + d.isk, 0))}</span></div>
+          <div><span class="label">${tx('Tick-uri')}</span><span class="value">${formatInt(activity.reduce((a, d) => a + d.ticks, 0))}</span></div>
+          <div><span class="label">${tx('Cea mai bună zi')}</span><span class="value">${active.length ? compactISK(Math.max(...active.map((d) => d.isk))) : '—'}</span></div>
+        </div>
+        ${heatmap(cells)}
+        <div class="heatmap-legend dim small"><span>${tx('Mai puțin')}</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>${tx('Mai mult')}</span></div>
+        ${oldest > activity[0].day ? `<p class="dim small wallet-note">${tx('Zilele dinainte de {date} se completează pe măsură ce Vyraj citește jurnalul (EVE dă doar ultimele 30 de zile).', { date: day(oldest) })}</p>` : ''}`,
+    });
+    if (!ticks.length) {
+      el.innerHTML = `${heat}${panel({ title: tx('Recompense NPC'), body: `<p class="dim">${tx('Niciun tick de recompense NPC în perioada aleasă. Tick-urile apar după ratting în anomalii sau misiuni, la fiecare 20 de minute.')}</p>` })}`;
+      return;
+    }
+    el.innerHTML = `${heat}${panel({ title: tx('Recompense NPC'), body: loader(tx('Citesc numele NPC-urilor')) })}`;
+    const s = tickSummary(ticks);
+    const ids = [...new Set(ticks.flatMap((k) => k.kills.map(([id]) => id)))];
+    const [info, nav] = await Promise.all([
+      npcInfo(ids).catch(() => new Map<number, NpcInfo>()),
+      loadMap().catch(() => null as NavMap | null),
+    ]);
+    if (seq !== tickSeq || !alive()) return;
+    const npc = (id: number) => info.get(id) ?? { id, name: `#${id}`, group: '' };
+    const sys = (id?: number) => {
+      const x = id ? nav?.systems.get(id) : undefined;
+      return x ? `<span class="tick-sys">${esc(x.name)} <span class="sec ${secClass(x.sec)}">${displaySec(x.sec).toFixed(1)}</span></span>` : `<span class="tick-sys dim">${id ? `#${id}` : '—'}</span>`;
+    };
+    const facBadge = (n: { faction?: NpcInfo['faction'] }) => (n.faction ? `<span class="badge">${esc(n.faction.name)}</span>` : '');
+    const dmg = (list: Dmg[]) => list.map((d) => `<span class="dmg-tag ${DMG_CLS[d]}">${DMG_NAME[d]}</span>`).join('');
+    const factions = new Map<string, { f: NonNullable<NpcInfo['faction']>; n: number }>();
+    for (const t of s.targets) {
+      const f = npc(t.id).faction;
+      if (f) factions.set(f.id, { f, n: (factions.get(f.id)?.n ?? 0) + t.n });
+    }
+    const tickRow = (k: BountyTick) => {
+      const kills = [...k.kills].sort((a, b) => b[1] - a[1]);
+      const total = kills.reduce((a, [, n]) => a + n, 0);
+      return `<details class="tick">
+        <summary>
+          <span class="tick-time num dim">${dateTime(k.t)}</span>
+          ${sys(k.systemId)}
+          <span class="tick-ships">${kills.slice(0, 6).map(([id, n]) => `<span class="tick-ship" title="${esc(npc(id).name)}"><img src="${typeIconUrl(id, 32)}" alt="" loading="lazy" /><small>×${n}</small></span>`).join('')}${kills.length > 6 ? `<small class="dim">+${kills.length - 6}</small>` : ''}</span>
+          <span class="tick-isk num up">+${compactISK(k.isk)}</span>
+          ${icon('chevron', 'tick-chev')}
+        </summary>
+        <div class="tick-detail">
+          <div class="dim small">${tx('{n} nave NPC distruse în acest tick', { n: formatInt(total) })}</div>
+          ${kills.length ? `<table class="table compact"><tbody>${kills.map(([id, n]) => {
+            const x = npc(id);
+            return `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" /><span>${esc(x.name)}</span></span></td><td class="dim">${esc(x.group)}</td><td>${facBadge(x)}</td><td class="r num">×${n}</td></tr>`;
+          }).join('')}</tbody></table>` : `<p class="dim small">${tx('EVE nu a trimis lista de NPC-uri pentru acest tick.')}</p>`}
+        </div>
+      </details>`;
+    };
+    const best = s.best!;
+    el.innerHTML = `${heat}${panel({
+      title: tx('Recompense NPC'),
+      count: tx('{n} tick-uri în perioadă', { n: formatInt(s.count) }),
+      body: `<div class="history-kpis">
+          <div><span class="label">${tx('Tick-uri')}</span><span class="value">${formatInt(s.count)}</span></div>
+          <div><span class="label">${tx('ISK / tick mediu')}</span><span class="value">${compactISK(s.average)}</span></div>
+          <div title="${esc(`${day(best.t)} · ${nav?.systems.get(best.systemId ?? 0)?.name ?? ''}`)}"><span class="label">${tx('Cel mai bun tick')}</span><span class="value up">${compactISK(best.isk)}</span></div>
+          <div><span class="label">${tx('NPC distruse')}</span><span class="value">${formatInt(s.kills)}</span></div>
+          <div><span class="label">${tx('Sisteme')}</span><span class="value">${formatInt(s.systems.length)}</span></div>
+        </div>
+        <p class="dim small">${tx('Cel mai bun tick: {isk} ISK în {system}, {date}.', { isk: compactISK(best.isk), system: nav?.systems.get(best.systemId ?? 0)?.name ?? '—', date: dateTime(best.t) })}</p>`,
+    })}
+    <div class="tool-grid even">
+      ${panel({
+        title: tx('Unde ai făcut ratting'),
+        body: s.systems.length ? `<table class="table compact"><thead><tr><th>${tx('Sistem')}</th><th class="r">${tx('Tick-uri')}</th><th class="r">ISK</th><th class="r">${tx('ISK / tick')}</th></tr></thead><tbody>
+          ${s.systems.slice(0, 10).map((x) => `<tr><td>${sys(x.id)}</td><td class="r num">${formatInt(x.ticks)}</td><td class="r">${isk(x.isk)}</td><td class="r">${isk(x.isk / x.ticks)}</td></tr>`).join('')}
+        </tbody></table>` : `<p class="dim">${tx('EVE nu a trimis sistemul pentru aceste tick-uri.')}</p>`,
+      })}
+      ${panel({
+        title: tx('Ce ai distrus'),
+        body: s.targets.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>NPC</th><th>${tx('Clasă')}</th><th class="r">#</th></tr></thead><tbody>
+          ${s.targets.slice(0, 40).map((t) => { const x = npc(t.id); return `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(t.id, 32)}" alt="" loading="lazy" /><span>${esc(x.name)}</span></span></td><td class="dim">${esc(x.group)}</td><td class="r num">${formatInt(t.n)}</td></tr>`; }).join('')}
+        </tbody></table></div>` : `<p class="dim">${tx('EVE nu a trimis lista de NPC-uri pentru aceste tick-uri.')}</p>`,
+      })}
+    </div>
+    ${factions.size ? panel({
+      title: tx('Contra cui lupți'),
+      body: `<div class="tick-factions">${[...factions.values()].sort((a, b) => b.n - a.n).map(({ f, n }) => `<div class="tick-faction">
+          <div class="tick-faction-head"><b>${esc(f.name)}</b><span class="dim small">${tx('{n} nave', { n: formatInt(n) })}</span></div>
+          <div class="small"><span class="dim">${tx('Trag cu')}</span> ${dmg(f.shoot)}</div>
+          <div class="small"><span class="dim">${tx('Slabi la')}</span> ${dmg(f.weak)}</div>
+        </div>`).join('')}</div>
+        <p class="dim small">${tx('Rezistențele tale ar trebui să acopere ce trag ei, iar muniția și dronele să lovească unde sunt slabi.')} <a href="#/missions">${tx('Deschide ghidul de misiuni')}</a></p>`,
+    }) : ''}
+    ${panel({
+      title: tx('Tick-uri'),
+      count: ticks.length > TICK_LIMIT ? tx('se văd primele {n}', { n: TICK_LIMIT }) : '',
+      body: `<div class="tick-list">${ticks.slice(0, TICK_LIMIT).map(tickRow).join('')}</div>`,
+    })}`;
+  }
+
   function exportCsv(rows: WalletEntry[]) {
     const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const lines = [['date', 'type', 'amount', 'balance', 'description'].join(','), ...journalRows(rows).map((e) => [e.date, e.ref_type, e.amount ?? 0, e.balance ?? '', e.description ?? ''].map(cell).join(','))];
@@ -138,6 +255,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           ${flowChart(points)}
           ${partial || (period === 'all' && entries.length) ? `<p class="dim small wallet-note">${tx('Graficul începe la {date}, prima zi cu date salvate local.', { date: day(oldest) })}</p>` : ''}`,
       })}
+      <div id="walletTicks" class="stack"></div>
       ${panel({
         title: tx('Toate perioadele'),
         body: `<table class="table compact wallet-periods"><thead><tr><th>${tx('Perioadă')}</th><th class="r">${tx('Câștigat')}</th><th class="r">${tx('Cheltuit')}</th><th class="r">Net</th><th class="r">PvE</th><th class="r">#</th></tr></thead><tbody>
@@ -180,6 +298,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       })}`;
     bindFlowChart(root, points);
     renderJournal(rows);
+    renderTicks(rows);
   }
 
   root.addEventListener('click', (e) => {

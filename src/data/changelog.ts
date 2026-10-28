@@ -5,27 +5,19 @@ export interface Release { date: string; title: string; lead: string; items: str
 export const CHANGELOG: Release[] = [
   {
     date: '2026-10-28',
-    title: tx('Druzhina, flota prinde formă'),
-    lead: tx('Corporațiile își pun doctrinele pe masă.'),
-    items: [
-      tx('Doctrine de flotă: fituri pe roluri, cine din corporație le poate zbura acum și cât mai are de antrenat, plus costul întregii flote în Jita.'),
-      tx('O doctrină pleacă pe Discord ca link sau ca text EFT și se întoarce la fel, cu toate fiturile la locul lor.'),
-      tx('Fiecare ecran are adresa lui, iar meniul din stânga își spune numele sub fiecare iconiță.'),
-      tx('Un backup într-un singur fișier mută fiturile, doctrinele și jurnalele pe alt calculator.'),
-      tx('Graficul DPS pe distanță pune față în față până la cinci muniții pe aceeași țintă.'),
-      tx('Vyraj pornește cu o treime mai ușor și se instalează ca aplicație pe telefon sau desktop.'),
-    ],
-  },
-  {
-    date: '2026-10-28',
     title: tx('Un prag pentru fiecare pilot'),
     lead: tx('Vyraj își deschide porțile spre comunitate.'),
     items: [
-      tx('Ecranul Start arată ce poate Vyraj dintr-o privire și drumul cel mai scurt spre fiecare unealtă.'),
-      tx('Permisiunile se cer pe rând: login-ul vrea doar skill-urile, restul le aprobi abia când ai nevoie de ele.'),
-      tx('Ghidul de misiuni L1–L5 și complexele DED: cine te atacă, cu ce damage și ce tank îți trebuie, cameră cu cameră.'),
-      tx('Fereastra Informații începe cu o descriere limpede a ce face fiecare item.'),
-      tx('Româna ajunge până la ultima etichetă, iar Creditele mulțumesc comunității pe care se sprijină Vyraj.'),
+      tx('Ecranul Start arată ce poate Vyraj dintr-o privire și drumul cel mai scurt spre fiecare unealtă, iar problemele se raportează direct pe GitHub.'),
+      tx('Permisiunile se cer pe rând: login-ul vrea doar skill-urile, restul le aprobi abia când ai nevoie de ele, fiecare cu scope-urile ei la vedere.'),
+      tx('Modul demo te pune la comanda unui pilot fictiv în toate ecranele, fără login și fără să atingă EVE.'),
+      tx('Doctrine de flotă: fituri pe roluri, cine din corporație le poate zbura acum și cât mai are de antrenat, plus costul întregii flote în Jita.'),
+      tx('Fiecare ecran are adresa lui, iar un link trimis pe Discord vine cu previzualizare.'),
+      tx('Un backup într-un singur fișier mută fiturile, doctrinele și jurnalele pe alt calculator, iar Vyraj se instalează ca aplicație pe telefon sau desktop.'),
+      tx('Graficul DPS pe distanță pune față în față până la cinci muniții pe aceeași țintă.'),
+      tx('Aliniat la noul ESI: ecranul Operațiuni, rute prin sau pe lângă Thera și Turnur, SKINR și starea serverelor ESI la vedere.'),
+      tx('Wallet desface fiecare tick de bounty: ISK pe tick, cel mai bun tick, sistemele de ratting și navele NPC distruse, pe nume.'),
+      tx('Bunurile se grupează pe locații, iar fiecare item își deschide fereastra Informații.'),
     ],
   },
   {
@@ -34,8 +26,10 @@ export const CHANGELOG: Release[] = [
     lead: tx('Nu mai pornești niciodată de la un hull gol.'),
     items: [
       tx('PvE fit și PvP fit încarcă fituri publicate de piloți pentru fiecare navă, aduse la module T2 și gata de ajustat.'),
-      tx('Fiecare modul își poartă propriul script.'),
-      tx('Hardpoint-urile libere se văd direct în sloturi.'),
+      tx('Ghidul de misiuni L1–L5 și complexele DED: cine te atacă, cu ce damage și ce tank îți trebuie, cameră cu cameră.'),
+      tx('Facțiunile pe care le vânezi vin cu damage-ul pe care îl trag și cel la care sunt slabe, legate de ghidul de misiuni.'),
+      tx('Fereastra Informații începe cu o descriere limpede a ce face fiecare item.'),
+      tx('Fiecare modul își poartă propriul script, iar hardpoint-urile libere se văd direct în sloturi.'),
     ],
   },
   {
@@ -44,9 +38,10 @@ export const CHANGELOG: Release[] = [
     lead: tx('Cifrele se apropie și mai mult de ce simți în cockpit.'),
     items: [
       tx('Vremea abisală intră în calcul și schimbă statisticile navei la fel ca filamentul.'),
-      tx('Implanturile refăcute și dronele împărțite între spațiu și bay.'),
       tx('Skill-urile care îți cresc DPS-ul și tank-ul, plus Mastery I–V, chiar sub fit.'),
+      tx('Implanturile refăcute și dronele împărțite între spațiu și bay.'),
       tx('Prețurile grele rămân în memorie până le ceri din nou, cu ora la care au fost citite.'),
+      tx('Vyraj pornește cu o treime mai ușor, iar meniul din stânga își spune numele sub fiecare iconiță.'),
     ],
   },
   {
@@ -56,8 +51,8 @@ export const CHANGELOG: Release[] = [
     items: [
       tx('Mai multe fituri deschise în tab-uri, ca în Pyfa, cu drone, fighteri, cargo, implanturi și note sub fiecare.'),
       tx('Un link de share deschide fitul tău oriunde, pentru oricine.'),
-      tx('Industrie, Interacțiune planetară și Minerit, adunate sub Mokosh.'),
-      tx('Portofelul ține minte mai mult decât cele 30 de zile pe care le păstrează ESI.'),
+      tx('Industrie, Interacțiune planetară și Minerit, adunate sub Mokosh, cu lista de materiale gata de Multibuy.'),
+      tx('Portofelul ține minte mai mult decât cele 30 de zile pe care le păstrează ESI, cu o hartă a activității pe 90 de zile.'),
     ],
   },
   {
@@ -69,6 +64,16 @@ export const CHANGELOG: Release[] = [
       tx('Trei teme, între care Vyraj, cu graiul triglavian al cladelor.'),
       tx('Intel PvP pe rută, Navigație cu salturi și Pochven, colecția de SKIN-uri și toate caracterele într-un singur panou.'),
       tx('Fitting-ul învață moduri T3D, fleet boosts, efecte proiectate, fighteri și supraîncălzire.'),
+    ],
+  },
+  {
+    date: '2026-10-23',
+    title: tx('Pilotul din spatele fitului'),
+    lead: tx('Vyraj află cine stă în capsulă.'),
+    items: [
+      tx('Login EVE cu skill-urile tale reale, iar fiecare fit îți spune ce mai ai de antrenat și cât durează.'),
+      tx('Planuri de skill-uri și navele tale refăcute direct din hangar.'),
+      tx('Fereastra Informații cu atribute, cerințe și variante, plus module abisale cu statistici proprii.'),
     ],
   },
   {
@@ -86,7 +91,7 @@ export const CHANGELOG: Release[] = [
     lead: tx('Totul a pornit de la un fit.'),
     items: [
       tx('Motorul de fitting, verificat cifră cu cifră față de Pyfa.'),
-      tx('Prețuri live din Jita, login EVE, skill-uri și navele tale refăcute din hangar.'),
+      tx('Prețuri live din Jita pentru fiecare fit, cu import și export EFT.'),
     ],
   },
 ];

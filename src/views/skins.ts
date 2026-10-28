@@ -12,9 +12,12 @@ import { permissionGate } from '../character/permissions';
 import { tx, locale } from '../i18n';
 import { allEveItems } from '../data/items';
 import { fold } from '../ui/fold';
+import { repeatAfter } from '../services/esiClient';
+import { skinrLicenses, skinrComponents, skinrDesign, paragonListings, mySellerListings, loadActivities, SKINR_SCOPE, type SkinrDesign, type ParagonListing } from '../services/operations';
+import { resolveNames, cachedName } from '../services/recon';
 
 type Sort = 'name' | 'owned' | 'progress';
-type Mode = 'all' | 'mine' | 'shop';
+type Mode = 'all' | 'mine' | 'shop' | 'skinr';
 type ShopOrder = 'cheap' | 'expensive';
 type ComboKind = 'ship' | 'line';
 
@@ -46,7 +49,7 @@ const PRICES_KEY = 'eve-skins:prices';
 export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   const prefs = loadJson<{ sort?: string; mode?: string; shopOrder?: ShopOrder }>(PREFS_KEY, {});
   let sort: Sort = SORTS.some((x) => x.id === prefs.sort) ? prefs.sort as Sort : 'name';
-  let mode: Mode = prefs.mode === 'shop' || prefs.mode === 'mine' ? prefs.mode : 'all';
+  let mode: Mode = prefs.mode === 'shop' || prefs.mode === 'mine' || prefs.mode === 'skinr' ? prefs.mode : 'all';
   let shopOrder: ShopOrder = prefs.shopOrder ?? 'cheap';
   let shopToken = 0;
   let query = '';
@@ -97,12 +100,12 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     const have = lines.reduce((a, l) => a + count(l), 0);
     const complete = lines.filter((l) => count(l) === l.ships.length).length;
     const started = lines.filter((l) => count(l) > 0).length;
-    const title = mode === 'all' ? tx('SKIN-uri nave') : mode === 'mine' ? tx('Colecția mea') : tx('De cumpărat');
+    const title = mode === 'all' ? tx('SKIN-uri nave') : mode === 'mine' ? tx('Colecția mea') : mode === 'skinr' ? tx('SKINR și Paragon Hub') : tx('De cumpărat');
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('SKIN-uri'))}</div>
-      <div class="side-nav">${([['all', tx('SKIN-uri nave'), formatInt(total)], ['mine', tx('Colecția mea'), formatInt(have)], ['shop', tx('De cumpărat'), '']] as [Mode, string, string][])
+      <div class="side-nav">${([['all', tx('SKIN-uri nave'), formatInt(total)], ['mine', tx('Colecția mea'), formatInt(have)], ['shop', tx('De cumpărat'), ''], ['skinr', tx('SKINR și Paragon Hub'), '']] as [Mode, string, string][])
         .map(([id, label, n]) => `<button class="side-link ${mode === id ? 'active' : ''}" data-skin-mode="${id}"><span>${label}</span>${n ? `<span class="count">${n}</span>` : ''}</button>`).join('')}</div>`;
     el.querySelector('#skinHead')!.innerHTML = `${pageHead(title, tx('Nanocoating-uri · {name}', { name: ctx.character.name }), 'Raiment')}
-      ${mode === 'shop' ? '' : `<div class="skin-head-row"><div class="history-kpis">
+      ${mode === 'shop' || mode === 'skinr' ? '' : `<div class="skin-head-row"><div class="history-kpis">
         <div><span class="label">${tx('SKIN-uri deținute')}</span><span class="value">${formatInt(have)} / ${formatInt(total)}</span></div>
         <div><span class="label">${tx('Colecții începute')}</span><span class="value">${formatInt(started)} / ${formatInt(lines.length)}</span></div>
         <div><span class="label">${tx('Colecții complete')}</span><span class="value">${formatInt(complete)}</span></div>
@@ -182,12 +185,76 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   }
 
   function renderBody() {
-    if (mode === 'shop') renderShop(); else renderGrid();
+    if (mode === 'shop') renderShop(); else if (mode === 'skinr') renderSkinr(); else renderGrid();
   }
 
   function render() {
     renderHead();
     renderBody();
+  }
+
+  let skinrToken = 0;
+
+  async function renderSkinr(force = false) {
+    closeCombo();
+    const body = el.querySelector<HTMLElement>('#skinBody')!;
+    const token = ++skinrToken;
+    const c = ctx.character;
+    const esi = c.kind === 'esi' && c.characterId && hasTokens(c.characterId) ? c.characterId : 0;
+    const allowed = esi && hasScope(esi, SKINR_SCOPE);
+    body.innerHTML = loader(tx('Citim SKINR din ESI'));
+    try {
+      const [mine, parts, selling, market, data] = await Promise.all([
+        allowed ? skinrLicenses(esi) : Promise.resolve(null),
+        allowed ? skinrComponents(esi).catch(() => []) : Promise.resolve(null),
+        allowed ? mySellerListings(esi).catch(() => []) : Promise.resolve(null),
+        paragonListings(force),
+        loadActivities().catch(() => null),
+      ]);
+      const ids = [...new Set([...(mine ?? []).map((l) => l.skinr_id), ...(selling ?? []).map((l) => l.skinr_id), ...market.list.map((l) => l.skinr_id)])];
+      const designs = new Map((await Promise.all(ids.map(async (id) => [id, await skinrDesign(id)] as const))));
+      await resolveNames([...new Set([...market.list.map((l) => l.seller_id), ...[...designs.values()].map((d) => d?.creator_id ?? 0)])].filter(Boolean)).catch(() => null);
+      if (token !== skinrToken || mode !== 'skinr') return;
+      const q = query;
+      const match = (d: SkinrDesign | null | undefined) => !q || (d ? `${d.name} ${shipName(d.ship_type_id)} ${d.line ?? ''}`.toLowerCase().includes(q) : false);
+      const card = (id: string, extra: string) => {
+        const d = designs.get(id);
+        return `<div class="skinr-card">${d ? `<img src="${typeIconUrl(d.ship_type_id, 64)}" alt="" loading="lazy" />` : ''}<span class="tile-text"><b>${esc(d?.name ?? id.slice(0, 12))}</b><small class="dim">${esc(d ? [shipName(d.ship_type_id), d.line, tx('nivel {n}', { n: d.tier.level })].filter(Boolean).join(' · ') : '')}</small>${extra}</span></div>`;
+      };
+      const price = (l: ParagonListing) => (l.price.isk != null ? `${compactISK(l.price.isk)} ISK` : l.price.plex != null ? `${formatInt(l.price.plex)} PLEX` : '—');
+      const mineList = (mine ?? []).filter((l) => match(designs.get(l.skinr_id)));
+      const gate = !esi ? alertBox(tx('Fă login cu un caracter EVE ca să vezi licențele tale SKINR.'), 'warn') : !allowed ? permissionGate('skinr', esi, c.name) : '';
+      body.innerHTML = `${gate ? panel({ body: gate }) : ''}
+        ${mine ? panel({
+          title: tx('Licențele mele SKINR'),
+          count: mine.length,
+          body: mineList.length ? `<div class="skinr-grid">${mineList.map((l) => card(l.skinr_id, `<small>${l.activated ? badge(tx('activat'), 'ok', true) : ''} ${l.unactivated ? badge(tx('{n} neactivate', { n: l.unactivated }), 'gold') : ''}</small>`)).join('')}</div>` : `<p class="dim">${tx('Nicio licență SKINR.')}</p>`,
+        }) : ''}
+        ${parts?.length ? panel({
+          title: tx('Componente SKINR'),
+          count: parts.length,
+          body: `<div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Componentă')}</th><th>${tx('Tip')}</th><th>${tx('Raritate')}</th><th class="r">${tx('Folosiri')}</th></tr></thead><tbody>
+            ${[...parts].sort((a, b) => (data?.components[a.component_id]?.name ?? '').localeCompare(data?.components[b.component_id]?.name ?? '')).filter((x) => !q || (data?.components[x.component_id]?.name ?? '').toLowerCase().includes(q)).map((x) => {
+              const info = data?.components[x.component_id];
+              return `<tr><td>${esc(info?.name ?? `#${x.component_id}`)}</td><td class="small">${esc(x.type === 'pattern' ? 'Pattern' : 'Nanocoating')}${info?.category ? ` · ${esc(info.category)}` : ''}</td><td class="small">${esc(info?.rarity ?? '')}</td><td class="r num">${x.runs.unlimited ? '∞' : formatInt(x.runs.remaining ?? 0)}</td></tr>`;
+            }).join('')}
+            </tbody></table></div>`,
+        }) : ''}
+        ${selling?.length ? panel({
+          title: tx('Listările mele în Paragon Hub'),
+          count: selling.length,
+          body: `<div class="skinr-grid">${selling.map((l) => card(l.skinr_id, `<small>${esc(price(l))} · ${badge(l.state, l.state === 'listed' ? 'ok' : '')} · ${tx('{n} buc.', { n: l.quantity })}</small>`)).join('')}</div>`,
+        }) : ''}
+        ${panel({
+          title: tx('Paragon Hub: listări noi'),
+          count: market.list.length,
+          actions: dataStamp(market.at, 'data-skinr-refresh', { label: tx('Date din {time}'), title: tx('Ultimele 100 de listări publice, păstrate 10 minute. Click pentru a citi din nou.') }),
+          body: `<p class="dim small">${tx('Design-uri SKINR puse la vânzare de jucători. Se cumpără din Paragon Hub, în joc.')}</p>
+            <div class="skinr-grid">${market.list.filter((l) => match(designs.get(l.skinr_id))).map((l) => card(l.skinr_id, `<small><b class="gold-text">${esc(price(l))}</b> · ${esc(cachedName(l.seller_id) || `#${l.seller_id}`)}</small>`)).join('')}</div>`,
+        })}`;
+    } catch (err) {
+      if (token === skinrToken) body.innerHTML = panel({ body: alertBox((err as Error).message) });
+    }
   }
 
   async function renderShop() {
@@ -431,6 +498,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (m) { mode = m.dataset.skinMode as Mode; open = null; closeCombo(); savePrefs(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
     const info = t.closest<HTMLElement>('[data-skin-info]');
     if (info) { showItemInfo(ctx, Number(info.dataset.skinInfo)); return; }
+    if (t.closest('[data-skinr-refresh]')) { renderSkinr(true); return; }
     if (t.closest('[data-skin-prices]')) { priceCache = { at: 0, p: {} }; saveJson(PRICES_KEY, priceCache); renderShop(); return; }
     const cl = t.closest<HTMLElement>('[data-skin-clear]');
     if (cl) { if (cl.dataset.skinClear === 'ship') pickShip = null; else pickLine = null; renderShop(); return; }
@@ -477,7 +545,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       shell();
       render();
       sync();
-      setInterval(sync, 10 * 60 * 1000);
+      repeatAfter(sync, 10 * 60 * 1000);
     })
     .catch((err) => { el.innerHTML = panel({ body: alertBox((err as Error).message) }); });
 }

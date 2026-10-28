@@ -23,6 +23,8 @@ import { createDoctrinesView, type DoctrinesView } from './views/doctrines';
 import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
 import { requestPermission, type PermId } from './character/permissions';
 import { createMissionsView, type MissionsView } from './views/missions';
+import { createOperationsView } from './views/operations';
+import { esiHealth } from './services/operations';
 import { startAlertWatcher } from './services/alerts';
 import { trackView } from './services/analytics';
 import { startOrderWatcher } from './services/orders';
@@ -43,12 +45,13 @@ import { initTooltips } from './ui/tooltip';
 import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
 import { downloadBackup, pickBackup } from './io/backup';
-import { esiFetch } from './services/esiClient';
+import { ESI, esiFetch, repeatAfter } from './services/esiClient';
+import { isDemo, startDemo, exitDemo } from './demo/demo';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'about';
 
 const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
+const SIDE_VIEWS = ['doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -72,6 +75,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'skins', label: tx('SKIN-uri'), short: 'SKIN', icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
   { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
+  { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
@@ -83,6 +87,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
       <div class="topbar-stat optional"><span class="label">${tx('Jucători online')}</span><span class="value" id="onlinePlayers">—</span></div>
+      <div class="topbar-stat optional"><span class="label">ESI</span><span class="value esi-health" id="esiHealth"><i class="dot"></i><span>—</span></span></div>
       <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
       <div class="char-switch" id="charSwitch">
         <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
@@ -116,6 +121,7 @@ document.querySelector('#app')!.innerHTML = `
     <div class="side-scrim" id="sideScrim"></div>
 
     <main class="main">
+      ${isDemo() ? `<div class="demo-bar" role="status"><span class="demo-bar-ico">${icon('alert')}</span><span><b>${tx('Mod demo')}</b><span class="demo-bar-text"> · ${tx('Un pilot fictiv cu date inventate, ca să vezi tot ce face Vyraj fără login. Nimic nu ajunge în EVE.')}</span></span><button class="btn sm" data-demo-exit>${icon('close')}${tx('Ieși din demo')}</button></div>` : ''}
       <nav class="subnav" id="subnav" hidden></nav>
       ${VIEWS.map((v) => `<div class="view" id="view-${v.id}"></div>`).join('')}
     </main>
@@ -146,7 +152,7 @@ market.setFees(() => intel.fees());
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
 let doctrines: DoctrinesView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -224,7 +230,7 @@ function runLazy(id: ViewId) {
   fn();
 }
 
-const SHARE_HASH = /^#(fit|doctrine)=/;
+const SHARE_HASH = /^#(fit|doctrine|build)=/;
 const hashView = (): ViewId | null => {
   const id = location.hash.match(/^#\/([a-z]+)/)?.[1];
   return id && VIEWS.some((v) => v.id === id) ? id as ViewId : null;
@@ -295,8 +301,21 @@ document.addEventListener('click', (e) => {
   requestPermission(g.dataset.grant!.split(',') as PermId[], Number(g.dataset.grantChar) || null, activeView).catch((err) => toast((err as Error).message));
 });
 
+let demoBusy = false;
 document.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
+  if (t.closest('[data-demo-start]') && !demoBusy) {
+    demoBusy = true;
+    toast(tx('Pregătesc pilotul demo...'));
+    startDemo().then(() => { location.hash = '#/home'; location.reload(); }).catch((err) => { demoBusy = false; toast((err as Error).message); });
+    return;
+  }
+  if (t.closest('[data-demo-exit]')) {
+    exitDemo();
+    location.hash = '#/home';
+    location.reload();
+    return;
+  }
   if (t.closest('[data-backup-dl]')) downloadBackup();
   else if (t.closest('[data-backup-up]')) pickBackup();
 });
@@ -363,7 +382,7 @@ setInterval(tick, 10_000);
 const online = document.getElementById('onlinePlayers')!;
 const pollStatus = async () => {
   try {
-    const res = await esiFetch('https://esi.evetech.net/latest/status/');
+    const res = await esiFetch(`${ESI}/status/`);
     if (!res.ok) throw new Error();
     const status = await res.json() as { players: number; vip?: boolean };
     online.textContent = status.vip ? 'VIP' : formatInt(status.players);
@@ -372,7 +391,25 @@ const pollStatus = async () => {
   }
 };
 pollStatus();
-setInterval(pollStatus, 60_000);
+repeatAfter(pollStatus, 60_000);
+
+const health = document.getElementById('esiHealth')!;
+const pollHealth = async () => {
+  try {
+    const routes = await esiHealth();
+    const bad = routes.filter((r) => r.status === 'Degraded' || r.status === 'Down' || r.status === 'Recovering');
+    const down = bad.filter((r) => r.status === 'Down');
+    health.className = `value esi-health ${down.length ? 'down' : bad.length ? 'warn' : ''}`;
+    health.querySelector('span')!.textContent = down.length ? tx('{n} rute căzute', { n: down.length }) : bad.length ? tx('{n} rute lente', { n: bad.length }) : 'OK';
+    health.title = bad.length ? bad.slice(0, 25).map((r) => `${r.status} · ${r.method} ${r.path}`).join('\n') : tx('Toate rutele ESI funcționează normal.');
+  } catch {
+    health.className = 'value esi-health down';
+    health.querySelector('span')!.textContent = tx('indisponibil');
+    health.title = tx('ESI nu răspunde acum.');
+  }
+};
+pollHealth();
+repeatAfter(pollHealth, 5 * 60_000);
 
 async function start() {
   let login: (TokenSet & { returnTo?: string }) | null = null;
@@ -387,7 +424,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -412,7 +449,8 @@ async function start() {
         <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.keys(c.skills).length })}</small></span></button>`).join('')}
       ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span><small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
       <div class="char-menu-sep"></div>
-      <button class="char-menu-item login" data-char-login>${icon('login')}<span>${anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>`;
+      <button class="char-menu-item login" data-char-login>${icon('login')}<span>${isDemo() ? tx('Ieși din demo și fă login') : anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>
+      ${isDemo() ? `<button class="char-menu-item login" data-demo-exit>${icon('close')}<span>${tx('Ieși din demo')}</span></button>` : anyLogged ? '' : `<button class="char-menu-item login" data-demo-start>${icon('play')}<span>${tx('Încearcă cu date demo')}</span></button>`}`;
   };
   const showCharacter = () => {
     topCharacter.textContent = ctx.character.name;
@@ -463,6 +501,7 @@ async function start() {
   later('mining', ['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
   later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
+  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
   later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   runLazy(activeView);
@@ -480,9 +519,11 @@ async function start() {
       return doctrines.importShared(d);
     }).catch(() => toast(tx('Linkul de doctrină nu e valid sau e incomplet.')));
   };
+  const openBuild = () => { if (location.hash.startsWith('#build=') && activeView !== 'industry') switchView('industry'); };
   openShared();
   openDoctrine();
-  window.addEventListener('hashchange', () => { openShared(); openDoctrine(); });
+  openBuild();
+  window.addEventListener('hashchange', () => { openShared(); openDoctrine(); openBuild(); });
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);

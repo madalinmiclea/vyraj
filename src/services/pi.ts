@@ -1,10 +1,9 @@
 import { dataMissing, fetchData } from '../data/manifest';
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch } from './esiClient';
 import { accessToken, hasScope } from '../character/sso';
 import { loadJson, saveJson } from '../storage';
 import type { Aggregates } from './market';
 
-const ESI = 'https://esi.evetech.net/latest';
 
 export const PI_SCOPE = 'esi-planets.manage_planets.v1';
 export const TIER_NAMES = ['P0', 'P1', 'P2', 'P3', 'P4'];
@@ -176,7 +175,7 @@ interface EsiPin {
 
 async function authed<T>(characterId: number, path: string): Promise<T> {
   const token = await accessToken(characterId);
-  const res = await esiFetch(`${ESI}${path}?datasource=tranquility`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await esiFetch(`${ESI}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`ESI ${path}: ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -255,7 +254,7 @@ export async function planetNames(ids: number[]): Promise<Map<number, string>> {
   const missing = [...new Set(ids)].filter((id) => !cache[id]);
   if (missing.length) {
     await Promise.all(missing.map(async (id) => {
-      const res = await esiFetch(`${ESI}/universe/planets/${id}/?datasource=tranquility`).catch(() => null);
+      const res = await esiFetch(`${ESI}/universe/planets/${id}/`).catch(() => null);
       if (res?.ok) cache[id] = ((await res.json()) as { name: string }).name;
     }));
     saveJson(PLANET_NAMES_KEY, cache);

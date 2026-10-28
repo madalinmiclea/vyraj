@@ -1,6 +1,6 @@
 import '../styles/industry.css';
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, emptyState, windowTitle, badge, dataStamp } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, emptyState, windowTitle, badge, dataStamp, button, copyText, toast } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
@@ -46,6 +46,27 @@ const signed = (n: number) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 
 const pct = (n: number) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${formatNum(n, 1)}%</span>`;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
 
+const SHARE_PREFIX = '#build=';
+
+const encodeShare = (o: unknown) => {
+  let bin = '';
+  new TextEncoder().encode(JSON.stringify(o)).forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+function decodeShare(code: string): Record<string, unknown> | null {
+  try {
+    const bin = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+    const o = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+    return o && typeof o === 'object' && !Array.isArray(o) ? o as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
 export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'calc');
   if (!TABS.some((t) => t.id === tab)) tab = 'calc';
@@ -72,6 +93,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   let data: IndustryData | null = null;
   let map: NavMap | null = null;
+  let lastBuild: { d: IndustryData; r: BuildResult } | null = null;
   let priceIds: number[] = [];
 
   async function jitaPrices(ids: number[]) {
@@ -266,6 +288,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       const base = { bp, runs: calc.runs, me: calc.me, te: calc.te, facility: fac.f, basis: settings.basis, fees: fees(), skills: ctx.character.skills, prices, adjusted, labels: labels() };
       const dec = d.decryptors.find((x) => x.id === calc.decryptor) ?? null;
       const r = computeBuild({ ...base, invention: useInv ? { inv: useInv, decryptor: dec } : null });
+      lastBuild = { d, r };
       result.innerHTML = buildHtml(d, r, fac.f, prices, fac.note, fac.systemOk);
       if (useInv) result.insertAdjacentHTML('beforeend', inventionHtml(d, r, (decryptor) => computeBuild({ ...base, invention: { inv: useInv, decryptor } })));
     } catch (err) {
@@ -290,6 +313,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     return `${panel({
       title: d.name(r.bp.productId),
       count: `${formatInt(r.units)} ${tx('buc')}`,
+      actions: `${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost sm', attrs: `data-ind-multibuy title="${esc(tx('Lista de materiale, gata de lipit în fereastra Multibuy din joc'))}"` })}${button(tx('Copiază link'), { iconName: 'link', cls: 'ghost sm', attrs: `data-ind-share title="${esc(tx('Link care deschide același calcul: produs, runs, ME, TE și locul de producție'))}"` })}`,
       body: `<div class="ind-head"><img class="ind-icon" src="${typeIconUrl(r.bp.productId, 64)}" alt="" />
           <div><div class="dim small">${esc(d.category(r.bp.productId))} · ${esc(d.group(r.bp.productId))}${r.bp.reaction ? ` · ${badge('Reaction')}` : ''}</div>
           <div class="dim small">${esc(d.name(r.bp.id))} · ${r.invention ? `ME ${r.invention.me} · TE ${r.invention.te} (invention)` : r.bp.reaction ? '' : `ME ${calc.me} · TE ${calc.te}`}</div></div></div>
@@ -352,8 +376,53 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const t = e.target as HTMLElement;
     if (t.matches('select')) { readCalc(); renderCalc(); }
   });
+  function multibuy() {
+    if (!lastBuild) return;
+    const { d, r } = lastBuild;
+    const lines = r.mats.filter((m) => m.qty > 0).map((m) => `${d.name(m.id)} ${m.qty}`);
+    copyText(lines.join('\n'), tx('Lista Multibuy e în clipboard. În joc: Piață, Multibuy, Import din clipboard.'));
+  }
+
+  function shareLink() {
+    const code = encodeShare({ v: 1, c: { product: calc.product, me: calc.me, te: calc.te, runs: calc.runs, source: calc.source, decryptor: calc.decryptor }, s: settings });
+    copyText(`${location.origin}${location.pathname}${SHARE_PREFIX}${code}`, tx('Linkul calculului e în clipboard'));
+  }
+
+  function applyShared(): boolean {
+    if (!location.hash.startsWith(SHARE_PREFIX)) return false;
+    const o = decodeShare(location.hash.slice(SHARE_PREFIX.length));
+    history.replaceState(null, '', `${location.pathname}${location.search}#/industry`);
+    const c = o?.c as Record<string, unknown> | undefined;
+    const st = o?.s as Record<string, unknown> | undefined;
+    const product = str(c?.product, 120);
+    if (!c || !product) { toast(tx('Linkul de industrie nu e valid sau e incomplet.')); return false; }
+    calc.product = product;
+    calc.runs = clamp(Math.floor(num(c.runs) ?? 1), 1, 10000);
+    calc.me = clamp(Math.floor(num(c.me) ?? 10), 0, 10);
+    calc.te = clamp(Math.floor(num(c.te) ?? 20), 0, 20);
+    calc.source = c.source === 'own' ? 'own' : 'invention';
+    calc.decryptor = Math.max(0, Math.floor(num(c.decryptor) ?? 0));
+    if (st) {
+      const facility = str(st.facility, 40);
+      if (facility && FACILITIES.some((f) => f.id === facility)) settings.facility = facility;
+      if (st.rig === 'none' || st.rig === 't1' || st.rig === 't2') settings.rig = st.rig;
+      const system = str(st.system, 60);
+      if (system) settings.system = system;
+      settings.tax = clamp(num(st.tax) ?? settings.tax, 0, 50);
+      if (st.basis === 'sell' || st.basis === 'buy') settings.basis = st.basis;
+      saveSettings();
+    }
+    saveJson(CALC_KEY, calc);
+    tab = 'calc';
+    saveJson(TAB_KEY, tab);
+    toast(tx('Calcul deschis din link: {name}', { name: product }));
+    return true;
+  }
+
   panes.calc.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    if (t.closest('[data-ind-multibuy]')) { multibuy(); return; }
+    if (t.closest('[data-ind-share]')) { shareLink(); return; }
     const open = t.closest<HTMLElement>('[data-open]');
     if (open) { openProduct(open.dataset.open!, { source: 'invention' }); return; }
     const dec = t.closest<HTMLElement>('[data-dec]');
@@ -491,6 +560,14 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   ctx.onCharacterChange(() => { renderSettings(); refresh(); });
 
+  addEventListener('hashchange', () => {
+    if (!applyShared()) return;
+    renderTabs();
+    renderSettings();
+    refresh();
+  });
+
+  applyShared();
   renderTabs();
   renderSettings();
   panes[tab].innerHTML = loader(tx('Încarc datele de industrie'));

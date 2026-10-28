@@ -115,3 +115,21 @@ button.brand { text-align: left; }
   .neocom .neocom-more { display: flex; order: 99; }
   .neocom .neocom-btn.active::before { left: 12px; right: 12px; top: -5px; }
 }
+.demo-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--gold-glow); background: linear-gradient(90deg, rgba(217, 165, 74, 0.16), rgba(217, 165, 74, 0.05)), var(--bg-panel); color: var(--text); font-size: 13px; line-height: 1.45; }
+.demo-bar b { color: var(--gold); font-weight: 600; }
+.demo-bar > span:nth-child(2) { flex: 1; min-width: 0; }
+.demo-bar-ico { display: grid; place-items: center; color: var(--gold); flex: none; }
+.demo-bar-ico svg { width: 18px; height: 18px; }
+.demo-bar .btn { flex: none; }
+.home-demo-note { margin-top: 10px; }
+@media (max-width: 760px) {
+  .demo-bar { position: static; gap: 10px; padding: 6px 16px; }
+  .demo-bar .demo-bar-text { display: none; }
+  .demo-bar .btn { min-height: 30px; padding: 4px 10px; }
+}
+.perm-scopes { margin-top: 6px; font-size: 12.5px; }
+.perm-scopes summary { cursor: pointer; color: var(--accent); width: fit-content; }
+.perm-scopes ul { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 2px; padding: 0; list-style: none; }
+.perm-scopes li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; line-height: 1.4; }
+.perm-scopes code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11.5px; color: var(--text-bright); padding: 1px 5px; background: var(--bg-inset); border: 1px solid var(--line); }
+.perm-scopes li .dim { flex-basis: 100%; }

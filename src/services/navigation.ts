@@ -1,8 +1,7 @@
 import { dataMissing, fetchData } from '../data/manifest';
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch } from './esiClient';
 import { fold } from '../ui/fold';
 
-const ESI = 'https://esi.evetech.net/latest';
 const SCOUT = 'https://api.eve-scout.com/v2/public/signatures';
 
 export const POCHVEN_REGION = 10000070;
@@ -303,8 +302,8 @@ let statsCache: { at: number; map: Map<number, SystemStat> } | null = null;
 export async function systemStats(): Promise<{ at: number; map: Map<number, SystemStat> }> {
   if (statsCache && Date.now() - statsCache.at < 10 * 60 * 1000) return statsCache;
   const [kills, jumps] = await Promise.all([
-    esiFetch(`${ESI}/universe/system_kills/?datasource=tranquility`).then((r) => { if (!r.ok) throw new Error(`ESI system_kills: ${r.status}`); return r.json(); }),
-    esiFetch(`${ESI}/universe/system_jumps/?datasource=tranquility`).then((r) => { if (!r.ok) throw new Error(`ESI system_jumps: ${r.status}`); return r.json(); }),
+    esiFetch(`${ESI}/universe/system_kills/`).then((r) => { if (!r.ok) throw new Error(`ESI system_kills: ${r.status}`); return r.json(); }),
+    esiFetch(`${ESI}/universe/system_jumps/`).then((r) => { if (!r.ok) throw new Error(`ESI system_jumps: ${r.status}`); return r.json(); }),
   ]) as [{ system_id: number; ship_kills: number; pod_kills: number; npc_kills: number }[], { system_id: number; ship_jumps: number }[]];
   const map = new Map<number, SystemStat>();
   const get = (id: number) => map.get(id) ?? map.set(id, { ship: 0, pod: 0, npc: 0, jumps: 0 }).get(id)!;

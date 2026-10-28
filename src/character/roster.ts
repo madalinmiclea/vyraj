@@ -1,5 +1,5 @@
 import { accessToken, hasScope, hasTokens, BASE_SCOPES } from './sso';
-import { esiFetch } from '../services/esiClient';
+import { ESI, esiFetch } from '../services/esiClient';
 import { resolveNames, systemInfo, type SystemInfo } from '../services/recon';
 import { loadStoredCharacters, ROSTER_KEY, type StoredCharacter } from './characters';
 import { STRUCTURES_KEY } from './esi';
@@ -7,7 +7,6 @@ import { spPerMinute } from './training';
 import { loadJson, saveJson } from '../storage';
 import type { Sde } from '../data/sde';
 
-const ESI = 'https://esi.evetech.net/latest';
 const ACCOUNTS_KEY = 'eve-fit:roster-accounts';
 export const ROSTER_TTL = 5 * 60 * 1000;
 
@@ -87,7 +86,7 @@ export const missingScopes = (characterId: number) => ROSTER_SCOPES.filter((s) =
 
 async function authed<T>(characterId: number, path: string): Promise<T> {
   const token = await accessToken(characterId);
-  const res = await esiFetch(`${ESI}${path}?datasource=tranquility`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await esiFetch(`${ESI}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`ESI ${path}: ${res.status}`);
   return res.json() as Promise<T>;
 }

@@ -1,6 +1,6 @@
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch, esiPages } from './esiClient';
 export const JITA_REGION = 10000002;
 export const JITA_STATION = 60003760;
 export const PLEX_TYPE_ID = 44992;
@@ -152,12 +152,7 @@ interface EsiOrder {
 }
 
 export async function esiAggregates(regionId: number, typeId: number, locationId?: number): Promise<Aggregates> {
-  const url = (page: number) => `https://esi.evetech.net/latest/markets/${regionId}/orders/?datasource=tranquility&order_type=all&type_id=${typeId}&page=${page}`;
-  const first = await esiFetch(url(1));
-  if (!first.ok) throw new Error(`ESI market orders: ${first.status}`);
-  const pages = Number(first.headers.get('x-pages')) || 1;
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => esiFetch(url(i + 2)).then((r) => r.json() as Promise<EsiOrder[]>)));
-  const orders = [...(await first.json() as EsiOrder[]), ...rest.flat()].filter((o) => locationId == null || o.location_id === locationId);
+  const orders = (await esiPages<EsiOrder>((page) => `${ESI}/markets/${regionId}/orders/?order_type=all&type_id=${typeId}&page=${page}`)).filter((o) => locationId == null || o.location_id === locationId);
   const sell = orders.filter((o) => !o.is_buy_order).sort((a, b) => a.price - b.price);
   const buy = orders.filter((o) => o.is_buy_order);
   const volume = (list: EsiOrder[]) => list.reduce((a, o) => a + o.volume_remain, 0);
@@ -186,12 +181,7 @@ const LISTED_MS = 60 * 60 * 1000;
 export async function fetchListedTypes(): Promise<Set<number>> {
   const cached = loadJson<{ at: number; ids: number[] } | null>(LISTED_KEY, null);
   if (cached && Date.now() - cached.at < LISTED_MS) return new Set([...cached.ids, PLEX_TYPE_ID]);
-  const url = (page: number) => `https://esi.evetech.net/latest/markets/${JITA_REGION}/types/?datasource=tranquility&page=${page}`;
-  const first = await esiFetch(url(1));
-  if (!first.ok) throw new Error(`ESI market types: ${first.status}`);
-  const pages = Number(first.headers.get('x-pages')) || 1;
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => esiFetch(url(i + 2)).then((r) => r.json() as Promise<number[]>)));
-  const ids = [...(await first.json() as number[]), ...rest.flat(), PLEX_TYPE_ID];
+  const ids = [...(await esiPages<number>((page) => `${ESI}/markets/${JITA_REGION}/types/?page=${page}`)), PLEX_TYPE_ID];
   saveJson(LISTED_KEY, { at: Date.now(), ids });
   return new Set(ids);
 }
@@ -217,7 +207,7 @@ export async function fetchHistory(typeId: number, regionId = JITA_REGION): Prom
   const key = `${region}:${typeId}`;
   const hit = historyCache.get(key);
   if (hit && Date.now() - hit.at < 60 * 60 * 1000) return hit.value;
-  const res = await esiFetch(`https://esi.evetech.net/latest/markets/${region}/history/?datasource=tranquility&type_id=${typeId}`);
+  const res = await esiFetch(`${ESI}/markets/${region}/history/?type_id=${typeId}`);
   if (!res.ok) throw new Error(`ESI market history: ${res.status}`);
   const value = ((await res.json()) as HistoryDay[]).sort((a, b) => a.date.localeCompare(b.date));
   historyCache.set(key, { at: Date.now(), value });
@@ -225,7 +215,7 @@ export async function fetchHistory(typeId: number, regionId = JITA_REGION): Prom
 }
 
 export async function resolveIds(names: string[]): Promise<Record<string, { id: number; name: string }[]>> {
-  const res = await esiFetch('https://esi.evetech.net/latest/universe/ids/?datasource=tranquility', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(names) });
+  const res = await esiFetch(`${ESI}/universe/ids/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(names) });
   if (!res.ok) throw new Error(`ESI universe/ids: ${res.status}`);
   return res.json();
 }
@@ -241,7 +231,7 @@ export interface LpOffer {
 }
 
 export async function fetchLpOffers(corporationId: number): Promise<LpOffer[]> {
-  const res = await esiFetch(`https://esi.evetech.net/latest/loyalty/stores/${corporationId}/offers/?datasource=tranquility`);
+  const res = await esiFetch(`${ESI}/loyalty/stores/${corporationId}/offers/`);
   if (!res.ok) throw new Error(`ESI LP store: ${res.status}`);
   return res.json();
 }

@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
 import { importCharacter, portraitUrl } from '../character/esi';
-import { PERMISSIONS, hasPermission } from '../character/permissions';
-import { BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
+import { PERMISSIONS, hasPermission, scopeList } from '../character/permissions';
+import { BASE_SCOPES, BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
 import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
 import { formatDuration } from '../character/training';
 import { forgetPlan } from '../character/skillPlan';
@@ -16,6 +16,7 @@ import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { backupPanel } from '../io/backup';
 import { tx, locale } from '../i18n';
+import { characterPublic, loadActivities } from '../services/operations';
 import { loreText } from '../i18n/lore';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
@@ -70,6 +71,22 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
     aside.innerHTML = `${queuePanel()}${permissionsPanel()}${setup}${backupPanel()}`;
+    fillPublic();
+  }
+
+  async function fillPublic() {
+    for (const node of el.querySelectorAll<HTMLElement>('[data-char-public]')) {
+      const info = await characterPublic(Number(node.dataset.charPublic));
+      if (!info) continue;
+      const titles = info.character_title_id ? (await loadActivities().catch(() => null))?.titles : null;
+      const parts = [
+        info.character_title_id ? tx('Titlu: {t}', { t: titles?.[info.character_title_id] ?? '—' }) : '',
+        info.achievement_score != null ? tx('Scor realizări: {n}', { n: formatInt(info.achievement_score) }) : '',
+        info.security_status != null ? tx('Securitate: {n}', { n: info.security_status.toFixed(1) }) : '',
+        info.corporation_title ? tx('Rol în corporație: {t}', { t: info.corporation_title }) : '',
+      ].filter(Boolean);
+      if (node.isConnected) node.textContent = parts.join(' · ');
+    }
   }
 
   function characterCard(c: StoredCharacter, isActive: boolean) {
@@ -82,6 +99,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${c.kind === 'esi' ? badge(logged ? 'ESI' : tx('ESI · delogat'), logged ? 'accent' : 'warn') : badge(tx('Personalizat'))}
           ${isActive ? badge(tx('Activ'), 'ok', true) : ''}
         </div>
+        ${c.characterId ? `<div class="dim small" data-char-public="${c.characterId}"></div>` : ''}
         <div class="dim small">${c.totalSp ? formatInt(c.totalSp) + ' SP · ' : ''}${tx('{n} skill-uri', { n: Object.keys(c.skills).length })}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(locale) : ''}</div>
         <div class="row-actions">
           ${isActive ? '' : button(tx('Folosește'), { cls: 'sm', attrs: `data-use="${esc(c.id)}"` })}
@@ -98,10 +116,13 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
     if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) return '';
     const id = c.characterId;
     const missing = PERMISSIONS.filter((p) => !hasPermission(id, p.id));
-    const rows = PERMISSIONS.map((p) => `<div class="perm-row">
-        <div class="perm-row-text"><b>${esc(p.label)}</b><span class="dim small">${esc(p.why)}</span></div>
+    const rows = [`<div class="perm-row">
+        <div class="perm-row-text"><b>${esc(tx('Login'))}</b><span class="dim small">${esc(tx('Skill-urile, coada de antrenament și implanturile. Vin cu login-ul, ca fitting-ul și planul de skill-uri să folosească caracterul tău.'))}</span>${scopeList(BASE_SCOPES)}</div>
+        ${badge(tx('Aprobată'), 'ok', true)}
+      </div>`, ...PERMISSIONS.map((p) => `<div class="perm-row">
+        <div class="perm-row-text"><b>${esc(p.label)}</b><span class="dim small">${esc(p.why)}</span>${scopeList(p.scopes)}</div>
         ${hasPermission(id, p.id) ? badge(tx('Aprobată'), 'ok', true) : button(tx('Permite'), { cls: 'ghost sm', attrs: `data-grant="${p.id}" data-grant-char="${id}"` })}
-      </div>`).join('');
+      </div>`)].join('');
     return collapsible('perms', tx('Permisiuni EVE'), `${PERMISSIONS.length - missing.length}/${PERMISSIONS.length}`, `
         <p class="dim small">${tx('Skill-urile, coada și implanturile vin cu login-ul. Restul le aprobi doar dacă folosești ecranul respectiv. Le poți revoca oricând din pagina EVE de aplicații.')}</p>
         <div class="perm-list">${rows}</div>

@@ -1,7 +1,7 @@
 import { loadJson, saveJson } from '../storage';
 import { allEveItems } from '../data/items';
 import { fetchListedTypes, fetchPrices, fetchHistory, esiAggregates, lastDays, type Aggregates } from './market';
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch } from './esiClient';
 import { tx } from '../i18n';
 
 export const ACCOUNTING = 16622;
@@ -283,7 +283,7 @@ export async function fetchPackagedVolumes(typeIds: number[]): Promise<Map<numbe
   const missing = [...new Set(typeIds)].filter((id) => cache[id] == null);
   let changed = false;
   await pool(missing, 6, async (id) => {
-    const res = await esiFetch(`https://esi.evetech.net/latest/universe/types/${id}/?datasource=tranquility`);
+    const res = await esiFetch(`${ESI}/universe/types/${id}/`);
     if (!res.ok) return;
     const t = (await res.json()) as { packaged_volume?: number; volume?: number };
     const v = t.packaged_volume ?? t.volume;

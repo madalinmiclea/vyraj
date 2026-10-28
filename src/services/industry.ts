@@ -1,7 +1,7 @@
 import { accessToken } from '../character/sso';
 import { dataMissing, fetchData } from '../data/manifest';
 import { fold } from '../ui/fold';
-import { esiFetch } from './esiClient';
+import { ESI, esiFetch, esiPages } from './esiClient';
 import type { Aggregates } from './market';
 
 export const SKILL_INDUSTRY = 3380;
@@ -133,14 +133,13 @@ export function loadIndustry(): Promise<IndustryData> {
   return loading;
 }
 
-const ESI = 'https://esi.evetech.net/latest';
 const HOUR = 60 * 60 * 1000;
 
 let adjusted: { at: number; map: Map<number, number> } | null = null;
 
 export async function adjustedPrices(): Promise<Map<number, number>> {
   if (adjusted && Date.now() - adjusted.at < HOUR) return adjusted.map;
-  const res = await esiFetch(`${ESI}/markets/prices/?datasource=tranquility`);
+  const res = await esiFetch(`${ESI}/markets/prices/`);
   if (!res.ok) throw new Error(`ESI markets/prices: ${res.status}`);
   const list = (await res.json()) as { type_id: number; adjusted_price?: number }[];
   adjusted = { at: Date.now(), map: new Map(list.map((p) => [p.type_id, p.adjusted_price ?? 0])) };
@@ -157,7 +156,7 @@ let indices: { at: number; map: Map<number, CostIndices> } | null = null;
 
 export async function costIndices(): Promise<Map<number, CostIndices>> {
   if (indices && Date.now() - indices.at < HOUR) return indices.map;
-  const res = await esiFetch(`${ESI}/industry/systems/?datasource=tranquility`);
+  const res = await esiFetch(`${ESI}/industry/systems/`);
   if (!res.ok) throw new Error(`ESI industry/systems: ${res.status}`);
   const list = (await res.json()) as { solar_system_id: number; cost_indices: { activity: string; cost_index: number }[] }[];
   const map = new Map<number, CostIndices>();
@@ -197,15 +196,7 @@ export interface IndustryJob {
 
 async function paged<T>(characterId: number, path: string): Promise<T[]> {
   const token = await accessToken(characterId);
-  const get = async (page: number) => {
-    const res = await esiFetch(`${ESI}${path}?datasource=tranquility&page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`ESI ${path}: ${res.status} ${await res.text()}`);
-    return res;
-  };
-  const first = await get(1);
-  const pages = Number(first.headers.get('x-pages')) || 1;
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => get(i + 2).then((r) => r.json() as Promise<T[]>)));
-  return [...((await first.json()) as T[]), ...rest.flat()];
+  return esiPages<T>((page) => `${ESI}${path}?page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
 }
 
 export const ownedBlueprints = (characterId: number) => paged<OwnedBlueprint>(characterId, `/characters/${characterId}/blueprints/`);

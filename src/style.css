@@ -13,9 +13,11 @@
 @import './styles/orders.css';
 @import './styles/mining.css';
 @import './styles/missions.css';
+@import './styles/operations.css';
 @import './styles/about.css';
 @import './styles/home.css';
 @import './styles/doctrines.css';
+@import './styles/ticks.css';
 @import './styles/mobile.css';
 @import './styles/light.css';
 @import './styles/vyraj.css';

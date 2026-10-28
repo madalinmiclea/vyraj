@@ -1,8 +1,8 @@
 import { accessToken, hasScope } from '../character/sso';
 import { rosterCharacters } from '../character/roster';
-import { esiFetch } from './esiClient';
+import { ESI, esiPages, repeatAfter } from './esiClient';
 import { loadJson, saveJson } from '../storage';
-import { allEveItems } from '../data/items';
+import { typeName } from './typeNames';
 import { compactISK, formatISK, toast } from '../ui/components';
 import { tx } from '../i18n';
 
@@ -10,7 +10,6 @@ export const ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 export const ORDERS_EVENT = 'vyraj-orders-updated';
 export const MODIFY_COOLDOWN = 5 * 60 * 1000;
 
-const ESI = 'https://esi.evetech.net/latest';
 const STATUS_KEY = 'eve-orders:status';
 const NOTIFY_KEY = 'eve-orders:notify';
 const MARKET_MS = 5 * 60 * 1000;
@@ -69,7 +68,7 @@ export interface OrdersScan {
   errors: string[];
 }
 
-export const typeName = (id: number) => allEveItems.find((i) => i.t === id)?.n.trim() ?? `Type ${id}`;
+export { typeName };
 
 export function priceTick(price: number): number {
   if (!(price > 0)) return 0.01;
@@ -103,15 +102,7 @@ export const orderCharacters = () => rosterCharacters().filter((c) => c.characte
 
 async function authedPages<T>(characterId: number, path: string, maxPages = 5): Promise<T[]> {
   const token = await accessToken(characterId);
-  const get = async (page: number) => {
-    const res = await esiFetch(`${ESI}${path}?datasource=tranquility&page=${page}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`ESI ${path}: ${res.status}`);
-    return res;
-  };
-  const first = await get(1);
-  const pages = Math.min(maxPages, Number(first.headers.get('x-pages')) || 1);
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => get(i + 2).then((r) => r.json() as Promise<T[]>)));
-  return [...((await first.json()) as T[]), ...rest.flat()];
+  return esiPages<T>((page) => `${ESI}${path}?page=${page}`, { headers: { Authorization: `Bearer ${token}` } }, maxPages);
 }
 
 const charCache = new Map<number, { at: number; value: CharacterOrder[] }>();
@@ -134,14 +125,8 @@ function regionOrders(regionId: number, typeId: number, buy: boolean, force: boo
   const key = `${regionId}:${typeId}:${buy ? 'buy' : 'sell'}`;
   const hit = marketCache.get(key);
   if (!force && hit && Date.now() - hit.at < MARKET_MS) return hit.value;
-  const url = (page: number) => `${ESI}/markets/${regionId}/orders/?datasource=tranquility&order_type=${buy ? 'buy' : 'sell'}&type_id=${typeId}&page=${page}`;
-  const value = (async () => {
-    const first = await esiFetch(url(1));
-    if (!first.ok) throw new Error(`ESI market orders: ${first.status}`);
-    const pages = Number(first.headers.get('x-pages')) || 1;
-    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => esiFetch(url(i + 2)).then((r) => r.json() as Promise<PublicOrder[]>)));
-    return [...((await first.json()) as PublicOrder[]), ...rest.flat()];
-  })();
+  const url = (page: number) => `${ESI}/markets/${regionId}/orders/?order_type=${buy ? 'buy' : 'sell'}&type_id=${typeId}&page=${page}`;
+  const value = esiPages<PublicOrder>(url);
   marketCache.set(key, { at: Date.now(), value });
   value.catch(() => marketCache.delete(key));
   return value;
@@ -244,8 +229,8 @@ export function startOrderWatcher() {
   const run = () => {
     if (!orderCharacters().length) return;
     const job = () => scanOrders().then(() => undefined);
-    (navigator.locks ? navigator.locks.request('vyraj-order-watch', { ifAvailable: true }, (lock) => (lock ? job() : undefined)) : job()).catch(() => {});
+    return (navigator.locks ? navigator.locks.request('vyraj-order-watch', { ifAvailable: true }, (lock) => (lock ? job() : undefined)) : job()).catch(() => {});
   };
   run();
-  setInterval(run, 5 * 60 * 1000);
+  repeatAfter(run, 5 * 60 * 1000);
 }

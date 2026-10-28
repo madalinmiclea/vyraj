@@ -1,5 +1,6 @@
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices } from './market';
+import { repeatAfter } from './esiClient';
 import { compactISK, toast } from '../ui/components';
 import { tx } from '../i18n';
 
@@ -63,5 +64,5 @@ export async function checkAlerts() {
 export function startAlertWatcher() {
   const run = () => checkAlerts().catch(() => {});
   run();
-  setInterval(run, 5 * 60 * 1000);
+  repeatAfter(run, 5 * 60 * 1000);
 }

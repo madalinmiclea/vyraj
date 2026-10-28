@@ -1,11 +1,13 @@
 import type { WalletEntry, WalletTransaction } from '../character/esi';
-import { loadJson, saveJson, removeKey } from '../storage';
+import { loadJson, saveJson, removeKey, storageKey } from '../storage';
 import { tx } from '../i18n';
 
 export const PVE_REFS = new Set([
   'bounty_prizes', 'bounty_prize', 'ess_escrow_transfer', 'agent_mission_reward', 'agent_mission_time_bonus_reward',
   'agent_mission_collateral_paid', 'corporate_reward_payout', 'project_discovery_reward', 'daily_goal_payouts',
 ]);
+
+export const BOUNTY_REFS = new Set(['bounty_prizes', 'bounty_prize']);
 
 export const REF_LABELS: Record<string, string> = {
   bounty_prizes: tx('Recompense NPC'),
@@ -108,7 +110,7 @@ function store(key: string, rows: unknown[]) {
   let list = rows;
   while (list.length) {
     try {
-      localStorage.setItem(key, JSON.stringify(list));
+      localStorage.setItem(storageKey(key), JSON.stringify(list));
       return;
     } catch {
       list = list.slice(0, Math.floor(list.length / 2));
@@ -116,19 +118,23 @@ function store(key: string, rows: unknown[]) {
   }
 }
 
-type PackedEntry = [number, number, string, number, number | null, string];
+type PackedEntry = [number, number, string, number, number | null, string, string?, number?];
 type PackedTrade = [number, number, number, 0 | 1, number, number];
 const ARCHIVE_MAX = 20000;
 
 export function archiveJournal(characterId: number, fresh: WalletEntry[]): WalletEntry[] {
   const key = `eve-fit:wallet:${characterId}`;
   const map = new Map<number, WalletEntry>();
-  for (const [id, t, ref, amount, balance, description] of loadJson<PackedEntry[]>(key, [])) {
-    map.set(id, { id, date: new Date(t * 1000).toISOString(), ref_type: ref, amount, balance: balance ?? undefined, description });
+  for (const [id, t, ref, amount, balance, description, reason, context] of loadJson<PackedEntry[]>(key, [])) {
+    map.set(id, { id, date: new Date(t * 1000).toISOString(), ref_type: ref, amount, balance: balance ?? undefined, description, reason: reason || undefined, context_id: context ?? undefined, context_id_type: context ? 'system_id' : undefined });
   }
   for (const e of fresh) map.set(e.id, e);
   const all = [...map.values()].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, ARCHIVE_MAX);
-  store(key, all.map((e): PackedEntry => [e.id, Math.round(Date.parse(e.date) / 1000), e.ref_type, e.amount ?? 0, e.balance ?? null, (e.description ?? '').slice(0, 160)]));
+  store(key, all.map((e): PackedEntry => {
+    const row: PackedEntry = [e.id, Math.round(Date.parse(e.date) / 1000), e.ref_type, e.amount ?? 0, e.balance ?? null, (e.description ?? '').slice(0, 160)];
+    if (BOUNTY_REFS.has(e.ref_type)) row.push(e.reason ?? '', e.context_id_type === 'system_id' ? e.context_id : undefined);
+    return row;
+  }));
   return all;
 }
 
@@ -205,4 +211,72 @@ export function forgetWallet(characterId: number) {
   const fetched = loadJson<Record<string, unknown>>('eve-tools:wallet-fetched', {});
   delete fetched[characterId];
   saveJson('eve-tools:wallet-fetched', fetched);
+}
+
+export interface BountyTick {
+  id: number;
+  t: number;
+  isk: number;
+  systemId?: number;
+  kills: [number, number][];
+}
+
+export function parseKills(reason?: string): [number, number][] {
+  const out = new Map<number, number>();
+  for (const part of (reason ?? '').split(',')) {
+    const m = part.match(/^\s*(\d+)\s*:\s*(\d+)\s*$/);
+    if (m) out.set(Number(m[1]), (out.get(Number(m[1])) ?? 0) + Number(m[2]));
+  }
+  return [...out];
+}
+
+export function bountyTicks(entries: WalletEntry[]): BountyTick[] {
+  return entries
+    .filter((e) => BOUNTY_REFS.has(e.ref_type) && (e.amount ?? 0) > 0)
+    .map((e) => ({ id: e.id, t: Date.parse(e.date), isk: e.amount ?? 0, systemId: e.context_id_type === 'system_id' ? e.context_id : undefined, kills: parseKills(e.reason) }))
+    .sort((a, b) => b.t - a.t);
+}
+
+export function tickSummary(ticks: BountyTick[]) {
+  const systems = new Map<number, { isk: number; ticks: number }>();
+  const targets = new Map<number, number>();
+  let best: BountyTick | null = null;
+  let isk = 0;
+  for (const k of ticks) {
+    isk += k.isk;
+    if (!best || k.isk > best.isk) best = k;
+    if (k.systemId) {
+      const s = systems.get(k.systemId) ?? { isk: 0, ticks: 0 };
+      s.isk += k.isk;
+      s.ticks++;
+      systems.set(k.systemId, s);
+    }
+    for (const [id, n] of k.kills) targets.set(id, (targets.get(id) ?? 0) + n);
+  }
+  return {
+    count: ticks.length,
+    isk,
+    average: ticks.length ? isk / ticks.length : 0,
+    kills: [...targets.values()].reduce((a, n) => a + n, 0),
+    best,
+    systems: [...systems].map(([id, s]) => ({ id, ...s })).sort((a, b) => b.isk - a.isk),
+    targets: [...targets].map(([id, n]) => ({ id, n })).sort((a, b) => b.n - a.n),
+  };
+}
+
+export interface ActivityDay { day: number; isk: number; ticks: number }
+
+export function pveActivity(entries: WalletEntry[], days = 91, now = Date.now()): ActivityDay[] {
+  const today = Math.floor(now / DAY) * DAY;
+  const start = today - (days - 1) * DAY;
+  const out: ActivityDay[] = Array.from({ length: days }, (_, i) => ({ day: start + i * DAY, isk: 0, ticks: 0 }));
+  for (const e of entries) {
+    const a = e.amount ?? 0;
+    if (a <= 0 || !PVE_REFS.has(e.ref_type)) continue;
+    const i = Math.floor((Date.parse(e.date) - start) / DAY);
+    if (i < 0 || i >= days) continue;
+    out[i].isk += a;
+    if (BOUNTY_REFS.has(e.ref_type)) out[i].ticks++;
+  }
+  return out;
 }

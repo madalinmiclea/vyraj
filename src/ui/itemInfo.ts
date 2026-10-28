@@ -1,7 +1,9 @@
 import type { AppContext } from '../app/context';
 import { directRequirements, requirementTree, requirementsFor, skillsPlan, alphaRaces, type RequirementNode, type FitRequirements } from '../character/requirements';
 import { formatDuration, durationHtml } from '../character/training';
-import { typeIconUrl } from '../services/market';
+import { typeIconUrl, fetchPrices } from '../services/market';
+import { typeName } from '../services/typeNames';
+import { typeInfo, groupInfo, categoryInfo } from '../character/esi';
 import { shipMastery, masterySkills, type ShipMastery } from '../services/masteries';
 import { shipTraits, type TraitGroup } from '../services/traits';
 import { itemDescription } from '../services/descriptions';
@@ -9,7 +11,7 @@ import { itemSummaryHtml } from './itemSummary';
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
 import { attributeSections } from './attributes';
-import { openModal, badge, badgeHtml, button, esc, formatInt, copyText, toast } from './components';
+import { openModal, badge, badgeHtml, button, esc, formatInt, formatNum, compactISK, copyText, toast, loader } from './components';
 import { icon } from './icons';
 import { fold } from './fold';
 import { tx } from '../i18n';
@@ -122,7 +124,7 @@ export function hasItemInfo(sde: AppContext['sde'], typeId: number): boolean {
 export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, swap?: FitSwap, startTab = 'desc') {
   const sde = ctx.sde;
   const t = sde.types.get(typeId);
-  if (!t) { toast(tx('Pentru itemul ăsta nu am date (informațiile există pentru nave, module, muniție, drone, implanturi și skill-uri)')); return; }
+  if (!t) { showBasicInfo(typeId); return; }
   const tree = requirementTree(sde, typeId);
   const plan = requirementsFor(sde, [typeId], ctx.character);
   const alpha = alphaRaces(sde, [typeId]);
@@ -283,4 +285,40 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     }
   });
   el.querySelector('[data-copy-plan]')?.addEventListener('click', () => copyText(skillPlanText(plan.missing), tx('Plan copiat (lipește-l în Skill Plans din joc)')));
+}
+
+const plainText = (raw: string) => raw.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').split(/\n+/).map((l) => l.trim()).filter(Boolean);
+
+function showBasicInfo(typeId: number) {
+  const head = (name: string) => `<div class="info-head">
+      <span class="info-icon"><img src="${typeIconUrl(typeId)}" alt="" /></span>
+      <div><h2>${esc(name)}</h2></div>
+    </div>`;
+  const el = openModal(tx('Info item'), head(typeName(typeId)) + `<div data-basic>${loader(tx('Citesc informațiile itemului'))}</div>`, { wide: true });
+  (async () => {
+    const [type, prices, local] = await Promise.all([typeInfo(typeId), fetchPrices([typeId]).catch(() => new Map()), itemDescription(typeId)]);
+    const group = type ? await groupInfo(type.group_id) : null;
+    const category = group ? await categoryInfo(group.category_id) : null;
+    if (!el.isConnected) return;
+    const box = el.querySelector<HTMLElement>('[data-basic]')!;
+    if (!type) { box.innerHTML = `<p class="dim">${tx('Nu am putut citi informațiile itemului de la ESI.')}</p>`; return; }
+    if (type.name) el.querySelector('.info-head h2')!.textContent = type.name;
+    const price = prices.get(typeId);
+    const m3 = (v?: number) => (v === undefined ? '' : `${formatNum(v, v < 10 ? 2 : 0)} m³`);
+    const rows: [string, string][] = [
+      [tx('Clasă'), group?.name ?? ''],
+      [tx('Categorie'), category?.name ?? ''],
+      [tx('Volum'), m3(type.volume)],
+      [tx('Volum împachetat'), type.packaged_volume !== undefined && type.packaged_volume !== type.volume ? m3(type.packaged_volume) : ''],
+      [tx('Capacitate'), type.capacity ? m3(type.capacity) : ''],
+      [tx('Jita vânzare'), price?.sellMin ? compactISK(price.sellMin) : ''],
+      [tx('Jita cumpărare'), price?.buyMax ? compactISK(price.buyMax) : ''],
+    ];
+    const lines = local ?? plainText(type.description ?? '');
+    box.innerHTML = `<div class="info-identity"><table class="table compact attrs"><tbody>
+        ${rows.filter((r) => r[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r num">${esc(v)}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${type.market_group_id ? '' : `<p class="dim small">${tx('Itemul nu se vinde pe piață.')}</p>`}
+      ${lines.length ? `<div class="info-desc"><h3 class="section-title">${tx('Descriere din joc')}</h3>${lines.map((l) => `<p>${esc(l)}</p>`).join('')}</div>` : ''}`;
+  })();
 }
