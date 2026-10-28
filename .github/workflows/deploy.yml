@@ -32,7 +32,6 @@ jobs:
           BASE_PATH: /${{ github.event.repository.name }}/
           VITE_EVE_CLIENT_ID: ${{ vars.EVE_CLIENT_ID }}
           VITE_EVE_CALLBACK_URL: ${{ vars.EVE_CALLBACK_URL }}
-          VITE_GOATCOUNTER_CODE: ${{ vars.GOATCOUNTER_CODE }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

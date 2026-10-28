@@ -26,7 +26,6 @@ import { createMissionsView, type MissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
 import { esiHealth } from './services/operations';
 import { startAlertWatcher } from './services/alerts';
-import { trackView } from './services/analytics';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
@@ -257,7 +256,6 @@ function switchView(id: ViewId, push = true) {
   if (id === 'missions') missions?.show();
   setSide(false);
   syncSubnav();
-  trackView(id);
 }
 
 const subnav = document.getElementById('subnav')!;

@@ -15,14 +15,7 @@ function staticHost(): Plugin {
         .match(/Content-Security-Policy:\s*(.+)/)?.[1]
         .replace(/;\s*frame-ancestors[^;]*/, '')
         .trim();
-      const gc = (process.env.VITE_GOATCOUNTER_CODE || '').trim().toLowerCase();
-      const policy = csp && /^[a-z0-9-]+$/.test(gc)
-        ? csp
-          .replace(/script-src ([^;]*)/, '$& https://gc.zgo.at')
-          .replace(/img-src ([^;]*)/, `$& https://${gc}.goatcounter.com`)
-          .replace(/connect-src ([^;]*)/, `$& https://${gc}.goatcounter.com`)
-        : csp;
-      const tags: HtmlTagDescriptor[] = policy ? [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy }, injectTo: 'head-prepend' }] : [];
+      const tags: HtmlTagDescriptor[] = csp ? [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp }, injectTo: 'head-prepend' }] : [];
       const callback = (process.env.VITE_EVE_CALLBACK_URL || '').trim();
       if (/^https:\/\//.test(callback)) {
         const site = new URL('.', callback).href;
