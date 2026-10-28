@@ -14,6 +14,7 @@ import { alertBox, badge, button, confirmDialog, copyText, esc, formatInt, pageH
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { tx, locale } from '../i18n';
+import { loreText } from '../i18n/lore';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
 
@@ -105,7 +106,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
 
   async function refresh(c: StoredCharacter) {
     if (!c.characterId) return;
-    toast(theme === 'vyraj' ? 'Weaving the Flow…' : tx('Se actualizează din EVE…'));
+    toast(theme === 'vyraj' ? loreText('Weaving the Flow…') : tx('Se actualizează din EVE…'));
     try {
       upsertStoredCharacter({ ...(await importCharacter(c.characterId, c.name)), id: c.id });
       ctx.reloadCharacters();

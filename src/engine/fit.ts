@@ -332,7 +332,7 @@ export function buildDogma(sde: Sde, fit: Fit, character: CharacterSkills, buffs
   return new Dogma(sde, { ...toDogmaInput(sde, fit, character.skills, character.implants), buffs });
 }
 
-export function fitContents(sde: Sde, fit: Fit): Map<number, number> {
+export function fitContents(sde: Sde, fit: Fit, hullOnly = false): Map<number, number> {
   const out = new Map<number, number>();
   const add = (id: number, n: number) => out.set(id, (out.get(id) ?? 0) + n);
   add(fit.shipId, 1);
@@ -340,10 +340,11 @@ export function fitContents(sde: Sde, fit: Fit): Map<number, number> {
     for (const m of fit.slots[kind]) {
       if (!m) continue;
       if (!m.mutation) add(m.typeId, 1);
-      if (m.chargeId) add(m.chargeId, chargesPerModule(sde, m.typeId, m.chargeId));
+      if (m.chargeId && !hullOnly) add(m.chargeId, chargesPerModule(sde, m.typeId, m.chargeId));
     }
   }
   for (const d of fit.drones) add(d.typeId, isFighterType(sde, d.typeId) ? d.count * squadSize(sde, d.typeId) : d.count);
+  if (hullOnly) return out;
   for (const c of fit.cargo) add(c.typeId, c.count);
   for (const i of fit.implants) add(i, 1);
   return out;

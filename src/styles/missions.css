@@ -1,0 +1,72 @@
+.mis-help { margin-bottom: 10px; }
+.mis-help > summary, .mis-card > summary { list-style: none; cursor: pointer; }
+.mis-help > summary::-webkit-details-marker, .mis-card > summary::-webkit-details-marker { display: none; }
+.mis-help > summary { padding: 10px 16px; font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text-bright); }
+.mis-help > summary::before { content: '+'; display: inline-block; width: 16px; color: var(--accent); }
+.mis-help[open] > summary::before { content: '−'; }
+.mis-help .panel-body p, .mis-help .panel-body li { max-width: 78ch; }
+.mis-help .panel-body ol { padding-left: 20px; margin: 6px 0; }
+
+.mis-bar { position: sticky; top: 0; z-index: 3; padding: 10px 0 8px; margin-bottom: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.mis-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; font-size: 13px; color: var(--text-dim); }
+.mis-filters label { display: inline-flex; align-items: center; gap: 6px; }
+.mis-filters label.check input { accent-color: var(--accent); }
+.mis-filters .input.sm { width: auto; min-width: 120px; }
+.chip-row { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mis-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; }
+.mis-actions { display: inline-flex; gap: 6px; }
+
+.mis-card { margin: 0 0 8px; }
+.mis-card > summary { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.mis-card > summary:hover { background: var(--bg-hover); }
+.mis-caret { flex: none; width: 8px; height: 8px; border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint); transform: rotate(-45deg); transition: transform 0.15s var(--ease); }
+.mis-card[open] > summary .mis-caret { transform: rotate(45deg); }
+.mis-main { flex: 1; min-width: 0; }
+.mis-name { display: block; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--text-bright); }
+.mis-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.mis-tags .badge { font-size: 10.5px; letter-spacing: 1px; padding: 1px 6px; }
+.mis-int.e { color: var(--ok); }
+.mis-int.m { color: var(--gold); }
+.mis-int.h { color: var(--danger); }
+.mis-weak { display: inline-flex; gap: 4px; flex: none; }
+.mis-dmg { color: var(--dmg); }
+
+.mis-body { padding: 0 16px 14px 34px; }
+.mis-body:empty { display: none; }
+.mis-variants { margin: 4px 0 10px; }
+.mis-overview, .mis-combat { padding: 8px 12px; margin: 8px 0; background: var(--bg-inset); border: 1px solid var(--line); }
+.mis-line { display: flex; gap: 10px; align-items: baseline; margin: 3px 0; font-size: 14px; }
+.mis-line > .label { flex: none; min-width: 120px; font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
+.mis-line .warn { color: var(--warn); }
+.mis-ammo { display: inline-block; padding: 1px 6px; margin: 1px 2px 1px 0; font-size: 13px; color: var(--text-bright); border: 1px solid var(--line-strong); }
+
+.mis-sec { margin: 12px 0 4px; }
+.mis-sec-head, .mis-room-head { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 0.6px; color: var(--accent); margin-bottom: 4px; }
+.mis-notes { margin: 4px 0; padding-left: 20px; font-size: 14px; }
+.mis-notes li { margin: 3px 0; max-width: 80ch; }
+
+.mis-room { margin: 14px 0 6px; }
+.mis-table td { vertical-align: top; }
+.mis-table td.mis-group { width: 22%; color: var(--text-bright); }
+.mis-table td.num { width: 90px; white-space: nowrap; }
+.mis-ship { margin: 1px 0; font-size: 13.5px; }
+.mis-ship .num { color: var(--gold); }
+.mis-cls { color: var(--text-bright); }
+.mis-flag { font-size: 10px; padding: 0 5px; letter-spacing: 0.8px; margin-left: 2px; }
+.mis-flag.trig, .mis-flag.obj { color: var(--accent); }
+.mis-flag.web, .mis-flag.scram, .mis-flag.disrupt, .mis-flag.neut, .mis-flag.ecm, .mis-flag.damp, .mis-flag.td, .mis-flag.tp { color: var(--warn); }
+.mis-flag.loot { color: var(--gold); }
+.mis-flag.aggro { color: var(--danger); }
+
+.mis-links { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; }
+
+@media (max-width: 760px) {
+  .mis-bar { position: static; }
+  .mis-body { padding-left: 14px; }
+  .mis-weak { display: none; }
+  .mis-line { flex-wrap: wrap; }
+  .mis-line > .label { min-width: 0; width: 100%; }
+  .mis-count { margin-left: 0; }
+}
+
+:root[data-theme='light'] .mis-dmg.kinetic { --dmg: #5d6b78; }

@@ -45,6 +45,7 @@ const paths: Record<string, string> = {
   skin: '<path d="M12 3c4 3 7 3 8 3 0 8-3 12-8 15C7 18 4 14 4 6c1 0 4 0 8-3z"/>',
   structure: '<path d="M4 20V10l8-6 8 6v10z"/><path d="M9 20v-6h6v6"/>',
   shield: '<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.1 7.5 9.5 4.4-1.4 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/>',
+  hunt: '<path d="M6 3.5c8.5 0 14.5 6 14.5 14.5"/><path d="M6 3.5 20.5 18"/><path d="M3 21 15.5 8.5"/><path d="M15.5 8.5h-4M15.5 8.5v4"/>',
   target: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/>',
   swap: '<path d="M4 8h15"/><path d="m15 4 4 4-4 4"/><path d="M20 16H5"/><path d="m9 12-4 4 4 4"/>',
   drone: '<circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="m7 7 3 3M17 7l-3 3M7 17l3-3M17 17l-3-3"/>',

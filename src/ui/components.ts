@@ -1,5 +1,6 @@
 import { icon, reticle } from './icons';
 import { tx, locale } from '../i18n';
+import { loreText } from '../i18n/lore';
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
@@ -18,7 +19,7 @@ export function panel({ title, count, body = '', cls = '', bodyCls = 'panel-body
 }
 
 export function lore(std: string, vy: string) {
-  return `<span class="lore-std">${std}</span><span class="lore-vy">${vy}</span>`;
+  return `<span class="lore-std">${std}</span><span class="lore-vy">${loreText(vy)}</span>`;
 }
 
 export function pageHead(title: string, sub = '', vy = '') {

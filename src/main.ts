@@ -17,6 +17,7 @@ import { createMiningView } from './views/mining';
 import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
 import { createPiView } from './views/pi';
+import { createMissionsView, type MissionsView } from './views/missions';
 import { startAlertWatcher } from './services/alerts';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
@@ -35,11 +36,12 @@ import { initSuggest } from './ui/suggest';
 import { initTooltips } from './ui/tooltip';
 import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
+import { esiFetch } from './services/esiClient';
 
-type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining';
+type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions';
 
 const MOBILE_MAIN: string[] = ['market', 'fitting', 'tools', 'character'];
-const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const;
+const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
@@ -55,6 +57,7 @@ const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | n
   { id: 'orders', label: tx('Ordine de piață'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
+  { id: 'missions', label: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
@@ -64,7 +67,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="brand">${logo}<span>Vyraj</span></div>
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
-      <div class="topbar-stat optional"><span class="label">${tx('Iteme')}</span><span class="value" id="itemCount">—</span></div>
+      <div class="topbar-stat optional"><span class="label">${tx('Jucători online')}</span><span class="value" id="onlinePlayers">—</span></div>
       <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
       <div class="char-switch" id="charSwitch">
         <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
@@ -75,7 +78,7 @@ document.querySelector('#app')!.innerHTML = `
     </header>
 
     <nav class="neocom">
-      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
+      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''}" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}</button>
     </nav>
@@ -124,7 +127,8 @@ const intel = createIntelView(viewEl('intel'), null, {
 market.setFees(() => intel.fees());
 
 let fitting: FittingView | null = null;
-for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+let missions: MissionsView | null = null;
+for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -187,7 +191,6 @@ document.addEventListener('error', (e) => {
 const itemsReady = loadItems().then((items) => {
   browser.setData(items, marketGroups);
   market.itemsLoaded();
-  document.getElementById('itemCount')!.textContent = formatInt(items.length);
 }).catch((err) => {
   document.getElementById('treeView')!.innerHTML = alertBox((err as Error).message);
   throw err;
@@ -208,6 +211,7 @@ function switchView(id: ViewId) {
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
+  if (id === 'missions') missions?.show();
   setSide(false);
 }
 
@@ -270,6 +274,20 @@ const tick = () => { clock.textContent = new Date().toISOString().slice(11, 16);
 tick();
 setInterval(tick, 10_000);
 
+const online = document.getElementById('onlinePlayers')!;
+const pollStatus = async () => {
+  try {
+    const res = await esiFetch('https://esi.evetech.net/latest/status/');
+    if (!res.ok) throw new Error();
+    const status = await res.json() as { players: number; vip?: boolean };
+    online.textContent = status.vip ? 'VIP' : formatInt(status.players);
+  } catch {
+    online.textContent = '—';
+  }
+};
+pollStatus();
+setInterval(pollStatus, 60_000);
+
 async function start() {
   let login: TokenSet | null = null;
   let loginError = '';
@@ -282,7 +300,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -355,6 +373,7 @@ async function start() {
   mount(['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
   mount(['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   mount(['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
+  mount(['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   const openShared = () => readSharedFit(sde).then((f) => {
     if (!f || !fitting) return;

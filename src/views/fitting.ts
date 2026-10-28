@@ -20,7 +20,7 @@ import { icon } from '../ui/icons';
 import { alertBox, badge, button, compactISK, confirmDialog, copyText, dataStamp, emptyState, esc, formatInt, formatISK, formatNum, lore, pageHead, panel, toast } from '../ui/components';
 import { theme } from '../theme';
 
-const proving = (message: string) => (theme === 'vyraj' ? `Proving failed · ${message}` : message);
+const proving = (message: string) => (theme === 'vyraj' ? `${loreText('Proving failed')} · ${message}` : message);
 import { showItemInfo, skillPlanText, type FitSwap } from '../ui/itemInfo';
 import { moduleName } from '../engine/mutation';
 import { bindBreakdownTips } from '../ui/breakdown';
@@ -28,6 +28,7 @@ import { TARGETS } from '../engine/application';
 import { addItemToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import { tx } from '../i18n';
 import { attrLabel } from '../i18n/attributes';
+import { loreText } from '../i18n/lore';
 import { allEveItems } from '../data/items';
 import type { BrowserScope } from '../ui/sidebar';
 import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type ExtrasTab, type TargetState, type FitEnv } from '../fitting/shared';
@@ -46,6 +47,7 @@ export interface FittingView {
   selectItem(name: string, typeId: number | null): void;
   load(fit: Fit): void;
   clearSlot(): void;
+  setNpc(site: string, faction: string): void;
 }
 
 export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
@@ -461,7 +463,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   async function loadCost(f: Fit) {
     const id = ++priceRequest;
-    const contents = fitContents(sde, f);
+    const contents = fitContents(sde, f, true);
     const abyssal = new Map<number, number>();
     for (const k of SLOT_KINDS) for (const m of f.slots[k]) if (m?.mutation) abyssal.set(m.typeId, (abyssal.get(m.typeId) ?? 0) + 1);
     const req = requirementsFor(sde, fitTypeIds(f), ctx.character);
@@ -869,7 +871,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         if (fit) loadCost(fit);
         break;
       case 'multibuy':
-        if (fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Lista Multibuy copiată'));
+        if (fit) copyText(exportMultibuy(sde, fitContents(sde, fit, true)), tx('Lista Multibuy copiată'));
         break;
       case 'plan-fit':
         if (fit) {
@@ -902,5 +904,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     selectItem,
     load(f: Fit) { void openFit(cloneFit(f)); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
+    setNpc(site: string, faction: string) { npc.setScenario(site, faction); render(); },
   };
 }

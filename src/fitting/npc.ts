@@ -217,5 +217,11 @@ export function createNpcPanel(env: FitEnv, tips: Map<string, string>) {
     return true;
   }
 
-  return { render, handleChange, handleClick };
+  function setScenario(siteId: string, factionId: string) {
+    const site = findSite(siteId);
+    state = { ...state, site: site.id, faction: findFaction(site.kind, factionId).id, dps: null, neut: null, weatherLevel: null };
+    save();
+  }
+
+  return { render, handleChange, handleClick, setScenario };
 }

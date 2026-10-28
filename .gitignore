@@ -8,6 +8,5 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .wrangler
-_vechi
 public/data
 /data
