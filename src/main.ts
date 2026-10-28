@@ -20,6 +20,7 @@ import { createPiView } from './views/pi';
 import { createAboutView } from './views/about';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { startAlertWatcher } from './services/alerts';
+import { trackView } from './services/analytics';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
@@ -42,7 +43,7 @@ import { esiFetch } from './services/esiClient';
 type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'about';
 
 const MOBILE_MAIN: string[] = ['market', 'fitting', 'tools', 'character'];
-const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'about'] as const;
+const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -115,7 +116,7 @@ document.querySelector('#app')!.innerHTML = `
 
 const viewEl = (id: ViewId) => document.getElementById('view-' + id)!;
 const sidePane = (id: SideView) => document.getElementById('pane-' + id)!;
-createAboutView(viewEl('about'), sidePane('about'));
+createAboutView(viewEl('about'));
 const treeFilter = document.querySelector<HTMLInputElement>('#treeFilter')!;
 initSelects();
 initNumberSpin();
@@ -215,12 +216,14 @@ function switchView(id: ViewId) {
   document.querySelectorAll('.side-pane').forEach((el) => el.classList.toggle('active', el.id === 'pane-' + pane));
   document.querySelectorAll<HTMLElement>('.neocom-btn[data-view], .sheet-btn').forEach((el) => el.classList.toggle('active', el.dataset.view === id));
   document.getElementById('neocomMore')!.classList.toggle('active', !MOBILE_MAIN.includes(id));
+  shell.classList.toggle('no-sidebar', id === 'about');
   document.getElementById('neocomSheet')!.hidden = true;
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   if (id === 'missions') missions?.show();
   setSide(false);
+  trackView(id);
 }
 
 document.getElementById('neocomMore')!.addEventListener('click', (e) => {

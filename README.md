@@ -140,6 +140,7 @@ VITE_EVE_CLIENT_ID=<client id of an EVE application with callback http://localho
 | --- | --- |
 | `VITE_EVE_CLIENT_ID` | Client ID of the EVE application. Without it, users enter their own Client ID in the Character screen. |
 | `VITE_EVE_CALLBACK_URL` | Callback URL registered with EVE. Defaults to `<origin><base>callback`. |
+| `VITE_GOATCOUNTER_CODE` | GoatCounter site code for anonymous visit stats (production build only). Empty disables it. |
 | `VITE_EVE_TOKEN_URL` | SSO token endpoint. Defaults to `https://login.eveonline.com/v2/oauth/token`. |
 | `BASE_PATH` | Base path when the site is not served from the domain root, for example `/vyraj/`. |
 

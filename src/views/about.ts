@@ -1,4 +1,4 @@
-import { pageHead, panel, esc, windowTitle } from '../ui/components';
+import { pageHead, panel, esc } from '../ui/components';
 import { icon } from '../ui/icons';
 import { tx } from '../i18n';
 
@@ -88,16 +88,7 @@ function body() {
   </div>`;
 }
 
-export function createAboutView(el: HTMLElement, side: HTMLElement) {
+export function createAboutView(el: HTMLElement) {
   el.innerHTML = `${pageHead(tx('Credite și mulțumiri'), tx('Sursele, uneltele și oamenii pe care se sprijină Vyraj'), 'Letopis')}
     ${body()}`;
-  const links: [string, string][] = [['thanks', tx('Mulțumiri')], ...GROUPS.map((g) => [g.id, g.title] as [string, string]), ['author', tx('Autor')], ['notice', tx('Notă de copyright CCP')]];
-  side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Credite'))}</div>
-    <div class="side-nav">${links.map(([id, label], i) => `<button class="side-link ${i === 0 ? 'active' : ''}" data-about="${id}">${esc(label)}</button>`).join('')}</div>`;
-  side.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-about]');
-    if (!b) return;
-    side.querySelectorAll('.side-link').forEach((x) => x.classList.toggle('active', x === b));
-    el.querySelector('#about-' + b.dataset.about)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
 }

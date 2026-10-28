@@ -15,7 +15,14 @@ function staticHost(): Plugin {
         .match(/Content-Security-Policy:\s*(.+)/)?.[1]
         .replace(/;\s*frame-ancestors[^;]*/, '')
         .trim();
-      return csp ? [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp }, injectTo: 'head-prepend' }] : [];
+      const gc = (process.env.VITE_GOATCOUNTER_CODE || '').trim().toLowerCase();
+      const policy = csp && /^[a-z0-9-]+$/.test(gc)
+        ? csp
+          .replace(/script-src ([^;]*)/, '$& https://gc.zgo.at')
+          .replace(/img-src ([^;]*)/, `$& https://${gc}.goatcounter.com`)
+          .replace(/connect-src ([^;]*)/, `$& https://${gc}.goatcounter.com`)
+        : csp;
+      return policy ? [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy }, injectTo: 'head-prepend' }] : [];
     },
     closeBundle() {
       copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));

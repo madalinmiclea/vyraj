@@ -7,7 +7,7 @@
 .about-hero { position: relative; padding: 26px 28px; border: 1px solid var(--line); border-left: 2px solid rgba(var(--accent-rgb), 0.55); background: linear-gradient(110deg, rgba(var(--accent-rgb), 0.12), transparent 60%), var(--bg-panel); }
 .about-hero-kicker { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
 .about-hero h2 { margin: 4px 0 10px; font-family: var(--font-heading); font-size: 30px; font-weight: 700; color: var(--text-bright); }
-.about-hero p { margin: 0; max-width: 760px; font-size: 15.5px; line-height: 1.65; color: var(--text); }
+.about-hero p { margin: 0; font-size: 15.5px; line-height: 1.65; color: var(--text); }
 .about-c-group .section-title { margin-top: 0; }
 .about-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .about-tile { display: flex; gap: 12px; padding: 14px; text-decoration: none; color: inherit; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 3px; transition: border-color 0.15s var(--ease), background 0.15s var(--ease); }
@@ -38,6 +38,8 @@
 .about-notice p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-faint); }
 
 @media (max-width: 760px) {
+  .shell.no-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .shell.no-sidebar .side-toggle { visibility: hidden; }
   .about-hero { padding: 18px; }
   .about-hero h2 { font-size: 24px; }
   .about-tiles { grid-template-columns: minmax(0, 1fr); }
