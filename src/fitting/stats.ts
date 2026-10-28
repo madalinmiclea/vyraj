@@ -216,6 +216,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
           <div><span class="label">${tx('Drone')}</span><span class="value num">${formatNum(o.droneDps, 1)}</span></div>
           <div><span class="label">${tx('Salvă')}</span><span class="value num">${formatNum(o.totalVolley, 0)}</span></div>
         </div>
+        ${o.startDps < o.totalDps - 0.05 ? `<p class="dim small">${tx('DPS la spool maxim; la pornire: {dps}', { dps: formatNum(o.startDps, 1) })}</p>` : ''}
         ${damageBar(o.dps)}
         ${weapons ? `<table class="table compact"><thead><tr><th>${tx('Armă')}</th><th class="r">DPS</th><th class="r">${tx('Salvă')}</th><th class="r">${tx('Rază')}</th></tr></thead><tbody>${weapons}</tbody></table>` : `<p class="dim small">${tx('Nicio armă activă.')}</p>`}`,
     });

@@ -1,6 +1,7 @@
 import type { AppContext } from '../app/context';
 import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, searchField, button } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
+import { createToolPanel } from './tools';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -14,7 +15,14 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-interface State { section: Section | 'all'; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
+type MisTool = 'lp' | 'abyssal';
+
+const MIS_TOOLS: { id: MisTool; label: string }[] = [
+  { id: 'lp', label: tx('Magazin LP') },
+  { id: 'abyssal', label: tx('Jurnal abisal') },
+];
+
+interface State { section: Section | 'all'; tool?: MisTool | ''; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
 
 const DMG_NAME: Record<Dmg, string> = { em: 'EM', th: tx('Termic'), kin: tx('Cinetic'), exp: tx('Exploziv') };
 const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', exp: 'explosive' };
@@ -38,10 +46,21 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   el.innerHTML = `${pageHead(tx('Misiuni și complexe DED'), tx('Ce faci în fiecare cameră, contra cui tragi și ce tank îți trebuie, pentru misiunile L1–L5 și complexele DED'), 'Lov')}
     <div id="misHelp"></div>
     <div id="misBar"></div>
-    <div id="misList">${loader(tx('Încărcăm misiunile'))}</div>`;
+    <div id="misList">${loader(tx('Încărcăm misiunile'))}</div>
+    <div id="misTool" hidden></div>`;
   const help = el.querySelector<HTMLElement>('#misHelp')!;
   const bar = el.querySelector<HTMLElement>('#misBar')!;
   const list = el.querySelector<HTMLElement>('#misList')!;
+  const toolBox = el.querySelector<HTMLElement>('#misTool')!;
+  const tools = createToolPanel(toolBox, ctx);
+  if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
+
+  function showTool() {
+    const tool = state.tool || null;
+    for (const x of [help, bar, list]) x.hidden = !!tool;
+    toolBox.hidden = !tool;
+    if (tool) tools.show(tool); else tools.hide();
+  }
 
   const save = () => saveJson(STATE_KEY, state);
 
@@ -81,7 +100,9 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       counts.set(s, (counts.get(s) ?? 0) + 1);
     }
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Misiuni'))}</div>
-      <div class="side-nav">${SECTIONS.map((s) => `<button class="side-link ${s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}</div>`;
+      <div class="side-nav">${SECTIONS.map((s) => `<button class="side-link ${!state.tool && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
+        <div class="ord-side-label">${tx('Unelte PvE')}</div>
+        ${MIS_TOOLS.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${t.label}</button>`).join('')}</div>`;
   }
 
   function renderBar() {
@@ -365,10 +386,22 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   });
 
   side.addEventListener('click', (e) => {
+    const tb = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-tool]');
+    if (tb) {
+      state.tool = tb.dataset.misTool as MisTool;
+      save();
+      renderSide();
+      showTool();
+      el.closest('.main')?.scrollTo({ top: 0 });
+      return;
+    }
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-section]');
     if (!b) return;
+    const wasTool = !!state.tool;
     state.section = b.dataset.misSection as Section | 'all';
+    state.tool = '';
     save();
+    if (wasTool) showTool();
     apply();
     el.closest('.main')?.scrollTo({ top: 0 });
   });
@@ -382,6 +415,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   });
 
   renderSide();
+  showTool();
   loadMissions().then((data) => {
     missions = [...data.missions].sort((a, b) => (a.rating ? 1 : 0) - (b.rating ? 1 : 0) || a.name.replace(/^(The|A|An) /, '').localeCompare(b.name.replace(/^(The|A|An) /, '')) || a.level - b.level || (a.rating ?? 0) - (b.rating ?? 0));
     levels = intensities(missions);

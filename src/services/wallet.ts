@@ -138,6 +138,11 @@ export function archiveJournal(characterId: number, fresh: WalletEntry[]): Walle
   return all;
 }
 
+export function bountyDetailMissing(characterId: number, now = Date.now()): boolean {
+  const cutoff = Math.round(now / 1000) - 30 * 86400;
+  return loadJson<PackedEntry[]>(`eve-fit:wallet:${characterId}`, []).some((r) => BOUNTY_REFS.has(r[2]) && r[1] > cutoff && r.length < 7);
+}
+
 export function archiveTrades(characterId: number, fresh: WalletTransaction[]): WalletTransaction[] {
   const key = `eve-fit:wallet-trades:${characterId}`;
   const map = new Map<number, WalletTransaction>();

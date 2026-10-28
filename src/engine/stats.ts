@@ -118,9 +118,10 @@ export function validate(sde: Sde, fit: Fit, d: Dogma, r: Resources): string[] {
 export interface WeaponStat {
   name: string;
   count: number;
-  kind: 'turret' | 'missile' | 'drone' | 'fighter';
+  kind: 'turret' | 'missile' | 'drone' | 'fighter' | 'module';
   volley: Damage;
   dps: Damage;
+  startDps?: Damage;
   range?: number;
   falloff?: number;
 }
@@ -130,6 +131,7 @@ export interface Offense {
   weaponDps: number;
   droneDps: number;
   totalDps: number;
+  startDps: number;
   totalVolley: number;
   dps: Damage;
 }
@@ -139,7 +141,15 @@ const FIGHTER_ABILITIES = [
   { effect: 'fighterAbilityMissiles', prefix: 'fighterAbilityMissilesDamage', multiplier: 'fighterAbilityMissilesDamageMultiplier', duration: 'fighterAbilityMissilesDuration', range: 'fighterAbilityMissilesRange' },
 ];
 
-const TURRET_EFFECTS = ['targetAttack', 'projectileFired', 'targetDisintegratorAttack'];
+const TURRET_EFFECTS = ['targetAttack', 'projectileFired', 'targetDisintegratorAttack', 'ChainLightning'];
+
+function ownDamage(m: DogmaItem): Damage {
+  const out = zero();
+  for (const t of DAMAGE_TYPES) out[t] = m.get(DAMAGE_ATTR[t]);
+  return out;
+}
+
+const even = (total: number): Damage => ({ em: total / 4, thermal: total / 4, kinetic: total / 4, explosive: total / 4 });
 
 function chargeDamage(charge: DogmaItem | undefined): Damage {
   const out = zero();
@@ -156,21 +166,32 @@ export function offense(sde: Sde, d: Dogma): Offense {
       same.count += w.count;
       same.volley = add(same.volley, w.volley);
       same.dps = add(same.dps, w.dps);
+      if (w.startDps) same.startDps = add(same.startDps ?? zero(), w.startDps);
     } else weapons.push(w);
   };
 
   for (const m of d.modules) {
     if (m.state !== 'active' && m.state !== 'overheated') continue;
-    const cycle = m.get('speed') / 1000;
-    if (cycle <= 0) continue;
     const label = m.other ? `${m.type.name} · ${m.other.type.name}` : m.type.name;
-    if (TURRET_EFFECTS.some((e) => sde.hasEffect(m.typeId, e)) && m.other) {
+    const speed = m.get('speed') / 1000;
+    const spool = m.has(sde.attrId('damageMultiplierBonusMax')) ? 1 + m.get('damageMultiplierBonusMax') : 1;
+    if (speed > 0 && TURRET_EFFECTS.some((e) => sde.hasEffect(m.typeId, e)) && m.other) {
       const volley = scale(chargeDamage(m.other), m.get('damageMultiplier'));
-      push({ name: label, count: 1, kind: 'turret', volley, dps: scale(volley, 1 / cycle), range: m.get('maxRange'), falloff: m.get('falloff') });
-    } else if (sde.hasEffect(m.typeId, 'useMissiles') && m.other) {
+      const dps = scale(volley, 1 / speed);
+      push({ name: label, count: 1, kind: 'turret', volley, dps: scale(dps, spool), startDps: spool > 1 ? dps : undefined, range: m.get('maxRange'), falloff: m.get('falloff') });
+    } else if (speed > 0 && sde.hasEffect(m.typeId, 'useMissiles') && m.other) {
+      const dot = m.other.get('dotMaxDamagePerTick');
+      if (dot > 0) {
+        push({ name: label, count: 1, kind: 'missile', volley: even(dot), dps: even(dot) });
+        continue;
+      }
       const volley = scale(chargeDamage(m.other), d.character.get('missileDamageMultiplier'));
       const range = m.other.get('maxVelocity') * (m.other.get('explosionDelay') / 1000);
-      push({ name: label, count: 1, kind: 'missile', volley, dps: scale(volley, 1 / cycle), range });
+      push({ name: label, count: 1, kind: 'missile', volley, dps: scale(volley, 1 / speed), range });
+    } else if (!m.other) {
+      const volley = scale(ownDamage(m), m.get('damageMultiplier') || 1);
+      const cycle = speed || m.get('duration') / 1000;
+      if (sum(volley) > 0 && cycle > 0) push({ name: label, count: 1, kind: 'module', volley, dps: scale(volley, 1 / cycle) });
     }
   }
 
@@ -206,6 +227,7 @@ export function offense(sde: Sde, d: Dogma): Offense {
     weaponDps,
     droneDps,
     totalDps: weaponDps + droneDps,
+    startDps: weapons.reduce((a, w) => a + sum(w.startDps ?? w.dps), 0),
     totalVolley: weapons.reduce((a, w) => a + sum(w.volley), 0),
     dps: weapons.reduce((a, w) => add(a, w.dps), zero()),
   };
@@ -373,7 +395,7 @@ export function targeting(d: Dogma): Targeting {
   ];
   const [sensorType, sensorStrength] = sensors.reduce((a, b) => (b[1] > a[1] ? b : a));
   return {
-    maxRange: ship.get('maxTargetRange'),
+    maxRange: Math.min(ship.get('maxTargetRange'), ship.get('maximumRangeCap') || Infinity),
     scanResolution: ship.get('scanResolution'),
     maxLocked: Math.min(ship.get('maxLockedTargets'), d.character.get('maxLockedTargets') || Infinity),
     sensorStrength,

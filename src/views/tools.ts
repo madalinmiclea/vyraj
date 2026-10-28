@@ -1,12 +1,11 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyText, toast, emptyState, windowTitle, dataStamp } from '../ui/components';
+import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyText, toast, emptyState, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { parseItems, type AppraisalLine } from '../services/appraisal';
 import { fetchPrices, forgetPrices, pricesAt, fetchLpOffers, resolveIds, typeIconUrl, type Aggregates, type LpOffer } from '../services/market';
 import { loadAlerts, saveAlerts, addAlert, checkAlerts, hit, ALERTS_EVENT } from '../services/alerts';
 import { TIERS, WEATHERS, loadRuns, saveRuns, filamentTypeId, profitOf, summarize, iskPerHour, type AbyssalRun } from '../services/abyssal';
-import { renderWallet } from './wallet';
 import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
 import { removeKey } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
@@ -15,18 +14,8 @@ import { typeName, resolveTypeNames } from '../services/typeNames';
 import { showItemInfo } from '../ui/itemInfo';
 import { tx, locale } from '../i18n';
 
-type Tab = 'appraisal' | 'abyssal' | 'wallet' | 'assets' | 'lp' | 'alerts';
+export type ToolTab = 'appraisal' | 'abyssal' | 'assets' | 'lp' | 'alerts';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'appraisal', label: tx('Evaluare') },
-  { id: 'abyssal', label: tx('Jurnal abisal') },
-  { id: 'wallet', label: tx('Portofel') },
-  { id: 'assets', label: tx('Bunuri') },
-  { id: 'lp', label: tx('Magazin LP') },
-  { id: 'alerts', label: tx('Alerte preț') },
-];
-
-const TAB_KEY = 'eve-tools:tab';
 const APPRAISAL_KEY = 'eve-tools:appraisal-text';
 const BASIS_KEY = 'eve-tools:price-basis';
 const LP_CORP_KEY = 'eve-tools:lp-corp';
@@ -44,14 +33,11 @@ const priceOf = (p: Aggregates | undefined, basis: Basis) => (p ? (basis === 'se
 const isk = (v: number) => `<span class="num">${compactISK(v)}</span>`;
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
-  let tab = loadJson<Tab>(TAB_KEY, 'appraisal');
-  if (!TABS.some((t) => t.id === tab)) tab = 'appraisal';
-  let basis = loadJson<Basis>(BASIS_KEY, 'sell');
+export interface ToolPanel { show(next: ToolTab): void; hide(): void }
 
-  el.innerHTML = `${pageHead(tx('Unelte ISK'), tx('Evaluare, portofel, bunuri, magazin LP, jurnal abisal și alerte de preț'), 'Tithe', { hub: true })}
-    <div id="toolBody"></div>`;
-  const body = el.querySelector<HTMLElement>('#toolBody')!;
+export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
+  let tab: ToolTab | null = null;
+  let basis = loadJson<Basis>(BASIS_KEY, 'sell');
 
   const basisChips = () => `<div class="advice-sort">
     <button class="chip-btn ${basis === 'sell' ? 'active' : ''}" data-basis="sell">${tx('Jita vânzare')}</button>
@@ -72,14 +58,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     return panel({ body: permissionGate(perm, ctx.character.characterId!, ctx.character.name) });
   }
 
-  function renderTabs() {
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Unelte ISK'))}</div>
-      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-tool-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
-  }
-
   function render() {
-    renderTabs();
-    ({ appraisal, abyssal, wallet, assets, lp, alerts } as Record<Tab, () => void>)[tab]();
+    if (tab) ({ appraisal, abyssal, assets, lp, alerts } as Record<ToolTab, () => void>)[tab]();
   }
 
   let apIds: number[] = [];
@@ -199,18 +179,6 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       abyssal();
     } catch (err) {
       toast((err as Error).message);
-    }
-  }
-
-  async function wallet() {
-    const c = esiCharacter('esi-wallet.read_character_wallet.v1');
-    if (c === 'scope') { body.innerHTML = scopePrompt('wallet'); return; }
-    if (typeof c === 'string') { body.innerHTML = panel({ body: alertBox(c) }); return; }
-    const charId = ctx.character.id;
-    try {
-      await renderWallet(body, ctx, c.id, () => tab === 'wallet' && ctx.character.id === charId);
-    } catch (err) {
-      if (tab === 'wallet') body.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
   }
 
@@ -442,16 +410,9 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     checkAlerts().catch(() => {});
   }
 
-  side.addEventListener('click', (e) => {
-    const tb = (e.target as HTMLElement).closest<HTMLElement>('[data-tool-tab]');
-    if (tb) { tab = tb.dataset.toolTab as Tab; saveJson(TAB_KEY, tab); render(); }
-  });
-
-  el.addEventListener('click', (e) => {
+  body.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const at = (s: string) => t.closest<HTMLElement>(s);
-    const tb = at('[data-tool-tab]');
-    if (tb) { tab = tb.dataset.toolTab as Tab; saveJson(TAB_KEY, tab); render(); return; }
     const b = at('[data-basis]');
     if (b) {
       basis = b.dataset.basis as Basis;
@@ -489,7 +450,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     if (ad) saveAlerts(loadAlerts().filter((a) => a.id !== ad.dataset.alDel));
   });
 
-  el.addEventListener('change', (e) => {
+  body.addEventListener('change', (e) => {
     const t = e.target as HTMLElement;
     if (t.id === 'lpMine') {
       const sel = t as HTMLSelectElement;
@@ -500,7 +461,10 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   });
 
   window.addEventListener(ALERTS_EVENT, () => { if (tab === 'alerts') alerts(); });
-  ctx.onCharacterChange(() => { if (tab === 'wallet' || tab === 'assets' || tab === 'lp') render(); });
+  ctx.onCharacterChange(() => { if (tab === 'assets' || tab === 'lp') render(); });
 
-  render();
+  return {
+    show(next) { tab = next; render(); },
+    hide() { tab = null; },
+  };
 }

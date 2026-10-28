@@ -11,9 +11,17 @@ import {
   scanOrders, lastScan, orderHistory, orderCharacters, notifyEnabled, setNotify, typeName, priceTick, expiresAt, modifiableAt,
   ORDERS_EVENT, type TrackedOrder, type Competition, type OrdersScan, type CharacterOrder,
 } from '../services/orders';
+import { createToolPanel } from './tools';
 import { tx, locale } from '../i18n';
 
-type Tab = 'active' | 'history';
+type ToolId = 'appraisal' | 'alerts' | 'assets';
+type Tab = 'active' | 'history' | ToolId;
+
+const TOOL_TABS: { id: ToolId; label: string }[] = [
+  { id: 'appraisal', label: tx('Evaluare') },
+  { id: 'alerts', label: tx('Alerte preț') },
+  { id: 'assets', label: tx('Bunuri') },
+];
 type Filter = 'all' | 'sell' | 'buy' | 'beaten';
 
 const UI_KEY = 'eve-orders:ui';
@@ -42,15 +50,20 @@ const plainPrice = (v: number) => v.toFixed(2);
 
 export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLElement, deps: { onOpen: (name: string, typeId: number) => void }) {
   const ui = loadJson<UiState>(UI_KEY, { tab: 'active', filter: 'all', character: 0 });
-  if (!['active', 'history'].includes(ui.tab)) ui.tab = 'active';
+  if (!['active', 'history', ...TOOL_TABS.map((t) => t.id)].includes(ui.tab)) ui.tab = 'active';
   const places = new Map<number, string>();
   const history = new Map<number, CharacterOrder[]>();
   let busy = false;
   let error = '';
 
-  el.innerHTML = `${pageHead(tx('Ordine de piață'), tx('Ordinele tuturor caracterelor, cu alertă la outbid și undercut'), 'Torg')}
-    <div id="ordBody"></div>`;
+  el.innerHTML = `${pageHead(tx('Ordine de piață'), tx('Ordinele tuturor caracterelor cu alertă la outbid, plus evaluare, alerte de preț și bunuri'), 'Torg')}
+    <div id="ordBody"></div>
+    <div id="ordTool" hidden></div>`;
   const body = el.querySelector<HTMLElement>('#ordBody')!;
+  const toolBox = el.querySelector<HTMLElement>('#ordTool')!;
+  const tools = createToolPanel(toolBox, ctx);
+  let shownTool: ToolId | null = null;
+  const toolOf = (tab: Tab) => TOOL_TABS.find((t) => t.id === tab)?.id ?? null;
 
   const save = () => saveJson(UI_KEY, ui);
 
@@ -61,7 +74,9 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       <div class="side-nav">
         <button class="side-link ${ui.tab === 'active' ? 'active' : ''}" data-ord-tab="active">${tx('Ordine active')}</button>
         <button class="side-link ${ui.tab === 'history' ? 'active' : ''}" data-ord-tab="history">${tx('Istoric ordine')}</button>
-        ${chars.length > 1 ? `<div class="ord-side-label">${tx('Caractere')}</div>
+        <div class="ord-side-label">${tx('Unelte')}</div>
+        ${TOOL_TABS.map((t) => `<button class="side-link ${ui.tab === t.id ? 'active' : ''}" data-ord-tab="${t.id}">${t.label}</button>`).join('')}
+        ${chars.length > 1 && !toolOf(ui.tab) ? `<div class="ord-side-label">${tx('Caractere')}</div>
           <button class="side-link ${!ui.character ? 'active' : ''}" data-ord-char="0">${tx('Toate caracterele')}${scan ? `<span class="ord-count">${scan.orders.length}</span>` : ''}</button>
           ${chars.map((c) => `<button class="side-link ${ui.character === c.characterId ? 'active' : ''}" data-ord-char="${c.characterId}">${esc(c.name)}${scan ? `<span class="ord-count">${count(c.characterId!)}</span>` : ''}</button>`).join('')}` : ''}
       </div>`;
@@ -222,6 +237,14 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   function render() {
     renderSide(lastScan());
+    const tool = toolOf(ui.tab);
+    body.hidden = !!tool;
+    toolBox.hidden = !tool;
+    if (tool) {
+      if (shownTool !== tool) { shownTool = tool; tools.show(tool); }
+      return;
+    }
+    if (shownTool) { shownTool = null; tools.hide(); }
     if (ui.tab === 'history') historyTab();
     else activeTab();
   }

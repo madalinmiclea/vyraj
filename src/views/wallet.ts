@@ -3,7 +3,7 @@ import { panel, loader, esc, formatInt, formatNum, compactISK, button, dataStamp
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
-import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
+import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, bountyDetailMissing, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
 import { npcInfo, type NpcInfo } from '../services/npcKills';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { heatmap } from '../ui/heatmap';
@@ -23,17 +23,29 @@ const ARCHIVE_GAP_MS = 7 * 86400000;
 
 type Direction = 'all' | 'in' | 'out';
 
+export type WalletSection = 'overview' | 'journal' | 'trades' | 'bounty' | 'ratting';
+
+export const WALLET_SECTIONS: { id: WalletSection; label: string }[] = [
+  { id: 'overview', label: tx('Prezentare') },
+  { id: 'journal', label: tx('Jurnal') },
+  { id: 'trades', label: tx('Cumpărat și vândut') },
+  { id: 'bounty', label: tx('Bounty și tick-uri') },
+  { id: 'ratting', label: tx('Unde și ce ai vânat') },
+];
+
+export interface WalletState { section: WalletSection; rerender?: () => void; onSection?: (section: WalletSection) => void }
+
 const isk = (v: number) => `<span class="num">${compactISK(v)}</span>`;
 const signed = (v: number) => `<span class="num ${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : '−'}${compactISK(Math.abs(v))}</span>`;
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, force = false) {
+export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, view: WalletState, force = false) {
   const fetchedAll = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {});
   let fetched = fetchedAll[characterId];
   let fresh: WalletEntry[] = [];
   let freshTrades: WalletTransaction[] = [];
-  if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS) {
+  if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS || bountyDetailMissing(characterId)) {
     body.innerHTML = panel({ body: loader(tx('Citesc jurnalul portofelului')) });
     let balance: number;
     [fresh, balance, freshTrades] = await Promise.all([
@@ -116,11 +128,12 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
         <div class="heatmap-legend dim small"><span>${tx('Mai puțin')}</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>${tx('Mai mult')}</span></div>
         ${oldest > activity[0].day ? `<p class="dim small wallet-note">${tx('Zilele dinainte de {date} se completează pe măsură ce Vyraj citește jurnalul (EVE dă doar ultimele 30 de zile).', { date: day(oldest) })}</p>` : ''}`,
     });
+    const none = panel({ title: tx('Recompense NPC'), body: `<p class="dim">${tx('Niciun tick de recompense NPC în perioada aleasă. Tick-urile apar după ratting în anomalii sau misiuni, la fiecare 20 de minute.')}</p>` });
     if (!ticks.length) {
-      el.innerHTML = `${heat}${panel({ title: tx('Recompense NPC'), body: `<p class="dim">${tx('Niciun tick de recompense NPC în perioada aleasă. Tick-urile apar după ratting în anomalii sau misiuni, la fiecare 20 de minute.')}</p>` })}`;
+      el.innerHTML = view.section === 'bounty' ? none : `${heat}${none}`;
       return;
     }
-    el.innerHTML = `${heat}${panel({ title: tx('Recompense NPC'), body: loader(tx('Citesc numele NPC-urilor')) })}`;
+    el.innerHTML = `${view.section === 'bounty' ? '' : heat}${panel({ body: loader(tx('Citesc numele NPC-urilor')) })}`;
     const s = tickSummary(ticks);
     const ids = [...new Set(ticks.flatMap((k) => k.kills.map(([id]) => id)))];
     const [info, nav] = await Promise.all([
@@ -143,6 +156,13 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const tickRow = (k: BountyTick) => {
       const kills = [...k.kills].sort((a, b) => b[1] - a[1]);
       const total = kills.reduce((a, [, n]) => a + n, 0);
+      if (!kills.length) return `<div class="tick tick-plain">
+          <span class="tick-time num dim">${dateTime(k.t)}</span>
+          ${k.systemId ? sys(k.systemId) : `<span class="tick-sys dim">${tx('fără detalii')}</span>`}
+          <span class="tick-ships"></span>
+          <span class="tick-isk num up">+${compactISK(k.isk)}</span>
+          <span></span>
+        </div>`;
       return `<details class="tick">
         <summary>
           <span class="tick-time num dim">${dateTime(k.t)}</span>
@@ -161,7 +181,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       </details>`;
     };
     const best = s.best!;
-    el.innerHTML = `${heat}${panel({
+    el.innerHTML = view.section === 'bounty' ? `${panel({
       title: tx('Recompense NPC'),
       count: tx('{n} tick-uri în perioadă', { n: formatInt(s.count) }),
       body: `<div class="history-kpis">
@@ -173,6 +193,11 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
         </div>
         <p class="dim small">${tx('Cel mai bun tick: {isk} ISK în {system}, {date}.', { isk: compactISK(best.isk), system: nav?.systems.get(best.systemId ?? 0)?.name ?? '—', date: dateTime(best.t) })}</p>`,
     })}
+    ${panel({
+      title: tx('Tick-uri'),
+      count: ticks.length > TICK_LIMIT ? tx('se văd primele {n}', { n: TICK_LIMIT }) : '',
+      body: `<div class="tick-list">${ticks.slice(0, TICK_LIMIT).map(tickRow).join('')}</div>`,
+    })}` : `${heat}
     <div class="tool-grid even">
       ${panel({
         title: tx('Unde ai făcut ratting'),
@@ -195,12 +220,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           <div class="small"><span class="dim">${tx('Slabi la')}</span> ${dmg(f.weak)}</div>
         </div>`).join('')}</div>
         <p class="dim small">${tx('Rezistențele tale ar trebui să acopere ce trag ei, iar muniția și dronele să lovească unde sunt slabi.')} <a href="#/missions">${tx('Deschide ghidul de misiuni')}</a></p>`,
-    }) : ''}
-    ${panel({
-      title: tx('Tick-uri'),
-      count: ticks.length > TICK_LIMIT ? tx('se văd primele {n}', { n: TICK_LIMIT }) : '',
-      body: `<div class="tick-list">${ticks.slice(0, TICK_LIMIT).map(tickRow).join('')}</div>`,
-    })}`;
+    }) : ''}`;
   }
 
   function exportCsv(rows: WalletEntry[]) {
@@ -231,12 +251,14 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const refs = [...new Set(rows.map((e) => e.ref_type))].sort((a, b) => refLabel(a).localeCompare(refLabel(b)));
     if (ref && !refs.includes(ref)) ref = '';
     const cats = byRef(rows);
-    const tradeRows = tradeSummary(since(trades, from)).slice(0, 20);
+    const tradeRows = tradeSummary(since(trades, from)).slice(0, 300);
 
-    root.innerHTML = `${panel({
-        title: tx('Portofel'),
-        count: entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal'),
-        actions: `${dataStamp(fetchedAt, 'data-wallet-refresh', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') })}<div class="advice-sort">${chips}</div>`,
+    const bar = `<div class="wallet-bar">
+        <span class="dim small">${entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal')}</span>
+        <span class="wallet-bar-actions">${dataStamp(fetchedAt, 'data-wallet-refresh', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') })}<span class="advice-sort">${chips}</span></span>
+      </div>`;
+    const overview = () => `${panel({
+        title: tx('Sold și flux'),
         body: `<div class="history-kpis">
             <div><span class="label">${tx('Sold')}</span><span class="value">${compactISK(balance)}</span></div>
             <div title="${tx('Suma tuturor intrărilor pozitive din perioadă ({n})', { n: formatInt(inCount) })}"><span class="label">${tx('Venit total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
@@ -247,46 +269,27 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           </div>
           ${partial ? `<p class="dim small wallet-note">${tx('EVE dă doar ultimele 30 de zile din jurnal. Vyraj păstrează local tot ce citește, așa că perioadele mai lungi se completează pe măsură ce deschizi Portofel. Acum ai date din {date}.', { date: day(oldest) })}</p>` : ''}
           <h4 class="sub-head">${tx('Câștigat și cheltuit {bucket}', { bucket: bucketName })}</h4>
-          <div class="flow-totals">
-            <div><span class="label">${tx('Câștigat total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
-            <div><span class="label">${tx('Cheltuit total')}</span><span class="value down">${compactISK(f.spent)}</span></div>
-            <div><span class="label">Net</span><span class="value ${f.net >= 0 ? 'up' : 'down'}">${f.net >= 0 ? '+' : '−'}${compactISK(Math.abs(f.net))}</span></div>
-          </div>
-          ${flowChart(points)}
+          <div class="wallet-chart">${flowChart(points)}</div>
           ${partial || (period === 'all' && entries.length) ? `<p class="dim small wallet-note">${tx('Graficul începe la {date}, prima zi cu date salvate local.', { date: day(oldest) })}</p>` : ''}`,
-      })}
-      <div id="walletTicks" class="stack"></div>
-      ${panel({
-        title: tx('Toate perioadele'),
-        body: `<table class="table compact wallet-periods"><thead><tr><th>${tx('Perioadă')}</th><th class="r">${tx('Câștigat')}</th><th class="r">${tx('Cheltuit')}</th><th class="r">Net</th><th class="r">PvE</th><th class="r">#</th></tr></thead><tbody>
-          ${PERIODS.map((p) => {
-            const x = flow(since(entries, periodStart(p.id)));
-            return `<tr class="${p.id === period ? 'active' : ''}" data-wallet-period="${p.id}"><td>${p.label}</td><td class="r up">${isk(x.earned)}</td><td class="r down">${isk(x.spent)}</td><td class="r">${signed(x.net)}</td><td class="r">${isk(x.pve)}</td><td class="r num dim">${formatInt(x.count)}</td></tr>`;
-          }).join('')}
-        </tbody></table>`,
       })}
       <div class="tool-grid even">
         ${panel({
-          title: tx('Pe categorie'),
-          body: cats.length ? `<table class="table compact"><thead><tr><th>${tx('Tip')}</th><th class="r">${tx('Câștigat')}</th><th class="r">${tx('Cheltuit')}</th><th class="r">Net</th></tr></thead><tbody>
-            ${cats.map((r) => `<tr><td><button class="link" data-wallet-ref="${esc(r.ref)}">${esc(refLabel(r.ref))}</button></td><td class="r up">${r.income ? isk(r.income) : ''}</td><td class="r down">${r.spent ? isk(r.spent) : ''}</td><td class="r">${signed(r.income - r.spent)}</td></tr>`).join('')}
-            </tbody></table>` : `<p class="dim">${tx('Nicio intrare în perioada aleasă.')}</p>`,
+          title: tx('Toate perioadele'),
+          body: `<table class="table compact wallet-periods"><thead><tr><th>${tx('Perioadă')}</th><th class="r">${tx('Câștigat')}</th><th class="r">${tx('Cheltuit')}</th><th class="r">Net</th><th class="r">PvE</th><th class="r">#</th></tr></thead><tbody>
+            ${PERIODS.map((p) => {
+              const x = flow(since(entries, periodStart(p.id)));
+              return `<tr class="${p.id === period ? 'active' : ''}" data-wallet-period="${p.id}"><td>${p.label}</td><td class="r up">${isk(x.earned)}</td><td class="r down">${isk(x.spent)}</td><td class="r">${signed(x.net)}</td><td class="r">${isk(x.pve)}</td><td class="r num dim">${formatInt(x.count)}</td></tr>`;
+            }).join('')}
+          </tbody></table>`,
         })}
         ${panel({
-          title: tx('Sesiuni PvE'),
-          count: sessions.length ? `${sessions.length} · ${formatNum(hours, 1)} h` : '',
-          body: sessions.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>Start</th><th class="r">${tx('Durată')}</th><th class="r">ISK</th><th class="r">${tx('ISK/oră')}</th></tr></thead><tbody>
-            ${sessions.slice(0, 200).map((s) => { const h = (s.end - s.start) / 3600000; return `<tr><td class="num dim">${dateTime(s.start)}</td><td class="r num">${formatNum(h, 1)} h</td><td class="r">${isk(s.isk)}</td><td class="r">${isk(s.isk / h)}</td></tr>`; }).join('')}
-            </tbody></table></div>` : `<p class="dim">${tx('Fără recompense NPC sau misiuni în jurnal.')}</p>`,
+          title: tx('Pe categorie'),
+          body: cats.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>${tx('Tip')}</th><th class="r">${tx('Câștigat')}</th><th class="r">${tx('Cheltuit')}</th><th class="r">Net</th></tr></thead><tbody>
+            ${cats.map((r) => `<tr><td><button class="link" data-wallet-ref="${esc(r.ref)}">${esc(refLabel(r.ref))}</button></td><td class="r up">${r.income ? isk(r.income) : ''}</td><td class="r down">${r.spent ? isk(r.spent) : ''}</td><td class="r">${signed(r.income - r.spent)}</td></tr>`).join('')}
+            </tbody></table></div>` : `<p class="dim">${tx('Nicio intrare în perioada aleasă.')}</p>`,
         })}
-      </div>
-      ${tradeRows.length ? panel({
-        title: tx('Piață: ce ai cumpărat și vândut'),
-        body: `<table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Cumpărat')}</th><th class="r">ISK</th><th class="r">${tx('Vândut')}</th><th class="r">ISK</th></tr></thead><tbody>
-          ${tradeRows.map((r) => `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(r.typeId, 32)}" alt="" /><span>${esc(itemName(r.typeId))}</span></span></td><td class="r num">${r.boughtQty ? formatInt(r.boughtQty) : ''}</td><td class="r down">${r.boughtIsk ? isk(r.boughtIsk) : ''}</td><td class="r num">${r.soldQty ? formatInt(r.soldQty) : ''}</td><td class="r up">${r.soldIsk ? isk(r.soldIsk) : ''}</td></tr>`).join('')}
-        </tbody></table>`,
-      }) : ''}
-      ${panel({
+      </div>`;
+    const journal = () => panel({
         title: tx('Jurnal'),
         actions: button(tx('Export CSV'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-wallet-csv' }),
         body: `<div class="wallet-filters">
@@ -295,15 +298,46 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
             <input class="input plain" id="walletSearch" placeholder="${tx('Caută în descriere...')}" value="${esc(query)}" />
           </div>
           <div id="walletJournal"></div>`,
-      })}`;
-    bindFlowChart(root, points);
-    renderJournal(rows);
-    renderTicks(rows);
+      });
+    const tradesPanel = () => {
+      const bought = tradeRows.reduce((a, r) => a + r.boughtIsk, 0);
+      const sold = tradeRows.reduce((a, r) => a + r.soldIsk, 0);
+      return panel({
+        title: tx('Piață: ce ai cumpărat și vândut'),
+        count: tradeRows.length ? tx('{n} iteme', { n: formatInt(tradeRows.length) }) : '',
+        body: tradeRows.length ? `<div class="history-kpis compact">
+            <div><span class="label">${tx('Cumpărat')}</span><span class="value down">${compactISK(bought)}</span></div>
+            <div><span class="label">${tx('Vândut')}</span><span class="value up">${compactISK(sold)}</span></div>
+            <div><span class="label">Net</span><span class="value ${sold - bought >= 0 ? 'up' : 'down'}">${sold - bought >= 0 ? '+' : '−'}${compactISK(Math.abs(sold - bought))}</span></div>
+          </div>
+          <table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Cumpărat')}</th><th class="r">ISK</th><th class="r">${tx('Vândut')}</th><th class="r">ISK</th></tr></thead><tbody>
+          ${tradeRows.map((r) => `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(r.typeId, 32)}" alt="" loading="lazy" /><span>${esc(itemName(r.typeId))}</span></span></td><td class="r num">${r.boughtQty ? formatInt(r.boughtQty) : ''}</td><td class="r down">${r.boughtIsk ? isk(r.boughtIsk) : ''}</td><td class="r num">${r.soldQty ? formatInt(r.soldQty) : ''}</td><td class="r up">${r.soldIsk ? isk(r.soldIsk) : ''}</td></tr>`).join('')}
+        </tbody></table>` : `<p class="dim">${tx('Nicio tranzacție de piață în perioada aleasă.')}</p>`,
+      });
+    };
+    const sessionsPanel = () => panel({
+          title: tx('Sesiuni PvE'),
+          count: sessions.length ? `${sessions.length} · ${formatNum(hours, 1)} h` : '',
+          body: sessions.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>Start</th><th class="r">${tx('Durată')}</th><th class="r">ISK</th><th class="r">${tx('ISK/oră')}</th></tr></thead><tbody>
+            ${sessions.slice(0, 200).map((s) => { const h = (s.end - s.start) / 3600000; return `<tr><td class="num dim">${dateTime(s.start)}</td><td class="r num">${formatNum(h, 1)} h</td><td class="r">${isk(s.isk)}</td><td class="r">${isk(s.isk / h)}</td></tr>`; }).join('')}
+            </tbody></table></div>` : `<p class="dim">${tx('Fără recompense NPC sau misiuni în jurnal.')}</p>`,
+        });
+    const content: Record<WalletSection, () => string> = {
+      overview,
+      journal,
+      trades: tradesPanel,
+      bounty: () => `<div id="walletTicks" class="stack"></div>${sessionsPanel()}`,
+      ratting: () => '<div id="walletTicks" class="stack"></div>',
+    };
+    root.innerHTML = bar + content[view.section]();
+    if (view.section === 'overview') bindFlowChart(root, points);
+    if (view.section === 'journal') renderJournal(rows);
+    if (view.section === 'bounty' || view.section === 'ratting') renderTicks(rows);
   }
 
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
-    if (t.closest('[data-wallet-refresh]')) { renderWallet(body, ctx, characterId, alive, true).catch((err) => { if (alive()) body.innerHTML = panel({ body: `<p class="dim">${esc((err as Error).message)}</p>` }); }); return; }
+    if (t.closest('[data-wallet-refresh]')) { renderWallet(body, ctx, characterId, alive, view, true).catch((err) => { if (alive()) body.innerHTML = panel({ body: `<p class="dim">${esc((err as Error).message)}</p>` }); }); return; }
     const p = t.closest<HTMLElement>('[data-wallet-period]');
     if (p) { period = p.dataset.walletPeriod as Period; saveJson(PERIOD_KEY, period); render(); return; }
     const d = t.closest<HTMLElement>('[data-wallet-dir]');
@@ -316,10 +350,9 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const r = t.closest<HTMLElement>('[data-wallet-ref]');
     if (r) {
       ref = r.dataset.walletRef!;
-      const sel = root.querySelector<HTMLSelectElement>('#walletRef');
-      if (sel) sel.value = ref;
-      renderJournal(since(entries, periodStart(period)));
-      root.querySelector('#walletJournal')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      view.section = 'journal';
+      view.onSection?.('journal');
+      render();
       return;
     }
     if (t.closest('[data-wallet-csv]')) exportCsv(since(entries, periodStart(period)));
@@ -335,5 +368,6 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     if (t.id === 'walletRef') { ref = (t as HTMLSelectElement).value; renderJournal(since(entries, periodStart(period))); }
   });
 
+  view.rerender = render;
   render();
 }

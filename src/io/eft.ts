@@ -1,5 +1,5 @@
 import { Category, MODE_GROUP, type Sde } from '../data/sde';
-import { emptyFit, launchDrones, slotOf, defaultState, canLoadCharge, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
+import { emptyFit, implantSlotKey, launchDrones, slotOf, defaultState, canLoadCharge, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
 import { abyssalTypeId, mutate, mutationRows } from '../engine/mutation';
 import { tx } from '../i18n';
 
@@ -100,7 +100,12 @@ export function parseEft(sde: Sde, text: string): EftResult {
     let t = sde.findType(modName);
     if (t && sde.isAbyssal(t.id)) t = (block?.base && sde.findType(block.base)) || sde.types.get(sde.abyssalBases(t.id)[0]) || t;
     if (!t) { unknown.push(raw); continue; }
-    if (t.categoryId === Category.Implant) { fit.implants.push(t.id); continue; }
+    if (t.categoryId === Category.Implant) {
+      const slot = implantSlotKey(sde, t.id);
+      if (fit.implants.some((id) => implantSlotKey(sde, id) === slot)) fit.cargo.push({ typeId: t.id, count: 1 });
+      else fit.implants.push(t.id);
+      continue;
+    }
     if (t.groupId === MODE_GROUP) {
       if (sde.modesFor(ship.id).some((m) => m.id === t!.id)) fit.mode = t.id; else unknown.push(raw);
       continue;

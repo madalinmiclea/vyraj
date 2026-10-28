@@ -19,9 +19,9 @@ function propulsion(withSignature: boolean): Handler {
     ship.addModifier(sde.attrId('mass'), { source: mod, op: Op.ModAdd, fromAttr: sde.attrId('massAddition'), penalized: false });
     ship.addModifier(sde.attrId('maxVelocity'), {
       source: mod,
-      op: Op.PostPercent,
-      penalized,
-      value: () => (mod.get('speedFactor') * mod.get('speedBoostFactor')) / ship.get('mass'),
+      op: Op.PostMul,
+      penalized: false,
+      value: () => 1 + (mod.get('speedFactor') * mod.get('speedBoostFactor')) / ship.get('mass') / 100,
     });
     if (withSignature) {
       ship.addModifier(sde.attrId('signatureRadius'), { source: mod, op: Op.PostPercent, fromAttr: sde.attrId('signatureRadiusBonus'), penalized });
@@ -32,6 +32,17 @@ function propulsion(withSignature: boolean): Handler {
 const HANDLERS: Record<string, Handler> = {
   moduleBonusMicrowarpdrive: propulsion(true),
   moduleBonusAfterburner: propulsion(false),
+
+  microJumpDrive: (dogma, mod, penalized) => {
+    dogma.ship.addModifier(dogma.sde.attrId('signatureRadius'), { source: mod, op: Op.PostPercent, fromAttr: dogma.sde.attrId('signatureRadiusBonusPercent'), penalized });
+  },
+
+  adaptiveArmorHardener: (dogma, mod, penalized) => {
+    for (const attr of ['armorEmDamageResonance', 'armorThermalDamageResonance', 'armorKineticDamageResonance', 'armorExplosiveDamageResonance']) {
+      const id = dogma.sde.attrId(attr);
+      dogma.ship.addModifier(id, { source: mod, op: Op.PreMul, fromAttr: id, penalized });
+    }
+  },
 
   ...Object.fromEntries(Object.entries(MISSILE_DAMAGE).map(([effect, attr]) => [effect, ((dogma, skill) => {
     const id = dogma.sde.attrId(attr);

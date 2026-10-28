@@ -251,8 +251,23 @@ export class Dogma {
     if (input.mode && sde.types.has(input.mode)) this.mode = new DogmaItem(this, input.mode, 'mode');
 
     this.applyAll();
-    this.applyBuffs([...(input.buffs ?? []), ...fleetBuffs(sde, input.fleet)]);
+    this.applyBuffs([...(input.buffs ?? []), ...fleetBuffs(sde, input.fleet), ...this.ownBuffs()]);
+    for (const item of this.allItems) item.invalidate();
     if (input.projected?.length) applyProjected(this, input.projected);
+  }
+
+  private ownBuffs(): { id: number; value: number; label?: string }[] {
+    const out: { id: number; value: number; label?: string }[] = [];
+    for (const m of this.modules) {
+      if ((m.state !== 'active' && m.state !== 'overheated') || !m.other) continue;
+      for (let n = 1; n <= 4; n++) {
+        const idName = `warfareBuff${n}ID`, valueName = `warfareBuff${n}Value`;
+        if (!this.sde.hasAttr(idName) || !this.sde.hasAttr(valueName)) continue;
+        const id = m.get(idName);
+        if (id > 0) out.push({ id, value: m.get(valueName), label: m.type.name });
+      }
+    }
+    return out;
   }
 
   private applyBuffs(buffs: { id: number; value: number; label?: string }[]) {

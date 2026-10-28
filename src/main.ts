@@ -8,7 +8,7 @@ import { createFittingView, FITTING_CATEGORIES, type FittingView } from './views
 import { createCharacterView } from './views/character';
 import { createSkillsView } from './views/skills';
 import { createRosterView } from './views/roster';
-import { createToolsView } from './views/tools';
+import { createWalletView } from './views/walletView';
 import { createOrdersView } from './views/orders';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
@@ -48,10 +48,10 @@ import { downloadBackup, pickBackup } from './io/backup';
 import { ESI, esiFetch, repeatAfter } from './services/esiClient';
 import { isDemo, startDemo, exitDemo } from './demo/demo';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'about';
 
 const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const;
+const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -68,7 +68,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
   { id: 'character', label: tx('Caracter'), short: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
   { id: 'industry', label: tx('Industrie'), short: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 14 },
-  { id: 'tools', label: tx('Unelte ISK'), short: 'ISK', icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
+  { id: 'wallet', label: tx('Portofel'), short: tx('Portofel'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
   { id: 'mining', label: tx('Minerit'), short: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
   { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 7 },
@@ -152,7 +152,7 @@ market.setFees(() => intel.fees());
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
 let doctrines: DoctrinesView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -231,8 +231,10 @@ function runLazy(id: ViewId) {
 }
 
 const SHARE_HASH = /^#(fit|doctrine|build)=/;
+const VIEW_ALIAS: Record<string, ViewId> = { tools: 'wallet' };
 const hashView = (): ViewId | null => {
-  const id = location.hash.match(/^#\/([a-z]+)/)?.[1];
+  const raw = location.hash.match(/^#\/([a-z]+)/)?.[1];
+  const id = raw ? VIEW_ALIAS[raw] ?? raw : raw;
   return id && VIEWS.some((v) => v.id === id) ? id as ViewId : null;
 };
 
@@ -415,7 +417,8 @@ async function start() {
   let login: (TokenSet & { returnTo?: string }) | null = null;
   let loginError = '';
   try { login = await handleCallback(); } catch (err) { loginError = (err as Error).message; }
-  const saved = loadJson<ViewId>(VIEW_KEY, 'home');
+  const stored = loadJson<string>(VIEW_KEY, 'home');
+  const saved = (VIEW_ALIAS[stored] ?? stored) as ViewId;
   const back = login?.returnTo && VIEWS.some((v) => v.id === login?.returnTo) ? login.returnTo as ViewId : null;
   switchView(back ?? (login || loginError ? 'character' : hashView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
 
@@ -424,7 +427,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -493,7 +496,7 @@ async function start() {
     createRosterView(document.getElementById('charRoster')!, ctx);
   });
   mount(['doctrines'], () => { doctrines = createDoctrinesView(viewEl('doctrines'), ctx, sidePane('doctrines'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); }, currentFit: () => fitting?.current() ?? null }); });
-  mount(['tools'], () => createToolsView(viewEl('tools'), ctx, sidePane('tools')));
+  mount(['wallet'], () => createWalletView(viewEl('wallet'), ctx, sidePane('wallet')));
   mount(['orders'], () => createOrdersView(viewEl('orders'), ctx, sidePane('orders'), { onOpen: (name, typeId) => { switchView('market'); market.show(name, typeId); } }));
   mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
   mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
