@@ -21,7 +21,7 @@ type Basis = 'sell' | 'buy';
 const TABS = (): { id: Tab; label: string }[] => [
   { id: 'yield', label: tx('Randament și ISK/oră') },
   { id: 'refine', label: tx('Reprocesare') },
-  { id: 'ores', label: tx('Valoare ore') },
+  { id: 'ores', label: tx('Valoare minereu') },
 ];
 
 const TAB_KEY = 'eve-mining:tab';
@@ -30,8 +30,8 @@ const ORES_KEY = 'eve-mining:ores';
 const SETUP_KEY = 'eve-mining:refine';
 const PASTE_KEY = 'eve-mining:paste';
 
-const KIND_LABEL = (): Record<OreKind, string> => ({ ore: tx('Asteroizi'), moon: tx('Ore de lună'), ice: tx('Gheață'), gas: tx('Gaz') });
-const MINER_LABEL = (): Record<MinerKind, string> => ({ ore: tx('Ore'), ice: tx('Gheață'), gas: tx('Gaz') });
+const KIND_LABEL = (): Record<OreKind, string> => ({ ore: tx('Asteroizi'), moon: tx('Minereu de lună'), ice: tx('Gheață'), gas: tx('Gaz') });
+const MINER_LABEL = (): Record<MinerKind, string> => ({ ore: tx('Minereu'), ice: tx('Gheață'), gas: tx('Gaz') });
 const VALUE_LABEL = (): Record<OreValue['best'], string> => ({ raw: tx('Vinde brut'), compressed: tx('Comprimă și vinde'), refined: tx('Reprocesează') });
 
 const pct = (n: number) => `${formatNum(n * 100, 2)}%`;
@@ -49,7 +49,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   const setup: RefineSetup = { ...DEFAULT_SETUP, ...loadJson<Partial<RefineSetup>>(SETUP_KEY, {}) };
   setup.rigs = { ...DEFAULT_SETUP.rigs, ...setup.rigs };
 
-  el.innerHTML = `${pageHead(tx('Mining și reprocesare'), tx('ISK pe oră pe tip de ore din fit-ul și skill-urile tale, plus valoarea reprocesată față de vânzarea brută, la prețuri Jita'), 'Rudnik')}
+  el.innerHTML = `${pageHead(tx('Minerit și reprocesare'), tx('ISK pe oră pe tip de minereu din fit-ul și skill-urile tale, plus valoarea reprocesată față de vânzarea brută, la prețuri Jita'), 'Rudnik')}
     <div id="mineYield"></div>
     <div id="mineRefine"></div>
     <div id="mineOres"></div>`;
@@ -91,7 +91,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   const price = (basis: Basis) => (id: number) => priceOf(prices.get(id), basis);
 
   function renderTabs() {
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Mining'))}</div>
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Minerit'))}</div>
       <div class="side-nav">${TABS().map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-mine-tab="${t.id}">${t.label}</button>`).join('')}</div>
       <div class="side-stamp"></div>`;
     renderStamp();
@@ -121,7 +121,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   async function render() {
     const pane = panes[tab];
     if (!data) {
-      pane.innerHTML = loader(tx('Încărcăm datele de mining și prețurile Jita'));
+      pane.innerHTML = loader(tx('Încărcăm datele de minerit și prețurile Jita'));
       try { await ready; } catch (err) { pane.innerHTML = panel({ body: alertBox((err as Error).message) }); return; }
     }
     if (tab === 'yield') renderYield();
@@ -181,7 +181,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     tips.clear();
     const choices = fitChoices();
     if (!choices.length) {
-      pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun fit de mining'), text: tx('Fă în Fitting un fit cu module de mining (lasere, strip minere, ice harvestere, gas scoop-uri sau drone de mining) și salvează-l sau lasă-l deschis. Aici apare apoi randamentul pe oră pentru fiecare tip de ore.') }) });
+      pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun fit de minerit'), text: tx('Fă în Fitting un fit cu module de minerit (lasere, strip minere, colectoare de gheață, colectoare de gaz sau drone de minerit) și salvează-l sau lasă-l deschis. Aici apare apoi randamentul pe oră pentru fiecare tip de minereu.') }) });
       return;
     }
     const choice = choices.find((c) => c.key === yieldForm.fit) ?? choices[0];
@@ -222,8 +222,8 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       body: `<form class="form-grid recon-form nav-form" id="mineYieldForm">
           <label>Fit<select class="input" name="fit">${choices.map((c) => `<option value="${esc(c.key)}" ${c.key === choice.key ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>
           <label>${tx('Preț Jita')}<select class="input" name="basis">
-            <option value="buy" ${yieldForm.basis === 'buy' ? 'selected' : ''}>${tx('Buy max (vânzare instant)')}</option>
-            <option value="sell" ${yieldForm.basis === 'sell' ? 'selected' : ''}>${tx('Sell min (ordin de vânzare)')}</option>
+            <option value="buy" ${yieldForm.basis === 'buy' ? 'selected' : ''}>${tx('Cumpărare max (vânzare instant)')}</option>
+            <option value="sell" ${yieldForm.basis === 'sell' ? 'selected' : ''}>${tx('Vânzare min (ordin de vânzare)')}</option>
           </select></label>
           <label>${tx('Tip')}<select class="input" name="kind"><option value="all">${tx('Toate')}</option>${ORE_KINDS.map((k) => `<option value="${k}" ${yieldForm.kind === k ? 'selected' : ''}>${KIND_LABEL()[k]}</option>`).join('')}</select></label>
           <label>${tx('Caută')}<input class="input" name="q" value="${esc(yieldForm.q)}" placeholder="${esc(tx('ex: Spodumain'))}" autocomplete="off" spellcheck="false" /></label>
@@ -232,15 +232,15 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         <div class="history-kpis nav-ship">
           <div><span class="label">${tx('Navă')}</span><span class="value nav-ship-name"><img class="row-icon" src="${typeIconUrl(choice.fit.shipId, 32)}" alt="" />${esc(ctx.sde.types.get(choice.fit.shipId)?.name ?? '')}</span></div>
           ${kpis}
-          ${top ? `<div><span class="label">${tx('Cel mai bun ore')}</span><span class="value">${esc(top.o.name)} · ${compactISK(top.best)}/h</span></div>` : ''}
+          ${top ? `<div><span class="label">${tx('Cel mai bun minereu')}</span><span class="value">${esc(top.o.name)} · ${compactISK(top.best)}/h</span></div>` : ''}
         </div>
-        <p class="dim small">${tx('Calculat cu skill-urile caracterului activ ({name}), modulele, crystalele, dronele active și boost-urile de flotă din fit (tab-ul Command din Fitting). Treci cu mouse-ul peste m³ / ciclu și durată pentru detalii.', { name: esc(ctx.character.name) })}</p>
+        <p class="dim small">${tx('Calculat cu skill-urile caracterului activ ({name}), modulele, cristalele, dronele active și boost-urile de flotă din fit (tab-ul Comandă din Fitting). Treci cu mouse-ul peste m³ / ciclu și durată pentru detalii.', { name: esc(ctx.character.name) })}</p>
         <div class="table-scroll"><table class="table compact mine-miners"><thead><tr>
           <th>${tx('Modul / dronă')}</th><th>${tx('Tip')}</th><th>Crystal</th><th class="r">${tx('m³ / ciclu')}</th><th class="r">${tx('Ciclu')}</th><th class="r">${tx('Crit · bonus')}</th><th class="r">${tx('Reziduu · volum')}</th><th class="r">m³/h</th>
         </tr></thead><tbody>${minerRows(list)}</tbody></table></div>`,
     })}
     ${panel({
-      title: tx('ISK pe oră pe tip de ore'),
+      title: tx('ISK pe oră pe tip de minereu'),
       count: rows.length,
       body: rows.length ? `<div class="table-scroll"><table class="table compact mine-table"><thead><tr>
           <th>Ore</th><th class="r">m³/h</th><th class="r">${tx('Unități/h')}</th><th class="r">${tx('Brut')}</th><th class="r">${tx('Comprimat')}</th><th class="r">${tx('Reprocesat')}</th><th class="r">${tx('Randament')}</th><th class="r">${tx('Cel mai bun /h')}</th><th>${tx('Recomandare')}</th>
@@ -258,8 +258,8 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
             <td>${badge(VALUE_LABEL()[r.v.best], r.v.best === 'refined' ? 'accent' : '')}</td>
           </tr>`;
         }).join('')}</tbody></table></div>
-        <p class="dim small">${tx('Reprocesat folosește setările din tab-ul Reprocesare ({place}). Taxa de reprocesare e scăzută din valoare. Crystalele dau bonusul doar pe ore-ul lor; pentru restul randamentul e recalculat fără crystal.', { place: esc(placeName()) })}</p>`
-        : emptyState({ title: tx('Niciun ore pentru filtrele alese') }),
+        <p class="dim small">${tx('Reprocesat folosește setările din tab-ul Reprocesare ({place}). Taxa de reprocesare e scăzută din valoare. Cristalele dau bonusul doar pe minereul lor; pentru restul randamentul e recalculat fără cristal.', { place: esc(placeName()) })}</p>`
+        : emptyState({ title: tx('Niciun minereu pentru filtrele alese') }),
     })}`;
 
     const form = pane.querySelector<HTMLFormElement>('#mineYieldForm')!;
@@ -327,7 +327,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         <p class="dim small">${tx('Rig-urile și securitatea contează doar în structuri. Taxa o vezi în fereastra de reprocesare din joc (în stațiile NPC depinde de standing).')}</p>`,
     })}
     ${panel({
-      title: tx('Randament pe familie de ore'),
+      title: tx('Randament pe familie de minereu'),
       body: `<div class="table-scroll"><table class="table compact"><thead><tr><th>Skill</th><th>${tx('Tip')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Randament')}</th></tr></thead><tbody>
         ${famRows.map((o, i) => {
           const y = yieldOf(o);
@@ -340,7 +340,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     })}
     ${panel({
       title: tx('Calculator reprocesare'),
-      body: `<label class="block-label">${tx('Lipește ore, gheață sau ore comprimat din inventar')}</label>
+      body: `<label class="block-label">${tx('Lipește minereu, gheață sau minereu comprimat din inventar')}</label>
         <textarea class="input area" id="minePaste" rows="8" spellcheck="false" placeholder="${esc(tx('ex: Compressed Veldspar 120000'))}">${esc(paste)}</textarea>
         <div class="row-actions">${button(tx('Calculează'), { iconName: 'search', cls: 'sm', attrs: 'data-mine-calc' })}</div>
         <div id="mineCalc"></div>`,
@@ -394,24 +394,24 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const minRows = [...minerals].sort((a, b) => b[1] * buy(b[0]) - a[1] * buy(a[0]));
     const refBuy = minRows.reduce((a, [id, q]) => a + q * buy(id), 0) * (1 - setup.tax / 100);
     const refSell = minRows.reduce((a, [id, q]) => a + q * sell(id), 0) * (1 - setup.tax / 100);
-    const verdict = refBuy > rawBuy ? tx('Reprocesarea câștigă cu {isk} față de vânzarea brută la buy.', { isk: compactISK(refBuy - rawBuy) }) : tx('Vânzarea brută câștigă cu {isk} față de reprocesare (la buy).', { isk: compactISK(rawBuy - refBuy) });
+    const verdict = refBuy > rawBuy ? tx('Reprocesarea câștigă cu {isk} față de vânzarea brută în ordinele de cumpărare.', { isk: compactISK(refBuy - rawBuy) }) : tx('Vânzarea brută câștigă cu {isk} față de reprocesare (în ordinele de cumpărare).', { isk: compactISK(rawBuy - refBuy) });
     out.innerHTML = `${rows.length ? `<div class="history-kpis">
-        <div><span class="label">${tx('Brut · buy')}</span><span class="value">${compactISK(rawBuy)}</span></div>
-        <div><span class="label">${tx('Brut · sell')}</span><span class="value">${compactISK(rawSell)}</span></div>
-        <div><span class="label">${tx('Reprocesat · buy')}</span><span class="value ${refBuy > rawBuy ? 'accent' : ''}">${compactISK(refBuy)}</span></div>
-        <div><span class="label">${tx('Reprocesat · sell')}</span><span class="value">${compactISK(refSell)}</span></div>
+        <div><span class="label">${tx('Brut · cumpărare')}</span><span class="value">${compactISK(rawBuy)}</span></div>
+        <div><span class="label">${tx('Brut · vânzare')}</span><span class="value">${compactISK(rawSell)}</span></div>
+        <div><span class="label">${tx('Reprocesat · cumpărare')}</span><span class="value ${refBuy > rawBuy ? 'accent' : ''}">${compactISK(refBuy)}</span></div>
+        <div><span class="label">${tx('Reprocesat · vânzare')}</span><span class="value">${compactISK(refSell)}</span></div>
       </div>
       <p>${verdict}</p>
       <div class="mine-calc-grid">
-        <div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Intrare')}</th><th class="r">${tx('Cantitate')}</th><th class="r">${tx('Randament')}</th><th class="r">${tx('Brut · buy')}</th><th class="r">${tx('Reprocesat · buy')}</th></tr></thead><tbody>
+        <div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Intrare')}</th><th class="r">${tx('Cantitate')}</th><th class="r">${tx('Randament')}</th><th class="r">${tx('Brut · cumpărare')}</th><th class="r">${tx('Reprocesat · cumpărare')}</th></tr></thead><tbody>
           ${rows.map((r) => `<tr><td><span class="nav-ship-name"><img class="row-icon" src="${typeIconUrl(r.l.typeId, 32)}" alt="" />${esc(r.l.name)}</span></td><td class="r num">${formatInt(r.l.quantity)}</td><td class="r num">${pct(r.y)}</td>${iskCell(r.b, r.b >= r.value)}${iskCell(r.value, r.value > r.b)}</tr>`).join('')}
         </tbody></table></div>
-        <div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Mineral')}</th><th class="r">${tx('Cantitate')}</th><th class="r">${tx('Buy max')}</th><th class="r">${tx('Valoare')}</th></tr></thead><tbody>
+        <div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Mineral')}</th><th class="r">${tx('Cantitate')}</th><th class="r">${tx('Cumpărare max')}</th><th class="r">${tx('Valoare')}</th></tr></thead><tbody>
           ${minRows.map(([id, q]) => `<tr><td><span class="nav-ship-name"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" />${esc(d.minerals.get(id) ?? `#${id}`)}</span></td><td class="r num">${formatInt(q)}</td><td class="r num">${formatISK(buy(id))}</td><td class="r num">${compactISK(q * buy(id))}</td></tr>`).join('')}
         </tbody></table></div>
       </div>` : ''}
       ${leftovers.length ? `<p class="dim small">${tx('Rămân nereprocesate (sub o porție): {list}', { list: esc(leftovers.join(', ')) })}</p>` : ''}
-      ${skipped.length ? alertBox(tx('Ignorat (nu e ore, gheață sau ore comprimat): {list}', { list: esc([...new Set(skipped)].slice(0, 12).join(', ')) })) : ''}`;
+      ${skipped.length ? alertBox(tx('Ignorat (nu e minereu, gheață sau minereu comprimat): {list}', { list: esc([...new Set(skipped)].slice(0, 12).join(', ')) })) : ''}`;
   }
 
   function renderOres() {
@@ -432,8 +432,8 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     pane.innerHTML = panel({
       body: `<form class="form-grid recon-form nav-form" id="mineOresForm">
           <label>${tx('Preț Jita')}<select class="input" name="basis">
-            <option value="buy" ${oresForm.basis === 'buy' ? 'selected' : ''}>${tx('Buy max (vânzare instant)')}</option>
-            <option value="sell" ${oresForm.basis === 'sell' ? 'selected' : ''}>${tx('Sell min (ordin de vânzare)')}</option>
+            <option value="buy" ${oresForm.basis === 'buy' ? 'selected' : ''}>${tx('Cumpărare max (vânzare instant)')}</option>
+            <option value="sell" ${oresForm.basis === 'sell' ? 'selected' : ''}>${tx('Vânzare min (ordin de vânzare)')}</option>
           </select></label>
           <label>${tx('Tip')}<select class="input" name="kind"><option value="all">${tx('Toate')}</option>${ORE_KINDS.map((k) => `<option value="${k}" ${oresForm.kind === k ? 'selected' : ''}>${KIND_LABEL()[k]}</option>`).join('')}</select></label>
           <label>${tx('Caută')}<input class="input" name="q" value="${esc(oresForm.q)}" autocomplete="off" spellcheck="false" /></label>
@@ -455,7 +455,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
             <td>${r.best > 0 ? badge(VALUE_LABEL()[r.v.best], r.v.best === 'refined' ? 'accent' : '') : '<span class="dim">' + tx('fără ordine în Jita') + '</span>'}</td>
           </tr>`;
         }).join('')}</tbody></table></div>
-        <p class="dim small">${tx('Valori pe m³ de ore necomprimat, deci comparabile direct cu m³/h din tab-ul Randament. Reprocesat folosește setările de la Reprocesare ({place}) și skill-urile caracterului activ.', { place: esc(placeName()) })}</p>`,
+        <p class="dim small">${tx('Valori pe m³ de minereu necomprimat, deci comparabile direct cu m³/h din tab-ul Randament. Reprocesat folosește setările de la Reprocesare ({place}) și skill-urile caracterului activ.', { place: esc(placeName()) })}</p>`,
     });
     const form = pane.querySelector<HTMLFormElement>('#mineOresForm')!;
     const update = (e?: Event) => {

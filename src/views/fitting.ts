@@ -27,6 +27,7 @@ import { bindBreakdownTips } from '../ui/breakdown';
 import { TARGETS } from '../engine/application';
 import { addItemToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import { tx } from '../i18n';
+import { attrLabel } from '../i18n/attributes';
 import { allEveItems } from '../data/items';
 import type { BrowserScope } from '../ui/sidebar';
 import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type ExtrasTab, type TargetState, type FitEnv } from '../fitting/shared';
@@ -83,7 +84,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   el.innerHTML = `
-    ${pageHead('Fitting', '', 'Proving')}
+    ${pageHead(tx('Fitting'), '', 'Proving')}
     <section class="panel fit-toolbar">
       <div class="panel-body">
         <input class="input plain fit-name" id="fitName" placeholder="${tx('Numele fit-ului')}" />
@@ -249,7 +250,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       left.innerHTML = panel({
         body: emptyState({
           title: tx('Alege o navă'),
-          text: tx('Deschide „Ships” în browserul de iteme și apasă pe o navă. Apoi apasă pe module, muniție sau drone ca să le montezi. Poți și importa un fit EFT din joc sau din Pyfa.'),
+          text: tx('Deschide „Nave” în browserul de iteme și apasă pe o navă. Apoi apasă pe module, muniție sau drone ca să le montezi. Poți și importa un fit EFT din joc sau din Pyfa.'),
           vy: 'Choose the Hull to Prove',
           vyText: 'Open “Ships” in the item browser and select a hull. Then bind modules, charges or drones to it. A fit from the game or from Pyfa may also be woven in through EFT import.',
           extra: `<div class="chips">${['Rifter', 'Drake', 'Gila', 'Ishtar', 'Golem'].map((n) => button(n, { cls: 'ghost sm', attrs: `data-quick="${n}"` })).join('')}</div>`,
@@ -288,13 +289,13 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         <div class="ship-dps">
           <div class="ship-stat"><b class="num">${formatNum(s.offense.totalDps, 0)}</b><span>DPS</span></div>
           <div class="ship-stat"><b class="num">${compactISK(s.defense.ehp)}</b><span>EHP</span></div>
-          <div class="ship-stat"><b class="num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</b><span>Cap</span></div>
+          <div class="ship-stat"><b class="num">${s.capacitor.stable ? formatNum((s.capacitor.stableAt ?? 1) * 100, 0) + '%' : capTime(s.capacitor.lastsSeconds ?? 0)}</b><span>${tx('Capacitor')}</span></div>
         </div>
       </div>
       <div class="ship-actions">
-        ${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}
+        ${button(tx('Informații'), { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}
         ${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}
-        ${hasFittingSlots(sde, f.shipId) ? `<div class="starter-group"><span class="starter-note">${tx('Doar orientativ, adaptează-l nevoilor tale')}</span><span class="starter-brace" aria-hidden="true"><svg viewBox="0 0 10 100" preserveAspectRatio="none"><path d="M9 1C5 1 5 3 5 8v34c0 5-1 8-4 8 3 0 4 3 4 8v34c0 5 0 7 4 7" vector-effect="non-scaling-stroke"/></svg></span><div class="starter-buttons">${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Încarcă în tab-ul curent un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Încarcă în tab-ul curent un fit PvP publicat, cu module T2')}"` })}</div></div>` : ''}
+        ${hasFittingSlots(sde, f.shipId) ? `<div class="starter-group"><span class="starter-note">${tx('Doar orientativ, adaptează-l nevoilor tale')}</span><span class="starter-brace" aria-hidden="true"><svg viewBox="0 0 10 100" preserveAspectRatio="none"><path d="M9 1C5 1 5 3 5 8v34c0 5-1 8-4 8 3 0 4 3 4 8v34c0 5 0 7 4 7" vector-effect="non-scaling-stroke"/></svg></span><div class="starter-buttons">${button(tx('Fit PvE'), { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Încarcă în tab-ul curent un fit PvE publicat, cu module T2')}"` })}${button(tx('Fit PvP'), { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Încarcă în tab-ul curent un fit PvP publicat, cu module T2')}"` })}</div></div>` : ''}
       </div>
     </section>`;
   }
@@ -304,7 +305,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const canCycle = canActivate(sde, m.typeId) || kind === 'high' || kind === 'mid' || kind === 'low';
     const chargeSelect = options.length
       ? `<select class="charge-select" data-charge="${kind}:${i}">
-          <option value="">— ${tx('fără charge')} —</option>
+          <option value="">— ${tx('fără muniție')} —</option>
           ${options.map((c) => `<option value="${c.id}" ${c.id === m.chargeId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select>${m.chargeId ? `<button class="charge-info" data-info="${m.chargeId}" data-info-charge="${kind}${i}" title="${tx('Info muniție')}">i</button>` : ''}`
       : '';
@@ -316,8 +317,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         ${chargeSelect ? `<div class="charge-line">${chargeSelect}</div>` : ''}
       </div>
       ${kind === 'rig' || kind === 'subsystem' || !canCycle ? '' : `<button class="slot-state" data-state="${kind}:${i}" title="${STATE_LABEL[m.state]} (${tx('click: schimbă starea')})">${icon(m.state === 'overheated' ? 'fire' : 'power')}</button>`}
-      ${sde.mutaplasmidsFor(m.typeId).length ? `<button class="slot-mutate ${m.mutation ? 'on' : ''}" data-mutate="${kind}:${i}" title="Mutaplasmid">${icon('mutate')}</button>` : ''}
-      <button class="slot-info" data-info="${m.typeId}" title="Show Info">${icon('info')}</button>
+      ${sde.mutaplasmidsFor(m.typeId).length ? `<button class="slot-mutate ${m.mutation ? 'on' : ''}" data-mutate="${kind}:${i}" title="${tx('Mutaplasmid')}">${icon('mutate')}</button>` : ''}
+      <button class="slot-info" data-info="${m.typeId}" title="${tx('Informații')}">${icon('info')}</button>
       <button class="slot-remove" data-remove="${kind}:${i}" title="${tx('Scoate')}">${icon('close')}</button>
     </div>`;
   }
@@ -338,7 +339,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       if (free) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${free === 1 ? tx('1 slot liber') : tx('{n} sloturi libere', { n: free })}</span></div>`);
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
-        <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div>${g.key === 'high' ? `<span class="hardpoints">${hardpoint('Turrets', r.turrets)}${hardpoint('Launchers', r.launchers)}</span>` : ''}<span class="pips">${pips}</span></div>
+        <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div>${g.key === 'high' ? `<span class="hardpoints">${hardpoint(tx('Turele'), r.turrets)}${hardpoint(tx('Lansatoare'), r.launchers)}</span>` : ''}<span class="pips">${pips}</span></div>
         ${rows.join('')}
       </div>`;
     });
@@ -351,15 +352,15 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button></div>
       <span class="dim small drone-total">${tx('{n} în total', { n: dr.count })}</span>
-      <div class="drone-step" title="${fighters ? tx('Escadrile lansate din fighter bay, cele care contează la DPS') : tx('Drone lansate în spațiu, cele care contează la DPS și bandwidth')}">
+      <div class="drone-step" title="${fighters ? tx('Escadrile lansate din hangarul de fighteri, cele care contează la DPS') : tx('Drone lansate în spațiu, cele care contează la DPS și la lățimea de bandă')}">
         <span class="drone-step-label">${tx('În spațiu')}</span>
         <div class="stepper"><button data-drone="${i}:space:-1" ${dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.active}</span><button data-drone="${i}:space:1">+</button></div>
       </div>
-      <div class="drone-step" title="${fighters ? tx('Escadrile de rezervă, rămase în fighter bay') : tx('Drone de rezervă, rămase în drone bay')}">
-        <span class="drone-step-label">${tx('În bay')}</span>
+      <div class="drone-step" title="${fighters ? tx('Escadrile de rezervă, rămase în hangarul de fighteri') : tx('Drone de rezervă, rămase în hangarul de drone')}">
+        <span class="drone-step-label">${tx('În hangar')}</span>
         <div class="stepper"><button data-drone="${i}:bay:-1" ${dr.count - dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.count - dr.active}</span><button data-drone="${i}:bay:1">+</button></div>
       </div>
-      <button class="slot-info" data-info="${dr.typeId}" title="Show Info">${icon('info')}</button>
+      <button class="slot-info" data-info="${dr.typeId}" title="${tx('Informații')}">${icon('info')}</button>
       <button class="slot-remove" data-drone="${i}:remove:0" title="${tx('Scoate')}">${icon('close')}</button>
     </div>`).join('');
   }
@@ -372,7 +373,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const from = e.modifiers[0]?.from;
       const a = from != null ? sde.attributes.get(from) : undefined;
       const value = from != null ? sde.baseAttr(id, from) : 0;
-      const label = `${(a?.displayName || a?.name || e.name).replace(/\s*Penalty$/, '')} ${value > 0 ? '+' : ''}${formatNum(value, 0)}%`;
+      const raw = a?.displayName || a?.name || e.name;
+      const label = `${attrLabel(raw) !== raw ? attrLabel(raw) : raw.replace(/\s*Penalty$/, '')} ${value > 0 ? '+' : ''}${formatNum(value, 0)}%`;
       return `<button class="chip-btn sm ${on.includes(e.name) ? 'active' : ''}" data-side="${id}:${esc(e.name)}">${esc(label)}</button>`;
     }).join('');
     return `<div class="booster-sides"><span class="dim small">${tx('Efecte secundare')}:</span>${chips}</div>`;
@@ -389,8 +391,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const hasFighters = r.fighterBay.total > 0 || r.fighterTubes.total > 0 || fighters.length > 0;
     const sum = (list: { count: number }[]) => list.reduce((a, x) => a + x.count, 0);
     const tabsList: { key: ExtrasTab; label: string; n: number; show: boolean }[] = [
-      { key: 'drones', label: 'Drones', n: sum(drones), show: hasDrones },
-      { key: 'fighters', label: 'Fighters', n: fighters.length, show: hasFighters },
+      { key: 'drones', label: tx('Drone'), n: sum(drones), show: hasDrones },
+      { key: 'fighters', label: tx('Fighteri'), n: fighters.length, show: hasFighters },
       { key: 'cargo', label: 'Cargo', n: f.cargo.length, show: true },
       { key: 'boosters', label: tx('Boostere'), n: boosters.length, show: true },
       { key: 'projected', label: tx('Proiectate'), n: sum(f.projected ?? []), show: true },
@@ -403,7 +405,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <img class="slot-img" src="${typeIconUrl(x.id, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${x.id}">${esc(x.label)}</button>${x.sub ? `<span class="dim small">${esc(x.sub)}</span>` : ''}${x.set ? `<span class="small set-bonus">${esc(x.set)}</span>` : ''}${x.sides ?? ''}</div>
       ${x.tag ? badge(x.tag, 'accent') : ''}${x.extra ?? ''}
-      <button class="slot-info" data-info="${x.id}" title="Show Info">${icon('info')}</button>
+      <button class="slot-info" data-info="${x.id}" title="${tx('Informații')}">${icon('info')}</button>
       ${x.attr ? `<button class="slot-remove" ${x.attr} title="${tx('Scoate')}">${icon('close')}</button>` : ''}
     </div>`).join('');
     const boosterRow = (id: number) => {
@@ -418,17 +420,17 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     switch (current) {
       case 'drones': {
         const launched = drones.reduce((a, x) => a + x.active, 0);
-        body = meta([`Drone bay ${m3(r.droneBay)}`, `Bandwidth <b class="num">${formatNum(r.droneBandwidth.used, 0)}</b> / ${formatNum(r.droneBandwidth.total, 0)} Mbit/s`, `${tx('În spațiu')} <b class="num">${launched}</b> / ${formatNum(d.character.get('maxActiveDrones'), 0)}`])
+        body = meta([`${tx('Hangar drone')} ${m3(r.droneBay)}`, `${tx('Lățime de bandă')} <b class="num">${formatNum(r.droneBandwidth.used, 0)}</b> / ${formatNum(r.droneBandwidth.total, 0)} Mbit/s`, `${tx('În spațiu')} <b class="num">${launched}</b> / ${formatNum(d.character.get('maxActiveDrones'), 0)}`])
           + `<div class="slot-group drones">${droneRows(f, false)}</div>` + (drones.length ? '' : hint(tx('Apasă pe o dronă din browser ca s-o adaugi.')));
         break;
       }
       case 'fighters':
-        body = meta([`Fighter bay ${m3(r.fighterBay)}`, `${tx('Tuburi')} <b class="num">${r.fighterTubes.used}</b> / ${r.fighterTubes.total}`,
-          r.fighterLight.total ? `Light ${r.fighterLight.used}/${r.fighterLight.total}` : '', r.fighterSupport.total ? `Support ${r.fighterSupport.used}/${r.fighterSupport.total}` : '', r.fighterHeavy.total ? `Heavy ${r.fighterHeavy.used}/${r.fighterHeavy.total}` : ''])
+        body = meta([`${tx('Hangar fighteri')} ${m3(r.fighterBay)}`, `${tx('Tuburi')} <b class="num">${r.fighterTubes.used}</b> / ${r.fighterTubes.total}`,
+          r.fighterLight.total ? `${tx('Ușori')} ${r.fighterLight.used}/${r.fighterLight.total}` : '', r.fighterSupport.total ? `${tx('Suport')} ${r.fighterSupport.used}/${r.fighterSupport.total}` : '', r.fighterHeavy.total ? `${tx('Grei')} ${r.fighterHeavy.used}/${r.fighterHeavy.total}` : ''])
           + `<div class="slot-group drones">${droneRows(f, true)}</div>` + (fighters.length ? '' : hint(tx('Apasă pe un fighter din browser ca să-l adaugi.')));
         break;
       case 'cargo':
-        body = meta([`Cargo hold ${m3(r.cargo)}`])
+        body = meta([`${tx('Cargo')} ${m3(r.cargo)}`])
           + `<div class="slot-group implants">${list(f.cargo.map((c, i) => ({ id: c.typeId, label: name(c.typeId), sub: `${formatNum(volume(c.typeId) * c.count, 2)} m³`, attr: `data-cargo="${i}"`,
             extra: `<input class="input plain sm cargo-count num" type="number" min="1" step="1" value="${c.count}" data-cargo-count="${i}" title="${tx('Cantitate')}" />` })))}</div>`
           + hint(tx('Cât timp tab-ul Cargo e deschis, orice item apăsat în browser intră în cargo.'));
@@ -441,7 +443,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         body = support.projectedBody(f, d) + hint(tx('Cât timp tab-ul e deschis, modulele proiectabile apăsate în browser se adaugă aici.'));
         break;
       case 'command':
-        body = support.fleetBody(f) + hint(tx('Cât timp tab-ul e deschis, burst charge-urile apăsate în browser se adaugă aici.'));
+        body = support.fleetBody(f) + hint(tx('Cât timp tab-ul e deschis, încărcăturile de burst apăsate în browser se adaugă aici.'));
         break;
       case 'notes':
         body = `<textarea class="input area fit-notes" id="fitNotes" rows="8" spellcheck="false" placeholder="${tx('Note despre fit: rol, cum se zboară, ce mai trebuie în cargo…')}">${esc(f.notes ?? '')}</textarea>`;
@@ -454,7 +456,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function costPanel() {
-    return panel({ title: tx('Cost Jita (sell min)'), id: 'fitCost', body: `<div class="dim small">${lore(tx('Se încarcă prețurile…'), 'Weaving the Flow…')}</div>` });
+    return panel({ title: tx('Cost Jita (vânzare minimă)'), id: 'fitCost', body: `<div class="dim small">${lore(tx('Se încarcă prețurile…'), 'Weaving the Flow…')}</div>` });
   }
 
   async function loadCost(f: Fit) {
@@ -479,7 +481,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       if (!target) return;
       target.innerHTML = `
         <div class="cost-total">${abyssal.size ? '<span class="dim">min.</span> ' : ''}<span class="num">${formatISK(total, 0)}</span> ISK <span class="dim">(${compactISK(total)})</span></div>
-        <table class="table compact"><tbody>${lines.map((x) => `<tr><td>${x.abyssal ? '<span class="abyssal-tag">Abyssal</span> ' : ''}${esc(name(x.typeId))}${x.n > 1 ? ` <span class="dim">×${formatInt(x.n)}</span>` : ''}</td><td class="r num">${x.price ? `${x.abyssal ? '<span class="dim">min.</span> ' : ''}${compactISK(x.total)}` : `<span class="dim">${tx('fără ordine')}</span>`}</td></tr>`).join('')}</tbody></table>
+        <table class="table compact"><tbody>${lines.map((x) => `<tr><td>${x.abyssal ? `<span class="abyssal-tag">${tx('Abisal')}</span> ` : ''}${esc(name(x.typeId))}${x.n > 1 ? ` <span class="dim">×${formatInt(x.n)}</span>` : ''}</td><td class="r num">${x.price ? `${x.abyssal ? '<span class="dim">min.</span> ' : ''}${compactISK(x.total)}` : `<span class="dim">${tx('fără ordine')}</span>`}</td></tr>`).join('')}</tbody></table>
         ${noPrice ? `<p class="dim small">${tx('{n} iteme nu au ordine de vânzare în Jita.', { n: noPrice })}</p>` : ''}
         <div class="row-actions">${button(tx('Copiază Multibuy'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-action="multibuy"' })}${dataStamp(pricesAt(ids), 'data-action="cost-refresh"')}</div>`;
       const booksEl = el.querySelector('#skillbookCost');
@@ -569,7 +571,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     findRealFit(sde, shipId, kind).catch(() => null).then((found) => {
       if (found) { void open(cloneFit(found.fit), !found.generated); return; }
       setTimeout(() => {
-        const note = tx('Fit {kind} generat din bonusurile, sloturile, hardpoints, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.', { kind: label });
+        const note = tx('Fit {kind} generat din bonusurile, sloturile, punctele de montaj, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.', { kind: label });
         void open(buildStarterFit(sde, shipId, kind, allLevels(sde, 5), `${name(shipId)} ${label}`, note), false);
       }, 30);
     });
@@ -614,7 +616,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         if (r.ok && dr && dr.active > 0) dr.active--;
         const why = result.message.charAt(0).toLowerCase() + result.message.slice(1);
         if (!r.ok) return r;
-        return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în fighter bay (nelansat: {why})', { name: t.name, why }) : tx('{name} adăugată în drone bay (nelansată: {why})', { name: t.name, why }) };
+        return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în hangarul de fighteri (nelansat: {why})', { name: t.name, why }) : tx('{name} adăugată în hangarul de drone (nelansată: {why})', { name: t.name, why }) };
       }, ctx.character.implants);
       if (bay.ok) result = bay;
     }
@@ -873,7 +875,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         if (fit) {
           const c = ctx.character;
           savePlan(c.id, fitTypeIds(fit).reduce((p, id) => addItemToPlan(sde, p, c, id), loadPlan(c.id)));
-          toast(tx('Adăugat în skill plan'));
+          toast(tx('Adăugat în planul de skill-uri'));
         }
         break;
       case 'copy-plan':

@@ -4,6 +4,8 @@ import { formatDuration, durationHtml } from '../character/training';
 import { typeIconUrl } from '../services/market';
 import { shipMastery, masterySkills, type ShipMastery } from '../services/masteries';
 import { shipTraits, type TraitGroup } from '../services/traits';
+import { itemDescription } from '../services/descriptions';
+import { itemSummaryHtml } from './itemSummary';
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
 import { attributeSections } from './attributes';
@@ -13,7 +15,7 @@ import { fold } from './fold';
 import { tx } from '../i18n';
 
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'];
-const META_GROUPS: Record<number, string> = { 1: 'Tech I', 2: 'Tech II', 3: 'Storyline', 4: 'Faction', 5: 'Officer', 6: 'Deadspace', 14: 'Tech III', 15: 'Abyssal', 17: 'Premium', 19: 'Limited Time' };
+const META_GROUPS: Record<number, string> = { 1: 'Tech I', 2: 'Tech II', 3: 'Storyline', 4: tx('Facțiune'), 5: tx('Ofițer'), 6: 'Deadspace', 14: 'Tech III', 15: tx('Abisal'), 17: 'Premium', 19: tx('Ediție limitată') };
 
 const RACES: Record<number, string> = { 1: 'Caldari', 2: 'Minmatar', 4: 'Amarr', 8: 'Gallente', 16: 'Jove', 32: 'Pirate', 64: 'Sleepers', 128: 'ORE', 134: 'Rogue Drones', 135: 'Triglavian', 168: 'Upwell' };
 const FACTIONS: Record<number, string> = {
@@ -55,7 +57,7 @@ function planTable(plan: FitRequirements): string {
   if (!plan.missing.length) return '';
   return `<h3 class="section-title">${tx('Plan de antrenament ({sp} SP)', { sp: formatInt(plan.totalSp) })}</h3>
       <table class="table compact">
-        <thead><tr><th>Skill</th><th>${tx('Acum')}</th><th>${tx('Țintă')}</th><th class="r">${tx('Timp')}</th></tr></thead>
+        <thead><tr><th>${tx('Skill')}</th><th>${tx('Acum')}</th><th>${tx('Țintă')}</th><th class="r">${tx('Timp')}</th></tr></thead>
         <tbody>${plan.missing.map((s) => `<tr><td><button class="link" data-skill-info="${s.skillId}">${esc(s.name)}</button></td><td>${roman(s.current)}</td><td>${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}</tbody>
       </table>`;
 }
@@ -76,7 +78,7 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
   return `<div class="mastery-levels">${plans.map((p, i) => `<button class="mastery-level ${i + 1 === level ? 'active' : ''} ${p.canFly ? 'done' : ''}" data-mastery-level="${i + 1}">
       <span class="mastery-roman">${roman(i + 1)}</span><span class="mastery-state">${p.canFly ? '✓' : durationHtml(p.totalSeconds)}</span></button>`).join('')}</div>
     <div class="info-status">${plan.canFly
-      ? badge(tx('Mastery {lvl} completă', { lvl: roman(level) }), 'ok', true)
+      ? badge(tx('Mastery {lvl} complet', { lvl: roman(level) }), 'ok', true)
       : badgeHtml(tx('Mastery {lvl}: lipsesc <span class="unit">{n}</span> skill-uri · {time}', { lvl: roman(level), n: plan.missing.length, time: durationHtml(plan.totalSeconds) }), 'accent', true)}</div>
     <div class="mastery-certs">${certs.map((c) => {
       const rows = c.skills.filter((s) => (s.levels[level - 1] ?? 0) > 0);
@@ -85,12 +87,12 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
         <table class="table compact attrs"><tbody>${rows.map((s) => {
           const need = s.levels[level - 1];
           const cur = have.get(s.skillId) ?? 0;
-          return `<tr class="${cur >= need ? 'ok' : cur > 0 ? 'partial' : 'missing'}"><td><button class="link" data-skill-info="${s.skillId}">${esc(ctx.sde.types.get(s.skillId)?.name ?? `Skill ${s.skillId}`)}</button></td>
+          return `<tr class="${cur >= need ? 'ok' : cur > 0 ? 'partial' : 'missing'}"><td><button class="link" data-skill-info="${s.skillId}">${esc(ctx.sde.types.get(s.skillId)?.name ?? tx('Skill {id}', { id: s.skillId }))}</button></td>
             <td class="r num">${roman(need)} <span class="dim">(${tx('ai {lvl}', { lvl: cur ? roman(cur) : '0' })})</span></td></tr>`;
         }).join('')}</tbody></table></div>`;
     }).join('')}</div>
     ${planTable(plan)}
-    ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-plan-mastery>${tx('Adaugă în skill plan')}</button><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
+    ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-plan-mastery>${tx('Adaugă în planul de skill-uri')}</button><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
 }
 
 export interface FitSwap {
@@ -107,7 +109,7 @@ function traitsHtml(ctx: AppContext, groups: TraitGroup[]): string {
     const level = skill ? ctx.character.skills.get(skill.id) ?? 0 : 0;
     const head = skill
       ? `<button class="link" data-skill-info="${skill.id}">${esc(skill.name)}</button> ${esc(tx('bonusuri (pe nivel de skill)'))} ${badge(roman(level), level >= 5 ? 'ok' : level ? '' : 'accent')}`
-      : esc(g.header.replace(/:$/, ''));
+      : esc(g.header === 'Role Bonus:' ? tx('Bonus de rol') : g.header === 'Misc bonus:' ? tx('Bonus divers') : g.header.replace(/:$/, ''));
     return `<div class="trait-group"><h3 class="section-title">${head}</h3>
       ${g.bonuses.map((b) => `<div class="trait-row"><span class="trait-amount num">${esc(b.amount)}</span><span>${esc(b.text)}</span></div>`).join('')}</div>`;
   }).join('');
@@ -117,10 +119,10 @@ export function hasItemInfo(sde: AppContext['sde'], typeId: number): boolean {
   return sde.types.has(typeId);
 }
 
-export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, swap?: FitSwap, startTab = 'attrs') {
+export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, swap?: FitSwap, startTab = 'desc') {
   const sde = ctx.sde;
   const t = sde.types.get(typeId);
-  if (!t) { toast(tx('Pentru itemul ăsta nu am date (Show Info merge la nave, module, muniție, drone, implanturi și skill-uri)')); return; }
+  if (!t) { toast(tx('Pentru itemul ăsta nu am date (informațiile există pentru nave, module, muniție, drone, implanturi și skill-uri)')); return; }
   const tree = requirementTree(sde, typeId);
   const plan = requirementsFor(sde, [typeId], ctx.character);
   const alpha = alphaRaces(sde, [typeId]);
@@ -133,8 +135,8 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
         <tr><td>${tx('Clasă')}</td><td class="r">${esc(t.groupName)}</td></tr>
         ${race ? `<tr><td>${tx('Rasă')}</td><td class="r">${esc(race)}</td></tr>` : ''}
         ${faction ? `<tr><td>${tx('Facțiune')}</td><td class="r">${esc(faction)}</td></tr>` : ''}
-        <tr><td>Tech</td><td class="r">${esc(meta)}</td></tr>
-        <tr><td>Meta level</td><td class="r num">${t.metaLevel ?? 0}</td></tr>
+        <tr><td>${tx('Nivel tehnologic')}</td><td class="r">${esc(meta)}</td></tr>
+        <tr><td>${tx('Nivel meta')}</td><td class="r num">${t.metaLevel ?? 0}</td></tr>
       </tbody></table>
     </div>`;
   const comparing = !!swap && swap.fittedId !== typeId;
@@ -164,16 +166,17 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
     </div>
     <div class="tabs">
-      ${t.categoryId === 6 ? `<button class="tab hidden" data-tab="traits">${tx('Bonusuri')}</button>` : ''}
+      ${t.categoryId === 6 ? `<button class="tab hidden" data-tab="traits">${tx('Bonusuri')}</button>` : `<button class="tab" data-tab="desc">${tx('Descriere')}</button>`}
       <button class="tab" data-tab="attrs">${tx('Atribute')}</button>
-      ${family.length > 1 ? `<button class="tab" data-tab="var">Variations <span class="tab-count neutral">${family.length}</span></button>` : ''}
-      <button class="tab" data-tab="req">Requirements${plan.canFly ? '' : ` <span class="tab-count">${plan.missing.length}</span>`}</button>
+      ${family.length > 1 ? `<button class="tab" data-tab="var">${tx('Variante')} <span class="tab-count neutral">${family.length}</span></button>` : ''}
+      <button class="tab" data-tab="req">${tx('Cerințe')}${plan.canFly ? '' : ` <span class="tab-count">${plan.missing.length}</span>`}</button>
       ${t.categoryId === 6 ? '<button class="tab hidden" data-tab="mastery">Mastery <span class="tab-count neutral" data-mastery-count></span></button>' : ''}
     </div>
     <div class="tab-panel hidden" data-panel="traits"></div>
-    <div class="tab-panel" data-panel="attrs">${identity}${attributes}</div>
+    ${t.categoryId === 6 ? '' : `<div class="tab-panel hidden info-desc" data-panel="desc">${itemSummaryHtml(sde, typeId, item)}<div data-official></div></div>`}
+    <div class="tab-panel hidden" data-panel="attrs">${identity}${attributes}</div>
     <div class="tab-panel hidden" data-panel="var">
-      <table class="table compact variations"><thead><tr><th></th><th>Item</th><th>${tx('Tip')}</th><th class="r">Meta</th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
+      <table class="table compact variations"><thead><tr><th></th><th>${tx('Item')}</th><th>${tx('Tip')}</th><th class="r">Meta</th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
         ${family.map((v) => `<tr class="${v.id === typeId ? 'current' : ''}" data-variation="${v.id}" title="${v.id === typeId ? tx('Itemul deschis') : tx('Deschide')}">
           <td><img src="${typeIconUrl(v.id, 32)}" alt="" loading="lazy" /></td>
           <td>${esc(v.name)}</td><td>${v.metaGroupId ? badge(META_GROUPS[v.metaGroupId] ?? `Meta ${v.metaGroupId}`, v.metaGroupId === 5 ? 'gold' : v.metaGroupId === 4 || v.metaGroupId === 6 ? 'accent' : '') : ''}</td>
@@ -204,7 +207,14 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     const panel = el.querySelector<HTMLElement>('[data-panel="mastery"]');
     if (panel && mastery) panel.innerHTML = masteryHtml(ctx, mastery, masteryLevel, masteryPlans);
   };
-  let tabPicked = startTab !== 'attrs';
+  let tabPicked = startTab !== 'desc';
+  if (t.categoryId !== 6) {
+    itemDescription(typeId).then((lines) => {
+      const box = el.querySelector<HTMLElement>('[data-official]');
+      if (!lines || !box || !el.isConnected) return;
+      box.innerHTML = `<h3 class="section-title">${tx('Descriere din joc')}</h3>${lines.map((l) => `<p>${esc(l)}</p>`).join('')}`;
+    });
+  }
   if (t.categoryId === 6) {
     shipTraits(typeId).then((groups) => {
       if (!groups || !el.isConnected) return;
@@ -235,7 +245,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     if ((e.target as HTMLElement).closest('[data-plan-mastery]')) {
       const steps = masteryPlans[masteryLevel - 1].missing;
       savePlan(ctx.character.id, steps.reduce((p, st) => addToPlan(sde, p, ctx.character, st.skillId, st.required), loadPlan(ctx.character.id)));
-      toast(tx('Mastery {lvl} pentru {ship} adăugat în skill plan', { lvl: roman(masteryLevel), ship: t.name }));
+      toast(tx('Mastery {lvl} pentru {ship} adăugat în planul de skill-uri', { lvl: roman(masteryLevel), ship: t.name }));
       return;
     }
     if ((e.target as HTMLElement).closest('[data-copy-mastery]')) {
@@ -252,7 +262,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     const variation = (e.target as HTMLElement).closest<HTMLElement>('[data-variation]');
     if (variation && Number(variation.dataset.variation) !== typeId) {
       const id = Number(variation.dataset.variation);
-      if (swap) showItemInfo(ctx, id, id === swap.fittedId ? swap.fitted : swap.preview(id), swap);
+      if (swap) showItemInfo(ctx, id, id === swap.fittedId ? swap.fitted : swap.preview(id), swap, 'attrs');
       else showItemInfo(ctx, id);
       return;
     }

@@ -15,45 +15,45 @@ const NPC_KEY = 'eve-fit:npc';
 interface NpcState { site: string; faction: string; dps: number | null; neut: number | null; weather?: WeatherKey | ''; weatherLevel?: number | null }
 
 const WEATHER_LABEL: Record<WeatherKey, string> = {
-  electrical: 'Electrical',
-  dark: 'Dark',
-  exotic: 'Exotic',
-  firestorm: 'Firestorm',
-  gamma: 'Gamma',
+  electrical: tx('Electrică'),
+  dark: tx('Întunecată'),
+  exotic: tx('Exotică'),
+  firestorm: tx('Furtună de foc'),
+  gamma: tx('Gamma'),
 };
 
 const WEATHER_TEXT: Record<WeatherKey, string> = {
-  electrical: tx('Scade rezistența EM pe shield, armor și hull. Capacitorul se reîncarcă de două ori mai repede.'),
-  dark: tx('Optimal și falloff mai mici la turete. Viteza maximă crește.'),
-  exotic: tx('Scade rezistența kinetic pe shield, armor și hull. Scan resolution crește.'),
-  firestorm: tx('Scade rezistența thermal pe shield, armor și hull. Armor HP crește.'),
-  gamma: tx('Scade rezistența explosive pe shield, armor și hull. Shield HP crește.'),
+  electrical: tx('Scade rezistența EM pe scut, armură și structură. Capacitorul se reîncarcă de două ori mai repede.'),
+  dark: tx('Raza optimă și falloff-ul turelelor scad. Viteza maximă crește.'),
+  exotic: tx('Scade rezistența cinetică pe scut, armură și structură. Rezoluția de scanare crește.'),
+  firestorm: tx('Scade rezistența termică pe scut, armură și structură. HP-ul armurii crește.'),
+  gamma: tx('Scade rezistența explozivă pe scut, armură și structură. HP-ul scutului crește.'),
 };
 
 const KIND_LABEL: Record<NpcKind, string> = {
   mission: tx('Misiuni'),
   anomaly: tx('Anomalii'),
   ded: 'DED',
-  abyss: 'Abyss',
-  wormhole: 'Wormhole',
+  abyss: tx('Abis'),
+  wormhole: tx('Wormhole'),
 };
 
 const EWAR_LABEL: Record<Ewar, string> = {
-  web: 'Stasis webifier',
-  scram: 'Warp scrambler',
-  jam: 'ECM',
-  damp: 'Sensor dampener',
-  paint: 'Target painter',
-  neut: 'Energy neutralizer',
-  rr: 'Remote repair',
+  web: tx('Încetinire (web)'),
+  scram: tx('Blocare warp (scram)'),
+  jam: tx('Bruiaj ECM'),
+  damp: tx('Atenuare senzori'),
+  paint: tx('Marcare țintă (painter)'),
+  neut: tx('Neutralizare energie'),
+  rr: tx('Reparare la distanță'),
 };
 
 const EWAR_TEXT: Record<Ewar, string> = {
   web: tx('Viteza scade mult, tank-ul prin viteză nu mai ajută.'),
   scram: tx('Nu poți face warp și MWD-ul se oprește.'),
   jam: tx('Pierzi țintele câteva secunde. Dronele și ECCM ajută.'),
-  damp: tx('Raza de țintire și scan resolution scad.'),
-  paint: tx('Semnătura crește, deci primești mai mult damage.'),
+  damp: tx('Raza de țintire și rezoluția de scanare scad.'),
+  paint: tx('Semnătura crește, deci primești mai multe daune.'),
   neut: tx('Îți golește capacitorul și oprește tank-ul activ.'),
   rr: tx('NPC-urile se repară între ele. Omoară întâi navele de suport.'),
 };
@@ -125,8 +125,8 @@ export function createNpcPanel(env: FitEnv, tips: Map<string, string>) {
       if (e === 'jam') extra = `<span class="dim num">${esc(s.targeting.sensorType)} ${formatNum(s.targeting.sensorStrength, 1)}</span>`;
       if (e === 'damp') extra = `<span class="dim num">${formatNum(s.targeting.maxRange / 1000, 1)} km</span>`;
       if (e === 'neut') extra = a.cap.stable
-        ? badge(tx('Cap stabil {p}%', { p: formatNum((a.cap.stableAt ?? 1) * 100, 0) }), 'ok')
-        : badge(tx('Cap gol în {t}', { t: capTime(a.cap.lastsSeconds ?? 0) }), 'danger');
+        ? badge(tx('Capacitor stabil {p}%', { p: formatNum((a.cap.stableAt ?? 1) * 100, 0) }), 'ok')
+        : badge(tx('Capacitor gol în {t}', { t: capTime(a.cap.lastsSeconds ?? 0) }), 'danger');
       return `<tr><td>${EWAR_LABEL[e]}</td><td class="dim small">${EWAR_TEXT[e]}</td><td class="r">${extra}</td></tr>`;
     }).join('');
     const share = a.matchShare;
@@ -147,7 +147,7 @@ export function createNpcPanel(env: FitEnv, tips: Map<string, string>) {
             ${factionsFor(sc.site.kind).map((f) => `<option value="${f.id}" ${f.id === sc.faction.id ? 'selected' : ''}>${esc(f.id === 'mixed' ? tx('Mixt') : f.name)}</option>`).join('')}
           </select></label>
           <label>${tx('DPS primit')} <input class="input plain sm num" type="number" min="0" step="10" data-npc-field="dps" value="${Math.round(sc.dps)}" /></label>
-          ${sc.faction.ewar.includes('neut') ? `<label>Neut <input class="input plain sm num" type="number" min="0" step="1" data-npc-field="neut" value="${Math.round(sc.neut)}" /> GJ/s</label>` : ''}
+          ${sc.faction.ewar.includes('neut') ? `<label>${tx('Neutralizare')} <input class="input plain sm num" type="number" min="0" step="1" data-npc-field="neut" value="${Math.round(sc.neut)}" /> GJ/s</label>` : ''}
           ${wx.tier != null && sde.weathers.length ? `<label>${tx('Vreme')} <select class="input plain sm" id="npcWeather">
             <option value="" ${!state.weather ? 'selected' : ''}>${tx('Fără')}</option>
             ${WEATHER_KEYS.map((k) => `<option value="${k}" ${k === state.weather ? 'selected' : ''}>${WEATHER_LABEL[k]}</option>`).join('')}
@@ -164,15 +164,15 @@ export function createNpcPanel(env: FitEnv, tips: Map<string, string>) {
           <div><span class="label">${tx('Acoperire')}</span><span class="value num">${margin}</span></div>
         </div>
         ${wx.weather ? weatherBox(wx.weather, buffs, base, a) : ''}
-        <div class="dim small">${tx('Damage primit')}: ${DAMAGE_TYPES.filter((t) => incoming[t] / total >= 0.005).map((t) => `${DMG_LABEL[t]} ${formatNum((incoming[t] / total) * 100, 0)}%`).join(' · ')}</div>
+        <div class="dim small">${tx('Daune primite')}: ${DAMAGE_TYPES.filter((t) => incoming[t] / total >= 0.005).map((t) => `${DMG_LABEL[t]} ${formatNum((incoming[t] / total) * 100, 0)}%`).join(' · ')}</div>
         ${damageBar(incoming)}
         <dl class="mini-dl">
-          <div><dt>${tx('Tank activ')}</dt><dd class="num">${formatNum(a.active * a.capFraction, 1)} EHP/s${a.active > 0 && a.capFraction < 1 ? ` <span class="dim">(${tx('limitat la {p}% de cap', { p: formatNum(a.capFraction * 100, 0) })})</span>` : ''}</dd></div>
-          <div><dt>${tx('Pasiv shield')}</dt><dd class="num">${formatNum(a.passive, 1)} EHP/s</dd></div>
-          <div data-bd="npc-layers"><dt>Shield / Armor / Hull</dt><dd class="num">${formatInt(a.layerEhp.shield)} / ${formatInt(a.layerEhp.armor)} / ${formatInt(a.layerEhp.hull)}</dd></div>
+          <div><dt>${tx('Tank activ')}</dt><dd class="num">${formatNum(a.active * a.capFraction, 1)} EHP/s${a.active > 0 && a.capFraction < 1 ? ` <span class="dim">(${tx('limitat la {p}% de capacitor', { p: formatNum(a.capFraction * 100, 0) })})</span>` : ''}</dd></div>
+          <div><dt>${tx('Scut pasiv')}</dt><dd class="num">${formatNum(a.passive, 1)} EHP/s</dd></div>
+          <div data-bd="npc-layers"><dt>${tx('Scut / Armură / Structură')}</dt><dd class="num">${formatInt(a.layerEhp.shield)} / ${formatInt(a.layerEhp.armor)} / ${formatInt(a.layerEhp.hull)}</dd></div>
           <div><dt>${tx('Timp până la moarte')}</dt><dd class="num">${Number.isFinite(a.timeToDie) ? time(a.timeToDie) : '∞'}</dd></div>
         </dl>
-        <div class="npc-shoot"><span class="label">${tx('Damage de folosit')}</span> ${dmgChips(sc.faction.weak)} ${shareBadge}</div>
+        <div class="npc-shoot"><span class="label">${tx('Daune de folosit')}</span> ${dmgChips(sc.faction.weak)} ${shareBadge}</div>
         ${ewarRows ? `<table class="table compact"><thead><tr><th>EWAR</th><th></th><th></th></tr></thead><tbody>${ewarRows}</tbody></table>` : `<p class="dim small">${tx('Fără EWAR important.')}</p>`}
         <p class="dim small">${tx('DPS-ul și neut-ul sunt valori tipice pentru o cameră grea. Le poți schimba după site-ul tău.')}</p>`,
     });

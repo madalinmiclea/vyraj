@@ -15,8 +15,8 @@ type Tab = 'ideas' | 'volume' | 'trading' | 'trend' | 'haul';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'ideas', label: tx('Idei') },
   { id: 'volume', label: tx('Cele mai tranzacționate') },
-  { id: 'trading', label: 'Station trading' },
-  { id: 'trend', label: 'Trend' },
+  { id: 'trading', label: tx('Trading în stație') },
+  { id: 'trend', label: tx('Tendințe') },
   { id: 'haul', label: tx('Transport') },
 ];
 
@@ -94,8 +94,8 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       <div class="form-grid intel-form">
         <label>${tx('Adâncime')}<select class="input" data-set="depth">${[200, 400, 800, 1500].map((n) => `<option value="${n}" ${settings.depth === n ? 'selected' : ''}>top ${n}</option>`).join('')}</select></label>
         <label>${tx('Categorie')}<select class="input" data-set="category"><option value="">${tx('Toate')}</option>${categories().map((c) => `<option ${settings.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
-        <label>Sales tax %<input class="input sm-input" type="number" step="0.01" min="0" data-fee="salesTax" value="${f.salesTax}" /></label>
-        <label>Broker fee %<input class="input sm-input" type="number" step="0.01" min="0" data-fee="brokerFee" value="${f.brokerFee}" /></label>
+        <label>${tx('Taxă de vânzare %')}<input class="input sm-input" type="number" step="0.01" min="0" data-fee="salesTax" value="${f.salesTax}" /></label>
+        <label>${tx('Comision broker %')}<input class="input sm-input" type="number" step="0.01" min="0" data-fee="brokerFee" value="${f.brokerFee}" /></label>
         <button class="btn ghost form-btn" data-fee-reset ${settings.fees ? '' : 'disabled'}>${tx('Taxe din skill-uri')}</button>
       </div>`;
   }
@@ -157,15 +157,15 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     body.innerHTML = `<div class="history-kpis intel-kpis">
         <div><span class="label">${tx('ISK tranzacționat / zi')}</span><span class="value">${compactISK(totalIsk)}</span></div>
         <div><span class="label">${tx('Iteme analizate')}</span><span class="value">${formatInt(all.length)}</span></div>
-        <div><span class="label">${tx('Oportunități station trading')}</span><span class="value">${formatInt(tradeList().length)}</span></div>
-        <div><span class="label">${tx('Taxe buy → sell')}</span><span class="value">${formatNum(fees().brokerFee * 2 + fees().salesTax, 2)}%</span></div>
+        <div><span class="label">${tx('Oportunități de trading în stație')}</span><span class="value">${formatInt(tradeList().length)}</span></div>
+        <div><span class="label">${tx('Taxe cumpărare → vânzare')}</span><span class="value">${formatNum(fees().brokerFee * 2 + fees().salesTax, 2)}%</span></div>
       </div>
       <div class="idea-grid">
-        ${card(tx('Buy → sell în Jita'), tx('Cumperi cu buy order, vinzi cu sell order, după taxe, la {n}% din volumul zilnic.', { n: settings.share }), trades.map(({ r, t }) => li(r, `${isk(t.daily)}<small class="dim">${tx('/zi')}</small>`, `${formatNum(t.margin, 1)}% · ${formatInt(r.vol30)}${tx('/zi')}`)).join(''))}
+        ${card(tx('Cumpărare → vânzare în Jita'), tx('Cumperi cu ordin de cumpărare, vinzi cu ordin de vânzare, după taxe, la {n}% din volumul zilnic.', { n: settings.share }), trades.map(({ r, t }) => li(r, `${isk(t.daily)}<small class="dim">${tx('/zi')}</small>`, `${formatNum(t.margin, 1)}% · ${formatInt(r.vol30)}${tx('/zi')}`)).join(''))}
         ${card(tx('Cel mai mare rulaj'), tx('ISK tranzacționat zilnic, media pe 30 de zile.'), turnover.map((r) => li(r, isk(r.isk30), tx('{n} buc/zi', { n: formatInt(r.vol30) }))).join(''))}
         ${card(tx('Preț în creștere'), tx('Media pe 7 zile față de 30 de zile, cu volum constant.'), rising.map((r) => li(r, pct(priceTrend(r)), `${compactISK(r.avg7)} vs ${compactISK(r.avg30)}`)).join(''))}
         ${card(tx('Volum în creștere'), tx('Cerere pe 7 zile față de 30 de zile.'), surge.map((r) => li(r, pct(volumeTrend(r), 0), tx('{a} vs {b} buc/zi', { a: formatInt(r.vol7), b: formatInt(r.vol30) }))).join(''))}
-        ${card(tx('Presiune de cumpărare'), tx('Valoarea din buy orders față de sell orders în carte.'), buyHeavy.map((r) => li(r, `<span class="num">${formatNum(bookPressure(r), 0)}%</span>`, `${compactISK(r.buyBook * r.buyMax)} buy · ${compactISK(r.sellBook * r.sellMin)} sell`)).join(''))}
+        ${card(tx('Presiune de cumpărare'), tx('Valoarea din ordinele de cumpărare față de cele de vânzare.'), buyHeavy.map((r) => li(r, `<span class="num">${formatNum(bookPressure(r), 0)}%</span>`, `${compactISK(r.buyBook * r.buyMax)} buy · ${compactISK(r.sellBook * r.sellMin)} sell`)).join(''))}
       </div>`;
   }
 
@@ -180,9 +180,9 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       title: tx('Cele mai tranzacționate'),
       count: tx('{n} iteme', { n: formatInt(list.length) }),
       body: `<div class="table-scroll"><table class="table compact intel-table"><thead><tr>
-          ${th('volume', 'name', 'Item', false)}${th('volume', 'vol', 'Buc / zi')}${th('volume', 'isk', 'ISK / zi')}${th('volume', 'buy', 'Buy max')}${th('volume', 'sell', 'Sell min')}${th('volume', 'spread', 'Marjă netă')}${th('volume', 'pt', 'Preț 7z')}${th('volume', 'vt', 'Volum 7z')}${th('volume', 'press', 'Buy %')}<th class="r">${tx('30 zile')}</th>
+          ${th('volume', 'name', 'Item', false)}${th('volume', 'vol', 'Buc / zi')}${th('volume', 'isk', 'ISK / zi')}${th('volume', 'buy', 'Cumpărare max')}${th('volume', 'sell', 'Vânzare min')}${th('volume', 'spread', 'Marjă netă')}${th('volume', 'pt', 'Preț 7z')}${th('volume', 'vt', 'Volum 7z')}${th('volume', 'press', 'Cumpărare %')}<th class="r">${tx('30 zile')}</th>
         </tr></thead><tbody>
-        ${list.map((r) => `<tr>${itemCell(r)}<td class="r num">${formatInt(r.vol30)}</td><td class="r">${isk(r.isk30)}</td><td class="r">${isk(r.buyMax)}</td><td class="r">${isk(r.sellMin)}</td><td class="r" title="${esc(tx('Cumpăr la buy max + broker {b}% → vând la sell min − broker {b}% − tax {t}%. Marja e raportată la costul de cumpărare.', { b: formatNum(f.brokerFee, 2), t: formatNum(f.salesTax, 2) }))}">${pct(net(r))}</td><td class="r">${pct(priceTrend(r))}</td><td class="r">${pct(volumeTrend(r), 0)}</td><td class="r num">${formatNum(bookPressure(r), 0)}</td><td class="r">${spark(r.spark)}</td></tr>`).join('')}
+        ${list.map((r) => `<tr>${itemCell(r)}<td class="r num">${formatInt(r.vol30)}</td><td class="r">${isk(r.isk30)}</td><td class="r">${isk(r.buyMax)}</td><td class="r">${isk(r.sellMin)}</td><td class="r" title="${esc(tx('Cumpăr la cumpărarea maximă + broker {b}% → vând la vânzarea minimă − broker {b}% − taxă {t}%. Marja e raportată la costul de cumpărare.', { b: formatNum(f.brokerFee, 2), t: formatNum(f.salesTax, 2) }))}">${pct(net(r))}</td><td class="r">${pct(priceTrend(r))}</td><td class="r">${pct(volumeTrend(r), 0)}</td><td class="r num">${formatNum(bookPressure(r), 0)}</td><td class="r">${spark(r.spark)}</td></tr>`).join('')}
         </tbody></table></div>`,
     });
   }
@@ -194,7 +194,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       vol: (x) => x.r.vol30, daily: (x) => x.t.daily, capital: (x) => x.t.capital, comp: (x) => x.r.buyOrders + x.r.sellOrders,
     }, 'daily').slice(0, 300);
     body.innerHTML = panel({
-      title: 'Station trading',
+      title: tx('Trading în stație'),
       count: tx('{n} iteme', { n: formatInt(list.length) }),
       body: `<div class="form-grid">
           <label>${tx('Marjă min %')}<input class="input sm-input" type="number" step="1" data-set="minMargin" value="${settings.minMargin}" /></label>
@@ -202,7 +202,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
           <label>${tx('Preț max (m ISK)')}<input class="input sm-input" type="number" step="1" min="0" data-set="maxPrice" value="${settings.maxPrice || ''}" placeholder="—" /></label>
           <label>${tx('Cota ta din volum %')}<input class="input sm-input" type="number" step="1" min="1" max="100" data-set="share" value="${settings.share}" /></label>
         </div>
-        <p class="dim small">${tx('Cumpăr la buy max + broker {b}% → vând la sell min − broker {b}% − tax {t}%. Marja e raportată la costul de cumpărare.', { b: formatNum(f.brokerFee, 2), t: formatNum(f.salesTax, 2) })}</p>
+        <p class="dim small">${tx('Cumpăr la cumpărarea maximă + broker {b}% → vând la vânzarea minimă − broker {b}% − taxă {t}%. Marja e raportată la costul de cumpărare.', { b: formatNum(f.brokerFee, 2), t: formatNum(f.salesTax, 2) })}</p>
         <div class="table-scroll"><table class="table compact intel-table"><thead><tr>
           ${th('trading', 'name', 'Item', false)}${th('trading', 'buy', 'Cumpăr la')}${th('trading', 'sell', 'Vând la')}${th('trading', 'unit', 'Profit / buc')}${th('trading', 'margin', 'Marjă')}${th('trading', 'vol', 'Buc / zi')}${th('trading', 'daily', 'Profit / zi')}${th('trading', 'capital', 'Capital / zi')}${th('trading', 'comp', 'Ordine')}
         </tr></thead><tbody>
@@ -266,7 +266,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
           <label>${tx('Marjă min %')}<input class="input sm-input" type="number" step="1" data-set="minMargin" value="${settings.minMargin}" /></label>
           ${dataStamp(hubPricesAt(hub), 'data-haul-reload', { label: tx('Prețuri {hub} din {time}').replace('{hub}', hub.name), title: tx('Prețurile hub-ului sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') })}
         </div>
-        <p class="dim small">${tx('Cumpăr instant din sell orders → vând instant în buy orders la destinație, după sales tax {t}%. Fără ordine de așteptat.', { t: formatNum(fees().salesTax, 2) })}</p>
+        <p class="dim small">${tx('Cumpăr instant din ordinele de vânzare → vând instant în ordinele de cumpărare la destinație, după taxa de vânzare de {t}%. Fără ordine de așteptat.', { t: formatNum(fees().salesTax, 2) })}</p>
         ${haulError ? alertBox(haulError) : ''}
         <div class="table-scroll"><table class="table compact intel-table"><thead><tr>
           ${th('haul', 'name', 'Item', false)}<th>${tx('Rută')}</th>${th('haul', 'buy', 'Cumpăr la')}${th('haul', 'sell', 'Vând la')}${th('haul', 'unit', 'Profit / buc')}${th('haul', 'margin', 'Marjă')}${th('haul', 'm3', 'ISK / m³')}${th('haul', 'depth', 'Cerere')}${th('haul', 'trip', 'Profit / cursă')}

@@ -42,7 +42,7 @@ export function createSupportPanels(env: FitEnv) {
       ${bursts.map((g) => `<optgroup label="${esc(g.group)}">${g.charges.filter((c) => !b.charges.includes(c.id)).map((c) => `<option value="${c.id}">${esc(label(c.id))}</option>`).join('')}</optgroup>`).join('')}
     </select>`;
     return `<div class="fleet-opts">
-        <button class="chip-btn sm ${b.t2 ? 'active' : ''}" data-fleet="t2">T2 burst</button>
+        <button class="chip-btn sm ${b.t2 ? 'active' : ''}" data-fleet="t2">${tx('Burst T2')}</button>
         <button class="chip-btn sm ${b.mindlink ? 'active' : ''}" data-fleet="mindlink">Mindlink</button>
         <label class="select-field"><span>${tx('Bonus navă')}</span><select class="input plain sm" id="fleetShipBonus">
           ${SHIP_BONUSES.map((n) => `<option value="${n}" ${n === b.shipBonus ? 'selected' : ''}>${n ? `${n}% × 5` : '—'}</option>`).join('')}
@@ -61,11 +61,11 @@ export function createSupportPanels(env: FitEnv) {
       <button class="slot-remove" data-proj="${i}:x" title="${tx('Scoate')}">${icon('close')}</button>
     </div>`).join('');
     const flows = [
-      flow.shield ? `<span>Shield <b class="num pos">+${formatNum(flow.shield, 1)}</b> HP/s</span>` : '',
-      flow.armor ? `<span>Armor <b class="num pos">+${formatNum(flow.armor, 1)}</b> HP/s</span>` : '',
-      flow.hull ? `<span>Hull <b class="num pos">+${formatNum(flow.hull, 1)}</b> HP/s</span>` : '',
-      flow.capIn ? `<span>Cap <b class="num pos">+${formatNum(flow.capIn, 1)}</b> GJ/s</span>` : '',
-      flow.capOut ? `<span>Cap <b class="num neg">−${formatNum(flow.capOut, 1)}</b> GJ/s</span>` : '',
+      flow.shield ? `<span>${tx('Scut')} <b class="num pos">+${formatNum(flow.shield, 1)}</b> HP/s</span>` : '',
+      flow.armor ? `<span>${tx('Armură')} <b class="num pos">+${formatNum(flow.armor, 1)}</b> HP/s</span>` : '',
+      flow.hull ? `<span>${tx('Structură')} <b class="num pos">+${formatNum(flow.hull, 1)}</b> HP/s</span>` : '',
+      flow.capIn ? `<span>${tx('Capacitor')} <b class="num pos">+${formatNum(flow.capIn, 1)}</b> GJ/s</span>` : '',
+      flow.capOut ? `<span>${tx('Capacitor')} <b class="num neg">−${formatNum(flow.capOut, 1)}</b> GJ/s</span>` : '',
     ].join('');
     return `<div class="proj-add">
         <input class="input plain sm" id="projName" data-list="projList" placeholder="${tx('Modul proiectat pe navă')}" />
@@ -95,7 +95,7 @@ export function createSupportPanels(env: FitEnv) {
   function heatPanel(list: HeatStat[]) {
     if (!list.length) return '';
     return panel({
-      title: 'Overheat',
+      title: tx('Supraîncălzire'),
       body: `<table class="table compact"><thead><tr><th>${tx('Modul')}</th><th class="r">HP</th><th class="r">${tx('Daună/ciclu')}</th><th class="r">${tx('Cicluri')}</th><th class="r">${tx('Timp')}</th></tr></thead><tbody>
         ${list.map((h) => `<tr><td>${esc(h.name)}</td><td class="r num">${formatNum(h.hp, 0)}</td><td class="r num">${formatNum(h.damage, 2)}</td>
           <td class="r num">${Number.isFinite(h.cycles) ? h.cycles : '∞'}</td><td class="r num dim">${Number.isFinite(h.cycles) && h.cycle > 0 ? capTime(h.cycles * h.cycle) : '—'}</td></tr>`).join('')}

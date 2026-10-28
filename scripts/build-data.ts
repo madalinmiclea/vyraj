@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateSkins } from './skin-data.ts';
 import { publishData, RAW_DIR } from './publish-data.ts';
+import { buildDescriptions } from './description-data.ts';
 
 type Row = Record<string, any>;
 
@@ -115,6 +116,10 @@ async function generate() {
     }
     fs.writeFileSync(path.join(RAW_DIR, 'traits.json'), JSON.stringify(traits));
     console.log(`✅ data/traits.json: ${Object.keys(traits).length} nave`);
+
+    const descriptions = buildDescriptions(types, groups, FIT_CATEGORIES, en);
+    fs.writeFileSync(path.join(RAW_DIR, 'descriptions.json'), JSON.stringify(descriptions));
+    console.log(`✅ data/descriptions.json: ${Object.keys(descriptions).length} descrieri`);
 
     const outTypes: Row[] = [];
     const usedEffects = new Set<number>();

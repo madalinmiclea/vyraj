@@ -148,7 +148,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       return;
     }
     const remove = at('[data-remove]');
-    if (remove && await confirmDialog(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric wallet, skill plan, SKIN-uri)?'), { ok: tx('Șterge'), danger: true })) {
+    if (remove && await confirmDialog(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric portofel, plan de skill-uri, SKIN-uri)?'), { ok: tx('Șterge'), danger: true })) {
       const c = stored.find((x) => x.id === remove.dataset.remove);
       if (c) {
         forgetPlan(c.id);

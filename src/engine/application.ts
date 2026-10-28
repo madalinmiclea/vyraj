@@ -10,11 +10,11 @@ export interface TargetProfile {
 }
 
 export const TARGETS: TargetProfile[] = [
-  { id: 'frigate', name: 'Frigate', signature: 35, velocity: 400 },
-  { id: 'destroyer', name: 'Destroyer', signature: 65, velocity: 300 },
-  { id: 'cruiser', name: 'Cruiser', signature: 125, velocity: 200 },
-  { id: 'battlecruiser', name: 'Battlecruiser', signature: 270, velocity: 130 },
-  { id: 'battleship', name: 'Battleship', signature: 400, velocity: 100 },
+  { id: 'frigate', name: tx('Fregată'), signature: 35, velocity: 400 },
+  { id: 'destroyer', name: tx('Distrugător'), signature: 65, velocity: 300 },
+  { id: 'cruiser', name: tx('Crucișător'), signature: 125, velocity: 200 },
+  { id: 'battlecruiser', name: tx('Crucișător de luptă'), signature: 270, velocity: 130 },
+  { id: 'battleship', name: tx('Cuirasat'), signature: 400, velocity: 100 },
   { id: 'static', name: tx('Structură staționară'), signature: 5000, velocity: 0 },
 ];
 

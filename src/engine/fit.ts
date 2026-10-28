@@ -167,7 +167,7 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
   if (t.categoryId === Category.Drone || t.categoryId === Category.Fighter) {
     const existing = fit.drones.find((d) => d.typeId === typeId);
     if (existing) { existing.count++; existing.active++; if (existing.wanted != null) existing.wanted++; } else fit.drones.push({ typeId, count: 1, active: 1 });
-    return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în fighter bay', { name: t.name }) : tx('{name} adăugată în drone bay', { name: t.name }) };
+    return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în hangarul de fighteri', { name: t.name }) : tx('{name} adăugată în hangarul de drone', { name: t.name }) };
   }
 
   if (t.categoryId === Category.Implant) {

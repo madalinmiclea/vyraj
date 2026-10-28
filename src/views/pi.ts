@@ -50,7 +50,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   const plan = { product: 0, qty: 1000, ...loadJson<{ product?: number; qty?: number }>(PLAN_KEY, {}) };
   let colonySort = loadJson<ColonySort>(COLONY_SORT_KEY, 'expiry');
 
-  el.innerHTML = `${pageHead('Planetary Interaction', tx('Profit pe lanțuri P0-P4 la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave')}
+  el.innerHTML = `${pageHead(tx('Interacțiune planetară'), tx('Profit pe lanțuri P0-P4 la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave')}
     <div id="piColonies"></div>
     <div id="piChains"></div>
     <div id="piPlanner"></div>
@@ -87,7 +87,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   const renderers: Record<Tab, () => void> = { colonies: renderColonies, chains: renderChains, planner: renderPlanner };
 
   function renderTabs() {
-    side.innerHTML = `<div class="sidebar-head">${windowTitle('Planetary Interaction')}</div>
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Interacțiune planetară'))}</div>
       <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-pi-tab="${t.id}">${t.label}</button>`).join('')}</div>
       <div class="side-stamp"></div>`;
     renderStamp();
@@ -298,7 +298,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
       return (opts.desc ? -c : c) || d.name(a.schematic.out).localeCompare(d.name(b.schematic.out));
     });
     const th = (id: ChainSort, label: string, right = true) => `<th class="${right ? 'r ' : ''}sortable" data-pi-sort="${id}">${label}${opts.sort === id ? (opts.desc ? ' ▼' : ' ▲') : ''}</th>`;
-    const side = (name: string, v: PriceSide) => `<select class="input sm" name="${name}"><option value="buy" ${v === 'buy' ? 'selected' : ''}>Jita buy</option><option value="sell" ${v === 'sell' ? 'selected' : ''}>Jita sell</option></select>`;
+    const side = (name: string, v: PriceSide) => `<select class="input sm" name="${name}"><option value="buy" ${v === 'buy' ? 'selected' : ''}>${tx('Jita cumpărare')}</option><option value="sell" ${v === 'sell' ? 'selected' : ''}>${tx('Jita vânzare')}</option></select>`;
     const best = rows.filter((r) => !r.missing).slice().sort((a, b) => b.profitHour - a.profitHour)[0];
 
     panes.chains.innerHTML = panel({
@@ -423,7 +423,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
           <label>${tx('Cantitate')}<input class="input pi-num" name="qty" type="number" min="1" step="1" value="${qty}" /></label>
         </form>
         <div class="history-kpis">
-          <div><span class="label">${tx('Valoare Jita sell')}</span><span class="value accent">${compactISK(priceOf(prices, id, 'sell') * qty)}</span></div>
+          <div><span class="label">${tx('Valoare la vânzare în Jita')}</span><span class="value accent">${compactISK(priceOf(prices, id, 'sell') * qty)}</span></div>
           <div><span class="label">${tx('Volum produs')}</span><span class="value">${formatNum(volume, 1)} m³</span></div>
           <div><span class="label">${tx('Volum P0 necesar')}</span><span class="value">${formatNum(rawVolume, 1)} m³</span></div>
           <div><span class="label">${tx('Tipuri de P0')}</span><span class="value">${raws.size}</span></div>
@@ -441,7 +441,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
         })}
         ${panel({
           title: tx('Unde merită să te oprești'),
-          body: `<div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Nivel')}</th><th class="r">Jita buy</th><th class="r">Jita sell</th><th class="r">${tx('Taxă export')}</th><th class="r">${tx('Câștig față de nivelul anterior')}</th></tr></thead>
+          body: `<div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Nivel')}</th><th class="r">${tx('Jita cumpărare')}</th><th class="r">${tx('Jita vânzare')}</th><th class="r">${tx('Taxă export')}</th><th class="r">${tx('Câștig față de nivelul anterior')}</th></tr></thead>
             <tbody>${steps.map((s, i) => `<tr><td>${tierBadge(s.t)}</td><td class="r num">${compactISK(s.buy)}</td><td class="r num">${compactISK(s.sell)}</td><td class="r num">${compactISK(s.tax)}</td><td class="r num">${i ? isk(s.sell - steps[i - 1].sell) : '<span class="dim">—</span>'}</td></tr>`).join('')}</tbody></table></div>
             <p class="small dim">${tx('Valoarea întregului lanț vândut la fiecare nivel: dacă un nivel adaugă puțin față de cel anterior, poți vinde mai jos și economisești fabrici și transport. Taxa folosește {rate}% din tab-ul Profit pe lanțuri.', { rate: formatNum(opts.taxRate * 100, 1) })}</p>`,
         })}

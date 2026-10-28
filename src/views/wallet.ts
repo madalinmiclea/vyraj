@@ -26,7 +26,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
   let fresh: WalletEntry[] = [];
   let freshTrades: WalletTransaction[] = [];
   if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS) {
-    body.innerHTML = panel({ body: loader(tx('Citesc wallet journal')) });
+    body.innerHTML = panel({ body: loader(tx('Citesc jurnalul portofelului')) });
     let balance: number;
     [fresh, balance, freshTrades] = await Promise.all([
       walletJournal(characterId),
@@ -117,7 +117,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const tradeRows = tradeSummary(since(trades, from)).slice(0, 20);
 
     root.innerHTML = `${panel({
-        title: 'Wallet',
+        title: tx('Portofel'),
         count: entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal'),
         actions: `${dataStamp(fetchedAt, 'data-wallet-refresh', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') })}<div class="advice-sort">${chips}</div>`,
         body: `<div class="history-kpis">
@@ -128,7 +128,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
             <div><span class="label">${tx('Venit PvE')}</span><span class="value">${compactISK(f.pve)}</span></div>
             <div><span class="label">${tx('ISK/oră PvE')}</span><span class="value">${compactISK(hours ? f.pve / hours : 0)}</span></div>
           </div>
-          ${partial ? `<p class="dim small wallet-note">${tx('EVE dă doar ultimele 30 de zile din jurnal. Vyraj păstrează local tot ce citește, așa că perioadele mai lungi se completează pe măsură ce deschizi Wallet. Acum ai date din {date}.', { date: day(oldest) })}</p>` : ''}
+          ${partial ? `<p class="dim small wallet-note">${tx('EVE dă doar ultimele 30 de zile din jurnal. Vyraj păstrează local tot ce citește, așa că perioadele mai lungi se completează pe măsură ce deschizi Portofel. Acum ai date din {date}.', { date: day(oldest) })}</p>` : ''}
           <h4 class="sub-head">${tx('Câștigat și cheltuit {bucket}', { bucket: bucketName })}</h4>
           <div class="flow-totals">
             <div><span class="label">${tx('Câștigat total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
@@ -159,11 +159,11 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           count: sessions.length ? `${sessions.length} · ${formatNum(hours, 1)} h` : '',
           body: sessions.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>Start</th><th class="r">${tx('Durată')}</th><th class="r">ISK</th><th class="r">${tx('ISK/oră')}</th></tr></thead><tbody>
             ${sessions.slice(0, 200).map((s) => { const h = (s.end - s.start) / 3600000; return `<tr><td class="num dim">${dateTime(s.start)}</td><td class="r num">${formatNum(h, 1)} h</td><td class="r">${isk(s.isk)}</td><td class="r">${isk(s.isk / h)}</td></tr>`; }).join('')}
-            </tbody></table></div>` : `<p class="dim">${tx('Fără bounty sau misiuni în jurnal.')}</p>`,
+            </tbody></table></div>` : `<p class="dim">${tx('Fără recompense NPC sau misiuni în jurnal.')}</p>`,
         })}
       </div>
       ${tradeRows.length ? panel({
-        title: tx('Market: ce ai cumpărat și vândut'),
+        title: tx('Piață: ce ai cumpărat și vândut'),
         body: `<table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Cumpărat')}</th><th class="r">ISK</th><th class="r">${tx('Vândut')}</th><th class="r">ISK</th></tr></thead><tbody>
           ${tradeRows.map((r) => `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(r.typeId, 32)}" alt="" /><span>${esc(itemName(r.typeId))}</span></span></td><td class="r num">${r.boughtQty ? formatInt(r.boughtQty) : ''}</td><td class="r down">${r.boughtIsk ? isk(r.boughtIsk) : ''}</td><td class="r num">${r.soldQty ? formatInt(r.soldQty) : ''}</td><td class="r up">${r.soldIsk ? isk(r.soldIsk) : ''}</td></tr>`).join('')}
         </tbody></table>`,

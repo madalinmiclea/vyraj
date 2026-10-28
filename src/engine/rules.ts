@@ -14,11 +14,11 @@ export function violations(sde: Sde, fit: Fit, skills: Map<number, number>, impl
   over('cpu', r.cpu.used, r.cpu.total, tx('Nu ajunge CPU: ar fi {used} / {total} tf', { used: fmt(r.cpu.used), total: fmt(r.cpu.total) }));
   over('power', r.power.used, r.power.total, tx('Nu ajunge powergrid: ar fi {used} / {total} MW', { used: fmt(r.power.used), total: fmt(r.power.total) }));
   over('calibration', r.calibration.used, r.calibration.total, tx('Nu ajunge calibrarea: ar fi {used} / {total}', { used: fmt(r.calibration.used), total: fmt(r.calibration.total) }));
-  over('turrets', r.turrets.used, r.turrets.total, tx('Nu mai ai turret hardpoints libere ({n})', { n: r.turrets.total }));
-  over('launchers', r.launchers.used, r.launchers.total, tx('Nu mai ai launcher hardpoints libere ({n})', { n: r.launchers.total }));
-  over('bandwidth', r.droneBandwidth.used, r.droneBandwidth.total, tx('Nu ajunge drone bandwidth: ar fi {used} / {total} Mbit/s', { used: fmt(r.droneBandwidth.used), total: fmt(r.droneBandwidth.total) }));
-  over('dronebay', r.droneBay.used, r.droneBay.total, tx('Nu mai e loc în drone bay: ar fi {used} / {total} m³', { used: fmt(r.droneBay.used), total: fmt(r.droneBay.total) }));
-  over('fighterbay', r.fighterBay.used, r.fighterBay.total, tx('Nu mai e loc în fighter bay: ar fi {used} / {total} m³', { used: fmt(r.fighterBay.used), total: fmt(r.fighterBay.total) }));
+  over('turrets', r.turrets.used, r.turrets.total, tx('Nu mai ai puncte de montaj libere pentru turele ({n})', { n: r.turrets.total }));
+  over('launchers', r.launchers.used, r.launchers.total, tx('Nu mai ai puncte de montaj libere pentru lansatoare ({n})', { n: r.launchers.total }));
+  over('bandwidth', r.droneBandwidth.used, r.droneBandwidth.total, tx('Nu ajunge lățimea de bandă pentru drone: ar fi {used} / {total} Mbit/s', { used: fmt(r.droneBandwidth.used), total: fmt(r.droneBandwidth.total) }));
+  over('dronebay', r.droneBay.used, r.droneBay.total, tx('Nu mai e loc în hangarul de drone: ar fi {used} / {total} m³', { used: fmt(r.droneBay.used), total: fmt(r.droneBay.total) }));
+  over('fighterbay', r.fighterBay.used, r.fighterBay.total, tx('Nu mai e loc în hangarul de fighteri: ar fi {used} / {total} m³', { used: fmt(r.fighterBay.used), total: fmt(r.fighterBay.total) }));
   over('cargo', r.cargo.used, r.cargo.total, tx('Nu mai e loc în cargo: ar fi {used} / {total} m³', { used: fmt(r.cargo.used), total: fmt(r.cargo.total) }));
   over('tubes', r.fighterTubes.used, r.fighterTubes.total, tx('Nu mai ai tuburi de fighteri libere ({n})', { n: r.fighterTubes.total }));
   over('fighter-light', r.fighterLight.used, r.fighterLight.total, tx('Poți lansa maxim {n} escadrile {kind}', { n: r.fighterLight.total, kind: 'light' }));

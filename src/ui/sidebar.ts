@@ -2,7 +2,7 @@ import { icon, categoryIcon } from './icons';
 import { esc, formatInt, lore } from './components';
 import type { EveItem, MarketGroups } from '../data/items';
 import { fold } from './fold';
-import { tx } from '../i18n';
+import { tx, lang } from '../i18n';
 
 interface Entry { n: string; t?: number; l: string }
 
@@ -30,6 +30,16 @@ export interface ItemBrowser {
 }
 
 const PAGE = 150;
+
+const CATEGORY_RO: Record<string, string> = {
+  'Ships': 'Nave', 'Ship Equipment': 'Echipament navă', 'Ship and Module Modifications': 'Modificări navă și module', 'Ammunition & Charges': 'Muniție și încărcături',
+  'Drones': 'Drone', 'Implants & Boosters': 'Implanturi și boostere', 'Skills': 'Skill-uri', 'Ship SKINs': 'SKIN-uri nave', 'Blueprints & Reactions': 'Blueprint-uri și reacții',
+  'Manufacture & Research': 'Fabricație și cercetare', 'Personalization': 'Personalizare', 'Apparel': 'Îmbrăcăminte', 'Trade Goods': 'Mărfuri',
+  'Special Edition Assets': 'Obiecte de ediție specială', 'Structures': 'Structuri', 'Structure Modifications': 'Modificări structuri', 'Structure Equipment': 'Echipament structuri',
+  "Pilot's Services": 'Servicii pentru piloți', 'Planetary Infrastructure': 'Infrastructură planetară',
+};
+
+const categoryLabel = (name: string) => (lang === 'ro' ? CATEGORY_RO[name] ?? name : name);
 
 function buildTree(items: EveItem[], groups: MarketGroups): TreeNode[] {
   const roots = new Map<string, TreeNode>();
@@ -122,7 +132,7 @@ export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, ha
     group.className = 'tree-group' + (depth ? ' sub' : '');
     group.style.setProperty('--depth', String(depth));
     const iconName = depth ? '' : icon(categoryIcon[node.name] || 'module', 'cat-icon');
-    group.innerHTML = `<button class="tree-head">${icon('chevron', 'chev')}${iconName}<span>${esc(node.name)}</span><span class="count">${formatInt(flat ? flat.length : node.total)}</span></button><div class="tree-items"></div>`;
+    group.innerHTML = `<button class="tree-head">${icon('chevron', 'chev')}${iconName}<span>${esc(depth ? node.name : categoryLabel(node.name))}</span><span class="count">${formatInt(flat ? flat.length : node.total)}</span></button><div class="tree-items"></div>`;
     const itemsEl = group.lastElementChild as HTMLElement;
     const open = () => {
       group.classList.add('open');

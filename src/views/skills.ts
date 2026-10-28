@@ -9,8 +9,18 @@ import { badge, badgeHtml, copyText, emptyState, esc, formatInt, panel, searchFi
 import { icon } from '../ui/icons';
 import { requirementTreeHtml, roman, showItemInfo, skillPlanText } from '../ui/itemInfo';
 import { fold } from '../ui/fold';
-import { tx, locale } from '../i18n';
+import { tx, locale, lang } from '../i18n';
 import { addItemToPlan, addToPlan, loadPlan, movePlan, planRows, planText, removeFromPlan, savePlan, type PlanEntry } from '../character/skillPlan';
+
+const SKILL_GROUP_RO: Record<string, string> = {
+  'Armor': 'Armură', 'Corporation Management': 'Management corporație', 'Drones': 'Drone', 'Electronic Systems': 'Sisteme electronice', 'Engineering': 'Inginerie',
+  'Fleet Support': 'Suport flotă', 'Gunnery': 'Turele', 'Missiles': 'Rachete', 'Navigation': 'Navigație', 'Neural Enhancement': 'Îmbunătățire neurală',
+  'Planet Management': 'Management planetar', 'Production': 'Producție', 'Resource Processing': 'Procesare resurse', 'Rigging': 'Rig-uri', 'Scanning': 'Scanare',
+  'Science': 'Știință', 'Sequencing': 'Secvențiere', 'Shields': 'Scuturi', 'Social': 'Social', 'Spaceship Command': 'Comandă nave',
+  'Structure Management': 'Management structuri', 'Subsystems': 'Subsisteme', 'Targeting': 'Țintire', 'Trade': 'Comerț',
+};
+
+const skillGroupLabel = (g: string) => (lang === 'ro' ? SKILL_GROUP_RO[g] ?? g : g);
 
 export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   const sde = ctx.sde;
@@ -20,7 +30,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (!groups.has(s.groupName)) groups.set(s.groupName, []);
     groups.get(s.groupName)!.push(s);
   }
-  const groupNames = [...groups.keys()].sort();
+  const groupNames = [...groups.keys()].sort((a, b) => skillGroupLabel(a).localeCompare(skillGroupLabel(b)));
   const searchable = [...sde.types.values()].filter((t) => t.marketGroupId).map((t) => ({ t, l: fold(t.name) }));
   const OPEN_KEY = 'eve-fit:ui:skill-groups';
   const openGroups = new Set(loadJson<string[]>(OPEN_KEY, []));
@@ -30,7 +40,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       <div class="char-plan-grid">
         <div id="skillPlan"></div>
         <div class="stack">
-          ${panel({ title: tx('Requirements pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
+          ${panel({ title: tx('Cerințe pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
           <div id="reqDetail"></div>
         </div>
       </div>
@@ -56,7 +66,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const sp = rows.reduce((a, r) => a + r.sp, 0);
     const when = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     planEl.innerHTML = panel({
-      title: 'Skill plan',
+      title: tx('Plan de skill-uri'),
       count: rows.length ? `${tx('{n} niveluri', { n: rows.length })} · ${formatDuration(total)} · ${formatInt(sp)} SP` : '',
       body: rows.length
         ? `<table class="table compact plan-table"><thead><tr><th>Skill</th><th class="r">${tx('Timp')}</th><th class="r">${tx('Gata pe')}</th><th></th></tr></thead><tbody>
@@ -65,7 +75,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
               <td class="r plan-actions"><button class="icon-btn" data-plan-move="${i}:-1" title="${tx('Sus')}">↑</button><button class="icon-btn" data-plan-move="${i}:1" title="${tx('Jos')}">↓</button><button class="icon-btn" data-plan-remove="${i}" title="${tx('Scoate')}">${icon('close')}</button></td></tr>`).join('')}
           </tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-plan-copy>${tx('Copiază pentru EVE')}</button><button class="btn ghost sm" data-plan-clear>${tx('Golește')}</button></div>`
-        : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de requirements, din grupurile de skill-uri sau din „Improvement skills” din Fitting.')}</p>`,
+        : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de cerințe, din grupurile de skill-uri sau din „Skill-uri de îmbunătățire” din Fitting.')}</p>`,
     });
   }
 
@@ -78,7 +88,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       return `<div class="skill-row">
           <button class="link" data-info="${s.id}" title="${esc(s.name)}">${esc(s.name)}</button>
           <span class="dim small">r${skillRank(sde, s.id)}</span>
-          ${lvl < 5 ? `<button class="icon-btn plan-add" data-plan-skill="${s.id}" title="${tx('Adaugă nivelul următor în skill plan')}">+</button>` : '<span class="plan-add"></span>'}
+          ${lvl < 5 ? `<button class="icon-btn plan-add" data-plan-skill="${s.id}" title="${tx('Adaugă nivelul următor în planul de skill-uri')}">+</button>` : '<span class="plan-add"></span>'}
           ${editable
             ? `<select class="input plain sm" data-level="${s.id}">${[0, 1, 2, 3, 4, 5].map((l) => `<option value="${l}" ${l === lvl ? 'selected' : ''}>${roman(l)}</option>`).join('')}</select>`
             : `<span class="skill-pips">${pips}</span>`}
@@ -99,7 +109,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         const any = list.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
         const open = openGroups.has(g);
         return `<div class="tree-group sub skill-group ${open ? 'open' : ''}" style="--depth:0">
-            <button class="tree-head" data-group="${esc(g)}">${icon('chevron', 'chev')}<span>${esc(g)}</span><span class="count">${any}/${list.length}</span></button>
+            <button class="tree-head" data-group="${esc(g)}">${icon('chevron', 'chev')}<span>${esc(skillGroupLabel(g))}</span><span class="count">${any}/${list.length}</span></button>
             <div class="tree-items"><div class="skill-list">${open ? skillRows(g) : ''}</div></div>
           </div>`;
       }).join('')}</div>`;
@@ -137,7 +147,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const tree = requirementTree(sde, t.id);
     detail.innerHTML = panel({
       title: t.name,
-      actions: `<button class="btn ghost sm" data-info="${t.id}">${icon('info')}Show Info</button>`,
+      actions: `<button class="btn ghost sm" data-info="${t.id}">${icon('info')}${tx('Informații')}</button>`,
       body: `<div class="req-summary">
           ${plan.canFly ? badge(tx('Ai tot ce trebuie'), 'ok', true) : badgeHtml(tx('Lipsesc <span class="unit">{n}</span> · {time}', { n: plan.missing.length, time: durationHtml(plan.totalSeconds) }), 'accent', true)}
           ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
@@ -146,7 +156,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         ${plan.missing.length ? `<table class="table compact"><thead><tr><th>${tx('Ordine de antrenament')}</th><th></th><th class="r">${tx('Timp')}</th></tr></thead><tbody>
           ${plan.missing.map((s) => `<tr class="${s.status}"><td><button class="link" data-info="${s.skillId}">${esc(s.name)}</button></td><td>${roman(s.current)} → ${roman(s.required)}</td><td class="r num">${formatDuration(s.seconds)}</td></tr>`).join('')}
           </tbody></table>
-          <div class="row-actions"><button class="btn ghost sm" data-copy-plan>${tx('Copiază planul')}</button><button class="btn ghost sm" data-plan-item="${t.id}">${tx('Adaugă în skill plan')}</button></div>` : ''}`,
+          <div class="row-actions"><button class="btn ghost sm" data-copy-plan>${tx('Copiază planul')}</button><button class="btn ghost sm" data-plan-item="${t.id}">${tx('Adaugă în planul de skill-uri')}</button></div>` : ''}`,
     });
   }
 
@@ -168,14 +178,14 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const item = at('[data-item]');
     if (item) { selectItem(Number(item.dataset.item)); return; }
     const planItem = at('[data-plan-item]');
-    if (planItem) { setPlan(addItemToPlan(sde, currentPlan(), ctx.character, Number(planItem.dataset.planItem))); toast(tx('Adăugat în skill plan')); return; }
+    if (planItem) { setPlan(addItemToPlan(sde, currentPlan(), ctx.character, Number(planItem.dataset.planItem))); toast(tx('Adăugat în planul de skill-uri')); return; }
     const planSkill = at('[data-plan-skill]');
     if (planSkill) {
       const id = Number(planSkill.dataset.planSkill);
       const plan = currentPlan();
       const next = Math.min(5, Math.max(ctx.character.skills.get(id) ?? 0, ...plan.filter((e) => e.skillId === id).map((e) => e.level)) + 1);
       setPlan(addToPlan(sde, plan, ctx.character, id, next));
-      toast(tx('{name} {lvl} în skill plan', { name: sde.type(id).name, lvl: roman(next) }));
+      toast(tx('{name} {lvl} în planul de skill-uri', { name: sde.type(id).name, lvl: roman(next) }));
       return;
     }
     const move = at('[data-plan-move]');

@@ -50,7 +50,7 @@ function freeChange(label: string, a: { used: number; total: number }, b: { used
 
 function capChange(a: FitStats, b: FitStats): StatChange | undefined {
   const ca = a.capacitor, cb = b.capacitor;
-  if (!ca.stable && cb.stable) return { label: 'Capacitor', pct: 25, text: tx('devine stabil') };
+  if (!ca.stable && cb.stable) return { label: tx('Capacitor'), pct: 25, text: tx('devine stabil') };
   if (ca.stable && cb.stable) {
     const pts = ((cb.stableAt ?? 1) - (ca.stableAt ?? 1)) * 100;
     return Math.abs(pts) < 0.1 ? undefined : { label: tx('Capacitor stabil la'), pct: pts, text: `${pts > 0 ? '+' : ''}${pts.toFixed(1)} ${tx('p.p.')}` };
@@ -80,15 +80,15 @@ function compare(a: FitStats, b: FitStats): Record<AdviceKind, StatChange[]> {
     ]),
     general: keep([
       capChange(a, b),
-      change(tx('Reîncărcare cap'), pct(a.capacitor.peakRecharge, b.capacitor.peakRecharge)),
-      change(tx('Consum cap'), pct(a.capacitor.usage, b.capacitor.usage, true)),
+      change(tx('Reîncărcare capacitor'), pct(a.capacitor.peakRecharge, b.capacitor.peakRecharge)),
+      change(tx('Consum capacitor'), pct(a.capacitor.usage, b.capacitor.usage, true)),
       freeChange(tx('CPU liber'), a.resources.cpu, b.resources.cpu, 'tf'),
       freeChange(tx('Grid liber'), a.resources.power, b.resources.power, 'MW'),
       change(tx('Viteză'), pct(a.navigation.maxVelocity, b.navigation.maxVelocity)),
-      change('Align', pct(a.navigation.alignTime, b.navigation.alignTime, true)),
+      change(tx('Aliniere'), pct(a.navigation.alignTime, b.navigation.alignTime, true)),
       change(tx('Rază arme'), pct(weaponRange(a), weaponRange(b))),
       change(tx('Rază țintire'), pct(a.targeting.maxRange, b.targeting.maxRange)),
-      change('Scan resolution', pct(a.targeting.scanResolution, b.targeting.scanResolution)),
+      change(tx('Rezoluție scan'), pct(a.targeting.scanResolution, b.targeting.scanResolution)),
     ]),
   };
 }

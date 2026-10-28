@@ -43,18 +43,18 @@ const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigatio
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
-  { id: 'market', label: 'Market', icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
+  { id: 'market', label: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
   { id: 'intel', label: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
   { id: 'recon', label: tx('Intel PvP'), icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 10 },
   { id: 'navigation', label: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
-  { id: 'fitting', label: 'Fitting', icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
+  { id: 'fitting', label: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
   { id: 'character', label: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
   { id: 'industry', label: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 14 },
   { id: 'tools', label: tx('Unelte ISK'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
-  { id: 'mining', label: tx('Mining'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
-  { id: 'orders', label: tx('Ordine market'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
+  { id: 'mining', label: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
+  { id: 'orders', label: tx('Ordine de piață'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
-  { id: 'pi', label: 'Planetary Interaction', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
+  { id: 'pi', label: tx('Interacțiune planetară'), icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
@@ -65,12 +65,12 @@ document.querySelector('#app')!.innerHTML = `
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
       <div class="topbar-stat optional"><span class="label">${tx('Iteme')}</span><span class="value" id="itemCount">—</span></div>
-      <div class="topbar-stat"><span class="label">EVE Time</span><span class="value" id="eveClock">--:--</span></div>
+      <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
       <div class="char-switch" id="charSwitch">
         <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
         <div class="char-menu" id="charMenu" hidden></div>
       </div>
-      <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', 'Light'], ['dark', 'moon', 'Dark'], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
+      <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', tx('Luminos')], ['dark', 'moon', tx('Întunecat')], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
       <div class="lang-switch" role="group" aria-label="${tx('Limbă')}">${(['ro', 'en'] as Lang[]).map((l) => `<button class="${l === lang ? 'active' : ''}" data-lang="${l}" aria-pressed="${l === lang}">${l.toUpperCase()}</button>`).join('')}</div>
     </header>
 

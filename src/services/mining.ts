@@ -79,7 +79,7 @@ export function loadMining(): Promise<MiningData> {
 }
 
 export type Security = 0 | 1 | 2;
-export const SECURITY_LABEL = (): Record<Security, string> => ({ 0: 'High sec', 1: 'Low sec', 2: tx('Null sec / W-space') });
+export const SECURITY_LABEL = (): Record<Security, string> => ({ 0: tx('High sec'), 1: tx('Low sec'), 2: tx('Null sec / W-space') });
 
 export interface RefineSetup {
   place: number;

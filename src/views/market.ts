@@ -34,7 +34,7 @@ export interface MarketView {
 
 export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: string) => void }): MarketView {
   el.innerHTML = `
-    ${pageHead('Market', 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Conduit')}
+    ${pageHead(tx('Piață'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Conduit')}
     <div style="margin-bottom: 22px">
       ${searchField({ id: 'searchInput', placeholder: tx('Caută'), large: true, hint: 'Enter' })}
     </div>
@@ -46,7 +46,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   let lastPrices: Record<string, string> | null = null;
   let showInfo: ((typeId: number) => void) | null = null;
   let hasInfo: ((typeId: number) => boolean) | null = null;
-  const infoButton = (typeId: number) => (isGlobalMarket(typeId) || (hasInfo && !hasInfo(typeId)) ? '' : button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` }));
+  const infoButton = (typeId: number) => (isGlobalMarket(typeId) || (hasInfo && !hasInfo(typeId)) ? '' : button(tx('Informații'), { iconName: 'info', cls: 'ghost sm', attrs: `data-show-info="${typeId}"` }));
   let requestId = 0;
   let current: { typeId: number; name: string; sell: number; buy: number } | null = null;
   let history: HistoryDay[] = [];
@@ -111,11 +111,11 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   function openAlert(item: { typeId: number; name: string; sell: number; buy: number }) {
     const modal = openModal(`${tx('Alertă preț')} · ${item.name}`, `
       <div class="alert-form">
-        <label>${tx('Preț')} <select class="input sm" id="alSide"><option value="sell">sell min</option><option value="buy">buy max</option></select></label>
+        <label>${tx('Preț')} <select class="input sm" id="alSide"><option value="sell">${tx('vânzare min')}</option><option value="buy">${tx('cumpărare max')}</option></select></label>
         <label><select class="input sm" id="alOp"><option value="below">${tx('sub sau egal cu')}</option><option value="above">${tx('peste sau egal cu')}</option></select></label>
         <label><input class="input sm num" id="alPrice" type="number" min="0" step="any" value="${Math.round(item.sell * 0.95)}" /> ISK</label>
       </div>
-      <p class="dim small">${tx('Acum')}: sell <span class="num">${formatISK(item.sell)}</span> · buy <span class="num">${formatISK(item.buy)}</span></p>
+      <p class="dim small">${tx('Acum')}: ${tx('vânzare')} <span class="num">${formatISK(item.sell)}</span> · ${tx('cumpărare')} <span class="num">${formatISK(item.buy)}</span></p>
       <div class="row-actions"><button class="btn sm" data-save-alert>${tx('Salvează alerta')}</button></div>`);
     modal.querySelector('[data-save-alert]')!.addEventListener('click', () => {
       const price = Number(modal.querySelector<HTMLInputElement>('#alPrice')!.value);
@@ -160,12 +160,12 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
       <td class="r num">${formatInt(p.sellVolume)} <span class="dim">/ ${formatInt(p.sellOrders)}</span></td>
     </tr>`;
     const hp = { sellMin: h.sellMin, buyMax: h.buyMax, sellVolume: h.sellBook, buyVolume: h.buyBook, sellOrders: h.sellOrders, buyOrders: h.buyOrders };
-    return `<table class="table compact hub-table"><thead><tr><th>${tx('Piață')}</th><th class="r">Buy max</th><th class="r">Sell min</th><th class="r">${tx('Volum buy / ordine')}</th><th class="r">${tx('Volum sell / ordine')}</th></tr></thead><tbody>
+    return `<table class="table compact hub-table"><thead><tr><th>${tx('Piață')}</th><th class="r">${tx('Cumpărare max')}</th><th class="r">${tx('Vânzare min')}</th><th class="r">${tx('Volum cumpărare / ordine')}</th><th class="r">${tx('Volum vânzare / ordine')}</th></tr></thead><tbody>
         ${row('Jita 4-4', j)}
         ${row(name, hp)}
         <tr class="hub-diff"><td class="dim">${tx('{name} față de Jita', { name })}</td><td class="r">${diff(h.buyMax, j.buyMax)}</td><td class="r">${diff(h.sellMin, j.sellMin)}</td><td></td><td></td></tr>
       </tbody></table>
-      <h4 class="sub-head">${tx('Cumpăr instant → vând instant, după sales tax {tax}%', { tax: tax.toFixed(2) })}</h4>
+      <h4 class="sub-head">${tx('Cumpăr instant → vând instant, după taxa de vânzare de {tax}%', { tax: tax.toFixed(2) })}</h4>
       <table class="table compact hub-table"><thead><tr><th>${tx('Rută')}</th><th class="r">${tx('Cumpăr la')}</th><th class="r">${tx('Vând la')}</th><th class="r">${tx('Profit / buc')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('Cerere')}</th></tr></thead><tbody>
         ${route('Jita', name, j.sellMin, h.buyMax, h.buyBook)}
         ${route(name, 'Jita', h.sellMin, j.buyMax, Math.min(h.sellBook, j.buyVolume))}
@@ -206,7 +206,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           <div><span class="label">${tx('Medie 30 zile')}</span><span class="value">${last30.length ? compactISK(avg30) : '—'}</span></div>
           <div><span class="label">${tx('Volum pe zi')}</span><span class="value">${formatInt(vol30)}</span></div>
           <div><span class="label">${tx('Schimbare')} ${range === 365 ? tx('1 an') : tx('{n} zile', { n: range })}</span><span class="value ${change >= 0 ? 'up' : 'down'}">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span></div>
-          <div><span class="label">Min / max</span><span class="value">${compactISK(Math.min(...days.map((d) => d.lowest)))} / ${compactISK(Math.max(...days.map((d) => d.highest)))}</span></div>
+          <div><span class="label">${tx('Min / max')}</span><span class="value">${compactISK(Math.min(...days.map((d) => d.lowest)))} / ${compactISK(Math.max(...days.map((d) => d.highest)))}</span></div>
         </div>
         ${seriesChart(points)}`,
     });
@@ -278,7 +278,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             </div>
             <div class="actions">${infoButton(typeId)}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
           </section>
-          ${emptyState({ title: tx('Nimeni nu vinde sau cumpără acum'), text: tx('Itemul există în joc, dar nu are niciun ordin activ în Jita (des întâlnit la module de officer și iteme rare). Verifică din nou mai târziu; prețurile se reîmprospătează la fiecare căutare.'), vy: 'The Conduit Is Silent', vyText: 'This item exists, but no order flows for it in Jita right now (common for officer modules and rare items). Return later; prices refresh with every search.' })}
+          ${emptyState({ title: tx('Nimeni nu vinde sau cumpără acum'), text: tx('Itemul există în joc, dar nu are niciun ordin activ în Jita (des întâlnit la module de ofițer și iteme rare). Verifică din nou mai târziu; prețurile se reîmprospătează la fiecare căutare.'), vy: 'The Conduit Is Silent', vyText: 'This item exists, but no order flows for it in Jita right now (common for officer modules and rare items). Return later; prices refresh with every search.' })}
           <div id="hubPanel" class="hub-panel"></div>`;
         current = { typeId, name, sell: 0, buy: 0 };
         jitaPrices = p;
@@ -293,9 +293,9 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
       const spreadHtml = flip.valid
         ? `<section class="panel spread">
           <div>
-            <div class="label">${tx('Profit buy → sell după taxe (buy order, apoi sell order)')}</div>
+            <div class="label">${tx('Profit cumpărare → vânzare după taxe (ordin de cumpărare, apoi ordin de vânzare)')}</div>
             <div class="amount ${flip.unit < 0 ? 'neg-text' : ''}" id="spreadAmount">${formatISK(flip.unit)} <small class="dim" style="font-size:15px">ISK</small></div>
-            <div class="dim small">${tx('Cumpăr la buy max + broker {b}% → vând la sell min − broker {b}% − tax {t}%. Marja e raportată la costul de cumpărare.', { b: fees.brokerFee.toFixed(2), t: fees.salesTax.toFixed(2) })}</div>
+            <div class="dim small">${tx('Cumpăr la cumpărarea maximă + broker {b}% → vând la vânzarea minimă − broker {b}% − taxă {t}%. Marja e raportată la costul de cumpărare.', { b: fees.brokerFee.toFixed(2), t: fees.salesTax.toFixed(2) })}</div>
           </div>
           <div class="spread-gauge">
             <div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, pct * 2))}%"></div></div>
@@ -303,7 +303,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           </div>
           <div class="pct ${pct < 0 ? 'neg' : ''}" id="spreadPercent">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
         </section>`
-        : `<section class="panel spread"><div><div class="label">${tx('Profit buy → sell după taxe (buy order, apoi sell order)')}</div><div class="dim">${p.sellMin > 0 ? tx('Nu există buy orders în Jita, deci nu se poate calcula marja.') : tx('Nu există sell orders în Jita, deci nu se poate calcula marja.')}</div></div></section>`;
+        : `<section class="panel spread"><div><div class="label">${tx('Profit cumpărare → vânzare după taxe (ordin de cumpărare, apoi ordin de vânzare)')}</div><div class="dim">${p.sellMin > 0 ? tx('Nu există ordine de cumpărare în Jita, deci nu se poate calcula marja.') : tx('Nu există ordine de vânzare în Jita, deci nu se poate calcula marja.')}</div></div></section>`;
 
       state.innerHTML = `
         <section class="panel glow item-head">
@@ -316,16 +316,16 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           </div>
           <div class="actions">
             ${infoButton(typeId)}
-            ${button(tx('Copiază sell'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-copy="sell"' })}
+            ${button(tx('Copiază prețul de vânzare'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-copy="sell"' })}
             ${button(tx('Alertă preț'), { iconName: 'alert', cls: 'ghost sm', attrs: 'data-alert' })}
             <a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a>
           </div>
         </section>
 
         <div class="stats">
-          ${statCard({ label: tx('Cel mai mic sell'), id: 'sellPrice', tone: 'sell' })}
-          ${statCard({ label: tx('Cel mai mare buy'), id: 'buyPrice', tone: 'buy' })}
-          ${statCard({ label: tx('Preț median (sell)'), id: 'medianPrice', tone: 'median' })}
+          ${statCard({ label: tx('Cea mai mică ofertă de vânzare'), id: 'sellPrice', tone: 'sell' })}
+          ${statCard({ label: tx('Cea mai mare ofertă de cumpărare'), id: 'buyPrice', tone: 'buy' })}
+          ${statCard({ label: tx('Preț median (vânzare)'), id: 'medianPrice', tone: 'median' })}
         </div>
 
         ${spreadHtml}
@@ -345,7 +345,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
       };
       setStat('sellPrice', p.sellMin, tx('Volum <span class="num">{v}</span> · <span class="num">{n}</span> ordine', { v: formatInt(p.sellVolume), n: formatInt(p.sellOrders) }));
       setStat('buyPrice', p.buyMax, tx('Volum <span class="num">{v}</span> · <span class="num">{n}</span> ordine', { v: formatInt(p.buyVolume), n: formatInt(p.buyOrders) }));
-      setStat('medianPrice', p.sellMedian, p.sellMedian > 0 ? `≈ <span class="num">${compactISK(p.sellMedian)}</span> ISK` : tx('Fără sell orders'));
+      setStat('medianPrice', p.sellMedian, p.sellMedian > 0 ? `≈ <span class="num">${compactISK(p.sellMedian)}</span> ISK` : tx('Fără ordine de vânzare'));
     } catch (err) {
       if (id !== requestId) return;
       const msg = err instanceof TypeError ? tx('Nu am putut contacta serverul de prețuri (Fuzzwork). Verifică conexiunea și încearcă din nou.') : (err as Error).message;

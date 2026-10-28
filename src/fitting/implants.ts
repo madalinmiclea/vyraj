@@ -45,7 +45,7 @@ export function createImplantPanel(env: FitEnv) {
       <img class="slot-img" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />
       <div class="slot-main"><button class="slot-name link" data-info="${id}">${esc(`${slot ? `[${slot}] ` : ''}${env.name(id)}`)}</button>${sub ? `<span class="dim small">${esc(sub)}</span>` : ''}${set ? `<span class="small set-bonus">${esc(set)}</span>` : ''}</div>
       ${extra.tag ? badge(extra.tag, 'accent') : ''}
-      <button class="slot-info" data-info="${id}" title="Show Info">${icon('info')}</button>
+      <button class="slot-info" data-info="${id}" title="${tx('Informații')}">${icon('info')}</button>
       ${extra.attr ? `<button class="slot-remove" ${extra.attr} title="${tx('Scoate')}">${icon('close')}</button>` : ''}
     </div>`;
   }

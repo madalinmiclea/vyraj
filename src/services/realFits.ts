@@ -239,12 +239,12 @@ export function prepareFit(sde: Sde, shipId: number, kind: RealFitKind, entry: P
   const notes = [generated
     ? tx('Fit {kind} compus din bonusurile și statisticile navei, pentru că nu există un fit publicat. Modulele care au variantă T2 au fost trecute pe T2.', { kind: label })
     : tx('Fit publicat: „{title}”, sursa {url} . Modulele care au variantă T2 au fost trecute pe T2.', { title, url: entry.source })];
-  notes.push(tx('Charges sunt T2 unde există, altfel faction.'));
+  notes.push(tx('Muniția e T2 unde există, altfel de facțiune.'));
   if (swaps.removed) notes.push(tx('Am scos modulele care nu aveau sloturi sau hardpoints libere pe navă ({n}).', { n: swaps.removed }));
-  if (swaps.faction) notes.push(tx('Ca să încapă în CPU și powergrid cu toate skill-urile la V, unele module au trecut pe varianta faction ({n}).', { n: swaps.faction }));
-  if (swaps.meta) notes.push(tx('Unde nici faction nu a ajuns, unele module au rămas T1 sau meta ({n}).', { n: swaps.meta }));
-  if (swaps.rigs) notes.push(tx('Ca să încapă în calibration, unele rig-uri au rămas T1 ({n}).', { n: swaps.rigs }));
-  if (swaps.trimmed) notes.push(tx('Am redus dronele și încărcătura din cargo ca să încapă în bay.'));
+  if (swaps.faction) notes.push(tx('Ca să încapă în CPU și powergrid cu toate skill-urile la V, unele module au trecut pe varianta de facțiune ({n}).', { n: swaps.faction }));
+  if (swaps.meta) notes.push(tx('Unde nici varianta de facțiune nu a ajuns, unele module au rămas T1 sau meta ({n}).', { n: swaps.meta }));
+  if (swaps.rigs) notes.push(tx('Ca să încapă în calibrare, unele rig-uri au rămas T1 ({n}).', { n: swaps.rigs }));
+  if (swaps.trimmed) notes.push(tx('Am redus dronele și încărcătura din cargo ca să încapă în hangare.'));
   fit.notes = notes.join(' ');
   return { fit, source: entry.source, title, generated };
 }

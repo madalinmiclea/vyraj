@@ -26,16 +26,16 @@ export const TARGET_KEY = 'eve-fit:target';
 export interface TargetState { id: string; signature: number; velocity: number; distanceKm: number }
 
 export const GROUPS: { key: SlotKind; label: string; cls: string }[] = [
-  { key: 'high', label: 'High slots', cls: 'high' },
-  { key: 'mid', label: 'Medium slots', cls: 'mid' },
-  { key: 'low', label: 'Low slots', cls: 'low' },
-  { key: 'rig', label: 'Rig slots', cls: 'rig' },
+  { key: 'high', label: tx('Sloturi high'), cls: 'high' },
+  { key: 'mid', label: tx('Sloturi medii'), cls: 'mid' },
+  { key: 'low', label: tx('Sloturi low'), cls: 'low' },
+  { key: 'rig', label: tx('Sloturi rig'), cls: 'rig' },
   { key: 'subsystem', label: tx('Subsisteme'), cls: 'sub' },
 ];
 
-export const STATE_LABEL: Record<ModuleState, string> = { offline: 'Offline', online: 'Online', active: tx('Activ'), overheated: tx('Supraîncălzit') };
-export const DMG_LABEL = { em: 'EM', thermal: 'Th', kinetic: 'Kin', explosive: 'Exp' } as const;
-export const LAYER_LABEL = { shield: 'Shield', armor: 'Armor', hull: 'Hull' } as const;
+export const STATE_LABEL: Record<ModuleState, string> = { offline: tx('Oprit'), online: tx('Pornit'), active: tx('Activ'), overheated: tx('Supraîncălzit') };
+export const DMG_LABEL = { em: 'EM', thermal: tx('Term'), kinetic: tx('Cin'), explosive: tx('Expl') } as const;
+export const LAYER_LABEL = { shield: tx('Scut'), armor: tx('Armură'), hull: tx('Structură') } as const;
 
 export interface FitEnv {
   sde: Sde;

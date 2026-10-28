@@ -46,7 +46,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   let busy = false;
   let error = '';
 
-  el.innerHTML = `${pageHead(tx('Ordine market'), tx('Ordinele tuturor caracterelor, cu alertă la outbid și undercut'), 'Torg')}
+  el.innerHTML = `${pageHead(tx('Ordine de piață'), tx('Ordinele tuturor caracterelor, cu alertă la outbid și undercut'), 'Torg')}
     <div id="ordBody"></div>`;
   const body = el.querySelector<HTMLElement>('#ordBody')!;
 
@@ -55,7 +55,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   function renderSide(scan: OrdersScan | null) {
     const chars = orderCharacters();
     const count = (id: number) => scan?.orders.filter((o) => o.characterId === id).length ?? 0;
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Ordine market'))}</div>
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Ordine de piață'))}</div>
       <div class="side-nav">
         <button class="side-link ${ui.tab === 'active' ? 'active' : ''}" data-ord-tab="active">${tx('Ordine active')}</button>
         <button class="side-link ${ui.tab === 'history' ? 'active' : ''}" data-ord-tab="history">${tx('Istoric ordine')}</button>
@@ -111,8 +111,8 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const soon = list.filter((o) => expiresAt(o) - Date.now() < 86_400_000).length;
     return `<div class="history-kpis">
       <div><span class="label">${tx('Ordine active')}</span><span class="value">${formatInt(list.length)}</span></div>
-      <div><span class="label">${tx('Valoare sell')}</span><span class="value">${compactISK(sells.reduce((a, o) => a + o.price * o.volume_remain, 0))}</span></div>
-      <div><span class="label">${tx('Escrow buy')}</span><span class="value">${compactISK(buys.reduce((a, o) => a + (o.escrow ?? 0), 0))}</span></div>
+      <div><span class="label">${tx('Valoare la vânzare')}</span><span class="value">${compactISK(sells.reduce((a, o) => a + o.price * o.volume_remain, 0))}</span></div>
+      <div><span class="label">${tx('Garanție ordine de cumpărare')}</span><span class="value">${compactISK(buys.reduce((a, o) => a + (o.escrow ?? 0), 0))}</span></div>
       <div><span class="label">${tx('Rămas de cumpărat')}</span><span class="value">${compactISK(buys.reduce((a, o) => a + o.price * o.volume_remain, 0))}</span></div>
       <div><span class="label">${tx('Depășite')}</span><span class="value ${beaten ? 'ord-bad' : ''}">${beaten}</span></div>
       <div><span class="label">${tx('Expiră în 24 h')}</span><span class="value">${soon}</span></div>
@@ -134,14 +134,14 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const scan = lastScan();
     const chars = rosterCharacters();
     if (!chars.length) {
-      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de market.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your market orders.' }) });
+      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de piață.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your market orders.' }) });
       return;
     }
     const warn = scan?.missingScope.length
       ? alertBox(tx('Fără permisiunea pentru ordine: {names}. Fă din nou login cu aceste caractere din meniul de caractere.', { names: scan.missingScope.join(', ') }), 'warn')
       : '';
     if (!scan) {
-      body.innerHTML = panel({ body: busy ? loader(tx('Citim ordinele și registrul de market')) : error ? alertBox(error) : '' });
+      body.innerHTML = panel({ body: busy ? loader(tx('Citim ordinele și registrul pieței')) : error ? alertBox(error) : '' });
       return;
     }
     const multi = new Set(scan.orders.map((o) => o.characterId)).size > 1 && !ui.character;
@@ -164,7 +164,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
             <label class="ord-toggle"><input type="checkbox" data-ord-notify ${notifyEnabled() ? 'checked' : ''} /> ${tx('Notificare la outbid / undercut')}</label>
           </div>
           ${list.length ? `<div class="table-scroll"><table class="table compact ord-table"><thead><tr>
-            <th>Item</th><th class="r">${tx('Prețul meu')}</th><th class="r">${tx('Concurență')}</th><th>Status</th><th class="r">${tx('Rămas')}</th><th class="r">${tx('Expiră')}</th><th class="r">${tx('Preț nou')}</th>
+            <th>Item</th><th class="r">${tx('Prețul meu')}</th><th class="r">${tx('Concurență')}</th><th>${tx('Stare')}</th><th class="r">${tx('Rămas')}</th><th class="r">${tx('Expiră')}</th><th class="r">${tx('Preț nou')}</th>
           </tr></thead><tbody>${list.map((o) => orderRow(o, scan.competition.get(o.order_id), multi)).join('')}</tbody></table></div>`
           : `<p class="dim">${mine.length ? tx('Niciun ordin pentru filtrul ales.') : tx('Niciun ordin activ.')}</p>`}
           <p class="small dim ord-note">${tx('EVE acceptă doar 4 cifre semnificative la preț, deci pasul minim (tick) crește cu prețul: 0,01 ISK sub 100 ISK, 1.000 ISK la milioane. Prețul nou e cel mai mic pas care te pune primul. ESI nu poate modifica ordine: copiezi prețul, apoi Modify Order în joc și lipești.')}</p>`,

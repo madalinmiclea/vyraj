@@ -1,3 +1,5 @@
+import { lang } from '../i18n';
+
 export interface DamageProfile {
   id: string;
   name: string;
@@ -60,4 +62,15 @@ export const DAMAGE_PROFILES: DamageProfile[] = [
 
 export function findProfile(id: string | null | undefined): DamageProfile {
   return DAMAGE_PROFILES.find((x) => x.id === id) ?? UNIFORM;
+}
+
+const PROFILE_RO: Record<string, string> = {
+  Generic: 'Generice', Uniform: 'Uniform', Thermal: 'Termic', Kinetic: 'Cinetic', Explosive: 'Exploziv',
+  Abyssal: 'Abisal', All: 'Toate', Drones: 'Drone', Asteroid: 'Anomalii (asteroizi)', Invasion: 'Invazie', Mission: 'Misiuni',
+  'Triglavian Subcaps': 'Nave Triglavian (subcapitale)', 'Drifter Entities': 'Entități Drifter', 'Sleeper Entities': 'Entități Sleeper', 'Rogue Drone Entities': 'Entități Rogue Drone',
+  'Sansha Incursion': 'Incursiune Sansha',
+};
+
+export function profileText(s: string): string {
+  return lang === 'ro' ? PROFILE_RO[s] ?? s : s;
 }

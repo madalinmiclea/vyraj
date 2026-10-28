@@ -16,11 +16,11 @@ import { tx, locale } from '../i18n';
 type Tab = 'appraisal' | 'abyssal' | 'wallet' | 'assets' | 'lp' | 'alerts';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'appraisal', label: 'Appraisal' },
-  { id: 'abyssal', label: tx('Jurnal Abyssal') },
-  { id: 'wallet', label: 'Wallet' },
-  { id: 'assets', label: 'Assets' },
-  { id: 'lp', label: 'LP Store' },
+  { id: 'appraisal', label: tx('Evaluare') },
+  { id: 'abyssal', label: tx('Jurnal abisal') },
+  { id: 'wallet', label: tx('Portofel') },
+  { id: 'assets', label: tx('Bunuri') },
+  { id: 'lp', label: tx('Magazin LP') },
   { id: 'alerts', label: tx('Alerte preț') },
 ];
 
@@ -52,8 +52,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   const body = el.querySelector<HTMLElement>('#toolBody')!;
 
   const basisChips = () => `<div class="advice-sort">
-    <button class="chip-btn ${basis === 'sell' ? 'active' : ''}" data-basis="sell">Jita sell</button>
-    <button class="chip-btn ${basis === 'buy' ? 'active' : ''}" data-basis="buy">Jita buy</button>
+    <button class="chip-btn ${basis === 'sell' ? 'active' : ''}" data-basis="sell">${tx('Jita vânzare')}</button>
+    <button class="chip-btn ${basis === 'buy' ? 'active' : ''}" data-basis="buy">${tx('Jita cumpărare')}</button>
   </div>`;
 
   const ASSET_SAFETY = 2004;
@@ -121,9 +121,9 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         count: tx('{n} tipuri · {q} bucăți', { n: lines.length, q: formatInt(lines.reduce((a, l) => a + l.quantity, 0)) }),
         actions: dataStamp(pricesAt(apIds), 'data-ap-refresh') + basisChips(),
         body: `<div class="history-kpis">
-            <div><span class="label">Jita sell</span><span class="value">${compactISK(t.sell)}</span></div>
-            <div><span class="label">Jita buy</span><span class="value">${compactISK(t.buy)}</span></div>
-            <div><span class="label">90% buy</span><span class="value">${compactISK(t.buy * 0.9)}</span></div>
+            <div><span class="label">${tx('Jita vânzare')}</span><span class="value">${compactISK(t.sell)}</span></div>
+            <div><span class="label">${tx('Jita cumpărare')}</span><span class="value">${compactISK(t.buy)}</span></div>
+            <div><span class="label">${tx('90% din cumpărare')}</span><span class="value">${compactISK(t.buy * 0.9)}</span></div>
           </div>
           <div class="row-actions"><button class="btn ghost sm" data-copy-total="${Math.round(basis === 'sell' ? t.sell : t.buy)}">${icon('copy')}${tx('Copiază total')}</button></div>
           <table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Cant.')}</th><th class="r">${tx('Unitar')}</th><th class="r">Sell</th><th class="r">Buy</th></tr></thead><tbody>
@@ -258,7 +258,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       const at = Math.min(snap.at, pricesAt(typeIds) || snap.at);
       const locName = (id: number) => names.get(id) ?? (id === ASSET_SAFETY ? 'Asset Safety' : id > 1e12 ? tx('Structură {id}', { id }) : tx('Locație {id}', { id }));
       body.innerHTML = `${panel({
-          title: tx('Valoare assets'),
+          title: tx('Valoare bunuri'),
           actions: dataStamp(at, 'data-assets-refresh', { label: tx('Date din {time}'), title: tx('Asset-urile și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }) + basisChips(),
           body: `<div class="history-kpis">
               <div><span class="label">Total</span><span class="value">${compactISK(total)}</span></div>
@@ -301,7 +301,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       corpNames = known.corpNames;
     }
     body.innerHTML = `${panel({
-        title: 'LP Store',
+        title: tx('Magazin LP'),
         actions: basisChips(),
         body: `<div class="form-grid">
             ${mine.length ? `<label>${tx('LP-ul meu')} <select class="input sm" id="lpMine"><option value="">—</option>${mine.sort((a, b) => b.loyalty_points - a.loyalty_points).map((m) => `<option value="${m.corporation_id}" ${saved?.id === m.corporation_id ? 'selected' : ''}>${esc(corpNames.get(m.corporation_id) ?? String(m.corporation_id))} · ${formatInt(m.loyalty_points)} LP</option>`).join('')}</select></label>` : ''}
@@ -381,8 +381,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       count: list.length ? tx('{n} active', { n: list.length }) : '',
       actions: list.length ? `<button class="btn ghost sm" data-al-check>${icon('refresh')}${tx('Verifică acum')}</button>` : '',
       body: `<div class="form-grid">
-          <label>Item <input class="input sm" id="alName" placeholder="PLEX" /></label>
-          <label><select class="input sm" id="alSide2"><option value="sell">sell min</option><option value="buy">buy max</option></select></label>
+          <label>${tx('Item')} <input class="input sm" id="alName" placeholder="PLEX" /></label>
+          <label><select class="input sm" id="alSide2"><option value="sell">${tx('vânzare min')}</option><option value="buy">${tx('cumpărare max')}</option></select></label>
           <label><select class="input sm" id="alOp2"><option value="below">≤</option><option value="above">≥</option></select></label>
           <label><input class="input sm num" id="alPrice2" type="number" min="0" step="any" placeholder="ISK" /></label>
           <button class="btn sm" data-al-add>${icon('plus')}${tx('Adaugă')}</button>

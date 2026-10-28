@@ -360,7 +360,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         ${own ? `<div title="${esc(tx('Piloți din listă care sunt caractere logate în aplicație. Nu intră în calculul de risc.'))}"><span class="label">${tx('Caracterele tale')}</span><span class="value accent-text">${formatInt(own)}</span></div>` : ''}
         <div><span class="label">${tx('Grupări')}</span><span class="value">${formatInt(groups.size)}</span></div>
         <div><span class="label">${tx('Activi / periculoși')}</span><span class="value ${dangerous ? 'neg-text' : ''}">${formatInt(dangerous)}</span></div>
-        <div title="${esc(tx('Suma DPS-ului estimat pentru nava cea mai folosită de fiecare pilot cu kill-uri. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
+        <div title="${esc(tx('Suma DPS-ului estimat pentru nava cea mai folosită de fiecare pilot cu kill-uri. Estimare din punctele de montaj și lățimea de bandă pentru drone, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
         ${pending ? `<div><span class="label">zKillboard</span><span class="value dim">${tx('încă {n}', { n: pending })}</span></div>` : ''}
       </div>
       ${failed ? alertBox(tx('zKillboard nu a răspuns pentru {n} piloți (site căzut sau prea multe cereri). Nu știm nimic despre ei, nu-i considera inofensivi. Apasă din nou Analizează peste un minut.', { n: failed }), 'danger') : ''}
@@ -395,7 +395,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
           body: `<ul class="idea-list recon-groups">${[...groups.values()].sort((a, b) => b.n - a.n).map((g) => `<li>${logo(g)}<span class="idea-name">${esc(cachedName(g.id) || '—')}<small class="dim">${g.corp ? tx('corporație') : tx('alianță')}</small></span><span class="idea-val num">${g.n}${g.danger ? ` <small class="neg-text">${tx('{n} activi', { n: g.danger })}</small>` : ''}</span></li>`).join('')}</ul>`,
         })}
       </div>
-      <p class="dim small">${tx('Danger = procentul de nave de luptă din kill-urile pilotului (zKillboard). DPS-ul e o estimare din hardpoint-uri, mărimea navei și drone bandwidth, nu din fit-ul real.')}</p>`;
+      <p class="dim small">${tx('Pericol = procentul de nave de luptă din kill-urile pilotului (zKillboard). DPS-ul e o estimare din punctele de montaj, mărimea navei și lățimea de bandă pentru drone, nu din fit-ul real.')}</p>`;
   }
 
   function renderDscan(rows: DscanRow[]) {
@@ -435,7 +435,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div><span class="label">${tx('Nave')}</span><span class="value">${formatInt(shipCount)}</span></div>
         <div><span class="label">${tx('Tipuri de nave')}</span><span class="value">${formatInt(ships.length)}</span></div>
         <div><span class="label">${tx('Pe grid')}</span><span class="value">${formatInt(ships.reduce((n, x) => n + x.grid, 0))}</span></div>
-        <div title="${esc(tx('Suma DPS-ului estimat pentru navele văzute. Estimare din hardpoint-uri și drone bandwidth, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
+        <div title="${esc(tx('Suma DPS-ului estimat pentru navele văzute. Estimare din punctele de montaj și lățimea de bandă pentru drone, nu fit-ul real.'))}"><span class="label">${tx('DPS estimat')}</span><span class="value">~${formatInt(dps)}</span></div>
         <div><span class="label">${tx('Alte obiecte')}</span><span class="value">${formatInt(other.reduce((n, x) => n + x.n, 0))}</span></div>
       </div>
       ${bubbleAlerts}
@@ -453,7 +453,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
           ${panel({ title: tx('Alte obiecte'), body: `<ul class="idea-list">${[...otherGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([g, n]) => `<li><span class="idea-name">${esc(g)}</span><span class="idea-val num">${n}</span></li>`).join('') || `<li class="dim">—</li>`}</ul>` })}
         </div>
       </div>
-      <p class="dim small">${tx('Pe grid = sub 10.000 km. DPS-ul e o estimare din hardpoint-uri, mărimea navei și drone bandwidth, nu din fit-ul real; carrierele și fighterii nu sunt incluși.')}</p>`;
+      <p class="dim small">${tx('Pe grid = sub 10.000 km. DPS-ul e o estimare din punctele de montaj, mărimea navei și lățimea de bandă pentru drone, nu din fit-ul real; carrierele și fighterii nu sunt incluși.')}</p>`;
   }
 
   localEl.addEventListener('click', (e) => {

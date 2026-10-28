@@ -1,3 +1,4 @@
+import { tx } from '../i18n';
 import { findProfile, type DamageProfile } from './profiles';
 import { simulateCapacitor, type CapResult } from './capacitor';
 import { defense, type Damage, type DamageType, type FitStats } from './stats';
@@ -15,11 +16,11 @@ export const NPC_KINDS: NpcKind[] = ['mission', 'anomaly', 'ded', 'abyss', 'worm
 const site = (kind: NpcKind, id: string, name: string, dps: number, neut: number): NpcSite => ({ id: `${kind}/${id}`, kind, name, dps, neut });
 
 export const NPC_SITES: NpcSite[] = [
-  site('mission', 'l1', 'Level 1', 40, 0),
-  site('mission', 'l2', 'Level 2', 100, 3),
-  site('mission', 'l3', 'Level 3', 250, 8),
-  site('mission', 'l4', 'Level 4', 550, 18),
-  site('mission', 'l4h', 'Level 4+', 900, 30),
+  site('mission', 'l1', tx('Nivel {v}', { v: 1 }), 40, 0),
+  site('mission', 'l2', tx('Nivel {v}', { v: 2 }), 100, 3),
+  site('mission', 'l3', tx('Nivel {v}', { v: 3 }), 250, 8),
+  site('mission', 'l4', tx('Nivel {v}', { v: 4 }), 550, 18),
+  site('mission', 'l4h', tx('Nivel {v}', { v: '4+' }), 900, 30),
   site('anomaly', 'hub', 'Hub', 250, 6),
   site('anomaly', 'fhub', 'Forsaken Hub', 350, 10),
   site('anomaly', 'sanctum', 'Sanctum', 450, 15),
@@ -29,13 +30,13 @@ export const NPC_SITES: NpcSite[] = [
   site('ded', '6', 'DED 6/10', 450, 15),
   site('ded', '8', 'DED 8/10', 700, 25),
   site('ded', '10', 'DED 10/10', 1000, 40),
-  site('abyss', 't0', 'T0 Tranquil', 80, 5),
-  site('abyss', 't1', 'T1 Calm', 120, 10),
-  site('abyss', 't2', 'T2 Agitated', 180, 15),
-  site('abyss', 't3', 'T3 Fierce', 260, 25),
-  site('abyss', 't4', 'T4 Raging', 380, 35),
-  site('abyss', 't5', 'T5 Chaotic', 520, 50),
-  site('abyss', 't6', 'T6 Cataclysmic', 700, 70),
+  site('abyss', 't0', tx('T0 Liniștit'), 80, 5),
+  site('abyss', 't1', tx('T1 Calm'), 120, 10),
+  site('abyss', 't2', tx('T2 Agitat'), 180, 15),
+  site('abyss', 't3', tx('T3 Feroce'), 260, 25),
+  site('abyss', 't4', tx('T4 Furios'), 380, 35),
+  site('abyss', 't5', tx('T5 Haotic'), 520, 50),
+  site('abyss', 't6', tx('T6 Cataclismic'), 700, 70),
   site('wormhole', 'c1', 'C1', 150, 10),
   site('wormhole', 'c2', 'C2', 250, 15),
   site('wormhole', 'c3', 'C3', 400, 25),

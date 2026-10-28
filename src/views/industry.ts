@@ -51,7 +51,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
   const settings: Settings = { facility: 'npc', rig: 'none', system: 'Jita', tax: 0.25, basis: 'sell', ...loadJson<Partial<Settings>>(SETTINGS_KEY, {}) };
   const calc: CalcForm = { product: '', me: 10, te: 20, runs: 1, source: 'invention', decryptor: 0, ...loadJson<Partial<CalcForm>>(CALC_KEY, {}) };
 
-  el.innerHTML = `${pageHead(tx('Industrie'), tx('Cost de manufacturing și invention comparat cu prețul de vânzare din Jita'), 'Matterweave')}
+  el.innerHTML = `${pageHead(tx('Industrie'), tx('Cost de fabricație și invenție comparat cu prețul de vânzare din Jita'), 'Matterweave')}
     <div id="indSettings"></div>
     <div id="indCalc"></div>
     <div id="indMine"></div>
@@ -110,7 +110,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     settingsEl.innerHTML = panel({
       title: tx('Locul de producție'),
       body: `<form class="form-grid ind-settings" id="indSettingsForm">
-        <label>${tx('Structură')}<select class="input" name="facility">${FACILITIES.map((p) => `<option value="${p.id}" ${p.id === settings.facility ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label>${tx('Structură')}<select class="input" name="facility">${FACILITIES.map((p) => `<option value="${p.id}" ${p.id === settings.facility ? 'selected' : ''}>${esc(p.id === 'npc' ? tx('Stație NPC') : p.name)}</option>`).join('')}</select></label>
         <label>${tx('Rig')}<select class="input" name="rig">
           <option value="none" ${settings.rig === 'none' ? 'selected' : ''}>${tx('Fără rig')}</option>
           <option value="t1" ${settings.rig === 't1' ? 'selected' : ''}>T1</option>
@@ -120,11 +120,11 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
         <label>${tx('Taxă facilitate %')}<input class="input ind-num" name="tax" type="number" min="0" max="50" step="0.01" value="${settings.tax}" /></label>
         <div class="advice-sort ind-basis">
           <span class="dim small">${tx('Materiale la')}</span>
-          <button type="button" class="chip-btn ${settings.basis === 'sell' ? 'active' : ''}" data-basis="sell">Jita sell</button>
-          <button type="button" class="chip-btn ${settings.basis === 'buy' ? 'active' : ''}" data-basis="buy">Jita buy</button>
+          <button type="button" class="chip-btn ${settings.basis === 'sell' ? 'active' : ''}" data-basis="sell">${tx('Jita vânzare')}</button>
+          <button type="button" class="chip-btn ${settings.basis === 'buy' ? 'active' : ''}" data-basis="buy">${tx('Jita cumpărare')}</button>
         </div>
       </form>
-      <p class="dim small" id="indFacilityNote">${sys ? `${esc(sys.name)} <span class="num ${secClass(sys.sec)}">${formatNum(displaySec(sys.sec), 1)}</span> · ` : ''}${tx('Taxele de vânzare vin din skill-urile caracterului activ: sales tax {t}%, broker fee {b}%.', { t: formatNum(fees().salesTax, 2), b: formatNum(fees().brokerFee, 2) })}</p>`,
+      <p class="dim small" id="indFacilityNote">${sys ? `${esc(sys.name)} <span class="num ${secClass(sys.sec)}">${formatNum(displaySec(sys.sec), 1)}</span> · ` : ''}${tx('Taxele de vânzare vin din skill-urile caracterului activ: taxă de vânzare {t}%, comision broker {b}%.', { t: formatNum(fees().salesTax, 2), b: formatNum(fees().brokerFee, 2) })}</p>`,
     });
   }
 
@@ -206,7 +206,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function costBreakdown(r: BuildResult): Breakdown {
     const parts = [{ label: tx('cost job / unitate'), delta: r.jobCost / r.units }];
-    if (r.invention) parts.push({ label: tx('invention / unitate'), delta: r.invention.perUnit });
+    if (r.invention) parts.push({ label: tx('invenție / unitate'), delta: r.invention.perUnit });
     return { base: r.matCost / r.units, parts, value: r.costUnit };
   }
 
@@ -277,12 +277,12 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     tips.set('cost', breakdownHtml(costBreakdown(r), money, tx('materiale / unitate')));
     tips.set('time', breakdownHtml(timeBreakdown(r), duration, tx('timp de bază')));
     tips.set('job', jobTip(r, f));
-    tips.set('profit', breakdownHtml({ base: r.netSellUnit, parts: [{ label: tx('cost / unitate'), delta: -r.costUnit }], value: r.profitUnit }, money, tx('Jita sell după taxe')));
+    tips.set('profit', breakdownHtml({ base: r.netSellUnit, parts: [{ label: tx('cost / unitate'), delta: -r.costUnit }], value: r.profitUnit }, money, tx('Vânzare Jita după taxe')));
     const p = prices.get(r.bp.productId);
     const warn = [
       note,
       systemOk ? '' : tx('Nu găsesc sistemul „{name}”; cost index-ul e 0.', { name: settings.system }),
-      p?.sellMin ? '' : tx('Produsul nu are sell orders în Jita.'),
+      p?.sellMin ? '' : tx('Produsul nu are ordine de vânzare în Jita.'),
       r.mats.some((m) => !m.unit) ? tx('Unele materiale nu au preț în Jita și sunt socotite 0.') : '',
     ].filter(Boolean);
     const total = r.matCost + r.jobCost + (r.invention ? r.invention.perUnit * r.units : 0);
@@ -294,7 +294,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
           <div class="dim small">${esc(d.name(r.bp.id))} · ${r.invention ? `ME ${r.invention.me} · TE ${r.invention.te} (invention)` : r.bp.reaction ? '' : `ME ${calc.me} · TE ${calc.te}`}</div></div></div>
         <div class="history-kpis ind-kpis">
           <div data-bd="cost"><span class="label">${tx('Cost / unitate')}</span><span class="value">${isk(r.costUnit)}</span></div>
-          <div><span class="label">Jita sell</span><span class="value">${r.sellUnit ? isk(r.sellUnit) : '—'}</span></div>
+          <div><span class="label">${tx('Jita vânzare')}</span><span class="value">${r.sellUnit ? isk(r.sellUnit) : '—'}</span></div>
           <div data-bd="profit"><span class="label">${tx('Profit / unitate')}</span><span class="value">${r.sellUnit ? signed(r.profitUnit) : '—'}</span></div>
           <div><span class="label">${tx('Marjă')}</span><span class="value">${r.sellUnit ? pct(r.margin) : '—'}</span></div>
           <div><span class="label">${tx('ISK / oră')}</span><span class="value">${r.sellUnit ? signed(r.iskHour) : '—'}</span></div>
@@ -307,10 +307,10 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
         <table class="table compact ind-sum"><tbody>
           <tr><td>${tx('Materiale')}</td><td class="r num">${formatISK(r.matCost, 0)}</td></tr>
           <tr data-bd="job"><td>${tx('Cost job')}</td><td class="r num">${formatISK(r.jobCost, 0)}</td></tr>
-          ${r.invention ? `<tr><td>${tx('Invention ({n} unități)', { n: formatInt(r.units) })}</td><td class="r num">${formatISK(r.invention.perUnit * r.units, 0)}</td></tr>` : ''}
+          ${r.invention ? `<tr><td>${tx('Invenție ({n} unități)', { n: formatInt(r.units) })}</td><td class="r num">${formatISK(r.invention.perUnit * r.units, 0)}</td></tr>` : ''}
           <tr class="ind-total"><td>${tx('Cost total')}</td><td class="r num">${formatISK(total, 0)}</td></tr>
-          <tr><td>${tx('Vânzare cu sell order (după broker și tax)')}</td><td class="r num">${formatISK(r.netSellUnit * r.units, 0)}</td></tr>
-          <tr><td>${tx('Vânzare instant în buy orders (după tax)')}</td><td class="r num">${formatISK(r.netBuyUnit * r.units, 0)} · ${r.buyUnit ? signed(r.profitInstantUnit * r.units) : '—'}</td></tr>
+          <tr><td>${tx('Vânzare cu ordin de vânzare (după broker și taxă)')}</td><td class="r num">${formatISK(r.netSellUnit * r.units, 0)}</td></tr>
+          <tr><td>${tx('Vânzare instant în ordinele de cumpărare (după taxă)')}</td><td class="r num">${formatISK(r.netBuyUnit * r.units, 0)} · ${r.buyUnit ? signed(r.profitInstantUnit * r.units) : '—'}</td></tr>
         </tbody></table>
         <p class="dim small">${tx('Treci cu mouse-ul peste cost, profit, timp și cost job pentru detalii. Timpul folosește skill-urile caracterului activ ({name}).', { name: esc(ctx.character.name) })}</p>`,
     })}`;
@@ -321,24 +321,24 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const rows = [null, ...d.decryptors].map((dec) => ({ dec, r: dec?.id === iv.decryptor?.id || (!dec && !iv.decryptor) ? r : variant(dec) }));
     const best = rows.reduce((a, b) => (b.r.iskHour > a.r.iskHour ? b : a), rows[0]);
     return panel({
-      title: 'Invention',
+      title: tx('Invenție'),
       body: `<div class="history-kpis ind-kpis">
           <div><span class="label">${tx('Șansă')}</span><span class="value accent">${formatNum(iv.chance * 100, 1)}%</span></div>
           <div><span class="label">${tx('Runs / BPC')}</span><span class="value">${formatInt(iv.runs)}</span></div>
           <div><span class="label">ME / TE</span><span class="value">${iv.me} / ${iv.te}</span></div>
           <div><span class="label">${tx('Cost / încercare')}</span><span class="value">${isk(iv.attempt)}</span></div>
-          <div><span class="label">${tx('Invention / unitate')}</span><span class="value">${isk(iv.perUnit)}</span></div>
+          <div><span class="label">${tx('Invenție / unitate')}</span><span class="value">${isk(iv.perUnit)}</span></div>
         </div>
-        <p class="dim small">${tx('Din {name}. Skill-uri: {skills}. Job cost = {p}% din EIV-ul produsului × cost index invention.', { name: esc(d.name(iv.inv.sourceId)), skills: iv.skillLevels.map((s) => `${esc(skillName(s.id))} ${s.level}`).join(', '), p: formatNum(INVENTION_EIV_SHARE * 100, 0) })}</p>
+        <p class="dim small">${tx('Din {name}. Skill-uri: {skills}. Cost job = {p}% din EIV-ul produsului × indicele de cost pentru invenție.', { name: esc(d.name(iv.inv.sourceId)), skills: iv.skillLevels.map((s) => `${esc(skillName(s.id))} ${s.level}`).join(', '), p: formatNum(INVENTION_EIV_SHARE * 100, 0) })}</p>
         <div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>${tx('Material')}</th><th class="r">${tx('Cantitate')}</th><th class="r">${tx('Preț unitar')}</th><th class="r">Total</th></tr></thead><tbody>
           ${iv.mats.map((m) => `<tr><td><img class="row-icon" src="${typeIconUrl(m.id, 32)}" alt="" />${esc(d.name(m.id))}</td><td class="r num">${formatInt(m.qty)}</td><td class="r num">${m.unit ? formatISK(m.unit) : '—'}</td><td class="r num">${compactISK(m.total)}</td></tr>`).join('')}
-          <tr><td>${tx('Cost job invention')}</td><td></td><td></td><td class="r num">${compactISK(iv.jobCost)}</td></tr>
+          <tr><td>${tx('Cost job invenție')}</td><td></td><td></td><td class="r num">${compactISK(iv.jobCost)}</td></tr>
         </tbody></table></div>
         <div class="section-title">${tx('Comparație decryptori')}</div>
         <div class="table-scroll"><table class="table compact ind-table ind-dec"><thead><tr><th>${tx('Decryptor')}</th><th class="r">${tx('Șansă')}</th><th class="r">Runs</th><th class="r">ME / TE</th><th class="r">${tx('Cost / unitate')}</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
           ${rows.map(({ dec, r: x }) => `<tr class="clickable ${x === r ? 'active' : ''} ${x === best.r ? 'best' : ''}" data-dec="${dec?.id ?? 0}"><td>${dec ? `<img class="row-icon" src="${typeIconUrl(dec.id, 32)}" alt="" />${esc(d.name(dec.id))}` : tx('Fără decryptor')}</td><td class="r num">${formatNum(x.invention!.chance * 100, 1)}%</td><td class="r num">${x.invention!.runs}</td><td class="r num">${x.invention!.me} / ${x.invention!.te}</td><td class="r num">${compactISK(x.costUnit)}</td><td class="r">${x.sellUnit ? signed(x.profitUnit) : '—'}</td><td class="r">${x.sellUnit ? signed(x.iskHour) : '—'}</td></tr>`).join('')}
         </tbody></table></div>
-        <p class="dim small">${tx('ISK / oră ține cont doar de timpul de manufacturing. Click pe un rând ca să folosești acel decryptor.')}</p>`,
+        <p class="dim small">${tx('ISK / oră ține cont doar de timpul de fabricație. Click pe un rând ca să folosești acel decryptor.')}</p>`,
     });
   }
 
@@ -401,7 +401,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       const list = [...groups.values()].filter((g) => d.blueprints.has(g.o.type_id));
       const inventTargets = [...new Set(list.flatMap((g) => d.inventable.get(g.o.type_id) ?? []))].filter((id) => d.blueprints.has(id));
       if (!list.length && !inventTargets.length) {
-        pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun blueprint'), text: tx('Caracterul nu are blueprint-uri de manufacturing sau reaction (sau ESI încă nu le-a actualizat).') }) });
+        pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun blueprint'), text: tx('Caracterul nu are blueprint-uri de fabricație sau de reacții (sau ESI încă nu le-a actualizat).') }) });
         return;
       }
       const bps = [...list.map((g) => d.blueprints.get(g.o.type_id)!), ...inventTargets.map((id) => d.blueprints.get(id)!)];
@@ -421,20 +421,20 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       }).sort((a, b) => b.iskHour - a.iskHour);
       const bpos = list.filter((g) => g.o.runs < 0).reduce((a, g) => a + g.n, 0);
       pane.innerHTML = `${panel({
-        title: tx('Manufacturing din blueprint-urile tale'),
+        title: tx('Fabricație din blueprint-urile tale'),
         count: `${formatInt(bpos)} BPO · ${formatInt(owned.length - bpos)} BPC`,
-        body: rows.length ? `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>Blueprint</th><th>${tx('Tip')}</th><th class="r">ME / TE</th><th class="r">${tx('Cost / unitate')}</th><th class="r">Jita sell</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
-            ${rows.map(({ g, bpc, r }) => `<tr class="clickable" data-own="${g.o.type_id}" data-me="${g.o.material_efficiency}" data-te="${g.o.time_efficiency}" data-runs="${r.runs}"><td><img class="row-icon" src="${typeIconUrl(r.bp.productId, 32)}" alt="" />${esc(d.name(r.bp.productId))}${g.n > 1 ? ` <span class="dim">×${g.n}</span>` : ''}</td><td>${bpc ? `BPC · ${formatInt(g.runs)} runs` : 'BPO'}</td><td class="r num">${r.bp.reaction ? '—' : `${g.o.material_efficiency} / ${g.o.time_efficiency}`}</td><td class="r num">${compactISK(r.costUnit)}</td><td class="r num">${r.sellUnit ? compactISK(r.sellUnit) : '—'}</td><td class="r">${r.sellUnit ? signed(r.profitUnit) : '—'}</td><td class="r">${r.sellUnit ? pct(r.margin) : '—'}</td><td class="r">${r.sellUnit ? signed(r.iskHour) : '—'}</td></tr>`).join('')}
+        body: rows.length ? `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>Blueprint</th><th>${tx('Tip')}</th><th class="r">ME / TE</th><th class="r">${tx('Cost / unitate')}</th><th class="r">${tx('Jita vânzare')}</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
+            ${rows.map(({ g, bpc, r }) => `<tr class="clickable" data-own="${g.o.type_id}" data-me="${g.o.material_efficiency}" data-te="${g.o.time_efficiency}" data-runs="${r.runs}"><td><img class="row-icon" src="${typeIconUrl(r.bp.productId, 32)}" alt="" />${esc(d.name(r.bp.productId))}${g.n > 1 ? ` <span class="dim">×${g.n}</span>` : ''}</td><td>${bpc ? `BPC · ${tx('{n} run-uri', { n: formatInt(g.runs) })}` : 'BPO'}</td><td class="r num">${r.bp.reaction ? '—' : `${g.o.material_efficiency} / ${g.o.time_efficiency}`}</td><td class="r num">${compactISK(r.costUnit)}</td><td class="r num">${r.sellUnit ? compactISK(r.sellUnit) : '—'}</td><td class="r">${r.sellUnit ? signed(r.profitUnit) : '—'}</td><td class="r">${r.sellUnit ? pct(r.margin) : '—'}</td><td class="r">${r.sellUnit ? signed(r.iskHour) : '—'}</td></tr>`).join('')}
           </tbody></table></div>
-          <p class="dim small">${tx('BPO calculat pe {n} runs, BPC pe toate run-urile rămase. Click pe un rând ca să-l deschizi în calculator.', { n: 10 })}</p>` : emptyState({ title: tx('Niciun blueprint de manufacturing') }),
+          <p class="dim small">${tx('BPO calculat pe {n} run-uri, BPC pe toate run-urile rămase. Click pe un rând ca să-l deschizi în calculator.', { n: 10 })}</p>` : emptyState({ title: tx('Niciun blueprint de fabricație') }),
       })}
       ${invRows.length ? panel({
-        title: tx('Invention din blueprint-urile tale'),
+        title: tx('Invenție din blueprint-urile tale'),
         count: invRows.length,
-        body: `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>${tx('Produs T2 / T3')}</th><th>${tx('Din')}</th><th class="r">${tx('Șansă')}</th><th class="r">${tx('Cost / unitate')}</th><th class="r">Jita sell</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
+        body: `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>${tx('Produs T2 / T3')}</th><th>${tx('Din')}</th><th class="r">${tx('Șansă')}</th><th class="r">${tx('Cost / unitate')}</th><th class="r">${tx('Jita vânzare')}</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
             ${invRows.map((r) => `<tr class="clickable" data-inv="${esc(d.name(r.bp.productId))}"><td><img class="row-icon" src="${typeIconUrl(r.bp.productId, 32)}" alt="" />${esc(d.name(r.bp.productId))}</td><td class="dim">${esc(d.name(r.invention!.inv.sourceId))}</td><td class="r num">${formatNum(r.invention!.chance * 100, 1)}%</td><td class="r num">${compactISK(r.costUnit)}</td><td class="r num">${r.sellUnit ? compactISK(r.sellUnit) : '—'}</td><td class="r">${r.sellUnit ? signed(r.profitUnit) : '—'}</td><td class="r">${r.sellUnit ? pct(r.margin) : '—'}</td><td class="r">${r.sellUnit ? signed(r.iskHour) : '—'}</td></tr>`).join('')}
           </tbody></table></div>
-          <p class="dim small">${tx('Fără decryptor, cu skill-urile caracterului activ. Costul include datacores, job-ul de invention împărțit la șansă și manufacturing-ul cu ME 2 / TE 4.')}</p>`,
+          <p class="dim small">${tx('Fără decryptor, cu skill-urile caracterului activ. Costul include datacores, job-ul de invenție împărțit la șansă și fabricația cu ME 2 / TE 4.')}</p>`,
       }) : ''}`;
     } catch (err) {
       if (seq === mineSeq) failed(pane, err);
@@ -467,7 +467,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       pane.innerHTML = panel({
         title: tx('Joburi active'),
         count: list.length,
-        body: list.length ? `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>${tx('Activitate')}</th><th>Blueprint</th><th>${tx('Produs')}</th><th class="r">Runs</th><th>Status</th><th class="r">${tx('Gata în')}</th><th class="r">${tx('Cost')}</th></tr></thead><tbody>
+        body: list.length ? `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>${tx('Activitate')}</th><th>Blueprint</th><th>${tx('Produs')}</th><th class="r">${tx('Run-uri')}</th><th>${tx('Stare')}</th><th class="r">${tx('Gata în')}</th><th class="r">${tx('Cost')}</th></tr></thead><tbody>
             ${list.map((j) => jobRow(j)).join('')}
           </tbody></table></div>` : emptyState({ title: tx('Niciun job activ'), text: tx('Joburile pornite în joc apar aici după câteva minute (ESI le actualizează periodic).') }),
       });

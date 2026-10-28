@@ -14,7 +14,7 @@ import type { FitEnv } from './shared';
 const KINDS: { key: AdviceKind; label: string }[] = [
   { key: 'dps', label: 'DPS' },
   { key: 'tank', label: 'Tank' },
-  { key: 'general', label: 'General' },
+  { key: 'general', label: tx('General') },
 ];
 
 export function createImprovementPanel(env: FitEnv) {
@@ -40,29 +40,29 @@ export function createImprovementPanel(env: FitEnv) {
         <td class="advice-gain">${a.changes[kind].map((c) => `<span><b class="num">${esc(c.text)}</b> ${esc(c.label)}</span>`).join('')}</td>
         <td class="r num">${formatInt(a.sp)} SP</td>
         <td class="r num">${formatDuration(a.seconds)}</td>
-        <td><button class="icon-btn" data-improve-plan="${a.skillId}:${a.to}" title="${tx('Adaugă în skill plan')}">+</button></td>
+        <td><button class="icon-btn" data-improve-plan="${a.skillId}:${a.to}" title="${tx('Adaugă în planul de skill-uri')}">+</button></td>
       </tr>`).join('');
     return `<div class="advice-sort">
         <button class="chip-btn ${perDay ? '' : 'active'}" data-improve-sort="gain">${tx('Câștig cel mai mare')}</button>
         <button class="chip-btn ${perDay ? 'active' : ''}" data-improve-sort="day">${tx('Câștig pe zi de antrenament')}</button>
       </div>
-      ${rows ? `<table class="table compact advice"><thead><tr><th>Skill</th><th>${tx('Câștig la nivelul următor')}</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+      ${rows ? `<table class="table compact advice"><thead><tr><th>${tx('Skill')}</th><th>${tx('Câștig la nivelul următor')}</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
         : `<p class="dim">${kind === 'dps' ? tx('Niciun skill nu mai îmbunătățește DPS-ul pe fit-ul ăsta.') : kind === 'tank' ? tx('Niciun skill nu mai îmbunătățește tank-ul pe fit-ul ăsta.') : tx('Niciun skill nu mai îmbunătățește nimic aici pe fit-ul ăsta.')}</p>`}`;
   }
 
   function masteryHtml(level: number): string {
     const plan = mastery?.[level - 1];
     if (!plan) return '';
-    if (plan.canFly) return `<div class="req-summary">${badge(tx('Mastery {lvl} completă', { lvl: roman(level) }), 'ok', true)}</div>`;
+    if (plan.canFly) return `<div class="req-summary">${badge(tx('Mastery {lvl} complet', { lvl: roman(level) }), 'ok', true)}</div>`;
     const rows = plan.missing.map((s) => `<tr class="${s.status}">
         <td><button class="link" data-info="${s.skillId}">${esc(s.name)}</button> <span class="dim small">${s.current ? roman(s.current) : '0'} → ${roman(s.required)}</span></td>
         <td class="r num">${formatInt(s.sp)} SP</td>
         <td class="r num">${formatDuration(s.seconds)}</td>
-        <td><button class="icon-btn" data-improve-plan="${s.skillId}:${s.required}" title="${tx('Adaugă în skill plan')}">+</button></td>
+        <td><button class="icon-btn" data-improve-plan="${s.skillId}:${s.required}" title="${tx('Adaugă în planul de skill-uri')}">+</button></td>
       </tr>`).join('');
     return `<div class="req-summary">${badgeHtml(tx('Mastery {lvl}: lipsesc <span class="unit">{n}</span> skill-uri · {time}', { lvl: roman(level), n: plan.missing.length, time: durationHtml(plan.totalSeconds) }), 'accent', true)}</div>
-      <table class="table compact advice"><thead><tr><th>Skill</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="row-actions"><button class="btn ghost sm" data-improve-copy>${icon('copy')}${tx('Copiază planul')}</button><button class="btn ghost sm" data-improve-mastery>${icon('skills')}${tx('Adaugă în skill plan')}</button></div>`;
+      <table class="table compact advice"><thead><tr><th>${tx('Skill')}</th><th class="r">SP</th><th class="r">${tx('Timp')}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="row-actions"><button class="btn ghost sm" data-improve-copy>${icon('copy')}${tx('Copiază planul')}</button><button class="btn ghost sm" data-improve-mastery>${icon('skills')}${tx('Adaugă în planul de skill-uri')}</button></div>`;
   }
 
   function bodyHtml(): string {
@@ -80,7 +80,7 @@ export function createImprovementPanel(env: FitEnv) {
   function render(f: Fit): string {
     if (keyOf(f) !== adviceKey) advice = null;
     if (masteryKeyOf(f) !== masteryKey) mastery = null;
-    return panel({ title: tx('Improvement skills'), count: ctx.character.name, id: 'fitImprove', cls: 'fit-improve', body: bodyHtml() });
+    return panel({ title: tx('Skill-uri de îmbunătățire'), count: ctx.character.name, id: 'fitImprove', cls: 'fit-improve', body: bodyHtml() });
   }
 
   function refresh(f: Fit) {
@@ -126,13 +126,13 @@ export function createImprovementPanel(env: FitEnv) {
     if (pl) {
       const [id, lvl] = pl.dataset.improvePlan!.split(':').map(Number);
       savePlan(c.id, addToPlan(sde, loadPlan(c.id), c, id, lvl));
-      toast(tx('{name} {lvl} în skill plan', { name: name(id), lvl: roman(lvl) }));
+      toast(tx('{name} {lvl} în planul de skill-uri', { name: name(id), lvl: roman(lvl) }));
       return true;
     }
     const steps = typeof tab === 'number' ? mastery?.[tab - 1]?.missing ?? [] : [];
     if (at('[data-improve-mastery]') && typeof tab === 'number') {
       savePlan(c.id, steps.reduce((p, st) => addToPlan(sde, p, c, st.skillId, st.required), loadPlan(c.id)));
-      toast(tx('Mastery {lvl} pentru {ship} adăugat în skill plan', { lvl: roman(tab), ship: name(env.getFit()?.shipId ?? 0) }));
+      toast(tx('Mastery {lvl} pentru {ship} adăugat în planul de skill-uri', { lvl: roman(tab), ship: name(env.getFit()?.shipId ?? 0) }));
       return true;
     }
     if (at('[data-improve-copy]')) {

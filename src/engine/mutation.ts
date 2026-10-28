@@ -1,3 +1,4 @@
+import { attrLabel } from '../i18n/attributes';
 import type { Mutaplasmid, Sde } from '../data/sde';
 import type { FitModule } from './fit';
 
@@ -21,7 +22,7 @@ export function mutationRows(sde: Sde, m: FitModule): MutationRow[] {
     const [min, max] = [base * lo, base * hi].sort((x, y) => x - y);
     return [{
       attrId,
-      name: a?.displayName || a?.name || String(attrId),
+      name: a?.displayName ? attrLabel(a.displayName) : a?.name || String(attrId),
       base,
       min,
       max,

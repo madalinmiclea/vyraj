@@ -1,7 +1,7 @@
 import { Category } from '../data/sde';
 import { buildDogma, cloneFit, fitContents, type SlotKind } from '../engine/fit';
 import { computeStats } from '../engine/stats';
-import { findProfile } from '../engine/profiles';
+import { findProfile, profileText } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { formatDuration } from '../character/training';
 import { listFittings, saveFitting, listAssets, currentShip, assetNames, universeNames, dynamicItem } from '../character/esi';
@@ -100,17 +100,17 @@ export function createFitModals(env: FitEnv) {
     const best = (vals: number[], high = true) => (high ? Math.max(...vals) : Math.min(...vals));
     const metrics: { label: string; get: (x: (typeof rows)[number]) => number; fmt: (n: number) => string; high?: boolean }[] = [
       { label: 'DPS', get: (x) => x.s.offense.totalDps, fmt: (n) => formatNum(n, 0) },
-      { label: 'Volley', get: (x) => x.s.offense.totalVolley, fmt: (n) => formatNum(n, 0) },
+      { label: tx('Salvă'), get: (x) => x.s.offense.totalVolley, fmt: (n) => formatNum(n, 0) },
       { label: 'EHP', get: (x) => x.s.defense.ehp, fmt: (n) => formatInt(n) },
       { label: `${tx('Tank activ')} (EHP/s)`, get: (x) => x.s.defense.activeTank, fmt: (n) => formatNum(n, 1) },
-      { label: tx('Cap stabil la'), get: (x) => (x.s.capacitor.stable ? (x.s.capacitor.stableAt ?? 1) * 100 : 0), fmt: (n) => (n ? formatNum(n, 0) + '%' : tx('nu')) },
+      { label: tx('Capacitor stabil la'), get: (x) => (x.s.capacitor.stable ? (x.s.capacitor.stableAt ?? 1) * 100 : 0), fmt: (n) => (n ? formatNum(n, 0) + '%' : tx('nu')) },
       { label: tx('Viteză'), get: (x) => x.s.navigation.maxVelocity, fmt: (n) => formatNum(n, 0) + ' m/s' },
-      { label: 'Align', get: (x) => x.s.navigation.alignTime, fmt: (n) => formatNum(n, 2) + ' s', high: false },
+      { label: tx('Aliniere'), get: (x) => x.s.navigation.alignTime, fmt: (n) => formatNum(n, 2) + ' s', high: false },
       { label: tx('Rază țintire'), get: (x) => x.s.targeting.maxRange, fmt: (n) => formatNum(n / 1000, 1) + ' km' },
       { label: tx('Antrenament lipsă'), get: (x) => x.req.totalSeconds, fmt: (n) => formatDuration(n), high: false },
     ];
     openModal(tx('Compară fit-uri'), `
-      <p class="dim small">${tx('Caracter: {name} · profil {profile}. Cea mai bună valoare e evidențiată.', { name: esc(ctx.character.name), profile: esc(profile.name) })}</p>
+      <p class="dim small">${tx('Caracter: {name} · profil {profile}. Cea mai bună valoare e evidențiată.', { name: esc(ctx.character.name), profile: esc(profileText(profile.name)) })}</p>
       <div class="table-scroll"><table class="table compact compare">
         <thead><tr><th></th>${rows.map((x) => `<th>${esc(x.f.name)}<br><span class="dim small">${esc(name(x.f.shipId))}</span></th>`).join('')}</tr></thead>
         <tbody>${metrics.map((m) => {
@@ -126,7 +126,7 @@ export function createFitModals(env: FitEnv) {
     if (!current) return;
     const tier = (n: string) => (/^Glorified/.test(n) ? 3 : 0) + (/Decayed/.test(n) ? 0 : /Gravid/.test(n) ? 1 : /Unstable/.test(n) ? 2 : 3);
     const options = [...sde.mutaplasmidsFor(current.typeId)].sort((a, b) => tier(a.name) - tier(b.name) || a.name.localeCompare(b.name));
-    const modal = openModal('Mutaplasmid', '', { wide: true });
+    const modal = openModal(tx('Mutaplasmid'), '', { wide: true });
     const body = modal.querySelector<HTMLElement>('.panel-body')!;
     const module = () => env.getFit()?.slots[kind][i] ?? null;
     const pct = (v: number, base: number) => ((v - base) / Math.abs(base)) * 100;
@@ -139,7 +139,7 @@ export function createFitModals(env: FitEnv) {
           <img src="${typeIconUrl(m.typeId, 64)}" alt="" />
           <div><b>${esc(moduleName(sde, m))}</b><div class="dim small">${esc(name(m.typeId))}</div></div>
         </div>
-        <label class="select-field mut-select"><span>Mutaplasmid</span>
+        <label class="select-field mut-select"><span>${tx('Mutaplasmid')}</span>
           <select class="input plain" data-mut-pick>
             <option value="">— ${tx('fără mutație')} —</option>
             ${options.map((o) => `<option value="${o.id}" ${m.mutation?.mutaplasmidId === o.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}

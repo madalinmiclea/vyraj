@@ -17,7 +17,7 @@ import { tx } from '../i18n';
 type Tab = 'jump' | 'pochven' | 'wormholes';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'jump', label: 'Jump Planner' },
+  { id: 'jump', label: tx('Planificator de salturi') },
   { id: 'pochven', label: 'Pochven' },
   { id: 'wormholes', label: 'Thera / Turnur' },
 ];
@@ -48,7 +48,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
   if (!TABS.some((t) => t.id === tab)) tab = 'jump';
   const saved = loadJson<PlanForm>(PLAN_KEY, { ship: 'type:28844', from: '', to: '', mode: 'jumps', avoid: '', fatigue: 0 });
 
-  el.innerHTML = `${pageHead(tx('Navigație'), tx('Jump planner pentru capitale, tracker Pochven și conexiuni Thera / Turnur'), 'Krai Passage')}
+  el.innerHTML = `${pageHead(tx('Navigație'), tx('Planificator de salturi pentru capitale, urmărire Pochven și conexiuni Thera / Turnur'), 'Krai Passage')}
     <div id="navJump"></div>
     <div id="navPochven"></div>
     <div id="navWormholes"></div>
@@ -161,7 +161,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
       const fuelName = allEveItems.find((i) => i.t === ship.fuelType)?.n ?? ISOTOPES[ship.fuelType] ?? `#${ship.fuelType}`;
       shipEl.innerHTML = `<div class="history-kpis nav-ship">
           <div><span class="label">${tx('Navă')}</span><span class="value nav-ship-name"><img class="row-icon" src="${typeIconUrl(fit.shipId, 32)}" alt="" />${esc(ctx.sde.types.get(fit.shipId)?.name ?? '')}</span></div>
-          <div data-bd="range"><span class="label">${tx('Rază jump')}</span><span class="value accent">${formatNum(ship.range, 2)} LY</span></div>
+          <div data-bd="range"><span class="label">${tx('Rază de salt')}</span><span class="value accent">${formatNum(ship.range, 2)} LY</span></div>
           <div data-bd="fuel"><span class="label">${tx('Consum / LY')}</span><span class="value">${formatNum(ship.fuelPerLy, 1)}</span></div>
           <div><span class="label">${tx('Combustibil')}</span><span class="value nav-ship-name"><img class="row-icon" src="${typeIconUrl(ship.fuelType, 32)}" alt="" />${esc(fuelName)}</span></div>
           <div><span class="label">${tx('Reducere oboseală')}</span><span class="value">${formatInt(Math.round((1 - ship.fatigueFactor) * 100))}%</span></div>
@@ -184,7 +184,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
       saveJson(PLAN_KEY, q);
       renderShip();
       if (!q.from || !q.to) return;
-      result.innerHTML = loader(tx('Calculez ruta de jump'));
+      result.innerHTML = loader(tx('Calculez ruta de salturi'));
       try {
         const m = map ?? (await mapReady);
         const pick = (name: string) => {
@@ -342,7 +342,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
             count: POCHVEN_FILAMENTS.length,
             actions: prices ? dataStamp(pricesAt(POCHVEN_FILAMENTS), 'data-pochven-prices') : '',
             body: `<div class="table-scroll"><table class="table compact"><thead><tr>
-                <th>${tx('Filament')}</th><th class="r">${tx('Piloți max')}</th><th class="r">Jita sell</th><th class="r">Jita buy</th><th>${tx('Unde te duce')}</th>
+                <th>${tx('Filament')}</th><th class="r">${tx('Piloți max')}</th><th class="r">${tx('Jita vânzare')}</th><th class="r">${tx('Jita cumpărare')}</th><th>${tx('Unde te duce')}</th>
               </tr></thead><tbody>
               ${POCHVEN_FILAMENTS.map((id) => {
                 const n = item(id);
