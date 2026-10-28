@@ -67,8 +67,8 @@ export function createImprovementPanel(env: FitEnv) {
 
   function bodyHtml(): string {
     if (typeof tab === 'number' && !mastery) tab = 'dps';
-    const kindTabs = KINDS.map((k) => `<button class="tab ${k.key === tab ? 'active' : ''}" data-improve-tab="${k.key}">${k.label}${advice ? ` <span class="tab-count neutral">${rankAdvice(advice, k.key, false).length}</span>` : ''}</button>`).join('');
-    const masteryTabs = (mastery ?? []).map((p, i) => `<button class="tab ${tab === i + 1 ? 'active' : ''}" data-improve-tab="${i + 1}">Mastery ${roman(i + 1)} <span class="tab-count ${p.canFly ? 'neutral' : ''}">${p.canFly ? '✓' : p.missing.length}</span></button>`).join('');
+    const kindTabs = KINDS.map((k) => `<button class="tab ${k.key === tab ? 'active' : ''}" data-improve-tab="${k.key}">${k.label}${advice ? `<span class="tab-count">${rankAdvice(advice, k.key, false).length}</span>` : ''}</button>`).join('');
+    const masteryTabs = mastery ? `<div class="improve-mastery"><span class="improve-mastery-label">Mastery</span><div class="improve-seg">${mastery.map((p, i) => `<button class="${tab === i + 1 ? 'active' : ''}" data-improve-tab="${i + 1}" aria-label="Mastery ${roman(i + 1)}">${roman(i + 1)}<small class="${p.canFly ? 'ok' : ''}">${p.canFly ? '✓' : p.missing.length}</small></button>`).join('')}</div></div>` : '';
     return `<div class="tabs improve-tabs">${kindTabs}${masteryTabs}</div>${typeof tab === 'number' ? masteryHtml(tab) : adviceHtml(tab)}`;
   }
 

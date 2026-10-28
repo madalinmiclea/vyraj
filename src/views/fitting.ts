@@ -294,7 +294,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <div class="ship-actions">
         ${button('Show Info', { iconName: 'info', cls: 'ghost sm', attrs: `data-info="${f.shipId}"` })}
         ${button(tx('Fit nou'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-action="clear"' })}
-        ${hasFittingSlots(sde, f.shipId) ? `${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Încarcă în tab-ul curent un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Încarcă în tab-ul curent un fit PvP publicat, cu module T2')}"` })}` : ''}
+        ${hasFittingSlots(sde, f.shipId) ? `<div class="starter-group"><span class="starter-note">${tx('Doar orientativ, adaptează-l nevoilor tale')}</span><span class="starter-brace" aria-hidden="true"><svg viewBox="0 0 10 100" preserveAspectRatio="none"><path d="M9 1C5 1 5 3 5 8v34c0 5-1 8-4 8 3 0 4 3 4 8v34c0 5 0 7 4 7" vector-effect="non-scaling-stroke"/></svg></span><div class="starter-buttons">${button('PvE fit', { iconName: 'shield', cls: 'ghost sm', attrs: `data-starter="pve" title="${tx('Încarcă în tab-ul curent un fit PvE publicat, cu module T2')}"` })}${button('PvP fit', { iconName: 'target', cls: 'ghost sm', attrs: `data-starter="pvp" title="${tx('Încarcă în tab-ul curent un fit PvP publicat, cu module T2')}"` })}</div></div>` : ''}
       </div>
     </section>`;
   }
@@ -448,7 +448,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         break;
     }
     return `<section class="panel fit-extras">
-      <div class="tabs extras-tabs">${shown.map((x) => `<button class="tab ${x.key === current ? 'active' : ''}" data-extras="${x.key}">${x.label}${x.n ? ` <span class="tab-count neutral">${x.n}</span>` : ''}</button>`).join('')}</div>
+      <div class="tabs extras-tabs">${shown.map((x) => `<button class="tab ${x.key === current ? 'active' : ''}" data-extras="${x.key}">${x.label}${x.n ? `<span class="tab-count">${x.n}</span>` : ''}</button>`).join('')}</div>
       <div class="panel-body">${body}</div>
     </section>`;
   }

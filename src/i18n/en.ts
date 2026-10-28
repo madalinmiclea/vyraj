@@ -1245,4 +1245,5 @@ export const EN: Record<string, string> = {
   "Luna următoare": "Next month",
   "Azi": "Today",
   "Alege data": "Pick a date",
+  "Doar orientativ, adaptează-l nevoilor tale": "Reference only, adapt it to your needs",
 };
