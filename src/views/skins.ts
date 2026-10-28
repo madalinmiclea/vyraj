@@ -100,7 +100,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('SKIN-uri'))}</div>
       <div class="side-nav">${([['all', tx('SKIN-uri nave'), formatInt(total)], ['mine', tx('Colecția mea'), formatInt(have)], ['shop', tx('De cumpărat'), '']] as [Mode, string, string][])
         .map(([id, label, n]) => `<button class="side-link ${mode === id ? 'active' : ''}" data-skin-mode="${id}"><span>${label}</span>${n ? `<span class="count">${n}</span>` : ''}</button>`).join('')}</div>`;
-    el.querySelector('#skinHead')!.innerHTML = `${pageHead(title, ctx.character.name, 'Raiment')}
+    el.querySelector('#skinHead')!.innerHTML = `${pageHead(title, tx('Nanocoating-uri · {name}', { name: ctx.character.name }), 'Raiment')}
       ${mode === 'shop' ? '' : `<div class="skin-head-row"><div class="history-kpis">
         <div><span class="label">${tx('SKIN-uri deținute')}</span><span class="value">${formatInt(have)} / ${formatInt(total)}</span></div>
         <div><span class="label">${tx('Colecții începute')}</span><span class="value">${formatInt(started)} / ${formatInt(lines.length)}</span></div>

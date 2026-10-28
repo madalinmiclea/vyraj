@@ -86,7 +86,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   el.innerHTML = `
-    ${pageHead(tx('Fitting'), '', 'Proving')}
+    ${pageHead(tx('Fitting'), tx('Hangar · simulare pe skill-urile pilotului'), 'Proving')}
     <section class="panel fit-toolbar">
       <div class="panel-body">
         <input class="input plain fit-name" id="fitName" placeholder="${tx('Numele fit-ului')}" />

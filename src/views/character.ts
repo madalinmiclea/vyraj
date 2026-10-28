@@ -65,7 +65,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${BUILT_IN_CLIENT_ID || settings.clientId ? button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-login' }) : ''}
         </div>`;
 
-    head.innerHTML = pageHead(tx('Caracter'), '', 'Narodnya');
+    head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
     aside.innerHTML = `${queuePanel()}${setup}`;
   }

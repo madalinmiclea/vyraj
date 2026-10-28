@@ -47,7 +47,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   if (!TABS.some((t) => t.id === tab)) tab = 'appraisal';
   let basis = loadJson<Basis>(BASIS_KEY, 'sell');
 
-  el.innerHTML = `${pageHead(tx('Unelte ISK'), 'Jita 4-4', 'Tithe')}
+  el.innerHTML = `${pageHead(tx('Unelte ISK'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Tithe')}
     <div id="toolBody"></div>`;
   const body = el.querySelector<HTMLElement>('#toolBody')!;
 

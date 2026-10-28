@@ -67,7 +67,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
   let haul: { hub: string; rows: HaulRow[] } | null = null;
   let haulError = '';
 
-  el.innerHTML = `${pageHead(tx('Intel Jita'), 'The Forge · Jita IV - Moon 4', 'Discourse')}
+  el.innerHTML = `${pageHead(tx('Intel Jita'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Discourse')}
     <div class="intel-bar" id="intelBar"></div>
     <div class="tabs" id="intelTabs"></div>
     <div id="intelBody"></div>`;
