@@ -3,7 +3,7 @@
 .roster .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
 .roster-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .roster-chip { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; min-width: 96px; }
-.roster-chip .label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
+.roster-chip .label { font-size: 12px; color: var(--text-faint); font-family: var(--font-body); font-weight: 500; }
 .roster-chip .value { font-size: 16px; font-weight: 600; }
 .roster-chip.warn .value { color: var(--warn); }
 .roster-chip.danger .value { color: var(--danger); }
@@ -34,7 +34,7 @@
   .roster-table td:nth-child(1) { grid-column: 1 / 3; }
   .roster-table td:nth-child(2), .roster-table td:nth-child(3) { min-width: 0; max-width: none; }
   .roster-table td:nth-child(6) { grid-column: 3; grid-row: 1; }
-  .roster-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
+  .roster-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 12px; color: var(--text-faint); font-family: var(--font-body); font-weight: 500; }
   .roster-who { min-width: 0; }
 }
 @container (max-width: 420px) {

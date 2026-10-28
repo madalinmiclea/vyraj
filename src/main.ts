@@ -17,6 +17,7 @@ import { createMiningView } from './views/mining';
 import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
 import { createPiView } from './views/pi';
+import { createAboutView } from './views/about';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { startAlertWatcher } from './services/alerts';
 import { startOrderWatcher } from './services/orders';
@@ -38,12 +39,17 @@ import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
 import { esiFetch } from './services/esiClient';
 
-type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions';
+type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'about';
 
 const MOBILE_MAIN: string[] = ['market', 'fitting', 'tools', 'character'];
-const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
+const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'about'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
+const FLAG: Record<Lang, string> = {
+  ro: '<svg class="flag" viewBox="0 0 3 2" aria-hidden="true"><path fill="#002b7f" d="M0 0h1v2H0z"/><path fill="#fcd116" d="M1 0h1v2H1z"/><path fill="#ce1126" d="M2 0h1v2H2z"/></svg>',
+  en: '<svg class="flag" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><clipPath id="flagGbCross"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path stroke="#c8102e" stroke-width="4" clip-path="url(#flagGbCross)" d="m0 0 60 30m0-30L0 30"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg>',
+};
+const LANG_NAME: Record<Lang, string> = { ro: 'Română', en: 'English' };
 const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
   { id: 'market', label: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
   { id: 'intel', label: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
@@ -58,6 +64,7 @@ const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | n
   { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
   { id: 'missions', label: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
+  { id: 'about', label: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
@@ -74,11 +81,11 @@ document.querySelector('#app')!.innerHTML = `
         <div class="char-menu" id="charMenu" hidden></div>
       </div>
       <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', tx('Luminos')], ['dark', 'moon', tx('Întunecat')], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
-      <div class="lang-switch" role="group" aria-label="${tx('Limbă')}">${(['ro', 'en'] as Lang[]).map((l) => `<button class="${l === lang ? 'active' : ''}" data-lang="${l}" aria-pressed="${l === lang}">${l.toUpperCase()}</button>`).join('')}</div>
+      <div class="lang-switch" role="group" aria-label="${tx('Limbă')}">${(['ro', 'en'] as Lang[]).map((l) => `<button class="${l === lang ? 'active' : ''}" data-lang="${l}" aria-pressed="${l === lang}" title="${LANG_NAME[l]}" aria-label="${LANG_NAME[l]}">${FLAG[l]}</button>`).join('')}</div>
     </header>
 
     <nav class="neocom">
-      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
+      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''}" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}</button>
     </nav>
@@ -108,6 +115,7 @@ document.querySelector('#app')!.innerHTML = `
 
 const viewEl = (id: ViewId) => document.getElementById('view-' + id)!;
 const sidePane = (id: SideView) => document.getElementById('pane-' + id)!;
+createAboutView(viewEl('about'), sidePane('about'));
 const treeFilter = document.querySelector<HTMLInputElement>('#treeFilter')!;
 initSelects();
 initNumberSpin();

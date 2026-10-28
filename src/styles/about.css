@@ -1,0 +1,48 @@
+#view-about .btn { text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+#view-about .btn svg { width: 16px; height: 16px; }
+.about-c { display: grid; gap: 22px; }
+.about-name { color: var(--text-bright); font-weight: 600; text-decoration: none; }
+.about-who { color: var(--text-faint); font-size: 13px; }
+.about-host { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+.about-hero { position: relative; padding: 26px 28px; border: 1px solid var(--line); border-left: 2px solid rgba(var(--accent-rgb), 0.55); background: linear-gradient(110deg, rgba(var(--accent-rgb), 0.12), transparent 60%), var(--bg-panel); }
+.about-hero-kicker { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+.about-hero h2 { margin: 4px 0 10px; font-family: var(--font-heading); font-size: 30px; font-weight: 700; color: var(--text-bright); }
+.about-hero p { margin: 0; max-width: 760px; font-size: 15.5px; line-height: 1.65; color: var(--text); }
+.about-c-group .section-title { margin-top: 0; }
+.about-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.about-tile { display: flex; gap: 12px; padding: 14px; text-decoration: none; color: inherit; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 3px; transition: border-color 0.15s var(--ease), background 0.15s var(--ease); }
+.about-tile:hover { border-color: var(--line-accent); background: var(--bg-hover); }
+.about-tile:hover .about-name { color: var(--accent-bright); }
+.about-mono { display: grid; place-items: center; width: 40px; height: 40px; flex: none; color: var(--accent-bright); border: 1px solid var(--line-accent); background: rgba(var(--accent-rgb), 0.08); border-radius: 3px; overflow: hidden; }
+.about-mono img { width: 26px; height: 26px; border-radius: 4px; }
+.about-mono svg { width: 20px; height: 20px; }
+.about-card-text { display: grid; gap: 3px; min-width: 0; }
+.about-card-text .about-name { display: inline-flex; align-items: center; gap: 6px; }
+.about-card-text .about-name svg { width: 13px; height: 13px; color: var(--text-faint); }
+.about-c-role { font-size: 13.5px; line-height: 1.5; color: var(--text-dim); }
+.about-sign { display: flex; align-items: stretch; gap: 18px; flex-wrap: wrap; padding: 20px 24px; border: 1px solid var(--line-accent); background: rgba(var(--accent-rgb), 0.05); }
+.about-sign-text { flex: 1 1 320px; }
+.about-sign-text p { margin: 6px 0 12px; font-size: 13.5px; }
+.about-author-name { font-family: var(--font-heading); font-size: 22px; font-weight: 700; color: var(--text-bright); }
+.about-author-role { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-faint); }
+.about-pilot { display: flex; align-items: center; gap: 16px; flex: 1 1 480px; padding: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-inset); }
+.about-portrait { width: 96px; height: 96px; flex: none; border: 1px solid var(--line-accent); background: var(--bg-inset); }
+.about-pilot-info { flex: 1; min-width: 0; }
+.about-pilot-label { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.about-pilot-name { font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: var(--text-bright); margin: 2px 0 6px; }
+.about-pilot-dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: 13px; }
+.about-pilot-dl dt { color: var(--text-faint); }
+.about-pilot-dl dd { margin: 0; color: var(--text); white-space: nowrap; }
+.about-ship { width: 210px; height: auto; margin-left: auto; flex: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
+.about-notice { margin: 0; }
+.about-notice p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-faint); }
+
+@media (max-width: 760px) {
+  .about-hero { padding: 18px; }
+  .about-hero h2 { font-size: 24px; }
+  .about-tiles { grid-template-columns: minmax(0, 1fr); }
+  .about-sign { padding: 16px; }
+  .about-pilot { flex-wrap: wrap; flex-basis: 100%; }
+  .about-pilot-dl dd { white-space: normal; }
+  .about-ship { width: 100%; max-width: 320px; margin: 0 auto; -webkit-mask-image: none; mask-image: none; }
+}

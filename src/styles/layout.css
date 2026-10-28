@@ -54,8 +54,6 @@
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
   color: var(--text-dim);
 }
 .topbar-title b { color: var(--accent-bright); font-weight: 700; }
@@ -69,14 +67,14 @@
   line-height: 1.15;
 }
 .topbar-stat .label {
-  font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 1.8px;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-weight: 500;
   color: var(--text-faint);
+  font-size: 12px;
 }
 .topbar-stat .value { font-family: var(--font-mono); font-size: 14px; color: var(--text); }
 .topbar-stat .value.accent { color: var(--accent-bright); }
+.topbar > .topbar-stat { align-items: flex-start; padding-left: 12px; border-left: 2px solid rgba(var(--accent-rgb), 0.55); }
 .char-switch { position: relative; }
 .char-switch-btn { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px 0 4px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); transition: border-color 0.15s var(--ease); }
 .char-switch-btn:hover, .char-switch.open .char-switch-btn { border-color: var(--line-accent); }
@@ -101,20 +99,22 @@
   overflow: hidden;
 }
 .lang-switch button {
-  padding: 4px 10px;
   background: transparent;
   border: 0;
   color: var(--text-faint);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
   cursor: pointer;
   transition: color 0.15s var(--ease), background 0.15s var(--ease);
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  opacity: 0.45;
 }
 .lang-switch button + button { border-left: 1px solid var(--line-strong); }
 .lang-switch button:hover { color: var(--text); background: var(--bg-hover); }
 .lang-switch button.active { color: var(--accent-bright); background: var(--bg-active); cursor: default; }
+.lang-switch .flag { display: block; width: 23px; height: 15px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15); }
+.lang-switch button:hover, .lang-switch button.active { opacity: 1; }
+.theme-switch button { opacity: 1; }
 .theme-switch button { display: grid; place-items: center; padding: 4px 8px; }
 .theme-switch svg { width: 15px; height: 15px; }
 .theme-switch { overflow: visible; }
@@ -133,8 +133,6 @@
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
   color: var(--text-bright);
   background: var(--bg-panel-solid);
   border: 1px solid var(--line-strong);
@@ -193,8 +191,6 @@
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
   color: var(--text-bright);
   background: var(--bg-panel-solid);
   border: 1px solid var(--line-strong);
@@ -268,7 +264,7 @@
 .char-empty-ico { display: grid; place-items: center; width: 48px; height: 48px; flex: none; border: 1px solid var(--line-strong); color: var(--accent); background: var(--bg-inset); }
 .char-empty-ico svg { width: 22px; height: 22px; }
 .char-empty > div { flex: 1; min-width: 0; }
-.char-empty h3 { font-family: var(--font-heading); font-size: 16px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-bright); }
+.char-empty h3 { font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--text-bright); }
 .char-empty p { margin-top: 4px; color: var(--text-dim); line-height: 1.5; }
 .char-empty .btn { flex: none; }
 @media (max-width: 760px) { .char-empty { flex-wrap: wrap; } }

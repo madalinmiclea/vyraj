@@ -4,6 +4,8 @@
 
 Vyraj is a free web toolkit for EVE Online pilots: Jita market prices, a Pyfa-style fitting simulator, character and skill planning, market orders, industry, planetary interaction, mining, market intel, PvP intel, navigation and ISK tools, all in one place.
 
+**Live:** [madalinmiclea.github.io/vyraj](https://madalinmiclea.github.io/vyraj/)
+
 It is a fully static site. Everything runs in your browser and there is no Vyraj server. Your characters, login tokens, fits, SKIN collection, journals and settings are stored only in your browser's local storage and are never sent anywhere except directly to CCP's own services.
 
 ## User guide
@@ -143,4 +145,33 @@ VITE_EVE_CLIENT_ID=<client id of an EVE application with callback http://localho
 
 ## Credits
 
-Fitting formulas follow [Pyfa](https://github.com/pyfa-org/Pyfa), used as a reference only. Game data and images © CCP Games. EVE Online is a trademark of CCP hf. Vyraj is not affiliated with or endorsed by CCP.
+Vyraj stands on the work of the EVE community and of CCP. Thank you to everyone below.
+
+### Game data and services
+
+- **[CCP Games](https://www.ccpgames.com/)** for EVE Online, the [ESI API](https://esi.evetech.net/), [EVE SSO](https://developers.eveonline.com/), the [Static Data Export](https://developers.eveonline.com/static-data) and the [image server](https://images.evetech.net/) for item, ship and character images.
+- **[Pyfa](https://github.com/pyfa-org/Pyfa)** for its static data and ship traits, and as the reference for fitting formulas. Vyraj follows Pyfa's results as a specification and does not reuse its GPL-3.0 code.
+- **[Fuzzwork](https://www.fuzzwork.co.uk/)** (Steve Ronuken) for aggregated market prices across the trade hubs.
+- **[zKillboard](https://zkillboard.com/)** for kill data used in route checks and pilot threat in Intel PvP.
+- **[EVE-Scout](https://www.eve-scout.com/)** for the public Thera and Turnur wormhole connections.
+- **[DOTLAN EveMaps](https://evemaps.dotlan.net/)** for the system pages linked from Navigation.
+- **[EVE Ref](https://everef.net/)** for the item reference pages linked from Market.
+
+### Guides and fits
+
+- **[EVE Survival](https://eve-survival.org/)**, the main source for the mission and DED site guides.
+- **[EVE University Wiki](https://wiki.eveuniversity.org/)** for mission reports, DED sites and general game mechanics.
+- **[EVE Workbench](https://eveworkbench.com/)** and the pilots who publish fits there, the source of the PvE and PvP starter fits. Each fit links back to its original page.
+- The EVE Online forums and the r/Eve community, for years of shared knowledge on fitting, missions and the market.
+
+### Fonts
+
+- **[Inter](https://rsms.me/inter/)** by Rasmus Andersson and **[Sora](https://fonts.google.com/specimen/Sora)**, both under the SIL Open Font License 1.1. License files are in `public/fonts/`.
+
+### Tools
+
+Built with [TypeScript](https://www.typescriptlang.org/) and [Vite](https://vite.dev/), hosted on [GitHub Pages](https://pages.github.com/).
+
+## CCP copyright notice
+
+EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated logos and designs are the intellectual property of CCP hf. All artwork, screenshots, characters, vehicles, storylines, world facts or other recognizable features of the intellectual property relating to these trademarks are likewise the intellectual property of CCP hf. CCP hf. has granted permission to Vyraj to use EVE Online and all associated logos and designs for promotional and information purposes on its website but does not endorse, and is not in any way affiliated with, Vyraj. CCP is in no way responsible for the content on or functioning of this website, nor can it be liable for any damage arising from the use of this website.

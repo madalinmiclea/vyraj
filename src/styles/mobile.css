@@ -22,7 +22,7 @@
   .char-switch-btn { height: 36px; padding: 0 3px; gap: 0; }
   .char-switch-btn .topbar-stat, .char-switch-btn .chev { display: none; }
   .char-menu { position: fixed; left: 10px; right: 10px; top: calc(var(--topbar-h) + 4px); width: auto; max-height: 70dvh; }
-  .lang-switch button { padding: 4px 7px; font-size: 12px; letter-spacing: 1px; }
+  .lang-switch button { padding: 5px 7px; }
   .theme-switch button { padding: 5px 6px; }
   .theme-switch button[data-tip]::after { display: none; }
 
@@ -90,7 +90,8 @@
   .view { padding: 16px 16px 28px; }
   .page-head { flex-wrap: wrap; gap: 4px 12px; }
   .page-head h1 { font-size: 26px; }
-  .page-head .sub { font-size: 12px; letter-spacing: 1.5px; }
+  .page-head .sub { font-size: 12px; }
+  .page-head::after { display: none; }
 
   .fit-layout, .grid-2, .grid-2.wide-right, .tool-grid, .tool-grid.even { grid-template-columns: minmax(0, 1fr); }
   .view table { display: block; max-width: 100%; overflow-x: auto; }

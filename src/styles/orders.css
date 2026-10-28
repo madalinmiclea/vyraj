@@ -1,4 +1,4 @@
-.ord-side-label { margin: 14px 16px 4px; font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-faint); }
+.ord-side-label { margin: 14px 16px 4px; font-size: 12px; color: var(--text-faint); font-family: var(--font-body); font-weight: 500; }
 .ord-count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
 .ord-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; margin-bottom: 4px; }
 .ord-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-dim); }
