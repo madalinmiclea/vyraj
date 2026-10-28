@@ -60,12 +60,13 @@ ISK per hour for every type of ore, ice, moon ore and gas, computed from your mi
 
 ### Intel PvP
 
+- **Live map:** New Eden drawn like the in-game 2D map, with every kill from the zKillboard feed within seconds, possible gate camps marked, the most active systems, sound and desktop alarms for kills and chat intel a few jumps from you, your characters followed on the map and Thera and Turnur connections. In Chrome and Edge it can read your intel channels straight from the EVE chat logs.
 - **Route:** checks a route between two systems for recent kills, ship and pod losses per system in the last hour, with details from zKillboard, so you can spot gatecamps before you undock.
 - **Local and D-Scan:** paste the Local member list or a D-Scan result from the game. Vyraj shows the corporations and alliances present, the ships on scan, an estimated threat and the PvP history of the pilots.
 
 ### Navigation
 
-A jump planner for capital ships with fatigue, the current state of Pochven, and the latest Thera and Turnur wormhole connections.
+A jump planner for capital ships with fatigue, the current state of Pochven, the latest Thera and Turnur wormhole connections, and a sovereignty map with alliance territory, capitals and live sovereignty campaigns.
 
 ### Fitting
 
@@ -169,7 +170,7 @@ Vyraj stands on the work of the EVE community and of CCP. Thank you to everyone 
 - **[CCP Games](https://www.ccpgames.com/)** for EVE Online, the [ESI API](https://esi.evetech.net/), [EVE SSO](https://developers.eveonline.com/), the [Static Data Export](https://developers.eveonline.com/static-data) and the [image server](https://images.evetech.net/) for item, ship and character images.
 - **[Pyfa](https://github.com/pyfa-org/Pyfa)** for its static data and ship traits, and as the reference for fitting formulas. Vyraj follows Pyfa's results as a specification and does not reuse its GPL-3.0 code.
 - **[Fuzzwork](https://www.fuzzwork.co.uk/)** (Steve Ronuken) for aggregated market prices across the trade hubs.
-- **[zKillboard](https://zkillboard.com/)** for kill data used in route checks and pilot threat in Intel PvP.
+- **[zKillboard](https://zkillboard.com/)** for kill data used in the live map, route checks and pilot threat in Intel PvP.
 - **[EVE-Scout](https://www.eve-scout.com/)** for the public Thera and Turnur wormhole connections.
 - **[DOTLAN EveMaps](https://evemaps.dotlan.net/)** for the system pages linked from Navigation.
 - **[EVE Ref](https://everef.net/)** for the item reference pages linked from Market.

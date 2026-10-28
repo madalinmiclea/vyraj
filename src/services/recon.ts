@@ -218,49 +218,49 @@ export async function systemActivity(): Promise<{ at: number; map: Map<number, S
 const killCache = new Map<number, KillSummary>();
 const CAPSULES = new Set([670, 33328]);
 
-export async function recentKills(systemId: number, isSmartbomb: (typeId: number) => boolean, limit = 50): Promise<SystemIntel> {
-  const list = await zkbJson<{ killmail_id: number; zkb: { hash: string; totalValue: number; npc: boolean; solo: boolean; locationID?: number } }[]>(`/kills/systemID/${systemId}/pastSeconds/3600/`);
-  const all = Array.isArray(list) ? list : [];
-  const picked = all.slice(0, limit);
-  const kills = await Promise.all(picked.map(async (k) => {
-    const hit = killCache.get(k.killmail_id);
-    if (hit?.shipList) return hit;
-    const km = await esiJson<{
-      killmail_time: string; solar_system_id: number;
-      victim: { ship_type_id: number; alliance_id?: number; corporation_id?: number };
-      attackers: { character_id?: number; ship_type_id?: number; alliance_id?: number; final_blow?: boolean; weapon_type_id?: number }[];
-    }>(`/killmails/${k.killmail_id}/${k.zkb.hash}/`);
-    const pilots = km.attackers.filter((a) => a.character_id);
-    const main = pilots.length ? pilots : km.attackers;
-    const ships = km.attackers.map((a) => a.ship_type_id).filter((x): x is number => !!x);
-    const counts = new Map<number, number>();
-    for (const a of main) if (a.ship_type_id) counts.set(a.ship_type_id, (counts.get(a.ship_type_id) ?? 0) + (a.final_blow ? 1.5 : 1));
-    const summary: KillSummary = {
-      id: k.killmail_id,
-      time: Date.parse(km.killmail_time),
-      systemId: km.solar_system_id,
-      victimShip: km.victim.ship_type_id,
-      victimAlliance: km.victim.alliance_id,
-      victimCorp: km.victim.corporation_id,
-      value: k.zkb.totalValue,
-      attackers: km.attackers.length,
-      players: pilots.length,
-      npcAttackers: km.attackers.length - pilots.length,
-      attackerIds: km.attackers.map((a) => a.character_id).filter((x): x is number => !!x),
-      attackerShips: ships,
-      weapons: [...new Set(km.attackers.map((a) => a.weapon_type_id).filter((x): x is number => !!x))],
-      attackerAlliances: [...new Set(main.map((a) => a.alliance_id).filter((x): x is number => !!x))],
-      topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
-      shipList: [...main.reduce((m, a) => (a.ship_type_id ? m.set(a.ship_type_id, (m.get(a.ship_type_id) ?? 0) + 1) : m), new Map<number, number>())]
-        .sort((a, b) => b[1] - a[1] || (counts.get(b[0]) ?? 0) - (counts.get(a[0]) ?? 0)).map(([id, n]) => ({ id, n })),
-      location: k.zkb.locationID,
-      npc: k.zkb.npc,
-      solo: k.zkb.solo,
-    };
-    killCache.set(k.killmail_id, summary);
-    return summary;
-  }));
-  kills.sort((a, b) => b.time - a.time);
+export const isCapsule = (typeId: number) => CAPSULES.has(typeId);
+export const isGateLocation = (location?: number) => !!location && location >= 50_000_000 && location < 60_000_000;
+
+export interface EsiKillmail {
+  killmail_time: string;
+  solar_system_id: number;
+  victim: { ship_type_id: number; character_id?: number; alliance_id?: number; corporation_id?: number };
+  attackers: { character_id?: number; ship_type_id?: number; alliance_id?: number; corporation_id?: number; final_blow?: boolean; weapon_type_id?: number }[];
+}
+
+export interface ZkbMeta { hash: string; totalValue: number; npc: boolean; solo: boolean; locationID?: number }
+
+export function summarizeKill(id: number, km: EsiKillmail, zkb: ZkbMeta): KillSummary {
+  const pilots = km.attackers.filter((a) => a.character_id);
+  const main = pilots.length ? pilots : km.attackers;
+  const ships = km.attackers.map((a) => a.ship_type_id).filter((x): x is number => !!x);
+  const counts = new Map<number, number>();
+  for (const a of main) if (a.ship_type_id) counts.set(a.ship_type_id, (counts.get(a.ship_type_id) ?? 0) + (a.final_blow ? 1.5 : 1));
+  return {
+    id,
+    time: Date.parse(km.killmail_time),
+    systemId: km.solar_system_id,
+    victimShip: km.victim.ship_type_id,
+    victimAlliance: km.victim.alliance_id,
+    victimCorp: km.victim.corporation_id,
+    value: zkb.totalValue,
+    attackers: km.attackers.length,
+    players: pilots.length,
+    npcAttackers: km.attackers.length - pilots.length,
+    attackerIds: km.attackers.map((a) => a.character_id).filter((x): x is number => !!x),
+    attackerShips: ships,
+    weapons: [...new Set(km.attackers.map((a) => a.weapon_type_id).filter((x): x is number => !!x))],
+    attackerAlliances: [...new Set(main.map((a) => a.alliance_id).filter((x): x is number => !!x))],
+    topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
+    shipList: [...main.reduce((m, a) => (a.ship_type_id ? m.set(a.ship_type_id, (m.get(a.ship_type_id) ?? 0) + 1) : m), new Map<number, number>())]
+      .sort((a, b) => b[1] - a[1] || (counts.get(b[0]) ?? 0) - (counts.get(a[0]) ?? 0)).map(([x, n]) => ({ id: x, n })),
+    location: zkb.locationID,
+    npc: zkb.npc,
+    solo: zkb.solo,
+  };
+}
+
+export function analyzeKills(kills: KillSummary[], isSmartbomb: (typeId: number) => boolean): { camp: boolean; campers: number; smartbomb: boolean } {
   const player = kills.filter((k) => !k.npc);
   const seen = new Map<number, number>();
   for (const k of player) for (const id of new Set(k.attackerIds)) seen.set(id, (seen.get(id) ?? 0) + 1);
@@ -271,13 +271,28 @@ export async function recentKills(systemId: number, isSmartbomb: (typeId: number
   const gangRepeat = [...gangSeen.values()].filter((n) => n >= 2).length;
   const victims = gang.filter((k) => !CAPSULES.has(k.victimShip)).length;
   const perSpot = new Map<number, number>();
-  for (const k of gang) if (k.location && k.location >= 50_000_000 && k.location < 60_000_000) perSpot.set(k.location, (perSpot.get(k.location) ?? 0) + 1);
+  for (const k of gang) if (isGateLocation(k.location)) perSpot.set(k.location!, (perSpot.get(k.location!) ?? 0) + 1);
   const sameSpot = Math.max(0, ...perSpot.values()) >= 3 && gangRepeat > 0;
-  const onGate = (k: KillSummary) => !!k.location && k.location >= 50_000_000 && k.location < 60_000_000;
-  const bombed = player.filter((k) => CAPSULES.has(k.victimShip) && (k.weapons.some(isSmartbomb) || onGate(k)));
+  const bombed = player.filter((k) => CAPSULES.has(k.victimShip) && (k.weapons.some(isSmartbomb) || isGateLocation(k.location)));
   const smartbomb = repeat > 0 && bombed.length >= 3;
   const camp = (gang.length >= 2 && gangRepeat > 0 && victims >= 1) || sameSpot || smartbomb;
-  return { kills, total: all.length, camp, campers: repeat, smartbomb };
+  return { camp, campers: repeat, smartbomb };
+}
+
+export async function recentKills(systemId: number, isSmartbomb: (typeId: number) => boolean, limit = 50): Promise<SystemIntel> {
+  const list = await zkbJson<{ killmail_id: number; zkb: ZkbMeta }[]>(`/kills/systemID/${systemId}/pastSeconds/3600/`);
+  const all = Array.isArray(list) ? list : [];
+  const picked = all.slice(0, limit);
+  const kills = await Promise.all(picked.map(async (k) => {
+    const hit = killCache.get(k.killmail_id);
+    if (hit?.shipList) return hit;
+    const km = await esiJson<EsiKillmail>(`/killmails/${k.killmail_id}/${k.zkb.hash}/`);
+    const summary = summarizeKill(k.killmail_id, km, k.zkb);
+    killCache.set(k.killmail_id, summary);
+    return summary;
+  }));
+  kills.sort((a, b) => b.time - a.time);
+  return { kills, total: all.length, ...analyzeKills(kills, isSmartbomb) };
 }
 
 let pilotCache = loadJson<Record<number, PilotStats | null>>(PILOTS_KEY, {});
@@ -397,4 +412,16 @@ export function displaySec(sec: number): number {
 export function secClass(sec: number): string {
   const s = displaySec(sec);
   return s >= 0.5 ? 'sec-hi' : s > 0 ? 'sec-lo' : 'sec-null';
+}
+
+export interface SovCampaign { id: number; systemId: number; constellationId: number; type: string; defenderId?: number; defenderScore: number; attackersScore: number; start: number; structureId: number }
+
+let campaignCache: { at: number; list: SovCampaign[] } | null = null;
+
+export async function sovCampaigns(): Promise<SovCampaign[]> {
+  if (campaignCache && Date.now() - campaignCache.at < 5 * 60 * 1000) return campaignCache.list;
+  const r = await esiJson<{ campaign_id: number; solar_system_id: number; constellation_id: number; event_type: string; defender_id?: number; defender_score?: number; attackers_score?: number; start_time: string; structure_id: number }[]>('/sovereignty/campaigns');
+  const list = r.map((c) => ({ id: c.campaign_id, systemId: c.solar_system_id, constellationId: c.constellation_id, type: c.event_type, defenderId: c.defender_id, defenderScore: c.defender_score ?? 0, attackersScore: c.attackers_score ?? 0, start: Date.parse(c.start_time), structureId: c.structure_id }));
+  campaignCache = { at: Date.now(), list };
+  return list;
 }

@@ -126,6 +126,7 @@ export function buildMasteries(dir: string) {
 const LY = 9460730472580800;
 const KSPACE_MAX_REGION = 11000000;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export function buildMap(dir: string) {
     const regions = readJsonl(dir, 'mapRegions');
@@ -136,12 +137,14 @@ export function buildMap(dir: string) {
     for (const [id, r] of regions) if (id < KSPACE_MAX_REGION) outRegions[id] = en(r.name);
     const outConst: Record<number, string> = {};
     for (const [id, c] of constellations) if (outRegions[c.regionID]) outConst[id] = en(c.name);
-    const outSystems: [number, string, number, number, number, number, number, number][] = [];
+    const outSystems: [number, string, number, number, number, number, number, number, number, number][] = [];
     for (const [id, s] of systems) {
         if (!outRegions[s.regionID]) continue;
         const p = s.position ?? s.center ?? {};
         const [x, y, z] = Array.isArray(p) ? p : [p.x, p.y, p.z];
-        outSystems.push([id, en(s.name), s.constellationID, s.regionID, r4(s.securityStatus ?? s.security ?? 0), r4(x / LY), r4(y / LY), r4(z / LY)]);
+        const q = s.position2D ?? {};
+        const [x2, y2] = Array.isArray(q) ? q : [q.x ?? 0, q.y ?? 0];
+        outSystems.push([id, en(s.name), s.constellationID, s.regionID, r4(s.securityStatus ?? s.security ?? 0), r4(x / LY), r4(y / LY), r4(z / LY), r2(x2 / LY), r2(-y2 / LY)]);
     }
     outSystems.sort((a, b) => a[0] - b[0]);
     const known = new Set(outSystems.map((s) => s[0]));
@@ -153,6 +156,7 @@ export function buildMap(dir: string) {
         pairs.add(a < b ? `${a}:${b}` : `${b}:${a}`);
     }
     const outGates = [...pairs].sort().flatMap((k) => k.split(':').map(Number));
+    if (outSystems.filter((x) => x[8] || x[9]).length < 5000) throw new Error('Harta din SDE nu are coordonatele 2D (position2D)');
     if (outSystems.length < 5000 || outGates.length < 10000) throw new Error(`Harta din SDE pare incompletă: ${outSystems.length} sisteme, ${outGates.length / 2} porți`);
     return { generated: new Date().toISOString(), source: 'sde', regions: outRegions, constellations: outConst, systems: outSystems, gates: outGates };
 }

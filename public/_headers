@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.evetech.net; font-src 'self'; connect-src 'self' https://esi.evetech.net https://login.eveonline.com https://market.fuzzwork.co.uk https://www.fuzzwork.co.uk https://zkillboard.com https://api.eve-scout.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.evetech.net; font-src 'self'; connect-src 'self' https://esi.evetech.net https://login.eveonline.com https://market.fuzzwork.co.uk https://www.fuzzwork.co.uk https://zkillboard.com https://r2z2.zkillboard.com https://api.eve-scout.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 

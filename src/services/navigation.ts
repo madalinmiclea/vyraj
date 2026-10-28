@@ -25,13 +25,15 @@ export interface NavSystem {
   x: number;
   y: number;
   z: number;
+  x2: number;
+  y2: number;
 }
 
 interface RawMap {
   generated: string;
   regions: Record<string, string>;
   constellations: Record<string, string>;
-  systems: [number, string, number, number, number, number, number, number][];
+  systems: [number, string, number, number, number, number, number, number, number?, number?][];
   gates: number[];
 }
 
@@ -41,6 +43,7 @@ export class NavMap {
   readonly constellations = new Map<number, string>();
   readonly gates = new Map<number, number[]>();
   readonly generated: string;
+  readonly schematic: boolean;
   private readonly byName = new Map<string, NavSystem>();
   private readonly sorted: NavSystem[];
 
@@ -48,8 +51,8 @@ export class NavMap {
     this.generated = raw.generated;
     for (const [k, v] of Object.entries(raw.regions)) this.regions.set(Number(k), v);
     for (const [k, v] of Object.entries(raw.constellations)) this.constellations.set(Number(k), v);
-    for (const [id, name, constellationId, regionId, sec, x, y, z] of raw.systems) {
-      const s = { id, name, constellationId, regionId, sec, x, y, z };
+    for (const [id, name, constellationId, regionId, sec, x, y, z, x2 = 0, y2 = 0] of raw.systems) {
+      const s = { id, name, constellationId, regionId, sec, x, y, z, x2, y2 };
       this.systems.set(id, s);
       this.byName.set(fold(name), s);
     }
@@ -59,6 +62,7 @@ export class NavMap {
       (this.gates.get(b) ?? this.gates.set(b, []).get(b)!).push(a);
     }
     this.sorted = [...this.systems.values()].sort((a, b) => a.name.localeCompare(b.name));
+    this.schematic = this.sorted.filter((s) => s.x2 || s.y2).length > this.sorted.length * 0.9;
   }
 
   find(name: string): NavSystem | undefined {
@@ -89,12 +93,16 @@ export class NavMap {
   }
 
   gateDistances(from: number, max = 60): Map<number, number> {
-    const dist = new Map<number, number>([[from, 0]]);
-    let frontier = [from];
+    return this.distances([from], max);
+  }
+
+  distances(from: number[], max = 60, extra?: Map<number, number[]>): Map<number, number> {
+    const dist = new Map<number, number>(from.map((id) => [id, 0]));
+    let frontier = [...dist.keys()];
     for (let d = 1; d <= max && frontier.length; d++) {
       const next: number[] = [];
       for (const id of frontier) {
-        for (const n of this.gates.get(id) ?? []) {
+        for (const n of [...(this.gates.get(id) ?? []), ...(extra?.get(id) ?? [])]) {
           if (dist.has(n)) continue;
           dist.set(n, d);
           next.push(n);

@@ -8,6 +8,8 @@ export const CHANGELOG: Release[] = [
     title: tx('Un prag pentru fiecare pilot'),
     lead: tx('Vyraj își deschide porțile spre comunitate.'),
     items: [
+      tx('Harta live arată New Eden ca în joc, cu fiecare kill de pe zKillboard la câteva secunde, gatecamp-urile marcate și alarme sonore când moare cineva la câteva sărituri de tine; caracterul tău e urmărit pe hartă, iar canalele de intel din chat se citesc singure.'),
+      tx('Harta de suveranitate colorează spațiul nul pe alianțe, cu capitalele și campaniile de suveranitate la vedere.'),
       tx('Ecranul Start arată ce poate Vyraj dintr-o privire și drumul cel mai scurt spre fiecare unealtă, iar problemele se raportează direct pe GitHub.'),
       tx('Permisiunile se cer pe rând: login-ul vrea doar skill-urile, restul le aprobi abia când ai nevoie de ele, fiecare cu scope-urile ei la vedere.'),
       tx('Modul demo te pune la comanda unui pilot fictiv în toate ecranele, fără login și fără să atingă EVE.'),

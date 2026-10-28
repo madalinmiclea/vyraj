@@ -13,10 +13,12 @@ import { tx } from '../i18n';
 import { loadStoredCharacters } from '../character/characters';
 import { allEveItems } from '../data/items';
 import { wormholeLinks, type WormholeLink } from '../services/navigation';
+import type { LiveMapView } from './liveMap';
 
-type Tab = 'route' | 'local';
+type Tab = 'map' | 'route' | 'local';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'map', label: tx('Hartă live') },
   { id: 'route', label: tx('Rută') },
   { id: 'local', label: tx('Local și D-Scan') },
 ];
@@ -64,15 +66,27 @@ function dpsTip(e: DpsEstimate) {
 }
 
 export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
-  let tab = loadJson<Tab>(TAB_KEY, 'route');
+  let tab = loadJson<Tab>(TAB_KEY, 'map');
   if (!TABS.some((t) => t.id === tab)) tab = 'route';
   const saved = loadJson<{ from: string; to: string; flag: RouteFlag; avoid?: boolean; wh?: boolean }>(ROUTE_KEY, { from: 'Jita', to: 'Amarr', flag: 'shortest' });
 
-  el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Pericol pe rută și analiza Local / D-Scan'), 'Cladistic Recon')}
+  el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Hartă live cu pericole, pericol pe rută și analiza Local / D-Scan'), 'Cladistic Recon')}
+    <div id="reconMap"></div>
     <div id="reconRoute"></div>
     <div id="reconLocal"></div>`;
+  const mapEl = el.querySelector<HTMLElement>('#reconMap')!;
   const routeEl = el.querySelector<HTMLElement>('#reconRoute')!;
   const localEl = el.querySelector<HTMLElement>('#reconLocal')!;
+  let liveMap: LiveMapView | null = null;
+  let mapLoading = false;
+  const syncMap = () => {
+    if (tab !== 'map' || !el.classList.contains('active')) { liveMap?.hide(); return; }
+    if (liveMap) { liveMap.show(); return; }
+    if (mapLoading) return;
+    mapLoading = true;
+    mapEl.innerHTML = loader(tx('Încarc harta'));
+    import('./liveMap').then((m) => { liveMap = m.createLiveMap(mapEl, ctx); syncMap(); }).catch((err) => { mapLoading = false; mapEl.innerHTML = alertBox((err as Error).message); });
+  };
 
   let itemNames: Map<number, string> | null = null;
   const localName = (id: number) => {
@@ -95,7 +109,12 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-recon-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     routeEl.hidden = tab !== 'route';
     localEl.hidden = tab !== 'local';
+    mapEl.hidden = tab !== 'map';
+    el.classList.toggle('view-map', tab === 'map');
+    syncMap();
   }
+
+  new MutationObserver(syncMap).observe(el, { attributes: true, attributeFilter: ['class'] });
 
   side.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-recon-tab]');

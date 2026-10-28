@@ -233,3 +233,11 @@ export interface WalletTransaction {
 export function walletTransactions(characterId: number): Promise<WalletTransaction[]> {
   return esi(characterId, `/characters/${characterId}/wallet/transactions/`);
 }
+
+export function characterLocation(characterId: number): Promise<{ solar_system_id: number; station_id?: number; structure_id?: number }> {
+  return esi(characterId, `/characters/${characterId}/location/`);
+}
+
+export function characterOnline(characterId: number): Promise<{ online: boolean; last_login?: string; last_logout?: string }> {
+  return esi(characterId, `/characters/${characterId}/online/`);
+}

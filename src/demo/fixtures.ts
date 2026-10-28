@@ -1,7 +1,7 @@
 import { loadSde, Category, type Sde } from '../data/sde';
 import { loadItems, allEveItems } from '../data/items';
 import { spPerMinute, type Attributes } from '../character/training';
-import { DEMO_ID, isDemoAuth } from './identity';
+import { DEMO_ID, isDemoAuth, demoSystem } from './identity';
 import { tx } from '../i18n';
 
 const MIN = 60_000;
@@ -348,7 +348,7 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'assets': return json(assets(w));
     case 'assets/names': return json((JSON.parse(String(init?.body ?? '[]')) as number[]).filter((id) => id === SHIP_ITEM).map((id) => ({ item_id: id, name: 'Ishtar demo' })));
     case 'ship': { const id = idOf(w, 'Ishtar'); return json({ ship_item_id: SHIP_ITEM, ship_type_id: id, ship_name: 'Ishtar demo' }); }
-    case 'location': return json({ solar_system_id: CITADEL_SYSTEM, structure_id: CITADEL });
+    case 'location': { const sys = demoSystem(now); return json(sys === CITADEL_SYSTEM ? { solar_system_id: sys, structure_id: CITADEL } : { solar_system_id: sys }); }
     case 'online': return json({ online: true, last_login: iso(now - 2 * HOUR), logins: 812 });
     case 'wallet': return json(ledger(w, now, name).balance);
     case 'wallet/journal': return json(ledger(w, now, name).journal);

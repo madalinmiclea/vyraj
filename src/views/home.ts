@@ -41,8 +41,8 @@ const ABOUT: Record<string, string> = {
   industry: tx('Cost de fabricație și invenție față de prețul din Jita.'),
   pi: tx('Colonii, timere de extractoare și profitul fiecărui lanț.'),
   mining: tx('ISK pe oră pe fiecare minereu și calculator de reprocesare.'),
-  navigation: tx('Salturi pentru capitale, Pochven și conexiuni Thera și Turnur.'),
-  recon: tx('Pericol pe rută și analiza Local și D-Scan.'),
+  navigation: tx('Salturi pentru capitale, Pochven, conexiuni Thera și Turnur și harta de suveranitate.'),
+  recon: tx('Hartă live cu kill-uri, gatecamp-uri și alarme lângă tine, pericol pe rută și analiza Local și D-Scan.'),
 };
 
 export function createHomeView(el: HTMLElement, opts: { tiles: Tile[]; go: (id: string) => void; openFit: (fit: Fit) => void; login: () => void }): HomeView {
