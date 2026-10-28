@@ -5,13 +5,16 @@ export type Lang = 'ro' | 'en';
 
 const LANG_KEY = 'eve-fit:ui:lang';
 
-const browserLang: Lang = navigator.language.toLowerCase().startsWith('ro') ? 'ro' : 'en';
-
-export const lang: Lang = loadJson<Lang>(LANG_KEY, browserLang) === 'en' ? 'en' : 'ro';
+export const lang: Lang = loadJson<Lang>(LANG_KEY, 'en') === 'ro' ? 'ro' : 'en';
 
 export const locale = lang === 'en' ? 'en-GB' : 'ro-RO';
 
 document.documentElement.lang = lang;
+
+if (lang === 'ro') {
+  document.title = 'Vyraj · unelte pentru EVE Online';
+  document.querySelector('meta[name="description"]')?.setAttribute('content', 'Fitting cu formulele Pyfa, prețuri live din Jita, plan de skill-uri, doctrine de flotă, intel pe rută, industrie și ghid de misiuni. Gratuit, totul rulează în browser.');
+}
 
 export function setLang(next: Lang) {
   if (next === lang) return;

@@ -34,6 +34,7 @@ import type { BrowserScope } from '../ui/sidebar';
 import { CURRENT_KEY, EXTRAS_KEY, MAX_TABS, OPEN_KEY, PROFILE_KEY, TARGET_KEY, GROUPS, STATE_LABEL, capTime, type ExtrasTab, type TargetState, type FitEnv } from '../fitting/shared';
 import { createStatsPanels } from '../fitting/stats';
 import { createFitModals } from '../fitting/modals';
+import { openTracking } from '../fitting/tracking';
 import { createSupportPanels } from '../fitting/support';
 import { createImplantPanel } from '../fitting/implants';
 import { createImprovementPanel } from '../fitting/improvement';
@@ -867,6 +868,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         return openCompare();
       case 'esi':
         return openEsi();
+      case 'tracking':
+        return openTracking(env);
       case 'ships':
         return openShips();
       case 'cost-refresh':

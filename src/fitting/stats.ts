@@ -13,6 +13,7 @@ import { applied, dpsCurve, TARGETS, type Applied, type TargetProfile } from '..
 import { stackingFactor } from '../engine/dogma';
 import { tx } from '../i18n';
 import { DMG_LABEL, LAYER_LABEL, capTime, sum, damageBar, groupBy, type FitEnv } from './shared';
+import { turretGroups } from './tracking';
 
 const CURVE_COLORS = 4;
 const DAMAGE_ATTRS = ['emDamage', 'thermalDamage', 'kineticDamage', 'explosiveDamage'];
@@ -210,6 +211,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
       <td class="r num dim">${w.range ? formatNum(w.range / 1000, 1) + (w.falloff ? ' + ' + formatNum(w.falloff / 1000, 1) : '') + ' km' : ''}</td></tr>`).join('');
     const offensePanel = panel({
       title: tx('Ofensivă'),
+      actions: env.getFit() && turretGroups(sde, env.getFit()!).length ? `<button class="btn ghost sm" data-action="tracking" title="${tx('Optimal, falloff, tracking și cum scad daunele cu distanța')}">${icon('target')}${tx('Tracking')}</button>` : '',
       body: `<div class="big-stats">
           <div><span class="label">DPS total</span><span class="value num">${formatNum(o.totalDps, 1)}</span></div>
           <div><span class="label">${tx('Arme')}</span><span class="value num">${formatNum(o.weaponDps, 1)}</span></div>

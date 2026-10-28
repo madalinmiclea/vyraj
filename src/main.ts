@@ -83,7 +83,7 @@ document.querySelector('#app')!.innerHTML = `
   <div class="shell">
     <header class="topbar">
       <button class="side-toggle" id="sideToggle" aria-label="${tx('Meniu')}">${icon('menu')}</button>
-      <button class="brand" id="brandHome" aria-label="${tx('Start')}">${logo}<span>Vyraj</span></button>
+      <button class="brand" id="brandHome" aria-label="${tx('Start')}" title="${tx('Reîncarcă aplicația cu ultima versiune')}">${logo}<span>Vyraj</span></button>
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
       <div class="topbar-stat optional"><span class="label">${tx('Jucători online')}</span><span class="value" id="onlinePlayers">—</span></div>
@@ -289,7 +289,19 @@ const home = createHomeView(viewEl('home'), {
     startLogin().catch((err) => toast((err as Error).message));
   },
 });
-document.getElementById('brandHome')!.addEventListener('click', () => switchView('home'));
+async function hardRefresh() {
+  const base = import.meta.env.BASE_URL;
+  await Promise.allSettled([
+    navigator.serviceWorker?.getRegistrations().then((regs) => Promise.all(regs.map((r) => r.unregister()))),
+    'caches' in window ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))) : null,
+    fetch(location.pathname, { cache: 'reload' }),
+    fetch(`${base}index.html`, { cache: 'reload' }),
+    fetch(`${base}data/manifest.json`, { cache: 'reload' }),
+  ]);
+  history.replaceState(null, '', `${location.pathname}${location.search}#/home`);
+  location.reload();
+}
+document.getElementById('brandHome')!.addEventListener('click', () => { hardRefresh(); });
 window.addEventListener('popstate', () => {
   const id = hashView();
   if (id && id !== activeView) switchView(id, false);

@@ -34,10 +34,10 @@ export interface Applied {
   weapons: AppliedWeapon[];
 }
 
-const TURRET_EFFECTS = ['targetAttack', 'projectileFired', 'targetDisintegratorAttack'];
+export const TURRET_EFFECTS = ['targetAttack', 'projectileFired', 'targetDisintegratorAttack'];
 const DAMAGE_ATTRS = ['emDamage', 'thermalDamage', 'kineticDamage', 'explosiveDamage'];
 
-function damageOf(item: DogmaItem) {
+export function damageOf(item: DogmaItem) {
   return DAMAGE_ATTRS.reduce((a, n) => a + item.get(n), 0);
 }
 
