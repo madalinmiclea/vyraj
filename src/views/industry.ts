@@ -7,6 +7,7 @@ import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } fro
 import { feesFromSkills } from '../services/intel';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { hasScope, loginProblem } from '../character/sso';
+import { permissionGate } from '../character/permissions';
 import { bindBreakdownTips, breakdownHtml, type Breakdown } from '../ui/breakdown';
 import {
   loadIndustry, adjustedPrices, costIndices, ownedBlueprints, industryJobs, computeBuild, facilityBonus,
@@ -51,7 +52,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
   const settings: Settings = { facility: 'npc', rig: 'none', system: 'Jita', tax: 0.25, basis: 'sell', ...loadJson<Partial<Settings>>(SETTINGS_KEY, {}) };
   const calc: CalcForm = { product: '', me: 10, te: 20, runs: 1, source: 'invention', decryptor: 0, ...loadJson<Partial<CalcForm>>(CALC_KEY, {}) };
 
-  el.innerHTML = `${pageHead(tx('Industrie'), tx('Cost de fabricație și invenție comparat cu prețul de vânzare din Jita'), 'Matterweave')}
+  el.innerHTML = `${pageHead(tx('Industrie'), tx('Cost de fabricație și invenție comparat cu prețul de vânzare din Jita'), 'Matterweave', { hub: true })}
     <div id="indSettings"></div>
     <div id="indCalc"></div>
     <div id="indMine"></div>
@@ -186,7 +187,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const c = ctx.character;
     const problem = loginProblem(c);
     if (problem || !c.characterId) return problem ?? '';
-    if (!hasScope(c.characterId, scope)) return tx('Login-ul acestui caracter nu are toate permisiunile. Fă din nou login din ecranul Caracter.');
+    if (!hasScope(c.characterId, scope)) return 'scope';
     return c.characterId;
   }
 
@@ -387,7 +388,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const pane = panes.mine;
     const seq = ++mineSeq;
     const who = esiCharacter(BP_SCOPE);
-    if (typeof who === 'string') { pane.innerHTML = panel({ body: alertBox(who || tx('Selectează un caracter importat din EVE (ecranul Caracter).')) }); return; }
+    if (typeof who === 'string') { pane.innerHTML = panel({ body: who === 'scope' ? permissionGate('industry', ctx.character.characterId!, ctx.character.name) : alertBox(who || tx('Selectează un caracter importat din EVE (ecranul Caracter).')) }); return; }
     pane.innerHTML = loader(tx('Citesc blueprint-urile din EVE'));
     try {
       const [d, owned] = await Promise.all([ready, ownedBlueprints(who)]);
@@ -458,7 +459,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const pane = panes.jobs;
     const seq = ++jobsSeq;
     const who = esiCharacter(JOB_SCOPE);
-    if (typeof who === 'string') { pane.innerHTML = panel({ body: alertBox(who || tx('Selectează un caracter importat din EVE (ecranul Caracter).')) }); return; }
+    if (typeof who === 'string') { pane.innerHTML = panel({ body: who === 'scope' ? permissionGate('industry', ctx.character.characterId!, ctx.character.name) : alertBox(who || tx('Selectează un caracter importat din EVE (ecranul Caracter).')) }); return; }
     pane.innerHTML = loader(tx('Citesc joburile de industrie'));
     try {
       const [, jobs] = await Promise.all([ready, industryJobs(who)]);

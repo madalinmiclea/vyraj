@@ -10,6 +10,7 @@ import { renderWallet } from './wallet';
 import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
 import { removeKey } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
+import { permissionGate, type PermId } from '../character/permissions';
 import { allEveItems } from '../data/items';
 import { tx, locale } from '../i18n';
 
@@ -47,7 +48,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   if (!TABS.some((t) => t.id === tab)) tab = 'appraisal';
   let basis = loadJson<Basis>(BASIS_KEY, 'sell');
 
-  el.innerHTML = `${pageHead(tx('Unelte ISK'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Tithe')}
+  el.innerHTML = `${pageHead(tx('Unelte ISK'), tx('Evaluare, portofel, bunuri, magazin LP, jurnal abisal și alerte de preț'), 'Tithe', { hub: true })}
     <div id="toolBody"></div>`;
   const body = el.querySelector<HTMLElement>('#toolBody')!;
 
@@ -66,8 +67,8 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     return { id: c.characterId };
   }
 
-  function scopePrompt() {
-    return panel({ body: alertBox(tx('Login-ul acestui caracter nu are toate permisiunile. Fă din nou login din ecranul Caracter.')) });
+  function scopePrompt(perm: PermId) {
+    return panel({ body: permissionGate(perm, ctx.character.characterId!, ctx.character.name) });
   }
 
   function renderTabs() {
@@ -202,7 +203,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
 
   async function wallet() {
     const c = esiCharacter('esi-wallet.read_character_wallet.v1');
-    if (c === 'scope') { body.innerHTML = scopePrompt(); return; }
+    if (c === 'scope') { body.innerHTML = scopePrompt('wallet'); return; }
     if (typeof c === 'string') { body.innerHTML = panel({ body: alertBox(c) }); return; }
     const charId = ctx.character.id;
     try {
@@ -236,7 +237,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
 
   async function assets() {
     const c = esiCharacter('esi-assets.read_assets.v1');
-    if (c === 'scope') { body.innerHTML = scopePrompt(); return; }
+    if (c === 'scope') { body.innerHTML = scopePrompt('assets'); return; }
     if (typeof c === 'string') { body.innerHTML = panel({ body: alertBox(c) }); return; }
     body.innerHTML = panel({ body: loader(tx('Citesc asset-urile și prețurile')) });
     try {
@@ -307,7 +308,7 @@ export function createToolsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
             ${mine.length ? `<label>${tx('LP-ul meu')} <select class="input sm" id="lpMine"><option value="">—</option>${mine.sort((a, b) => b.loyalty_points - a.loyalty_points).map((m) => `<option value="${m.corporation_id}" ${saved?.id === m.corporation_id ? 'selected' : ''}>${esc(corpNames.get(m.corporation_id) ?? String(m.corporation_id))} · ${formatInt(m.loyalty_points)} LP</option>`).join('')}</select></label>` : ''}
             <label>${tx('Corporație')} <input class="input sm" id="lpCorp" placeholder="Caldari Navy" value="${esc(saved?.name ?? '')}" title="${tx('Scrie numele corporației și apasă Enter')}" /></label>
           </div>
-`,
+          ${c === 'scope' ? permissionGate('loyalty', ctx.character.characterId!, ctx.character.name) : ''}`,
       })}
       <div id="lpResult"></div>`;
     if (saved) loadOffers(saved, mine.find((m) => m.corporation_id === saved.id)?.loyalty_points ?? 0);

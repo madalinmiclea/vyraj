@@ -1,6 +1,7 @@
 import type { AppContext } from '../app/context';
 import { portraitUrl } from '../character/esi';
 import { hasTokens } from '../character/sso';
+import { permissionButtons } from '../character/permissions';
 import { formatDuration } from '../character/training';
 import { accountKey, fetchRosterEntry, loadAccounts, loadRoster, omegaUntil, refreshRoster, resolvePlaces, rosterCharacters, ROSTER_TTL, saveRoster, setAccount, type Places, type RosterEntry } from '../character/roster';
 import { displaySec, secClass } from '../services/recon';
@@ -107,7 +108,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
   function characterCell(c: StoredCharacter, e: RosterEntry | undefined, now: number) {
     const status = e?.error === 'logged-out' || !hasTokens(c.characterId!)
       ? badge(tx('Delogat'), 'danger')
-      : e?.missing.length
+      : e?.missing.some((m) => m.startsWith('esi-skills') || m.startsWith('esi-clones'))
         ? `<span title="${esc(e.missing.join('\n'))}">${badge(tx('Permisiuni lipsă'), 'warn')}</span>`
         : '';
     const onlineDot = e?.online != null ? `<span class="roster-dot ${e.online ? 'on' : ''}" title="${e.online ? 'Online' : 'Offline'}"></span>` : '';
@@ -131,7 +132,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
     const online = entries.filter((e) => e?.online).length;
     const totalSp = chars.reduce((s, c) => s + (roster[c.id]?.totalSp ?? c.totalSp ?? 0), 0);
     const isk = entries.reduce((s, e) => s + (e?.wallet ?? 0), 0);
-    const needLogin = entries.some((e) => e?.missing.some((m) => m.startsWith('esi-location') || m.startsWith('esi-universe')));
+    const noLocation = chars.filter((c) => hasTokens(c.characterId!) && roster[c.id]?.missing.some((m) => m.startsWith('esi-location'))).map((c) => ({ characterId: c.characterId!, name: c.name }));
     const accounts = new Set(chars.map((c) => accountKey(loadAccounts(), c.id))).size;
     const chip = (label: string, value: string | number, tone = '') => `<div class="roster-chip ${tone}"><span class="label">${label}</span><span class="value num">${value}</span></div>`;
     const updated = entries.reduce((m, e) => Math.max(m, e?.fetched ?? 0), 0);
@@ -155,7 +156,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
           ${chip(tx('SP total'), formatInt(totalSp))}
           ${chip('ISK', compactISK(isk))}
         </div>
-        ${needLogin ? `<p class="small dim roster-note">${tx('Unele caractere au fost logate înainte ca Vyraj să ceară locația și statusul online. Fă din nou login cu ele din „Adaugă caracter”, dreapta sus.')}</p>` : ''}
+        ${noLocation.length ? permissionButtons('location', noLocation) : ''}
         <div class="table-scroll">
           <table class="table roster-table">
             <thead><tr><th>${tx('Caracter')}</th><th>${tx('Antrenează')}</th><th>${tx('Locație')}</th><th>Omega</th><th class="r">ISK</th><th></th></tr></thead>

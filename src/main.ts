@@ -18,6 +18,10 @@ import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
 import { createPiView } from './views/pi';
 import { createAboutView } from './views/about';
+import { createHomeView } from './views/home';
+import { createDoctrinesView, type DoctrinesView } from './views/doctrines';
+import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
+import { requestPermission, type PermId } from './character/permissions';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { startAlertWatcher } from './services/alerts';
 import { trackView } from './services/analytics';
@@ -38,12 +42,13 @@ import { initSuggest } from './ui/suggest';
 import { initTooltips } from './ui/tooltip';
 import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
+import { downloadBackup, pickBackup } from './io/backup';
 import { esiFetch } from './services/esiClient';
 
-type ViewId = 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'tools' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'about';
 
-const MOBILE_MAIN: string[] = ['market', 'fitting', 'tools', 'character'];
-const SIDE_VIEWS = ['character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
+const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
+const SIDE_VIEWS = ['doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -51,28 +56,30 @@ const FLAG: Record<Lang, string> = {
   en: '<svg class="flag" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><clipPath id="flagGbCross"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path stroke="#c8102e" stroke-width="4" clip-path="url(#flagGbCross)" d="m0 0 60 30m0-30L0 30"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg>',
 };
 const LANG_NAME: Record<Lang, string> = { ro: 'Română', en: 'English' };
-const VIEWS: { id: ViewId; label: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
-  { id: 'market', label: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
-  { id: 'intel', label: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
-  { id: 'recon', label: tx('Intel PvP'), icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 10 },
-  { id: 'navigation', label: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
-  { id: 'fitting', label: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
-  { id: 'character', label: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
-  { id: 'industry', label: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 14 },
-  { id: 'tools', label: tx('Unelte ISK'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
-  { id: 'mining', label: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
-  { id: 'orders', label: tx('Ordine de piață'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
-  { id: 'skins', label: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
-  { id: 'pi', label: tx('Interacțiune planetară'), icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
-  { id: 'missions', label: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
-  { id: 'about', label: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
+const VIEWS: { id: ViewId; label: string; short: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
+  { id: 'home', label: tx('Start'), short: tx('Start'), icon: 'home', categories: null, lore: 'Prag', clade: 'Rod', order: 0 },
+  { id: 'market', label: tx('Piață'), short: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
+  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
+  { id: 'recon', label: tx('Intel PvP'), short: 'PvP', icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 10 },
+  { id: 'navigation', label: tx('Navigație'), short: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
+  { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
+  { id: 'character', label: tx('Caracter'), short: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
+  { id: 'industry', label: tx('Industrie'), short: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 14 },
+  { id: 'tools', label: tx('Unelte ISK'), short: 'ISK', icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
+  { id: 'mining', label: tx('Minerit'), short: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
+  { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
+  { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 7 },
+  { id: 'skins', label: tx('SKIN-uri'), short: 'SKIN', icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
+  { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
+  { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
+  { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
 document.querySelector('#app')!.innerHTML = `
   <div class="shell">
     <header class="topbar">
       <button class="side-toggle" id="sideToggle" aria-label="${tx('Meniu')}">${icon('menu')}</button>
-      <div class="brand">${logo}<span>Vyraj</span></div>
+      <button class="brand" id="brandHome" aria-label="${tx('Start')}">${logo}<span>Vyraj</span></button>
       <div class="topbar-title" id="topbarTitle"></div>
       <div class="topbar-spacer"></div>
       <div class="topbar-stat optional"><span class="label">${tx('Jucători online')}</span><span class="value" id="onlinePlayers">—</span></div>
@@ -87,8 +94,8 @@ document.querySelector('#app')!.innerHTML = `
 
     <nav class="neocom">
       ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
-      ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''}" data-view="${v.id}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}</button>`).join('')}
-      <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}</button>
+      ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></button>`).join('')}
+      <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
     </nav>
     <div class="neocom-sheet" id="neocomSheet" hidden>
       ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<button class="sheet-btn" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></button>`).join('')}
@@ -109,6 +116,7 @@ document.querySelector('#app')!.innerHTML = `
     <div class="side-scrim" id="sideScrim"></div>
 
     <main class="main">
+      <nav class="subnav" id="subnav" hidden></nav>
       ${VIEWS.map((v) => `<div class="view" id="view-${v.id}"></div>`).join('')}
     </main>
   </div>
@@ -137,7 +145,8 @@ market.setFees(() => intel.fees());
 
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
-for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+let doctrines: DoctrinesView | null = null;
+for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -207,8 +216,23 @@ const itemsReady = loadItems().then((items) => {
 
 const VIEW_KEY = 'eve-fit:ui:view';
 
-function switchView(id: ViewId) {
+const lazyMounts = new Map<ViewId, () => void>();
+function runLazy(id: ViewId) {
+  const fn = lazyMounts.get(id);
+  if (!fn) return;
+  lazyMounts.delete(id);
+  fn();
+}
+
+const SHARE_HASH = /^#(fit|doctrine)=/;
+const hashView = (): ViewId | null => {
+  const id = location.hash.match(/^#\/([a-z]+)/)?.[1];
+  return id && VIEWS.some((v) => v.id === id) ? id as ViewId : null;
+};
+
+function switchView(id: ViewId, push = true) {
   activeView = id;
+  if (!SHARE_HASH.test(location.hash) && location.hash !== `#/${id}`) history[push ? 'pushState' : 'replaceState'](null, '', `${location.pathname}${location.search}#/${id}`);
   saveJson(VIEW_KEY, id);
   const v = VIEWS.find((x) => x.id === id)!;
   document.querySelectorAll('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + id));
@@ -216,15 +240,66 @@ function switchView(id: ViewId) {
   document.querySelectorAll('.side-pane').forEach((el) => el.classList.toggle('active', el.id === 'pane-' + pane));
   document.querySelectorAll<HTMLElement>('.neocom-btn[data-view], .sheet-btn').forEach((el) => el.classList.toggle('active', el.dataset.view === id));
   document.getElementById('neocomMore')!.classList.toggle('active', !MOBILE_MAIN.includes(id));
-  shell.classList.toggle('no-sidebar', id === 'about');
+  shell.classList.toggle('no-sidebar', id === 'about' || id === 'home');
   document.getElementById('neocomSheet')!.hidden = true;
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
+  runLazy(id);
   if (id === 'missions') missions?.show();
   setSide(false);
+  syncSubnav();
   trackView(id);
 }
+
+const subnav = document.getElementById('subnav')!;
+let subLinks: HTMLElement[] = [];
+function syncSubnav() {
+  const pane = document.querySelector<HTMLElement>('.side-pane.active');
+  subLinks = pane ? [...pane.querySelectorAll<HTMLElement>('.side-nav:not(.skill-tree) > .side-link')] : [];
+  subnav.hidden = subLinks.length < 2;
+  subnav.innerHTML = subLinks.map((l, i) => {
+    const c = l.cloneNode(true) as HTMLElement;
+    c.querySelectorAll('.count, .ord-count, img, svg').forEach((x) => x.remove());
+    return `<button class="subnav-btn ${l.classList.contains('active') ? 'active' : ''}" data-sub="${i}">${esc(c.textContent?.trim() ?? '')}</button>`;
+  }).join('');
+  subnav.querySelector('.subnav-btn.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+subnav.addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sub]');
+  if (b) subLinks[Number(b.dataset.sub)]?.click();
+});
+const subObserver = new MutationObserver(() => syncSubnav());
+document.querySelectorAll('.side-pane').forEach((p) => subObserver.observe(p, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }));
+
+const home = createHomeView(viewEl('home'), {
+  tiles: VIEWS.map((v) => ({ id: v.id, label: v.label, icon: v.icon })),
+  go: (id) => switchView(id as ViewId),
+  openFit: (f) => { switchView('fitting'); fitting?.load(f); },
+  login: () => {
+    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+    startLogin().catch((err) => toast((err as Error).message));
+  },
+});
+document.getElementById('brandHome')!.addEventListener('click', () => switchView('home'));
+window.addEventListener('popstate', () => {
+  const id = hashView();
+  if (id && id !== activeView) switchView(id, false);
+});
+
+document.addEventListener('click', (e) => {
+  const g = (e.target as HTMLElement).closest<HTMLElement>('[data-grant]');
+  if (!g) return;
+  if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+  closeModal();
+  requestPermission(g.dataset.grant!.split(',') as PermId[], Number(g.dataset.grantChar) || null, activeView).catch((err) => toast((err as Error).message));
+});
+
+document.addEventListener('click', (e) => {
+  const t = e.target as HTMLElement;
+  if (t.closest('[data-backup-dl]')) downloadBackup();
+  else if (t.closest('[data-backup-up]')) pickBackup();
+});
 
 document.getElementById('neocomMore')!.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -300,18 +375,19 @@ pollStatus();
 setInterval(pollStatus, 60_000);
 
 async function start() {
-  let login: TokenSet | null = null;
+  let login: (TokenSet & { returnTo?: string }) | null = null;
   let loginError = '';
   try { login = await handleCallback(); } catch (err) { loginError = (err as Error).message; }
-  const saved = loadJson<ViewId>(VIEW_KEY, 'market');
-  switchView(login || loginError ? 'character' : VIEWS.some((v) => v.id === saved) ? saved : 'market');
+  const saved = loadJson<ViewId>(VIEW_KEY, 'home');
+  const back = login?.returnTo && VIEWS.some((v) => v.id === login?.returnTo) ? login.returnTo as ViewId : null;
+  switchView(back ?? (login || loginError ? 'character' : hashView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
 
   let sde: Sde;
   try {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'tools', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -322,17 +398,19 @@ async function start() {
       for (const id of ids) viewEl(id).innerHTML = panel({ body: msg });
     }
   };
+  const later = (id: ViewId, ids: ViewId[], fn: () => void) => lazyMounts.set(id, () => mount(ids, fn));
   const ctx = new AppContext(sde);
+  home.setContext(ctx);
   const topCharacter = document.getElementById('topCharacter')!;
   const avatar = document.getElementById('charAvatar')!;
-  const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : '<span class="char-placeholder"></span>');
+  const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : `<span class="char-placeholder">${icon('character')}</span>`);
   const renderCharMenu = () => {
     const stored = loadStoredCharacters();
     const active = ctx.character;
     const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
     charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
         <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.keys(c.skills).length })}</small></span></button>`).join('')}
-      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? 'All 5' : 'All 0'}</span><small>${tx('caracter teoretic')}</small></span></button>`).join('')}
+      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span><small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
       <div class="char-menu-sep"></div>
       <button class="char-menu-item login" data-char-login>${icon('login')}<span>${anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>`;
   };
@@ -376,24 +454,35 @@ async function start() {
     createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
     createRosterView(document.getElementById('charRoster')!, ctx);
   });
+  mount(['doctrines'], () => { doctrines = createDoctrinesView(viewEl('doctrines'), ctx, sidePane('doctrines'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); }, currentFit: () => fitting?.current() ?? null }); });
   mount(['tools'], () => createToolsView(viewEl('tools'), ctx, sidePane('tools')));
   mount(['orders'], () => createOrdersView(viewEl('orders'), ctx, sidePane('orders'), { onOpen: (name, typeId) => { switchView('market'); market.show(name, typeId); } }));
   mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
   mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
-  mount(['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation')));
-  mount(['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
-  mount(['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
-  mount(['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
-  mount(['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
+  later('navigation', ['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation')));
+  later('mining', ['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
+  later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
+  later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
+  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
+  runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {
     if (!f || !fitting) return;
     switchView('fitting');
     fitting.load(f);
     toast(tx('Fit deschis din link: {name}', { name: f.name }));
   }).catch(() => toast(tx('Linkul de fit nu e valid sau e incomplet.')));
+  const openDoctrine = () => {
+    if (!hasSharedDoctrine()) return;
+    readSharedDoctrine(sde).then((d) => {
+      if (!d || !doctrines) return;
+      switchView('doctrines');
+      return doctrines.importShared(d);
+    }).catch(() => toast(tx('Linkul de doctrină nu e valid sau e incomplet.')));
+  };
   openShared();
-  window.addEventListener('hashchange', openShared);
+  openDoctrine();
+  window.addEventListener('hashchange', () => { openShared(); openDoctrine(); });
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);

@@ -31,3 +31,5 @@
 .hub-panel { margin-top: var(--gap); }
 .hub-table .hub-diff td { border-bottom: 0; }
 .form-grid .form-btn { height: 36px; padding: 0 18px; font-size: 14px; }
+.form-grid .form-note { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; }
+.form-grid .form-note svg { width: 14px; height: 14px; flex: none; color: var(--ok); }

@@ -49,7 +49,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   const setup: RefineSetup = { ...DEFAULT_SETUP, ...loadJson<Partial<RefineSetup>>(SETUP_KEY, {}) };
   setup.rigs = { ...DEFAULT_SETUP.rigs, ...setup.rigs };
 
-  el.innerHTML = `${pageHead(tx('Minerit și reprocesare'), tx('ISK pe oră pe tip de minereu din fit-ul și skill-urile tale, plus valoarea reprocesată față de vânzarea brută, la prețuri Jita'), 'Rudnik')}
+  el.innerHTML = `${pageHead(tx('Minerit și reprocesare'), tx('ISK pe oră pe tip de minereu din fit-ul și skill-urile tale, plus valoarea reprocesată față de vânzarea brută, la prețuri Jita'), 'Rudnik', { hub: true })}
     <div id="mineYield"></div>
     <div id="mineRefine"></div>
     <div id="mineOres"></div>`;

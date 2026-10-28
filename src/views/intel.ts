@@ -67,7 +67,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
   let haul: { hub: string; rows: HaulRow[] } | null = null;
   let haulError = '';
 
-  el.innerHTML = `${pageHead(tx('Intel Jita'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Discourse')}
+  el.innerHTML = `${pageHead(tx('Intel Jita'), tx('Idei de trading, marje după taxe, tendințe și rute de transport între hub-uri'), 'Discourse', { hub: true })}
     <div class="intel-bar" id="intelBar"></div>
     <div class="tabs" id="intelTabs"></div>
     <div id="intelBody"></div>`;
@@ -89,14 +89,14 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     const f = fees();
     bar.innerHTML = `<div class="intel-status">
         ${scan ? `<span class="badge ${Date.now() - scan.at > SCAN_STALE_MS ? 'warn' : 'ok'}" >${age(scan.at)}</span><span class="dim small">${tx('{n} iteme listate · {m} analizate pe 30 zile', { n: formatInt(scan.scanned), m: formatInt(scan.rows.length) })}</span>` : `<span class="dim small">${tx('Nicio scanare încă')}</span>`}
-        <button class="btn sm" data-scan ${scanning ? 'disabled' : ''}>${icon('refresh')}${scan ? tx('Rescanează') : tx('Scanează Jita')}</button>
+        ${scan || scanning ? `<button class="btn sm" data-scan ${scanning ? 'disabled' : ''}>${icon('refresh')}${tx('Rescanează')}</button>` : ''}
       </div>
       <div class="form-grid intel-form">
         <label>${tx('Adâncime')}<select class="input" data-set="depth">${[200, 400, 800, 1500].map((n) => `<option value="${n}" ${settings.depth === n ? 'selected' : ''}>top ${n}</option>`).join('')}</select></label>
         <label>${tx('Categorie')}<select class="input" data-set="category"><option value="">${tx('Toate')}</option>${categories().map((c) => `<option ${settings.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
         <label>${tx('Taxă de vânzare %')}<input class="input sm-input" type="number" step="0.01" min="0" data-fee="salesTax" value="${f.salesTax}" /></label>
         <label>${tx('Comision broker %')}<input class="input sm-input" type="number" step="0.01" min="0" data-fee="brokerFee" value="${f.brokerFee}" /></label>
-        <button class="btn ghost form-btn" data-fee-reset ${settings.fees ? '' : 'disabled'}>${tx('Taxe din skill-uri')}</button>
+        ${settings.fees ? `<button class="btn ghost form-btn" data-fee-reset>${tx('Înapoi la taxele din skill-uri')}</button>` : `<span class="form-note dim small">${icon('check')}${tx('Taxele vin din skill-urile Accounting și Broker Relations ale caracterului activ. Schimbă un câmp ca să pui taxele tale.')}</span>`}
       </div>`;
   }
 

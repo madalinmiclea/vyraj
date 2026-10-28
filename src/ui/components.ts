@@ -22,8 +22,12 @@ export function lore(std: string, vy: string) {
   return `<span class="lore-std">${std}</span><span class="lore-vy">${loreText(vy)}</span>`;
 }
 
-export function pageHead(title: string, sub = '', vy = '') {
-  return `<div class="page-head"><h1>${vy ? lore(esc(title), esc(vy)) : esc(title)}</h1>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</div>`;
+export function hubChip() {
+  return `<span class="hub-chip" data-tip="Jita IV - Moon 4 · Caldari Navy Assembly Plant">${icon('market')}<span>${tx('Hub principal')}</span><b>Jita 4-4</b></span>`;
+}
+
+export function pageHead(title: string, sub = '', vy = '', { hub = false } = {}) {
+  return `<div class="page-head"><h1>${vy ? lore(esc(title), esc(vy)) : esc(title)}</h1>${sub ? `<span class="sub">${esc(sub)}</span>` : ''}${hub ? hubChip() : ''}</div>`;
 }
 
 export function stampTime(at: number) {

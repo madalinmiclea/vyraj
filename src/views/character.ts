@@ -1,5 +1,6 @@
 import type { AppContext } from '../app/context';
 import { importCharacter, portraitUrl } from '../character/esi';
+import { PERMISSIONS, hasPermission } from '../character/permissions';
 import { BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
 import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
 import { formatDuration } from '../character/training';
@@ -13,6 +14,7 @@ import { showItemInfo } from '../ui/itemInfo';
 import { alertBox, badge, button, confirmDialog, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
+import { backupPanel } from '../io/backup';
 import { tx, locale } from '../i18n';
 import { loreText } from '../i18n/lore';
 
@@ -61,13 +63,13 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       ? characterCard(activeStored, true)
       : stored.length ? '' : `<div class="panel char-empty">
           <span class="char-empty-ico">${icon('character')}</span>
-          <div><h3>${tx('Niciun caracter importat')}</h3><p>${tx('Fă login cu EVE ca să-ți imporți skill-urile, implanturile și coada de antrenament. Până atunci, statisticile folosesc un caracter teoretic cu toate skill-urile la V.')}</p></div>
+          <div><h3>${tx('Niciun caracter importat')}</h3><p>${tx('Fă login cu EVE ca să-ți imporți skill-urile, implanturile și coada de antrenament. Până atunci, statisticile folosesc un caracter teoretic cu toate skill-urile la V.')}</p><p class="dim small">${tx('Login-ul cere doar skill-urile, coada și implanturile. Portofelul, bunurile, ordinele și restul le aprobi separat, abia când deschizi ecranul care are nevoie de ele.')}</p></div>
           ${BUILT_IN_CLIENT_ID || settings.clientId ? button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-login' }) : ''}
         </div>`;
 
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
-    aside.innerHTML = `${queuePanel()}${setup}`;
+    aside.innerHTML = `${queuePanel()}${permissionsPanel()}${setup}${backupPanel()}`;
   }
 
   function characterCard(c: StoredCharacter, isActive: boolean) {
@@ -89,6 +91,24 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         </div>
       </div>
     </div>`;
+  }
+
+  function permissionsPanel() {
+    const c = ctx.character;
+    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) return '';
+    const id = c.characterId;
+    const missing = PERMISSIONS.filter((p) => !hasPermission(id, p.id));
+    const rows = PERMISSIONS.map((p) => `<div class="perm-row">
+        <div class="perm-row-text"><b>${esc(p.label)}</b><span class="dim small">${esc(p.why)}</span></div>
+        ${hasPermission(id, p.id) ? badge(tx('Aprobată'), 'ok', true) : button(tx('Permite'), { cls: 'ghost sm', attrs: `data-grant="${p.id}" data-grant-char="${id}"` })}
+      </div>`).join('');
+    return collapsible('perms', tx('Permisiuni EVE'), `${PERMISSIONS.length - missing.length}/${PERMISSIONS.length}`, `
+        <p class="dim small">${tx('Skill-urile, coada și implanturile vin cu login-ul. Restul le aprobi doar dacă folosești ecranul respectiv. Le poți revoca oricând din pagina EVE de aplicații.')}</p>
+        <div class="perm-list">${rows}</div>
+        <div class="row-actions">
+          ${missing.length > 1 ? button(tx('Permite tot ce lipsește'), { iconName: 'login', cls: 'sm', attrs: `data-grant="${missing.map((p) => p.id).join(',')}" data-grant-char="${id}"` }) : ''}
+          <a class="btn ghost sm" href="https://community.eveonline.com/support/third-party-applications/" target="_blank" rel="noopener">${icon('external')}${tx('Aplicațiile tale EVE')}</a>
+        </div>`);
   }
 
   function queuePanel() {

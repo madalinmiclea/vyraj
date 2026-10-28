@@ -7,6 +7,7 @@ import { formatDuration } from '../character/training';
 import { listFittings, saveFitting, listAssets, currentShip, assetNames, universeNames, dynamicItem } from '../character/esi';
 import { assembledShips, fitFromShipWithAbyssal, type OwnedShip } from '../io/assetFit';
 import { hasScope, loginProblem } from '../character/sso';
+import { permissionGate, hasPermission } from '../character/permissions';
 import { parseEft, exportEft, exportMultibuy, exportDna } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
 import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
@@ -241,7 +242,7 @@ export function createFitModals(env: FitEnv) {
     const modal = openModal(`${tx('Navele mele')} · ${c.name}`, `<div class="dim">${lore(tx('Se încarcă asset-urile din joc…'), 'Weaving the Flow…')}</div>`, { wide: true });
     const body = modal.querySelector('.panel-body')!;
     if (!hasScope(characterId, 'esi-assets.read_assets.v1')) {
-      body.innerHTML = alertBox(tx('Login-ul acestui caracter nu are toate permisiunile. Fă din nou login din ecranul Caracter.'));
+      body.innerHTML = permissionGate('assets', characterId, c.name);
       return;
     }
     try {
@@ -295,6 +296,10 @@ export function createFitModals(env: FitEnv) {
     const characterId = c.characterId;
     const modal = openModal(`${tx('Fit-uri EVE')} · ${c.name}`, `<div class="dim">${lore(tx('Se încarcă fit-urile din joc…'), 'Weaving the Flow…')}</div>`, { wide: true });
     const body = modal.querySelector('.panel-body')!;
+    if (!hasPermission(characterId, 'fittings')) {
+      body.innerHTML = permissionGate('fittings', characterId, c.name);
+      return;
+    }
     try {
       const list = await listFittings(characterId);
       body.innerHTML = `

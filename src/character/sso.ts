@@ -20,6 +20,8 @@ export const SCOPES = [
   'esi-industry.read_character_jobs.v1',
 ];
 
+export const BASE_SCOPES = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-clones.read_implants.v1'];
+
 const AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 const TOKEN_URL = import.meta.env.VITE_EVE_TOKEN_URL || 'https://login.eveonline.com/v2/oauth/token';
 const SETTINGS_KEY = 'eve-fit:sso-settings';
@@ -66,17 +68,17 @@ async function challengeFor(verifier: string): Promise<string> {
   return base64url(new Uint8Array(digest));
 }
 
-export async function startLogin(): Promise<void> {
+export async function startLogin(scopes: string[] = BASE_SCOPES, returnTo?: string): Promise<void> {
   const { clientId } = getSettings();
   if (!clientId) throw new Error(tx('Lipsește Client ID-ul aplicației EVE. Îl pui în secțiunea Setări login.'));
   const verifier = randomString(48);
   const state = randomString(16);
-  saveJson(PENDING_KEY, { verifier, state });
+  saveJson(PENDING_KEY, { verifier, state, returnTo });
   const params = new URLSearchParams({
     response_type: 'code',
     redirect_uri: callbackUrl(),
     client_id: clientId,
-    scope: SCOPES.join(' '),
+    scope: scopes.filter((x) => SCOPES.includes(x)).join(' '),
     code_challenge: await challengeFor(verifier),
     code_challenge_method: 'S256',
     state,
@@ -117,12 +119,12 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
   };
 }
 
-export async function handleCallback(): Promise<TokenSet | null> {
+export async function handleCallback(): Promise<(TokenSet & { returnTo?: string }) | null> {
   if (location.pathname !== new URL(callbackUrl(), location.href).pathname) return null;
   const params = new URLSearchParams(location.search);
   history.replaceState(null, '', import.meta.env.BASE_URL);
   const code = params.get('code');
-  const pending = loadJson<{ verifier: string; state: string } | null>(PENDING_KEY, null);
+  const pending = loadJson<{ verifier: string; state: string; returnTo?: string } | null>(PENDING_KEY, null);
   removeKey(PENDING_KEY);
   if (!code || !pending) return null;
   if (params.get('state') !== pending.state) throw new Error(tx('Login EVE: răspuns invalid (state diferit). Încearcă din nou.'));
@@ -133,7 +135,7 @@ export async function handleCallback(): Promise<TokenSet | null> {
     code_verifier: pending.verifier,
   });
   storeTokens(tokens);
-  return tokens;
+  return { ...tokens, returnTo: pending.returnTo };
 }
 
 function allTokens(): Record<string, TokenSet> {
@@ -155,6 +157,11 @@ export function forgetTokens(characterId: number) {
 export function hasScope(characterId: number, scope: string): boolean {
   const t = allTokens()[characterId];
   return t ? decodeJwt(t.accessToken).scopes.includes(scope) : false;
+}
+
+export function grantedScopes(characterId: number): string[] {
+  const t = allTokens()[characterId];
+  return t ? decodeJwt(t.accessToken).scopes : [];
 }
 
 export function hasTokens(characterId: number): boolean {

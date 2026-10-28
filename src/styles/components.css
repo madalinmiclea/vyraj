@@ -78,7 +78,7 @@
 .input {
   width: 100%;
   height: 36px;
-  padding: 0 12px 0 34px;
+  padding: 0 12px;
   background: var(--bg-inset);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -87,6 +87,7 @@
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.field .input { padding-left: 34px; }
 .input::placeholder { color: var(--text-faint); }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12); }
 .field.lg .input { height: 46px; font-size: 16px; padding-left: 42px; }
@@ -578,3 +579,8 @@ summary::-webkit-details-marker { display: none; }
 }
 .xtip.below { border-top-color: var(--line-strong); border-bottom: 1px solid var(--accent); transform: translateY(-2px); }
 .xtip.show { opacity: 1; visibility: visible; transform: none; transition: opacity 0.12s, transform 0.12s; }
+.page-head::after { order: 2; }
+.page-head .hub-chip { order: 3; }
+.hub-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; align-self: center; margin-top: 10px; padding: 4px 10px; font-size: 12px; color: var(--text-dim); border: 1px solid var(--line-strong); background: var(--bg-inset); white-space: nowrap; }
+.hub-chip svg { width: 14px; height: 14px; color: var(--accent); }
+.hub-chip b { font-family: var(--font-mono); font-weight: 500; color: var(--text-bright); }

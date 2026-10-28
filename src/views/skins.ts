@@ -8,6 +8,7 @@ import { Category } from '../data/sde';
 import { showItemInfo } from '../ui/itemInfo';
 import { listAssets, walletTransactions } from '../character/esi';
 import { hasTokens, hasScope } from '../character/sso';
+import { permissionGate } from '../character/permissions';
 import { tx, locale } from '../i18n';
 import { allEveItems } from '../data/items';
 import { fold } from '../ui/fold';
@@ -106,9 +107,15 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         <div><span class="label">${tx('Colecții începute')}</span><span class="value">${formatInt(started)} / ${formatInt(lines.length)}</span></div>
         <div><span class="label">${tx('Colecții complete')}</span><span class="value">${formatInt(complete)}</span></div>
         <div><span class="label">${tx('Progres')}</span><span class="value">${total ? ((have / total) * 100).toFixed(1) : '0.0'}%</span></div>
-      </div>${mode === 'mine' ? actions() : ''}</div>`}`;
+      </div>${mode === 'mine' ? actions() : ''}</div>`}${mode === 'mine' ? assetsGate() : ''}`;
     el.querySelector<HTMLElement>('#skinSorts')!.style.display = mode === 'mine' ? '' : 'none';
     el.querySelector<HTMLSelectElement>('#skinSortSel')!.value = sort;
+  }
+
+  function assetsGate() {
+    const c = ctx.character;
+    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId) || hasScope(c.characterId, 'esi-assets.read_assets.v1')) return '';
+    return permissionGate('assets', c.characterId, c.name);
   }
 
   function actions() {

@@ -1,6 +1,7 @@
 import { Category, type Sde } from '../data/sde';
 import type { CharacterSkills } from '../engine/fit';
 import { loadJson, saveJson } from '../storage';
+import { tx } from '../i18n';
 import { DEFAULT_ATTRIBUTES, type Attributes } from './training';
 
 export interface SkillState {
@@ -50,7 +51,7 @@ export function allLevels(sde: Sde, level: number): Character {
   const skills = new Map(sde.typesInCategory(Category.Skill).map((t) => [t.id, level]));
   return {
     id: level === 5 ? 'all5' : 'all0',
-    name: level === 5 ? 'All 5' : 'All 0',
+    name: level === 5 ? tx('Toate la V') : tx('Toate la 0'),
     kind: level === 5 ? 'all5' : 'all0',
     skills,
     sp: new Map(),

@@ -48,6 +48,7 @@ export interface FittingView {
   load(fit: Fit): void;
   clearSlot(): void;
   setNpc(site: string, faction: string): void;
+  current(): Fit | null;
 }
 
 export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
@@ -130,7 +131,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     targetState: () => targetState,
     name,
   };
-  const { buildTips, statsPanels, requirementsPanel } = createStatsPanels(env, tips);
+  const { buildTips, statsPanels, requirementsPanel, handleAmmo } = createStatsPanels(env, tips);
   const support = createSupportPanels(env);
   const implantPanel = createImplantPanel(env);
   const improvement = createImprovementPanel(env);
@@ -653,6 +654,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const target = e.target as HTMLElement;
     const at = (sel: string) => target.closest<HTMLElement>(sel);
     if (npc.handleClick(target)) { render(); return; }
+    if (target.closest('[data-ammo-del]') && handleAmmo(target)) { render(); return; }
     if (improvement.handleClick(target)) return;
 
     const tabClose = at('[data-fit-close]');
@@ -782,6 +784,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   el.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
     if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
+    if (target.matches('[data-ammo-add]') && handleAmmo(target)) { render(); return; }
     if (fit && support.handleChange(target)) return;
     if (npc.handleChange(target)) { render(); return; }
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
@@ -905,5 +908,6 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     load(f: Fit) { void openFit(cloneFit(f)); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
     setNpc(site: string, faction: string) { npc.setScenario(site, faction); render(); },
+    current() { return fit && fit.shipId ? cloneFit(fit) : null; },
   };
 }

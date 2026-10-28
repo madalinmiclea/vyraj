@@ -1,4 +1,4 @@
-import { accessToken, hasScope, hasTokens, SCOPES } from './sso';
+import { accessToken, hasScope, hasTokens, BASE_SCOPES } from './sso';
 import { esiFetch } from '../services/esiClient';
 import { resolveNames, systemInfo, type SystemInfo } from '../services/recon';
 import { loadStoredCharacters, ROSTER_KEY, type StoredCharacter } from './characters';
@@ -81,7 +81,9 @@ export function forgetRoster(id: string) {
 
 export const rosterCharacters = (): StoredCharacter[] => loadStoredCharacters().filter((c) => c.kind === 'esi' && c.characterId != null);
 
-export const missingScopes = (characterId: number) => SCOPES.filter((s) => !hasScope(characterId, s));
+const ROSTER_SCOPES = [...BASE_SCOPES, 'esi-location.read_location.v1', 'esi-location.read_online.v1', 'esi-location.read_ship_type.v1', 'esi-wallet.read_character_wallet.v1'];
+
+export const missingScopes = (characterId: number) => ROSTER_SCOPES.filter((s) => !hasScope(characterId, s));
 
 async function authed<T>(characterId: number, path: string): Promise<T> {
   const token = await accessToken(characterId);

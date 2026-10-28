@@ -34,7 +34,7 @@ export interface MarketView {
 
 export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: string) => void }): MarketView {
   el.innerHTML = `
-    ${pageHead(tx('Piață'), 'Jita IV - Moon 4 · Caldari Navy Assembly Plant', 'Conduit')}
+    ${pageHead(tx('Piață'), tx('Prețuri live, istoric și comparație între hub-uri pentru orice item'), 'Conduit', { hub: true })}
     <div style="margin-bottom: 22px">
       ${searchField({ id: 'searchInput', placeholder: tx('Caută'), large: true, hint: 'Enter' })}
     </div>

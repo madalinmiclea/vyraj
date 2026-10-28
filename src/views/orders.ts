@@ -5,6 +5,8 @@ import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import { universeNames } from '../character/esi';
 import { rosterCharacters } from '../character/roster';
+import { hasTokens } from '../character/sso';
+import { permissionButtons } from '../character/permissions';
 import {
   scanOrders, lastScan, orderHistory, orderCharacters, notifyEnabled, setNotify, typeName, priceTick, expiresAt, modifiableAt,
   ORDERS_EVENT, type TrackedOrder, type Competition, type OrdersScan, type CharacterOrder,
@@ -133,13 +135,17 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   function activeTab() {
     const scan = lastScan();
     const chars = rosterCharacters();
+    const logged = rosterCharacters().filter((c) => hasTokens(c.characterId!)).map((c) => ({ characterId: c.characterId!, name: c.name }));
+    if (!orderCharacters().length && logged.length) {
+      body.innerHTML = panel({ body: permissionButtons('orders', logged) });
+      return;
+    }
     if (!chars.length) {
       body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de piață.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your market orders.' }) });
       return;
     }
-    const warn = scan?.missingScope.length
-      ? alertBox(tx('Fără permisiunea pentru ordine: {names}. Fă din nou login cu aceste caractere din meniul de caractere.', { names: scan.missingScope.join(', ') }), 'warn')
-      : '';
+    const noScope = logged.filter((c) => scan?.missingScope.includes(c.name));
+    const warn = noScope.length ? permissionButtons('orders', noScope) : '';
     if (!scan) {
       body.innerHTML = panel({ body: busy ? loader(tx('Citim ordinele și registrul pieței')) : error ? alertBox(error) : '' });
       return;

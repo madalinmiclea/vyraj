@@ -1,4 +1,5 @@
-import type { Fit } from '../engine/fit';
+import { buildDogma, canLoadCharge, cloneFit, SLOT_KINDS, type Fit } from '../engine/fit';
+import { Category } from '../data/sde';
 import type { Dogma, DogmaItem } from '../engine/dogma';
 import { lockTime, DAMAGE_TYPES, LAYERS, type FitStats } from '../engine/stats';
 import { DAMAGE_PROFILES, profileText } from '../engine/profiles';
@@ -13,8 +14,43 @@ import { stackingFactor } from '../engine/dogma';
 import { tx } from '../i18n';
 import { DMG_LABEL, LAYER_LABEL, capTime, sum, damageBar, groupBy, type FitEnv } from './shared';
 
+const CURVE_COLORS = 4;
+const DAMAGE_ATTRS = ['emDamage', 'thermalDamage', 'kineticDamage', 'explosiveDamage'];
+
 export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
   const { sde, ctx } = env;
+  let compareWeapon = 0;
+  let compare: number[] = [];
+  const ammoCache = new Map<number, number[]>();
+
+  function mainWeapon(fit: Fit): { typeId: number; chargeId?: number } | null {
+    const counts = new Map<number, { n: number; chargeId?: number }>();
+    for (const k of SLOT_KINDS) for (const m of fit.slots[k]) {
+      if (!m || !m.chargeId || m.state === 'offline') continue;
+      if (!DAMAGE_ATTRS.some((a) => sde.baseAttr(m.chargeId!, sde.attrId(a)) > 0)) continue;
+      const c = counts.get(m.typeId) ?? { n: 0, chargeId: m.chargeId };
+      c.n++;
+      counts.set(m.typeId, c);
+    }
+    const best = [...counts].sort((a, b) => b[1].n - a[1].n)[0];
+    return best ? { typeId: best[0], chargeId: best[1].chargeId } : null;
+  }
+
+  function ammoFor(moduleId: number): number[] {
+    if (!ammoCache.has(moduleId)) {
+      ammoCache.set(moduleId, sde.typesInCategory(Category.Charge)
+        .filter((c) => canLoadCharge(sde, moduleId, c.id) && DAMAGE_ATTRS.some((a) => sde.baseAttr(c.id, sde.attrId(a)) > 0))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => c.id));
+    }
+    return ammoCache.get(moduleId)!;
+  }
+
+  function withAmmo(fit: Fit, moduleId: number, chargeId: number): Dogma {
+    const copy = cloneFit(fit);
+    for (const k of SLOT_KINDS) for (const m of copy.slots[k]) if (m && m.typeId === moduleId) m.chargeId = chargeId;
+    return buildDogma(sde, copy, ctx.character);
+  }
 
   function buildTips(d: Dogma) {
     tips.clear();
@@ -58,19 +94,21 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
     return preset ?? { id: 'custom', name: tx('Personalizat'), signature: env.targetState().signature, velocity: env.targetState().velocity };
   }
 
-  function dpsChart(points: { distance: number; dps: number }[], raw: number, at: number) {
+  function dpsChart(points: { distance: number; dps: number }[], raw: number, at: number, extra: { distance: number; dps: number }[][] = []) {
     const w = 520, h = 170, pl = 44, pb = 22, pt = 8, pr = 10;
-    const maxX = points[points.length - 1].distance;
-    const maxY = Math.max(raw, ...points.map((p) => p.dps), 1);
+    const maxX = Math.max(points[points.length - 1].distance, ...extra.map((c) => c[c.length - 1].distance));
+    const maxY = Math.max(raw, ...points.map((p) => p.dps), ...extra.flat().map((p) => p.dps), 1);
     const x = (v: number) => pl + (v / maxX) * (w - pl - pr);
     const y = (v: number) => pt + (1 - v / maxY) * (h - pt - pb);
-    const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.distance).toFixed(1)},${y(p.dps).toFixed(1)}`).join('');
+    const path = (pts: { distance: number; dps: number }[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.distance).toFixed(1)},${y(p.dps).toFixed(1)}`).join('');
+    const line = path(points);
     const ticksX = [0, 0.25, 0.5, 0.75, 1].map((f) => maxX * f);
     const ticksY = [0, 0.5, 1].map((f) => maxY * f);
     return `<svg class="dps-chart" viewBox="0 0 ${w} ${h}" role="img">
       ${ticksY.map((v) => `<line x1="${pl}" x2="${w - pr}" y1="${y(v)}" y2="${y(v)}" class="grid" /><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${formatNum(v, 0)}</text>`).join('')}
       ${ticksX.map((v) => `<text x="${x(v)}" y="${h - 6}" text-anchor="middle">${formatNum(v / 1000, 0)} km</text>`).join('')}
       <line x1="${pl}" x2="${w - pr}" y1="${y(raw)}" y2="${y(raw)}" class="raw" />
+      ${extra.map((c, i) => `<path d="${path(c)}" class="curve alt c${i % CURVE_COLORS}" />`).join('')}
       <path d="${line}" class="curve" />
       ${at <= maxX ? `<line x1="${x(at)}" x2="${x(at)}" y1="${pt}" y2="${h - pb}" class="marker" />` : ''}
     </svg>`;
@@ -92,6 +130,36 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
       `<div class="bd-title">${esc(p.item.type.name)}</div>${breakdownHtml(single(p.item.trace(sde.attrId('signatureRadiusBonus'))), pctFmt, tx('modul'))}`
       + (p.reach < 1 ? `<div class="bd-row dim">${tx('Eficiență la distanță')}: ${formatNum(p.reach * 100, 0)}%</div>` : '')).join('');
     tips.set('paint', `<div class="bd-title">${tx('Semnătură țintă')}</div>${breakdownHtml({ base: target.signature, parts, value: a.signature }, m, tx('țintă'))}${modules}`);
+  }
+
+  function ammoCompare(d: Dogma, target: TargetProfile, distance: number, raw: number) {
+    const fit = env.getFit();
+    const main = fit ? mainWeapon(fit) : null;
+    if (!fit || !main) return dpsChart(dpsCurve(sde, d, target), raw, distance);
+    if (compareWeapon !== main.typeId) { compareWeapon = main.typeId; compare = []; }
+    const options = ammoFor(main.typeId).filter((id) => id !== main.chargeId);
+    const shown = compare.filter((id) => options.includes(id));
+    const curves = shown.map((id) => {
+      const dd = withAmmo(fit, main.typeId, id);
+      return { id, curve: dpsCurve(sde, dd, target), now: applied(sde, dd, target, distance).dps };
+    });
+    const nowMain = applied(sde, d, target, distance).dps;
+    const legend = `<div class="ammo-legend">
+      <span class="ammo-key main"><i></i>${esc(env.name(main.chargeId!))}<b class="num">${formatNum(nowMain, 0)}</b></span>
+      ${curves.map((c, i) => `<span class="ammo-key c${i % CURVE_COLORS}"><i></i>${esc(env.name(c.id))}<b class="num">${formatNum(c.now, 0)}</b><button class="ammo-del" data-ammo-del="${c.id}" aria-label="${tx('Scoate din grafic')}">${icon('close')}</button></span>`).join('')}
+    </div>`;
+    const picker = options.length && shown.length < CURVE_COLORS
+      ? `<label class="ammo-pick">${tx('Compară cu altă muniție')}<select class="input plain sm" data-ammo-add><option value="">${tx('Alege muniția')}</option>${options.filter((id) => !shown.includes(id)).map((id) => `<option value="${id}">${esc(env.name(id))}</option>`).join('')}</select></label>`
+      : '';
+    return dpsChart(dpsCurve(sde, d, target), raw, distance, curves.map((c) => c.curve)) + legend + picker;
+  }
+
+  function handleAmmo(t: HTMLElement): boolean {
+    const add = t.closest<HTMLSelectElement>('[data-ammo-add]');
+    if (add && add.value) { compare = [...compare, Number(add.value)].slice(-CURVE_COLORS); return true; }
+    const del = t.closest<HTMLElement>('[data-ammo-del]');
+    if (del) { compare = compare.filter((id) => id !== Number(del.dataset.ammoDel)); return true; }
+    return false;
   }
 
   function applicationPanel(d: Dogma) {
@@ -118,7 +186,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
           <div><span class="label">${tx('Din brut')}</span><span class="value num">${formatNum(pct, 0)}%</span></div>
           ${a.painters.length ? `<div data-bd="paint"><span class="label">${tx('Semnătură cu painter')}</span><span class="value num">${formatNum(a.signature, 0)} m</span></div>` : ''}
         </div>
-        ${dpsChart(dpsCurve(sde, d, target), a.rawDps, distance)}
+        ${ammoCompare(d, target, distance, a.rawDps)}
         <table class="table compact"><tbody>${a.weapons.map((w) => `<tr><td>${esc(w.name)}</td><td class="r num">${formatNum(w.dps, 1)}</td><td class="r num dim">${formatNum(w.factor * 100, 0)}%</td></tr>`).join('')}</tbody></table>`,
     });
   }
@@ -235,9 +303,9 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
           <table class="table compact"><tbody>${rows}</tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-action="copy-plan">${icon('copy')}${tx('Copiază planul')}</button><button class="btn ghost sm" data-action="plan-fit">${icon('skills')}${tx('Adaugă în planul de skill-uri')}</button></div>
           <div id="skillbookCost" class="dim small"></div>` : ''}
-        ${ctx.character.kind === 'all5' ? `<p class="dim small">${tx('Statisticile sunt calculate cu All 5. Importă caracterul tău din ecranul Caracter.')}</p>` : ''}`,
+        ${ctx.character.kind === 'all5' ? `<p class="dim small">${tx('Statisticile sunt calculate cu toate skill-urile la V. Fă login în Caracter ca să vezi cifrele tale.')}</p>` : ''}`,
     });
   }
 
-  return { buildTips, statsPanels, requirementsPanel };
+  return { buildTips, statsPanels, requirementsPanel, handleAmmo };
 }

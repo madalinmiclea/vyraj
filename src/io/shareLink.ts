@@ -45,7 +45,7 @@ async function readLimited(stream: ReadableStream<Uint8Array>, limit: number): P
   return out;
 }
 
-function compact(fit: Fit): Raw {
+export function compactFit(fit: Fit): Raw {
   const slots: Raw = {};
   for (const k of SLOT_KINDS) if (fit.slots[k].length) slots[k] = fit.slots[k].map((m) => (m ? [m.typeId, STATES.indexOf(m.state), m.chargeId ?? 0, m.mutation ? [m.mutation.mutaplasmidId, m.mutation.values] : 0] : 0));
   const out: Raw = { v: 1, n: fit.name, s: fit.shipId, sl: slots };
@@ -60,7 +60,8 @@ function compact(fit: Fit): Raw {
   return out;
 }
 
-function expand(sde: Sde, raw: Raw): Fit | null {
+export function expandFit(sde: Sde, input: unknown): Fit | null {
+  const raw = obj(input);
   const known = (v: unknown) => { const id = int(v, 0, 2 ** 31, 0); return id && sde.types.has(id) ? id : 0; };
   const shipId = known(raw.s);
   if (!shipId) return null;
@@ -110,10 +111,21 @@ function expand(sde: Sde, raw: Raw): Fit | null {
   return fit;
 }
 
+export async function encodeCode(value: unknown, limit = MAX_JSON): Promise<string> {
+  const stream = new Response(JSON.stringify(value)).body!.pipeThrough(new CompressionStream('deflate-raw'));
+  return toBase64Url(await readLimited(stream, limit));
+}
+
+export async function decodeCode(code: string, maxCode = MAX_CODE, limit = MAX_JSON): Promise<unknown> {
+  if (!code || code.length > maxCode || !/^[A-Za-z0-9_-]+$/.test(code)) throw new Error('invalid');
+  const stream = new Blob([fromBase64Url(code) as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return JSON.parse(new TextDecoder().decode(await readLimited(stream, limit)));
+}
+
+export const appUrl = (hash: string) => `${location.origin}${import.meta.env.BASE_URL}${hash}`;
+
 export async function shareUrl(fit: Fit): Promise<string> {
-  const stream = new Response(JSON.stringify(compact(fit))).body!.pipeThrough(new CompressionStream('deflate-raw'));
-  const code = toBase64Url(await readLimited(stream, MAX_JSON));
-  return `${location.origin}${import.meta.env.BASE_URL}${PREFIX}${code}`;
+  return appUrl(PREFIX + await encodeCode(compactFit(fit)));
 }
 
 export function hasSharedFit(): boolean {
@@ -124,11 +136,7 @@ export async function readSharedFit(sde: Sde): Promise<Fit | null> {
   if (!hasSharedFit()) return null;
   const code = location.hash.slice(PREFIX.length);
   history.replaceState(null, '', location.pathname + location.search);
-  if (!code || code.length > MAX_CODE || !/^[A-Za-z0-9_-]+$/.test(code)) throw new Error('invalid');
-  const bytes = fromBase64Url(code);
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  const json = new TextDecoder().decode(await readLimited(stream, MAX_JSON));
-  const fit = expand(sde, obj(JSON.parse(json)));
+  const fit = expandFit(sde, await decodeCode(code));
   if (!fit) throw new Error('invalid');
   return fit;
 }

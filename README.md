@@ -6,14 +6,20 @@ Vyraj is a free web toolkit for EVE Online pilots: Jita market prices, a Pyfa-st
 
 **Live:** [madalinmiclea.github.io/vyraj](https://madalinmiclea.github.io/vyraj/)
 
+**Found a bug or have an idea?** [Open an issue](https://github.com/madalinmiclea/vyraj/issues). The Start screen and the Credits page also link there, next to the changelog.
+
 It is a fully static site. Everything runs in your browser and there is no Vyraj server. Your characters, login tokens, fits, SKIN collection, journals and settings are stored only in your browser's local storage and are never sent anywhere except directly to CCP's own services.
 
 ## User guide
 
 ### Getting around
 
-- **Left rail** (bottom bar on phones): switches between the main screens.
-- **Left panel**: the item browser or the screen's own menu. On phones it opens from the ☰ button at the top left.
+- **Start**: the first screen. It explains what Vyraj does, lists every tool by group, shows your active pilot and saved fits once you log in, and the latest entries from the changelog.
+- **Left rail** (bottom bar on phones): switches between the main screens. Each icon has its name underneath.
+- **Links per screen**: every screen has its own address (for example `#/fitting` or `#/doctrines`), so you can bookmark or share it, and the browser back button works.
+- **Install**: Vyraj can be installed as an app from the browser menu (Add to Home Screen on phones, Install on desktop).
+- **Backup**: the Start and Character screens can download all your local data (fits, doctrines, skill plans, custom characters, logs and settings) as one file and restore it on another computer. EVE logins are never written to the file.
+- **Left panel**: the item browser or the screen's own menu. On phones it opens from the ☰ button at the top left, and the screen's sections also show as tabs at the top.
 - **Top right**: your characters, the theme switch (Light, Dark, Vyraj) and the language switch (RO / EN).
 - **Right-click** any item in the browser to open its full info: attributes, variations and skill requirements.
 
@@ -69,10 +75,20 @@ A fitting simulator that follows Pyfa's formulas:
 - Pick a ship, then click a slot. The browser narrows down to modules for that slot only.
 - Fits always stay valid. Any change that would break CPU, powergrid, calibration, hardpoints, slots or drone bandwidth is blocked and the reason is shown.
 - Stats include DPS and volley, EHP and resists against damage profiles, capacitor, speed, targeting and the fit's cost at Jita sell prices. Hover a stat to see where every bonus comes from.
+- **Applied DPS:** pick a target (signature, speed, distance) and see the DPS curve by distance. Add up to four other ammo types to compare their curves on the same chart.
 - **PvE tank:** pick a mission or anomaly and the NPC faction. Vyraj shows the damage you receive, EHP against that profile, whether your tank is sustainable or the time until you die, the damage type to shoot back with and what their electronic warfare does to your fit.
 - Import and export EFT, DNA and Multibuy, save fits, compare saved fits side by side, load fits saved in the game, send a fit to the game, and rebuild fits from the ships you own.
 - **Share link:** copy a link that opens the fit directly in Vyraj, in a new tab, for anyone who opens it.
 - Fleet boosts, projected effects and abyssal (mutated) modules are supported.
+
+### Doctrines
+
+Fleet doctrines for your corporation. A doctrine is a named set of fits, each with a role (DPS, Logistics, Tackle, EWAR, Boosts, Scout, Support), a requested count and a main or alternative flag.
+
+- **Who can fly:** for every character you logged in (or created as custom), see which fits they can fly now and how much training each one still needs, calculated with their attributes and implants. Click a training time to add the missing skills to that character's skill plan.
+- **Cost:** the Jita sell price of the whole doctrine (hull, fitted modules and drones, times the requested count), per role, with a combined Multibuy list.
+- **Sharing:** copy a link that opens the doctrine in Vyraj for anyone, or copy it as EFT text grouped by role for Discord. Pasting that text (or any set of EFT fits, with role lines such as `## logi`) imports it back.
+- Add fits from your saved fits, from the fit open in Fitting, or by pasting EFT. Each fit opens in Fitting with one click.
 
 ### ISK tools
 
@@ -89,7 +105,7 @@ Your SKIN collection per ship and per line, what you still miss, and the cheapes
 
 ## Why Vyraj asks for each permission
 
-When you log in, EVE asks you to approve the permissions below. Each one is used only for the feature listed, only for the character you logged in with, and only from your own browser.
+Login asks only for the first three permissions below: skills, skill queue and implants. Every other permission is asked separately, the first time you open the screen that needs it, with an Allow button that explains what it is for. You can also see and grant them all from the EVE permissions panel on the Character screen. Each one is used only for the feature listed, only for the character you logged in with, and only from your own browser.
 
 | Permission | What Vyraj does with it |
 | --- | --- |
@@ -110,7 +126,7 @@ When you log in, EVE asks you to approve the permissions below. Each one is used
 | `esi-characters.read_blueprints.v1` | Reads your blueprints, so the Industry screen can list them and calculate with their real ME, TE and runs. |
 | `esi-industry.read_character_jobs.v1` | Shows your running industry jobs and when they finish. |
 
-If you logged in before a feature was added, its screen tells you which permission is missing. Log in again with that character to approve it.
+When a screen needs a permission you have not given yet, it shows what the permission is for and an Allow button. Pressing it sends you to the EVE login page, keeps the permissions you already gave and adds the new one.
 
 Vyraj never sees your password. Login uses EVE's official SSO with PKCE, there is no client secret, and you can revoke access at any time from [community.eveonline.com/support/third-party-applications](https://community.eveonline.com/support/third-party-applications/).
 

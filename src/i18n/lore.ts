@@ -2,6 +2,7 @@ import { lang } from '../i18n';
 
 const LORE_RO: Record<string, string> = {
   'Weaving the Flow…': 'Se țese Curgerea…',
+  'Every path of the Flow, woven into one': 'Toate cărările Curgerii, țesute într-una singură',
   'Choose What the Conduit Weighs': 'Alege ce va cântări Conduitul',
   'Pick an item from the item browser or search above. Prices flow live from the Jita 4-4 orders.': 'Alege-ți lucrul din vistieria de iteme ori caută-l mai sus. Prețurile curg nestăvilite din tocmelile Jitei 4-4.',
   'The Conduit Is Silent': 'Conduitul tace',

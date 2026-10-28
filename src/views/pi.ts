@@ -3,6 +3,7 @@ import { loadJson, saveJson } from '../storage';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { rosterCharacters } from '../character/roster';
 import { hasTokens, hasScope } from '../character/sso';
+import { permissionButtons } from '../character/permissions';
 import { formatDuration } from '../character/training';
 import { systemInfo, displaySec, secClass, type SystemInfo } from '../services/recon';
 import {
@@ -50,7 +51,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   const plan = { product: 0, qty: 1000, ...loadJson<{ product?: number; qty?: number }>(PLAN_KEY, {}) };
   let colonySort = loadJson<ColonySort>(COLONY_SORT_KEY, 'expiry');
 
-  el.innerHTML = `${pageHead(tx('Interacțiune planetară'), tx('Profit pe lanțuri P0-P4 la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave')}
+  el.innerHTML = `${pageHead(tx('Interacțiune planetară'), tx('Profit pe lanțuri P0-P4 la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave', { hub: true })}
     <div id="piColonies"></div>
     <div id="piChains"></div>
     <div id="piPlanner"></div>
@@ -202,12 +203,12 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
       return;
     }
     const rows: { charName: string; charId: number; c: Colony }[] = [];
-    const noScope: string[] = [];
+    const noScope: { characterId: number; name: string }[] = [];
     const errors: string[] = [];
     for (const ch of chars) {
       const e: ColonyEntry | undefined = colonies[ch.characterId!];
       if (!hasTokens(ch.characterId!)) continue;
-      if (e?.missingScope) noScope.push(ch.name);
+      if (e?.missingScope) noScope.push({ characterId: ch.characterId!, name: ch.name });
       if (e?.error) errors.push(`${ch.name}: ${e.error}`);
       for (const c of e?.colonies ?? []) rows.push({ charName: ch.name, charId: ch.characterId!, c });
     }
@@ -244,7 +245,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
           ${chip(tx('Următoarea expirare'), next ? formatDuration((next - now) / 1000) : '—')}
           ${chip(tx('P0 extras / zi'), daily ? compactISK(daily) : '—')}
         </div>
-        ${noScope.length ? alertBox(tx('Fără permisiunea pentru planete: {names}. Fă din nou login cu ele din „Adaugă caracter”, dreapta sus.', { names: noScope.join(', ') }), 'warn') : ''}
+        ${noScope.length ? permissionButtons('planets', noScope) : ''}
         ${errors.map((x) => alertBox(x)).join('')}
         ${rows.length ? `<div class="table-scroll"><table class="table compact pi-colonies">
           <thead><tr><th>${tx('Caracter')}</th><th>${tx('Planetă')}</th><th>${tx('Extractoare')}</th><th>${tx('Fabrici')}</th><th>${tx('Depozit')}</th><th class="r">${tx('Actualizat în joc')}</th></tr></thead>

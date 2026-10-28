@@ -1,10 +1,12 @@
 import { pageHead, panel, esc } from '../ui/components';
 import { icon } from '../ui/icons';
 import { tx } from '../i18n';
+import { openChangelog } from '../ui/changelog';
 
 interface Source { name: string; url: string; host: string; who?: string; role: string; ico?: string }
 interface Group { id: string; title: string; items: Source[] }
 
+export const ISSUES_URL = 'https://github.com/madalinmiclea/vyraj/issues';
 const LINKEDIN = 'https://www.linkedin.com/in/madalin-miclea-45573290/';
 const AUTHOR = 'Madalin Miclea';
 const PILOT = { name: 'moonKL', id: 109537098, race: 'Caldari', bloodline: 'Civire', corp: 'State War Academy', ticker: 'SWA', since: 2010, ship: 'Golem', shipId: 28710, shipGroup: 'Marauder' };
@@ -80,7 +82,11 @@ function body() {
         <div class="about-author-role">${tx('Construit de')}</div>
         <div class="about-author-name">${AUTHOR}</div>
         <p class="dim">${tx('Vyraj e un proiect personal, gratuit, făcut din pasiune pentru EVE. Ideile și feedback-ul sunt binevenite.')}</p>
-        ${linkedin('btn')}
+        <div class="about-sign-actions">
+          ${ext(`${ISSUES_URL}/new`, `${icon('external')}<span>${tx('Raportează pe GitHub')}</span>`, 'btn')}
+          <button class="btn ghost" data-changelog>${icon('skills')}<span>${tx('Jurnal de schimbări')}</span></button>
+          ${linkedin('btn ghost')}
+        </div>
       </div>
       ${pilot()}
     </section>
@@ -91,4 +97,7 @@ function body() {
 export function createAboutView(el: HTMLElement) {
   el.innerHTML = `${pageHead(tx('Credite și mulțumiri'), tx('Sursele, uneltele și oamenii pe care se sprijină Vyraj'), 'Letopis')}
     ${body()}`;
+  el.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-changelog]')) openChangelog();
+  });
 }
