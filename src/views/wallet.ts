@@ -117,7 +117,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const cells = activity.map((d) => ({ day: d.day, value: d.isk, tip: `${day(d.day)} · ${d.isk ? `${compactISK(d.isk)} ISK${d.ticks ? ` · ${tx('{n} tick-uri', { n: d.ticks })}` : ''}` : tx('fără PvE')}` }));
     const heat = panel({
       title: tx('Activitate PvE'),
-      count: tx('ultimele {n} zile', { n: activity.length }),
+      count: tx('ultimele {n} săptămâni', { n: Math.round(activity.length / 7) }),
       body: `<div class="history-kpis compact">
           <div><span class="label">${tx('Zile active')}</span><span class="value">${formatInt(active.length)}</span></div>
           <div><span class="label">${tx('Venit PvE')}</span><span class="value up">${compactISK(active.reduce((a, d) => a + d.isk, 0))}</span></div>
@@ -254,7 +254,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const tradeRows = tradeSummary(since(trades, from)).slice(0, 300);
 
     const bar = `<div class="wallet-bar">
-        <span class="dim small">${entries.length ? tx('istoric salvat din {date}', { date: day(oldest) }) : tx('nicio intrare în jurnal')}</span>
+        <span class="dim small">${entries.length ? tx('Istoric salvat din {date}', { date: day(oldest) }) : tx('Nicio intrare în jurnal')}</span>
         <span class="wallet-bar-actions">${dataStamp(fetchedAt, 'data-wallet-refresh', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') })}<span class="advice-sort">${chips}</span></span>
       </div>`;
     const overview = () => `${panel({

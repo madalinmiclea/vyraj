@@ -232,7 +232,9 @@ td thead th { top: 30px; z-index: 1; }
 .chip-btn:hover { color: var(--text-bright); border-color: var(--line-accent); background: var(--bg-hover); }
 .chip-btn.active { color: var(--text-bright); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
 .char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.char-card { display: flex; gap: 14px; padding: 12px; }
+.char-card { position: relative; display: flex; gap: 14px; padding: 12px; }
+.char-card .char-remove { position: absolute; top: 8px; right: 8px; }
+.char-card .char-body h3 { padding-right: 36px; }
 .char-card.active { border-color: var(--line-accent); box-shadow: inset 0 0 30px rgba(var(--accent-rgb), 0.06); }
 .char-card img, .char-placeholder { width: 80px; height: 80px; flex: none; border: 1px solid var(--line); background: var(--bg-inset); }
 .char-body { flex: 1; min-width: 0; }

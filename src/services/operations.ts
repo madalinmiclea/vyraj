@@ -105,7 +105,7 @@ export interface MyJob extends FreelanceJob { participation?: { contributed: num
 
 export async function myFreelanceJobs(characterId: number): Promise<MyJob[]> {
   const r = await authed<{ freelance_jobs: FreelanceJob[] }>(characterId, `/characters/${characterId}/freelance-jobs`);
-  return Promise.all(r.freelance_jobs.map(async (j) => ({
+  return Promise.all((r.freelance_jobs ?? []).map(async (j) => ({
     ...j,
     participation: await authed<{ contributed: number; state: string }>(characterId, `/characters/${characterId}/freelance-jobs/${j.id}/participation`).catch(() => undefined),
   })));
@@ -120,7 +120,7 @@ let campaigns: { at: number; list: Campaign[] } | null = null;
 export async function militaryCampaigns(force = false): Promise<{ at: number; list: Campaign[] }> {
   if (!force && campaigns && Date.now() - campaigns.at < 5 * 60 * 1000) return campaigns;
   const r = await publicJson<{ campaigns: Campaign[] }>('/military-campaigns');
-  campaigns = { at: Date.now(), list: r.campaigns };
+  campaigns = { at: Date.now(), list: r.campaigns ?? [] };
   return campaigns;
 }
 
@@ -131,7 +131,7 @@ export async function campaignObjectives(campaignId: string): Promise<Objective[
   if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.list;
   const list = await walk<Objective>(async (cursor) => {
     const r = await publicJson<{ cursor?: { before?: string }; objectives: Objective[] }>(`/military-campaigns/${campaignId}/objectives?limit=100&before=${encodeURIComponent(cursor)}`);
-    return { cursor: r.cursor, rows: r.objectives };
+    return { cursor: r.cursor, rows: r.objectives ?? [] };
   }, 10);
   objectiveCache.set(campaignId, { at: Date.now(), list });
   return list;
@@ -140,7 +140,7 @@ export async function campaignObjectives(campaignId: string): Promise<Objective[
 export function myObjectives(characterId: number): Promise<MyObjective[]> {
   return walk<MyObjective>(async (cursor) => {
     const r = await authed<{ cursor?: { before?: string }; objectives: MyObjective[] }>(characterId, `/characters/${characterId}/military-campaigns/objectives?limit=100&before=${encodeURIComponent(cursor)}`);
-    return { cursor: r.cursor, rows: r.objectives };
+    return { cursor: r.cursor, rows: r.objectives ?? [] };
   }, 10);
 }
 
@@ -160,12 +160,12 @@ export interface TacticalOperation { id: string; dungeon_type_id: number; expire
 
 export async function mercenaryDens(characterId: number): Promise<MercenaryDen[]> {
   const r = await authed<{ mercenary_dens: { id: number }[] }>(characterId, `/characters/${characterId}/structures/mercenary-dens`);
-  return Promise.all(r.mercenary_dens.map((d) => authed<MercenaryDen>(characterId, `/characters/${characterId}/structures/mercenary-dens/${d.id}`)));
+  return Promise.all((r.mercenary_dens ?? []).map((d) => authed<MercenaryDen>(characterId, `/characters/${characterId}/structures/mercenary-dens/${d.id}`)));
 }
 
 export async function tacticalOperations(characterId: number): Promise<TacticalOperation[]> {
   const r = await authed<{ operations: { id: string }[] }>(characterId, `/characters/${characterId}/mercenary-tactical-operations`);
-  return Promise.all(r.operations.map((o) => authed<TacticalOperation>(characterId, `/characters/${characterId}/mercenary-tactical-operations/${o.id}`)));
+  return Promise.all((r.operations ?? []).map((o) => authed<TacticalOperation>(characterId, `/characters/${characterId}/mercenary-tactical-operations/${o.id}`)));
 }
 
 export interface SkinrLicense { skinr_id: string; activated: boolean; unactivated: number }
@@ -174,11 +174,11 @@ export interface SkinrDesign { id: string; name: string; ship_type_id: number; c
 export interface ParagonListing { id: string; skinr_id: string; seller_id: number; state: string; quantity: number; created: string; expires: string; price: { isk?: number; plex?: number } }
 
 export async function skinrLicenses(characterId: number): Promise<SkinrLicense[]> {
-  return (await authed<{ licenses: SkinrLicense[] }>(characterId, `/characters/${characterId}/cosmetics/skinr`)).licenses;
+  return (await authed<{ licenses: SkinrLicense[] }>(characterId, `/characters/${characterId}/cosmetics/skinr`)).licenses ?? [];
 }
 
 export async function skinrComponents(characterId: number): Promise<SkinrComponentLicense[]> {
-  return (await authed<{ licenses: SkinrComponentLicense[] }>(characterId, `/characters/${characterId}/cosmetics/skinr/components`)).licenses;
+  return (await authed<{ licenses: SkinrComponentLicense[] }>(characterId, `/characters/${characterId}/cosmetics/skinr/components`)).licenses ?? [];
 }
 
 const designs = new Map<string, Promise<SkinrDesign | null>>();
@@ -197,12 +197,12 @@ let listings: { at: number; list: ParagonListing[] } | null = null;
 export async function paragonListings(force = false): Promise<{ at: number; list: ParagonListing[] }> {
   if (!force && listings && Date.now() - listings.at < 10 * 60 * 1000) return listings;
   const r = await publicJson<{ listings: ParagonListing[] }>('/paragon-hub/skinr?limit=100&before=0');
-  listings = { at: Date.now(), list: r.listings.filter((l) => l.state === 'listed') };
+  listings = { at: Date.now(), list: (r.listings ?? []).filter((l) => l.state === 'listed') };
   return listings;
 }
 
 export async function mySellerListings(characterId: number): Promise<ParagonListing[]> {
-  return (await authed<{ listings: ParagonListing[] }>(characterId, `/characters/${characterId}/paragon-hub/skinr?limit=100&before=0`)).listings;
+  return (await authed<{ listings: ParagonListing[] }>(characterId, `/characters/${characterId}/paragon-hub/skinr?limit=100&before=0`)).listings ?? [];
 }
 
 export interface CharacterPublic { name: string; corporation_id: number; alliance_id?: number; birthday: string; security_status?: number; achievement_score?: number; character_title_id?: string; corporation_title?: string }

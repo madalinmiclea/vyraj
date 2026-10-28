@@ -30,8 +30,8 @@ interface UiState { tab: Tab; filter: Filter; character: number | 0 }
 
 const FILTERS: [Filter, string][] = [
   ['all', tx('Toate')],
-  ['sell', 'Sell'],
-  ['buy', 'Buy'],
+  ['sell', tx('Vânzare')],
+  ['buy', tx('Cumpărare')],
   ['beaten', tx('Depășite')],
 ];
 
@@ -101,7 +101,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (!c || c.status === 'unknown') return badge(tx('Necunoscut'), '', true);
     if (c.status === 'best') return badge(c.competitors ? tx('Cel mai bun') : tx('Singur'), 'ok', true);
     if (c.status === 'tied') return badge(tx('Egal'), 'warn', true);
-    return badge(o.is_buy_order ? tx('Outbid ({n})', { n: c.ahead }) : tx('Undercut ({n})', { n: c.ahead }), 'danger', true);
+    return `<span title="${esc(tx('{n} ordine au un preț mai bun decât al tău', { n: c.ahead }))}">${badge(o.is_buy_order ? tx('Supralicitat ({n})', { n: c.ahead }) : tx('Subcotat ({n})', { n: c.ahead }), 'danger', true)}</span>`;
   }
 
   function rivalCell(o: TrackedOrder, c: Competition | undefined) {
@@ -137,12 +137,12 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   }
 
   const orderRow = (o: TrackedOrder, c: Competition | undefined, multi: boolean) => `<tr class="${c?.status === 'beaten' ? 'ord-beaten' : ''}">
-      <td><button class="link ord-item" data-ord-open="${o.type_id}"><img class="row-icon" src="${typeIconUrl(o.type_id, 32)}" alt="" />${esc(typeName(o.type_id))}</button> ${o.is_buy_order ? badge('Buy', 'accent') : badge('Sell', 'gold')}${o.is_corporation ? badge('Corp') : ''}
+      <td><button class="link ord-item" data-ord-open="${o.type_id}"><img class="row-icon" src="${typeIconUrl(o.type_id, 32)}" alt="" />${esc(typeName(o.type_id))}</button> ${o.is_buy_order ? badge(tx('Cumpărare'), 'accent') : badge(tx('Vânzare'), 'gold')}${o.is_corporation ? badge('Corp') : ''}
         <div class="small dim ord-place" title="${esc(place(o.location_id))}">${multi ? `${esc(o.characterName)} · ` : ''}${esc(place(o.location_id))}${o.is_buy_order && o.range !== 'station' ? ` · ${tx('rază')} ${esc(o.range)}` : ''}</div></td>
       <td class="r"><span class="num">${formatISK(o.price)}</span><div class="small dim">tick ${formatISK(priceTick(o.price))}</div></td>
       <td class="r">${rivalCell(o, c)}</td>
       <td>${statusBadge(o, c)}</td>
-      <td class="r num">${formatInt(o.volume_remain)}<div class="small dim">/ ${formatInt(o.volume_total)}</div></td>
+      <td class="r num nowrap">${formatInt(o.volume_remain)} <span class="small dim">/ ${formatInt(o.volume_total)}</span></td>
       <td class="r num">${remaining(expiresAt(o) - Date.now())}</td>
       <td class="r ord-action">${actionCell(o, c)}</td>
     </tr>`;
@@ -225,7 +225,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
           <th>Item</th><th>${tx('Tip')}</th><th class="r">${tx('Preț')}</th><th class="r">${tx('Executat')}</th><th>${tx('Stare')}</th><th>${tx('Locație')}</th><th class="r">${tx('Plasat')}</th>
         </tr></thead><tbody>${rows.map((o) => `<tr>
           <td><button class="link ord-item" data-ord-open="${o.type_id}"><img class="row-icon" src="${typeIconUrl(o.type_id, 32)}" alt="" />${esc(typeName(o.type_id))}</button>${multi ? `<div class="small dim">${esc(o.characterName)}</div>` : ''}</td>
-          <td>${o.is_buy_order ? badge('Buy', 'accent') : badge('Sell', 'gold')}</td>
+          <td>${o.is_buy_order ? badge(tx('Cumpărare'), 'accent') : badge(tx('Vânzare'), 'gold')}</td>
           <td class="r num">${formatISK(o.price)}</td>
           <td class="r num">${formatInt(done(o))} / ${formatInt(o.volume_total)}</td>
           <td>${state(o)}</td>

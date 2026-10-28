@@ -8,7 +8,8 @@ import { forgetPlan } from '../character/skillPlan';
 import { forgetRoster } from '../character/roster';
 import { forgetSkins } from '../services/skins';
 import { forgetWallet } from '../services/wallet';
-import { loadJson, saveJson } from '../storage';
+import { loadJson, saveJson, isDemo } from '../storage';
+import { DEMO_ID } from '../demo/identity';
 import { icon } from '../ui/icons';
 import { showItemInfo } from '../ui/itemInfo';
 import { alertBox, badge, button, confirmDialog, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
@@ -105,9 +106,9 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${isActive ? '' : button(tx('Folosește'), { cls: 'sm', attrs: `data-use="${esc(c.id)}"` })}
           ${c.kind === 'esi' && logged ? button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-refresh="${esc(c.id)}"` }) : ''}
           ${button(tx('Copie editabilă'), { cls: 'ghost sm', attrs: `data-clone="${esc(c.id)}"` })}
-          <button class="btn ghost sm icon-only" data-remove="${esc(c.id)}" title="${tx('Șterge')}">✕</button>
         </div>
       </div>
+      ${isDemo() && c.characterId === DEMO_ID ? '' : `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Șterge')}" aria-label="${tx('Șterge')}">✕</button>`}
     </div>`;
   }
 

@@ -18,7 +18,7 @@
 .window-title .count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0; color: var(--text-faint); }
 .window-title::after, .section-title::after, .sub-head::after { content: ''; flex: 1 1 24px; min-width: 24px; height: 1px; background: linear-gradient(90deg, var(--line-strong), transparent); }
 
-.page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 22px; }
 .page-head h1 {
   font-family: var(--font-heading);
   font-size: 29px;
@@ -26,6 +26,7 @@
   color: var(--text-bright);
   line-height: 1;
   letter-spacing: -0.3px;
+  white-space: nowrap;
 }
 .page-head .sub {
   font-family: var(--font-mono);
@@ -90,6 +91,7 @@
 .field .input { padding-left: 34px; }
 .input::placeholder { color: var(--text-faint); }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12); }
+.input.invalid, .input.invalid:focus { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
 .field.lg .input { height: 46px; font-size: 16px; padding-left: 42px; }
 .field.lg svg { left: 14px; width: 18px; height: 18px; }
 .field kbd {
@@ -584,3 +586,4 @@ summary::-webkit-details-marker { display: none; }
 .hub-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; align-self: center; margin-top: 10px; padding: 4px 10px; font-size: 12px; color: var(--text-dim); border: 1px solid var(--line-strong); background: var(--bg-inset); white-space: nowrap; }
 .hub-chip svg { width: 14px; height: 14px; color: var(--accent); }
 .hub-chip b { font-family: var(--font-mono); font-weight: 500; color: var(--text-bright); }
+.nowrap { white-space: nowrap; }

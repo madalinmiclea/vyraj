@@ -36,13 +36,13 @@
 .live-zoom .icon-btn svg { width: 14px; height: 14px; }
 .live-legend { position: absolute; left: 10px; bottom: 10px; z-index: 2; display: flex; flex-wrap: wrap; gap: 4px 12px; max-width: calc(100% - 20px); padding: 6px 10px; background: color-mix(in srgb, var(--bg-panel-solid) 88%, transparent); border: 1px solid var(--line); color: var(--text-dim); }
 .live-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.lg { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid; }
-.lg-1 { border-color: var(--gold); }
-.lg-2 { border-color: var(--warn); }
-.lg-3 { border-color: var(--danger); }
-.lg-camp { border: 2px dashed var(--danger); }
-.lg-me { width: 9px; height: 9px; border: 0; border-radius: 0; background: var(--accent); transform: rotate(45deg); }
-.lg-intel { width: 9px; height: 9px; border-radius: 0; border-color: var(--slot-rig); transform: rotate(45deg); }
+.live-lg { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid; }
+.live-lg-1 { border-color: var(--gold); }
+.live-lg-2 { border-color: var(--warn); }
+.live-lg-3 { border-color: var(--danger); }
+.live-lg-camp { border: 2px dashed var(--danger); }
+.live-lg-me { width: 9px; height: 9px; border: 0; border-radius: 0; background: var(--accent); transform: rotate(45deg); }
+.live-lg-intel { width: 9px; height: 9px; border-radius: 0; border-color: var(--slot-rig); transform: rotate(45deg); }
 .live-hint { position: absolute; left: 10px; top: 10px; z-index: 1; pointer-events: none; padding: 4px 9px; background: color-mix(in srgb, var(--bg-panel-solid) 85%, transparent); border: 1px solid var(--line); animation: live-hint 9s forwards; }
 @keyframes live-hint { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 .live-alert { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100% - 80px)); padding: 9px 14px; font-size: 13px; color: var(--text); background: color-mix(in srgb, var(--danger) 22%, var(--bg-panel-solid)); border: 1px solid var(--danger); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); cursor: pointer; animation: view-in 0.2s var(--ease); }

@@ -401,30 +401,30 @@ export class StarMap {
       }
     }
     ctx.globalAlpha = 1;
+    const cell = 48;
+    const taken = new Map<string, [number, number, number, number][]>();
+    const free = (x0: number, y0: number, x1: number, y1: number) => {
+      for (let gx = Math.floor(x0 / cell); gx <= Math.floor(x1 / cell); gx++) {
+        for (let gy = Math.floor(y0 / cell); gy <= Math.floor(y1 / cell); gy++) {
+          for (const b of taken.get(`${gx}:${gy}`) ?? []) if (x0 < b[2] && x1 > b[0] && y0 < b[3] && y1 > b[1]) return false;
+        }
+      }
+      return true;
+    };
+    const take = (box: [number, number, number, number]) => {
+      for (let gx = Math.floor(box[0] / cell); gx <= Math.floor(box[2] / cell); gx++) {
+        for (let gy = Math.floor(box[1] / cell); gy <= Math.floor(box[3] / cell); gy++) {
+          const k = `${gx}:${gy}`;
+          (taken.get(k) ?? taken.set(k, []).get(k)!).push(box);
+        }
+      }
+    };
     if (labels) {
       const size = gap > 60 ? 12 : 11;
       ctx.font = `${size}px ${this.css('--font-mono')}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       const text = this.css('--text-dim');
-      const cell = 48;
-      const taken = new Map<string, [number, number, number, number][]>();
-      const free = (x0: number, y0: number, x1: number, y1: number) => {
-        for (let gx = Math.floor(x0 / cell); gx <= Math.floor(x1 / cell); gx++) {
-          for (let gy = Math.floor(y0 / cell); gy <= Math.floor(y1 / cell); gy++) {
-            for (const b of taken.get(`${gx}:${gy}`) ?? []) if (x0 < b[2] && x1 > b[0] && y0 < b[3] && y1 > b[1]) return false;
-          }
-        }
-        return true;
-      };
-      const take = (box: [number, number, number, number]) => {
-        for (let gx = Math.floor(box[0] / cell); gx <= Math.floor(box[2] / cell); gx++) {
-          for (let gy = Math.floor(box[1] / cell); gy <= Math.floor(box[3] / cell); gy++) {
-            const k = `${gx}:${gy}`;
-            (taken.get(k) ?? taken.set(k, []).get(k)!).push(box);
-          }
-        }
-      };
       const order = this.opts.labelFirst ? [...this.list].sort((a, b) => Number(this.opts.labelFirst!(b.id)) - Number(this.opts.labelFirst!(a.id))) : this.list;
       for (const s of order) {
         const [x, y] = this.toScreen(s.x2, s.y2);
@@ -451,6 +451,11 @@ export class StarMap {
       for (const c of this.regionCenters) {
         const [x, y] = this.toScreen(c.x, c.y);
         if (!inView(x, y, 60)) continue;
+        if (labels) {
+          const w = ctx.measureText(c.name).width / 2 + 2;
+          const h = gap < 8 ? 7 : 8;
+          if (!free(x - w, y - h, x + w, y + h)) continue;
+        }
         ctx.strokeText(c.name, x, y);
         ctx.fillText(c.name, x, y);
       }

@@ -89,7 +89,7 @@
 
   .view { padding: 16px 16px 28px; }
   .page-head { flex-wrap: wrap; gap: 4px 12px; }
-  .page-head h1 { font-size: 26px; }
+  .page-head h1 { font-size: 26px; white-space: normal; }
   .page-head .sub { font-size: 12px; }
   .page-head::after { display: none; }
 

@@ -294,11 +294,13 @@ export function openTracking(env: FitEnv) {
     const field = t.dataset.trk;
     if (!field || t.tagName === 'SELECT') return;
     const v = Number(t.value);
-    if (!Number.isFinite(v)) return;
+    const bad = !Number.isFinite(v) || t.value.trim() === '' || ((field === 'signature' || field === 'velocity') && v < (field === 'signature' ? 1 : 0));
+    t.classList.toggle('invalid', bad);
+    t.title = bad ? (field === 'signature' ? tx('Semnătura trebuie să fie cel puțin 1 m') : tx('Viteza nu poate fi negativă')) : '';
+    if (bad) return;
     if (field === 'distance') st.distance = v * 100;
     else if (field === 'angle') st.angle = v;
     else if (field === 'signature' || field === 'velocity') {
-      if (v < (field === 'signature' ? 1 : 0)) return;
       st[field] = v;
       if (st.target !== 'custom') {
         st.target = 'custom';

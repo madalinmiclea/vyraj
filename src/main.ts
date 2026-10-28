@@ -89,7 +89,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="topbar-stat optional"><span class="label">ESI</span><span class="value esi-health" id="esiHealth"><i class="dot"></i><span>—</span></span></div>
       <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
       <div class="char-switch" id="charSwitch">
-        <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
+        <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label" id="topCharacterLabel">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
         <div class="char-menu" id="charMenu" hidden></div>
       </div>
       <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', tx('Luminos')], ['dark', 'moon', tx('Întunecat')], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
@@ -468,6 +468,7 @@ async function start() {
   const showCharacter = () => {
     topCharacter.textContent = ctx.character.name;
     avatar.innerHTML = portrait(ctx.character.characterId);
+    document.getElementById('topCharacterLabel')!.textContent = ctx.character.kind === 'all5' || ctx.character.kind === 'all0' ? tx('Skill-uri') : tx('Caracter');
     renderCharMenu();
   };
   ctx.onCharacterChange(showCharacter);

@@ -76,7 +76,8 @@ export class SystemMatcher {
         if (i + span > words.length) continue;
         const key = fold(words.slice(i, i + span).join(' '));
         const id = this.exact.get(key);
-        if (id) { if (!found.includes(id)) found.push(id); i += span - 1; break; }
+        const casual = span === 1 && /^[a-z]{3,5}$/.test(key) && words[i][0] === words[i][0].toLowerCase();
+        if (id && !casual) { if (!found.includes(id)) found.push(id); i += span - 1; break; }
         if (span === 1 && /[\d-]/.test(key) && (key.length >= 4 || (key.length === 3 && words[i] === words[i].toUpperCase()))) {
           const hits = this.names.filter(([n]) => n.startsWith(key));
           if (hits.length === 1 && !found.includes(hits[0][1])) { found.push(hits[0][1]); break; }

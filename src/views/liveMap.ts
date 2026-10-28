@@ -159,6 +159,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     if (settings.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
       try { new Notification(title, { body, tag: `vyraj-${systemId}` }); } catch { }
     }
+    if (!visible) toast(`${title} · ${body}`, 6000);
     el.querySelector('.live-alert')?.remove();
     const box = document.createElement('div');
     box.className = 'live-alert';
@@ -223,8 +224,8 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
             <button class="icon-btn" data-zoom="fit" aria-label="${esc(tx('Toată harta'))}" data-tip="${esc(tx('Toată harta'))}">${icon('refresh')}</button>
           </div>
           <div class="live-legend small">
-            <span><i class="lg lg-1"></i>1-2</span><span><i class="lg lg-2"></i>3-7</span><span><i class="lg lg-3"></i>8+</span>
-            <span><i class="lg lg-camp"></i>${tx('posibil camp')}</span><span><i class="lg lg-me"></i>${tx('caracterul tău')}</span><span><i class="lg lg-intel"></i>${tx('intel din chat')}</span>
+            <span><i class="live-lg live-lg-1"></i>1-2</span><span><i class="live-lg live-lg-2"></i>3-7</span><span><i class="live-lg live-lg-3"></i>8+</span>
+            <span><i class="live-lg live-lg-camp"></i>${tx('posibil camp')}</span><span><i class="live-lg live-lg-me"></i>${tx('caracterul tău')}</span><span><i class="live-lg live-lg-intel"></i>${tx('intel din chat')}</span>
             <span class="dim">${tx('cerc = kill-uri în fereastra aleasă')}</span>
           </div>
           <div class="live-hint small dim">${tx('Rotița sau două degete pentru zoom · trage ca să muți · click pe un sistem pentru detalii')}</div>
@@ -393,7 +394,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const txt = paused ? tx('Pauză')
       : status.state === 'backfill' ? tx('Încarc ultima oră ({n} kill-uri)', { n: status.loaded })
       : status.state === 'error' ? tx('zKillboard nu răspunde')
-      : status.state === 'live' ? (status.lastKill ? tx('Live · ultimul kill {ago}', { ago: agoShort(status.lastKill) }) : 'Live') : '';
+      : status.state === 'live' ? (status.lastKill ? (Date.now() - status.lastKill > 10 * 60_000 ? tx('Live · zKillboard întârzie, ultimul kill {ago}', { ago: agoShort(status.lastKill) }) : tx('Live · ultimul kill {ago}', { ago: agoShort(status.lastKill) })) : 'Live') : '';
     s.innerHTML = `<button class="live-pill ${paused ? 'paused' : status.state}" data-pause title="${esc(paused ? tx('Pornește fluxul live') : tx('Oprește fluxul live'))}"><i></i>${esc(txt)}</button>`;
   }
 
@@ -444,7 +445,12 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const camps = [...stats.entries()].filter(([, st]) => st.camp);
     if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultima oră'));
     if (status.state === 'error' && !all.length) return alertBox(tx('Fluxul zKillboard nu răspunde acum. Reîncerc singur.'), 'warn');
-    return `${camps.length ? alertBox(tx('Posibil gatecamp în: {list}', { list: camps.slice(0, 6).map(([id]) => map!.systems.get(id)?.name ?? id).join(', ') }), 'danger') : ''}
+    const inRange = dist ? camps.filter(([id]) => (dist!.get(id) ?? Infinity) <= settings.range) : camps;
+    const campList = (list: typeof camps) => list.slice(0, 6).map(([id]) => {
+      const d = dist?.get(id);
+      return `${map!.systems.get(id)?.name ?? id}${d != null ? ` (${tx('{n} sărituri', { n: d })})` : ''}`;
+    }).join(', ');
+    return `${inRange.length ? alertBox(tx('Posibil gatecamp în: {list}', { list: campList(inRange) }), dist ? 'danger' : 'warn') : ''}
       ${dist ? `<div class="live-near ${near.length ? 'hot' : ''}">${near.length ? tx('{n} kill-uri în raza ta în fereastra aleasă.', { n: near.length }) : tx('Niciun kill în raza ta în fereastra aleasă.')}</div>` : ''}
       <div class="live-hot"><div class="label">${tx('Cele mai active sisteme')}</div>${hot.map(([id, st]) => {
         const s = map!.systems.get(id);

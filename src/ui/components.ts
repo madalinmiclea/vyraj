@@ -85,14 +85,14 @@ export function alertBox(text: string, tone = '') {
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
-export function toast(text: string) {
+export function toast(text: string, ms = 1800) {
   document.querySelector('.toast')?.remove();
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = text;
   document.body.appendChild(el);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.remove(), 1800);
+  toastTimer = setTimeout(() => el.remove(), ms);
 }
 
 export function formatISK(amount: number, digits = 2) {

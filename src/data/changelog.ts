@@ -18,7 +18,7 @@ export const CHANGELOG: Release[] = [
       tx('Un backup într-un singur fișier mută fiturile, doctrinele și jurnalele pe alt calculator, iar Vyraj se instalează ca aplicație pe telefon sau desktop.'),
       tx('Graficul DPS pe distanță pune față în față până la cinci muniții pe aceeași țintă.'),
       tx('Aliniat la noul ESI: ecranul Operațiuni, rute prin sau pe lângă Thera și Turnur, SKINR și starea serverelor ESI la vedere.'),
-      tx('Wallet desface fiecare tick de bounty: ISK pe tick, cel mai bun tick, sistemele de ratting și navele NPC distruse, pe nume.'),
+      tx('Portofelul desface fiecare tick de bounty: ISK pe tick, cel mai bun tick, sistemele de ratting și navele NPC distruse, pe nume.'),
       tx('Bunurile se grupează pe locații, iar fiecare item își deschide fereastra Informații.'),
     ],
   },
