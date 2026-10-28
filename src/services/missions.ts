@@ -193,12 +193,7 @@ export function hasBlitz(m: Mission): boolean {
 }
 
 export function searchText(m: Mission): string {
-  const parts = [m.name, `L${m.level}`, m.rating ? `${m.rating}/10 DED` : ''];
-  for (const v of m.variants) {
-    parts.push(...v.fac.map((f) => faction(f).name), pick(v.obj), ...pickList(v.blitz), ...pickList(v.tips));
-    for (const r of v.rooms ?? []) for (const g of r.g) for (const s of g.s) parts.push(s[2]);
-  }
-  return fold(parts.join(' ').normalize('NFD').replace(/[̀-ͯ]/g, ''));
+  return fold(m.name.normalize('NFD').replace(/[̀-ͯ]/g, ''));
 }
 
 export const ES_URL = 'https://eve-survival.org/?wakka=';

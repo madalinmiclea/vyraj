@@ -1462,7 +1462,7 @@ export const EN: Record<string, string> = {
   "Repeți până semnătura ajunge la 100%. Atunci vezi numele complexului și poți face warp la ea. La final îți recuperezi probele.": "Repeat until the signature reaches 100%. Then you see the complex's name and can warp to it. Recover your probes at the end.",
   "Înainte să intri, verifici pe poartă ce nave au voie. Fiecare complex scrie limita mai jos.": "Before entering, check on the gate which ships are allowed. Each complex lists its limit below.",
   "Semnătura (20%, 10%, 5% sau 2.5%) arată cât de greu e de scanat. La 2.5% îți trebuie skill-urile de scanare cât mai sus: Astrometrics, Astrometric Rangefinding, Astrometric Pinpointing și Astrometric Acquisition.": "Signature strength (20%, 10%, 5% or 2.5%) shows how hard it is to scan. At 2.5% you want your scanning skills as high as possible: Astrometrics, Astrometric Rangefinding, Astrometric Pinpointing and Astrometric Acquisition.",
-  "Caută misiune, facțiune sau NPC… ( / )": "Search mission, faction or NPC… ( / )",
+  "Caută după numele misiunii… ( / )": "Search by mission name… ( / )",
   "Agentul tău": "Your agent",
   "Oricare": "Any",
   "Inamic": "Enemy",

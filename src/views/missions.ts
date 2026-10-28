@@ -87,7 +87,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   function renderBar() {
     const enemies = FACTIONS.filter((f) => missions.some((m) => m.variants.some((v) => v.fac.includes(f.id))));
     bar.innerHTML = `<div class="mis-bar">
-      ${searchField({ id: 'misSearch', placeholder: tx('Caută misiune, facțiune sau NPC… ( / )') })}
+      ${searchField({ id: 'misSearch', placeholder: tx('Caută după numele misiunii… ( / )') })}
       <div class="mis-filters">
         <div class="chip-row" role="group" aria-label="${tx('Intensitate')}">
           ${([['', tx('Toate')], ['e', INTENSITY.e], ['m', INTENSITY.m], ['h', INTENSITY.h]] as [Intensity | '', string][]).map(([id, label]) => `<button class="chip-btn ${state.level === id ? 'active' : ''}" data-mis-level="${id}">${esc(label)}</button>`).join('')}
