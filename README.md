@@ -170,8 +170,8 @@ Vyraj stands on the work of the EVE community and of CCP. Thank you to everyone 
 - **[Pyfa](https://github.com/pyfa-org/Pyfa)** for its static data and ship traits, and as the reference for fitting formulas. Vyraj follows Pyfa's results as a specification and does not reuse its GPL-3.0 code.
 - **[Fuzzwork](https://www.fuzzwork.co.uk/)** (Steve Ronuken) for aggregated market prices across the trade hubs.
 - **[zKillboard](https://zkillboard.com/)** for kill data used in the live map, route checks and pilot threat in Intel PvP.
-- **[EVE-Scout](https://www.eve-scout.com/)** for the public Thera and Turnur wormhole connections.
-- **[DOTLAN EveMaps](https://evemaps.dotlan.net/)** for the system pages linked from Navigation.
+- **[EVE-Scout](https://www.eve-scout.com/)** for the public Thera and Turnur wormhole connections in Navigation and on the live map.
+- **[DOTLAN EveMaps](https://evemaps.dotlan.net/)** for the system pages linked from Navigation and the live map.
 - **[EVE Ref](https://everef.net/)** for the item reference pages linked from Market.
 
 ### Guides and fits

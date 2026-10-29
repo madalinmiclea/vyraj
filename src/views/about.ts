@@ -31,12 +31,12 @@ function pilot() {
 
 const GROUPS: Group[] = [
   { id: 'data', title: tx('Date și servicii'), items: [
-    { name: 'CCP Games', ico: 'ccp', url: 'https://www.ccpgames.com/', host: 'esi.evetech.net', role: tx('EVE Online, API-ul ESI, login-ul EVE SSO, Static Data Export și serverul de imagini. Fără ei nu ar exista nimic de aici.') },
+    { name: 'CCP Games', ico: 'ccp', url: 'https://www.ccpgames.com/', host: 'esi.evetech.net', role: tx('EVE Online, API-ul ESI, login-ul EVE SSO, Static Data Export și serverul de imagini. Pozițiile sistemelor din hărți, activitatea pe sisteme și suveranitatea vin tot de la ei. Fără ei nu ar exista nimic de aici.') },
     { name: 'Pyfa', ico: 'pyfa', url: 'https://github.com/pyfa-org/Pyfa', host: 'github.com/pyfa-org', role: tx('Referința după care verificăm fiecare cifră din Fitting, plus datele statice și bonusurile navelor.') },
     { name: 'Fuzzwork', ico: 'fuzzwork', url: 'https://www.fuzzwork.co.uk/', host: 'market.fuzzwork.co.uk', who: 'Steve Ronuken', role: tx('Prețurile agregate din Jita și din celelalte hub-uri.') },
-    { name: 'zKillboard', ico: 'zkillboard', url: 'https://zkillboard.com/', host: 'zkillboard.com', who: 'Squizz Caphinator', role: tx('Kill-urile din Intel PvP: gatecamp-uri pe rută și istoricul piloților din Local.') },
-    { name: 'EVE-Scout', ico: 'evescout', url: 'https://www.eve-scout.com/', host: 'api.eve-scout.com', role: tx('Conexiunile publice spre Thera și Turnur din Navigație.') },
-    { name: 'DOTLAN EveMaps', ico: 'dotlan', url: 'https://evemaps.dotlan.net/', host: 'evemaps.dotlan.net', who: 'Wollari', role: tx('Hărțile de sisteme deschise din Navigație.') },
+    { name: 'zKillboard', ico: 'zkillboard', url: 'https://zkillboard.com/', host: 'zkillboard.com', who: 'Squizz Caphinator', role: tx('Kill-urile din Intel PvP: fluxul live R2Z2 din Hartă live, gatecamp-uri pe rută și istoricul piloților din Local.') },
+    { name: 'EVE-Scout', ico: 'evescout', url: 'https://www.eve-scout.com/', host: 'api.eve-scout.com', role: tx('Conexiunile publice spre Thera și Turnur din Navigație și de pe Hartă live.') },
+    { name: 'DOTLAN EveMaps', ico: 'dotlan', url: 'https://evemaps.dotlan.net/', host: 'evemaps.dotlan.net', who: 'Wollari', role: tx('Hărțile de sisteme deschise din Navigație și din Hartă live.') },
     { name: 'EVE Ref', ico: 'everef', url: 'https://everef.net/', host: 'everef.net', role: tx('Paginile de referință ale itemelor, legate din Piață.') },
   ] },
   { id: 'guides', title: tx('Ghiduri și fituri'), items: [

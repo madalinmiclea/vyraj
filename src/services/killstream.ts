@@ -9,7 +9,8 @@ const MAX_GAP = 1200;
 const BATCH = 16;
 const IDLE_MS = 5000;
 const MAX_STEP = 1 << 22;
-const MAX_FAILS = 6;
+const MAX_FAILS = 2;
+const PROBE_EVERY = 12;
 const RETRY_MIN = 5000;
 const RETRY_MAX = 60_000;
 
@@ -72,26 +73,18 @@ function add(k: LiveKill, live: boolean) {
   killListeners.forEach((fn) => fn(k, live));
 }
 
-type Fetched = R2Z2Kill | 'missing' | 'fail';
+const hasKill = (r: R2Z2Kill | null): r is R2Z2Kill => !!r?.esi;
 
-const hasKill = (r: Fetched): r is R2Z2Kill => typeof r === 'object' && !!r?.esi;
-
-async function fetchSeq(seq: number): Promise<Fetched> {
+async function fetchSeq(seq: number): Promise<R2Z2Kill | null> {
   try {
     const res = await fetch(`${R2Z2}/${seq}.json`);
-    if (res.status === 404) return 'missing';
-    if (!res.ok) return 'fail';
-    return (await res.json()) as R2Z2Kill;
+    return res.ok ? ((await res.json()) as R2Z2Kill) : null;
   } catch {
-    return 'fail';
+    return null;
   }
 }
 
-async function exists(seq: number): Promise<boolean> {
-  const r = await fetchSeq(seq);
-  if (r === 'fail') throw new Error('zKillboard R2Z2');
-  return hasKill(r);
-}
+const exists = async (seq: number) => hasKill(await fetchSeq(seq));
 
 async function head(): Promise<number> {
   try {
@@ -188,16 +181,15 @@ async function stream() {
       persist();
       continue;
     }
-    if (r === 'fail') {
-      if (++fails >= MAX_FAILS) throw new Error('zKillboard R2Z2');
-      await sleep(IDLE_MS);
-      continue;
-    }
-    fails = 0;
-    goLive();
-    if (++misses > 12) {
+    if (++misses >= PROBE_EVERY) {
       misses = 0;
-      if ((await findHead(lastSeq)) > lastSeq) lastSeq++;
+      if (await head()) {
+        fails = 0;
+        goLive();
+        if ((await findHead(lastSeq)) > lastSeq) lastSeq++;
+      } else if (++fails >= MAX_FAILS) {
+        setStatus({ state: 'error', error: 'zKillboard R2Z2' });
+      }
     }
     await sleep(IDLE_MS);
     prune();
