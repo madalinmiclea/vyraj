@@ -80,7 +80,9 @@ function actorOf(raw: string): Actor {
   const dmg = /^(.+?)\[([^\]]*)\]\((.+)\)$/.exec(text);
   if (dmg) {
     const name = dmg[1].trim();
-    return { key: name.toLowerCase(), name, ship: dmg[3].trim(), corp: dmg[2].trim(), alliance: '', player: true };
+    const ship = dmg[3].trim();
+    if (OBJECT.test(ship) || OBJECT.test(name)) return { key: text.toLowerCase(), name, ship: '', corp: dmg[2].trim(), alliance: '', player: false };
+    return { key: name.toLowerCase(), name, ship, corp: dmg[2].trim(), alliance: '', player: true };
   }
   const br = /^(.+?)((?:\s*\[[^\]]*\])+)$/.exec(text);
   if (br) {
@@ -111,6 +113,8 @@ function splitTail(rest: string): { who: string; weapon: string; quality: string
   if (parts.length && QUALITY_SET.has(parts[parts.length - 1])) quality = parts.pop()!;
   return { who, weapon: parts.join(' - '), quality };
 }
+
+const OBJECT = /\b(?:Wreck|Container|Jetcan|Debris)$/i;
 
 const isYou = (s: string) => /^you$/i.test(s.trim());
 
