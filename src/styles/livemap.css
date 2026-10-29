@@ -43,6 +43,7 @@
 .live-lg-camp { border: 2px dashed var(--danger); }
 .live-lg-me { width: 9px; height: 9px; border: 0; border-radius: 0; background: var(--accent); transform: rotate(45deg); }
 .live-lg-intel { width: 9px; height: 9px; border-radius: 0; border-color: var(--slot-rig); transform: rotate(45deg); }
+.live-lg-battle { width: 13px; height: 13px; border: 2px dashed var(--danger); }
 .live-hint { position: absolute; left: 10px; top: 10px; z-index: 1; pointer-events: none; padding: 4px 9px; background: color-mix(in srgb, var(--bg-panel-solid) 85%, transparent); border: 1px solid var(--line); animation: live-hint 9s forwards; }
 @keyframes live-hint { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 .live-alert { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100% - 80px)); padding: 9px 14px; font-size: 13px; color: var(--text); background: color-mix(in srgb, var(--danger) 22%, var(--bg-panel-solid)); border: 1px solid var(--danger); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); cursor: pointer; animation: view-in 0.2s var(--ease); }
@@ -58,6 +59,10 @@
 .live-hot-row { display: grid; grid-template-columns: 32px auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 4px 6px; font-size: 13px; text-align: left; color: var(--text); background: transparent; border: 0; border-radius: 2px; cursor: pointer; }
 .live-hot-row:hover { background: var(--bg-hover); }
 .live-hot-row .dim { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-battle { display: flex; flex-direction: column; gap: 2px; width: 100%; margin-top: 4px; padding: 6px 8px; font-size: 13px; text-align: left; color: var(--text); background: color-mix(in srgb, var(--danger) 8%, var(--bg-inset)); border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); border-left: 2px solid var(--danger); border-radius: 2px; cursor: pointer; }
+.live-battle:hover { background: color-mix(in srgb, var(--danger) 14%, var(--bg-inset)); }
+.live-battle-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.live-battle-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-events { display: flex; flex-direction: column; gap: 4px; }
 .live-ev { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 6px 8px; background: var(--bg-inset); border: 1px solid var(--line); border-left: 2px solid var(--line-strong); cursor: pointer; }
 .live-ev.intel { grid-template-columns: minmax(0, 1fr); border-left-color: var(--slot-rig); }

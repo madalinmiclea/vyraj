@@ -5,7 +5,7 @@ import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import { portraitUrl } from '../character/esi';
 import {
-  findSystem, route, systemInfo, systemActivity, sovereignty, isDangerous, recentKills, resolveIds, resolveNames, cachedName, affiliations, pilotStats, cachedPilot,
+  findSystem, route, systemInfo, systemActivity, sovereignty, isDangerous, recentKills, killIntel, resolveIds, resolveNames, cachedName, affiliations, pilotStats, cachedPilot,
   parsePaste, estimateDps, threat, displaySec, secClass,
   type RouteFlag, type RouteConnection, type SovClaim, type SystemInfo, type SystemActivity, type SystemIntel, type Pilot, type DscanRow, type DpsEstimate,
 } from '../services/recon';
@@ -14,6 +14,7 @@ import { loadStoredCharacters } from '../character/characters';
 import { allEveItems } from '../data/items';
 import { wormholeLinks, type WormholeLink } from '../services/navigation';
 import type { LiveMapView } from './liveMap';
+import { feedKills } from '../services/killstream';
 
 type Tab = 'map' | 'route' | 'local';
 
@@ -200,7 +201,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
         if (l) whHops.set(ids[i], l);
       }
       act = activity.map;
-      actAt = activity.at;
+      actAt = activity.asOf;
       intel.clear();
       open.clear();
       renderRoute();
@@ -219,7 +220,8 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     intel.set(id, 'loading');
     renderRoute();
     try {
-      const r = await recentKills(id, isSmartbomb);
+      const local = feedKills(id);
+      const r = local ? killIntel(local, isSmartbomb) : await recentKills(id, isSmartbomb);
       const unknownShips = r.kills.flatMap((k) => [k.victimShip, ...k.shipList.map((x) => x.id)]).filter((t) => t && !localName(t));
       await resolveNames([...r.kills.flatMap((k) => k.attackerAlliances), ...unknownShips]);
       if (run !== routeRun) return;

@@ -16,6 +16,7 @@ const ROUTE_PREFERENCE: Record<RouteFlag, string> = { shortest: 'Shorter', secur
 
 export interface SystemInfo { id: number; name: string; sec: number }
 export interface SystemActivity { ship: number; pod: number; npc: number; jumps: number }
+export interface ActivitySnapshot { at: number; asOf: number; expires: number; map: Map<number, SystemActivity> }
 
 export interface KillSummary {
   id: number;
@@ -32,6 +33,7 @@ export interface KillSummary {
   attackerShips: number[];
   weapons: number[];
   attackerAlliances: number[];
+  attackerCorps?: number[];
   topShip?: number;
   shipList: { id: number; n: number }[];
   location?: number;
@@ -163,7 +165,8 @@ export async function route(origin: number, destination: number, flag: RouteFlag
   return ((await res.json()) as { route: number[] }).route;
 }
 
-let activity: { at: number; map: Map<number, SystemActivity> } | null = null;
+let activity: ActivitySnapshot | null = null;
+let activityLoad: Promise<ActivitySnapshot> | null = null;
 
 export const isDangerous = (a: SystemActivity | undefined) => !!a && (a.ship + a.pod * 1.5 >= 8 || a.pod >= 3);
 
@@ -208,19 +211,34 @@ export async function raidableSkyhooks(force = false): Promise<{ at: number; lis
   return skyhooks;
 }
 
-export async function systemActivity(): Promise<{ at: number; map: Map<number, SystemActivity> }> {
-  if (activity && Date.now() - activity.at < 5 * 60 * 1000) return activity;
-  const [kills, jumps] = await Promise.all([
-    esiJson<{ system_id: number; ship_kills: number; pod_kills: number; npc_kills: number }[]>('/universe/system_kills/'),
+export function systemActivity(): Promise<ActivitySnapshot> {
+  if (activity && Date.now() < activity.expires) return Promise.resolve(activity);
+  activityLoad ??= loadActivity().finally(() => { activityLoad = null; });
+  return activityLoad;
+}
+
+async function loadActivity(): Promise<ActivitySnapshot> {
+  const [res, jumps] = await Promise.all([
+    esiFetch(`${ESI}/universe/system_kills/`),
     esiJson<{ system_id: number; ship_jumps: number }[]>('/universe/system_jumps/').catch(() => []),
   ]);
+  if (!res.ok) throw new Error(`ESI /universe/system_kills: ${res.status}`);
+  const kills = (await res.json()) as { system_id: number; ship_kills: number; pod_kills: number; npc_kills: number }[];
+  const now = Date.now();
+  const modified = Date.parse(res.headers.get('last-modified') ?? '');
+  const expiry = Date.parse(res.headers.get('expires') ?? '');
   const map = new Map<number, SystemActivity>();
   for (const k of kills) map.set(k.system_id, { ship: k.ship_kills, pod: k.pod_kills, npc: k.npc_kills, jumps: 0 });
   for (const j of jumps) {
     const a = map.get(j.system_id);
     if (a) a.jumps = j.ship_jumps; else map.set(j.system_id, { ship: 0, pod: 0, npc: 0, jumps: j.ship_jumps });
   }
-  activity = { at: Date.now(), map };
+  activity = {
+    at: now,
+    asOf: Number.isFinite(modified) ? Math.min(modified, now) : now,
+    expires: Number.isFinite(expiry) ? Math.min(Math.max(expiry + 5000, now + 60_000), now + 60 * 60_000) : now + 5 * 60_000,
+    map,
+  };
   return activity;
 }
 
@@ -260,6 +278,7 @@ export function summarizeKill(id: number, km: EsiKillmail, zkb: ZkbMeta): KillSu
     attackerShips: ships,
     weapons: [...new Set(km.attackers.map((a) => a.weapon_type_id).filter((x): x is number => !!x))],
     attackerAlliances: [...new Set(main.map((a) => a.alliance_id).filter((x): x is number => !!x))],
+    attackerCorps: [...new Set(main.map((a) => a.corporation_id).filter((x): x is number => !!x))],
     topShip: [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0],
     shipList: [...main.reduce((m, a) => (a.ship_type_id ? m.set(a.ship_type_id, (m.get(a.ship_type_id) ?? 0) + 1) : m), new Map<number, number>())]
       .sort((a, b) => b[1] - a[1] || (counts.get(b[0]) ?? 0) - (counts.get(a[0]) ?? 0)).map(([x, n]) => ({ id: x, n })),
@@ -286,6 +305,12 @@ export function analyzeKills(kills: KillSummary[], isSmartbomb: (typeId: number)
   const smartbomb = repeat > 0 && bombed.length >= 3;
   const camp = (gang.length >= 2 && gangRepeat > 0 && victims >= 1) || sameSpot || smartbomb;
   return { camp, campers: repeat, smartbomb };
+}
+
+export function killIntel(kills: KillSummary[], isSmartbomb: (typeId: number) => boolean, limit = 50): SystemIntel {
+  const sorted = [...kills].sort((a, b) => b.time - a.time);
+  const picked = sorted.slice(0, limit);
+  return { kills: picked, total: sorted.length, ...analyzeKills(picked, isSmartbomb) };
 }
 
 export async function recentKills(systemId: number, isSmartbomb: (typeId: number) => boolean, limit = 50): Promise<SystemIntel> {

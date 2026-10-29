@@ -248,3 +248,13 @@ export function liveKills(sinceMs = WINDOW_MS): LiveKill[] {
 }
 
 export const streamStatus = () => status;
+
+const FRESH_CACHE = 5 * 60_000;
+
+export function feedKills(systemId: number, sinceMs = WINDOW_MS): LiveKill[] | null {
+  const cut = Date.now() - sinceMs;
+  if (status.state === 'live' && !paused) return [...kills.values()].filter((k) => k.systemId === systemId && k.time >= cut);
+  const cached = loadJson<{ seq: number; at: number; kills: LiveKill[] } | null>(CACHE_KEY, null);
+  if (!cached?.seq || Date.now() - cached.at > FRESH_CACHE) return null;
+  return cached.kills.filter((k) => k.systemId === systemId && k.time >= cut);
+}
