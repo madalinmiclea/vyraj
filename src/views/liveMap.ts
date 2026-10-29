@@ -75,7 +75,12 @@ function findBattles(kills: LiveKill[], gates: Map<number, number[]>): Battle[] 
   const groups = new Map<number, LiveKill[]>();
   list.forEach((k, i) => (groups.get(root(i)) ?? groups.set(root(i), []).get(root(i))!).push(k));
   const out: Battle[] = [];
-  for (const g of groups.values()) {
+  for (const all of groups.values()) {
+    const tally = new Map<number, number>();
+    for (const k of all) tally.set(k.systemId, (tally.get(k.systemId) ?? 0) + 1);
+    const core = [...tally.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
+    const near = new Set([core, ...(gates.get(core) ?? [])]);
+    const g = all.filter((k) => near.has(k.systemId));
     if (g.length < BATTLE_MIN_KILLS) continue;
     const pilots = new Set<number>();
     const hits = new Set<string>();
@@ -515,27 +520,18 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const danger = p.css('--danger');
     const bg = p.css('--bg-void');
     const bright = p.css('--text-bright');
+    const big = p.spacing >= 16;
     g.font = `700 11px ${p.css('--font-body')}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     for (const b of battles) {
-      const pts = b.systems.map((id) => p.at(id)).filter((x): x is [number, number] => !!x);
-      if (!pts.length) continue;
-      const cx = pts.reduce((t, q) => t + q[0], 0) / pts.length;
-      const cy = pts.reduce((t, q) => t + q[1], 0) / pts.length;
-      if (cx < -80 || cy < -80 || cx > p.width + 80 || cy > p.height + 80) continue;
-      const r = Math.max(14, ...pts.map((q) => Math.hypot(q[0] - cx, q[1] - cy) + 12));
-      g.strokeStyle = danger;
-      g.lineWidth = 2;
-      g.setLineDash([6, 4]);
-      g.globalAlpha = Date.now() - b.end < 10 * 60_000 ? 0.95 : 0.55;
-      g.beginPath();
-      g.arc(cx, cy, r, 0, Math.PI * 2);
-      g.stroke();
-      g.setLineDash([]);
+      const pt = p.at(b.main);
+      if (!pt || pt[0] < -80 || pt[1] < -80 || pt[0] > p.width + 80 || pt[1] > p.height + 80) continue;
+      const st = stats.get(b.main);
+      const r = st ? (big ? ringRadius(st.n, true, p.spacing) : 2.5 + Math.min(7, Math.sqrt(st.n) * 1.8)) : 3;
+      g.globalAlpha = Date.now() - b.end < 10 * 60_000 ? 1 : 0.6;
+      pill(g, `${tx('Bătălie')} · ${compactISK(b.value)} ISK`, pt[0], pt[1] - r - 30, bright, bg, danger);
       g.globalAlpha = 1;
-      const top = Math.min(cy - r - 10, ...pts.map((q) => q[1] - 46));
-      pill(g, `${tx('Bătălie')} · ${compactISK(b.value)} ISK`, cx, top, bright, bg, danger);
     }
   }
 
@@ -578,7 +574,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     if (!s) return;
     const paused = streamPaused();
     const txt = paused ? tx('Pauză')
-      : status.state === 'backfill' ? tx('Încarc ultima oră ({n} kill-uri)', { n: status.loaded })
+      : status.state === 'backfill' ? tx('Încarc ultimele 30 de minute ({n} kill-uri)', { n: status.loaded })
       : status.state === 'error' ? tx('zKillboard nu răspunde')
       : status.state === 'live' ? (status.lastKill ? (Date.now() - status.lastKill > 10 * 60_000 ? tx('Live · zKillboard întârzie, ultimul kill {ago}', { ago: agoShort(status.lastKill) }) : tx('Live · ultimul kill {ago}', { ago: agoShort(status.lastKill) })) : 'Live') : '';
     s.innerHTML = `<button class="live-pill ${paused ? 'paused' : status.state}" data-pause title="${esc(paused ? tx('Pornește fluxul live') : tx('Oprește fluxul live'))}"><i></i>${esc(txt)}</button>`;
@@ -629,7 +625,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const near = dist ? all.filter((k) => (dist!.get(k.systemId) ?? Infinity) <= settings.range) : [];
     const hot = [...stats.entries()].sort((a, b) => (b[1].n + b[1].pods + (b[1].camp ? 10 : 0)) - (a[1].n + a[1].pods + (a[1].camp ? 10 : 0))).slice(0, 8);
     const camps = [...stats.entries()].filter(([, st]) => st.camp);
-    if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultima oră'));
+    if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultimele 30 de minute'));
     if (status.state === 'error' && !all.length) return alertBox(tx('Fluxul zKillboard nu răspunde acum: e căzut sau a limitat temporar cererile din rețeaua ta. Harta reîncearcă singură, rar, ca limita să treacă.'), 'warn');
     const inRange = dist ? camps.filter(([id]) => (dist!.get(id) ?? Infinity) <= settings.range) : camps;
     const campList = (list: typeof camps) => list.slice(0, 6).map(([id]) => {

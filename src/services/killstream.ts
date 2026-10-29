@@ -1,10 +1,11 @@
-import { loadJson, saveJson } from '../storage';
+import { loadJson, saveJson, isDemo } from '../storage';
 import { summarizeKill, isCapsule, isGateLocation, type EsiKillmail, type KillSummary, type ZkbMeta } from './recon';
 
-const R2Z2 = 'https://r2z2.zkillboard.com/ephemeral';
+const R2Z2 = `${(import.meta.env.VITE_R2Z2_URL || 'https://r2z2.zkillboard.com').replace(/\/+$/, '')}/ephemeral`;
 const CACHE_KEY = 'eve-live:kills';
 export const WINDOW_MS = 60 * 60 * 1000;
-const MAX_BACKFILL = 1600;
+const MAX_BACKFILL = 800;
+const BACKFILL_MS = 30 * 60 * 1000;
 const MAX_GAP = 1200;
 const BATCH = 16;
 const IDLE_MS = 6000;
@@ -20,6 +21,8 @@ const SKEW_MAX = 10 * 60_000;
 const RATE_SPAN = 15 * 60_000;
 const SLOW_MAX = 8;
 const RESEEK_MS = 10 * 60_000;
+const DEMO_LEAD = 30_000;
+const DEMO_GAP = 60_000;
 const RETRY_MIN = 5000;
 const RETRY_MAX = 60_000;
 const MIN_GAP = 100;
@@ -236,7 +239,7 @@ async function follow() {
 }
 
 async function backfill(from: number, stopAt: number) {
-  const cut = Date.now() - WINDOW_MS;
+  const cut = Date.now() - BACKFILL_MS;
   let seq = from;
   let loaded = 0;
   while (seq > stopAt && loaded < MAX_BACKFILL && !paused) {
@@ -286,7 +289,55 @@ async function stream() {
   }
 }
 
+type SnapshotRow = [number, string, string, number, number[], number[][], number[]];
+
+function fromRow([id, hash, time, system, victim, attackers, meta]: SnapshotRow): LiveKill {
+  const id0 = (n: number) => n || undefined;
+  return toLive({
+    killmail_id: id,
+    hash,
+    esi: {
+      killmail_time: time,
+      solar_system_id: system,
+      victim: { ship_type_id: victim[0], character_id: id0(victim[1]), alliance_id: id0(victim[2]), corporation_id: id0(victim[3]) },
+      attackers: attackers.map(([c, ship, a, corp, fb, w]) => ({ character_id: id0(c), ship_type_id: id0(ship), alliance_id: id0(a), corporation_id: id0(corp), final_blow: !!fb, weapon_type_id: id0(w) })),
+    },
+    zkb: { hash, totalValue: meta[0], npc: !!meta[1], solo: !!meta[2], locationID: id0(meta[3]) },
+  });
+}
+
+async function demoStream() {
+  const snapshot = (await import('../demo/liveSnapshot.json')).default as unknown as { kills: SnapshotRow[] };
+  const list = snapshot.kills.map(fromRow).sort((a, b) => a.time - b.time);
+  if (!list.length) return;
+  const first = list[0].time;
+  const span = list[list.length - 1].time - first + DEMO_GAP;
+  let base = Date.now() - DEMO_LEAD - (list[list.length - 1].time - first);
+  for (const k of list) add({ ...k, time: base + k.time - first }, false);
+  goLive();
+  base += span;
+  let i = 0;
+  while (running) {
+    if (paused) { await sleep(1000); continue; }
+    while (base + list[i].time - first <= Date.now()) {
+      const k = { ...list[i], time: base + list[i].time - first };
+      kills.delete(k.id);
+      add(k, true);
+      if (++i === list.length) {
+        i = 0;
+        base += span;
+      }
+    }
+    await sleep(IDLE_MS);
+    prune();
+  }
+}
+
 async function run() {
+  if (isDemo()) {
+    await demoStream();
+    return;
+  }
   while (running) {
     try {
       await stream();

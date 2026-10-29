@@ -23,7 +23,8 @@
 .live-ref svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
 .live-ref b { color: var(--text-bright); }
 .live-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 10px; height: calc(100vh - var(--topbar-h) - 210px); min-height: 520px; }
-.live-canvas { position: relative; min-width: 0; background: radial-gradient(ellipse at 50% 40%, rgba(var(--accent-rgb), 0.05), transparent 70%), var(--bg-void); border: 1px solid var(--line); overflow: hidden; }
+.live-canvas { position: relative; min-width: 0; background: radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--bg-void) 70%, #000) 100%), linear-gradient(color-mix(in srgb, var(--line-strong) 70%, transparent) 1px, transparent 1px) 0 0 / 200px 200px, linear-gradient(90deg, color-mix(in srgb, var(--line-strong) 70%, transparent) 1px, transparent 1px) 0 0 / 200px 200px, linear-gradient(color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px) 0 0 / 40px 40px, linear-gradient(90deg, color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px) 0 0 / 40px 40px, var(--bg-void); border: 1px solid var(--line); overflow: hidden; }
+:root[data-theme='light'] .live-canvas { background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(20, 36, 52, 0.1) 100%), linear-gradient(color-mix(in srgb, var(--line-strong) 80%, transparent) 1px, transparent 1px) 0 0 / 200px 200px, linear-gradient(90deg, color-mix(in srgb, var(--line-strong) 80%, transparent) 1px, transparent 1px) 0 0 / 200px 200px, linear-gradient(color-mix(in srgb, var(--line) 80%, transparent) 1px, transparent 1px) 0 0 / 40px 40px, linear-gradient(90deg, color-mix(in srgb, var(--line) 80%, transparent) 1px, transparent 1px) 0 0 / 40px 40px, var(--bg-void); }
 .live-stage { position: absolute; inset: 0; }
 .starmap canvas { display: block; touch-action: none; cursor: grab; }
 .starmap canvas:active { cursor: grabbing; }
@@ -44,7 +45,7 @@
 .live-lg-camp { border: 2px dashed var(--danger); }
 .live-lg-me { width: 9px; height: 9px; border: 0; border-radius: 0; background: var(--accent); transform: rotate(45deg); }
 .live-lg-intel { width: 9px; height: 9px; border-radius: 0; border-color: var(--slot-rig); transform: rotate(45deg); }
-.live-lg-battle { width: 13px; height: 13px; border: 2px dashed var(--danger); }
+.live-lg-battle { width: 16px; height: 9px; border: 1px solid var(--danger); border-radius: 0; }
 .live-hint { position: absolute; left: 10px; top: 10px; z-index: 1; pointer-events: none; padding: 4px 9px; background: color-mix(in srgb, var(--bg-panel-solid) 85%, transparent); border: 1px solid var(--line); animation: live-hint 9s forwards; }
 @keyframes live-hint { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
 .live-alert { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 8px; max-width: min(560px, calc(100% - 80px)); padding: 9px 14px; font-size: 13px; color: var(--text); background: color-mix(in srgb, var(--danger) 22%, var(--bg-panel-solid)); border: 1px solid var(--danger); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); cursor: pointer; animation: view-in 0.2s var(--ease); }

@@ -158,6 +158,7 @@ VITE_EVE_CLIENT_ID=<client id of an EVE application with callback http://localho
 | `VITE_EVE_CLIENT_ID` | Client ID of the EVE application. Without it, users enter their own Client ID in the Character screen. |
 | `VITE_EVE_CALLBACK_URL` | Callback URL registered with EVE. Defaults to `<origin><base>callback`. |
 | `VITE_EVE_TOKEN_URL` | SSO token endpoint. Defaults to `https://login.eveonline.com/v2/oauth/token`. |
+| `VITE_R2Z2_URL` | Address of the R2Z2 proxy in `proxy/r2z2`, for example `https://vyraj-r2z2.<account>.workers.dev`. zKillboard's R2Z2 feed does not send CORS headers, so the live map reads it through this proxy. |
 | `BASE_PATH` | Base path when the site is not served from the domain root, for example `/vyraj/`. |
 
 ## Credits

@@ -11,9 +11,11 @@ function staticHost(): Plugin {
       outDir = resolve(config.root, config.build.outDir);
     },
     transformIndexHtml() {
+      const proxy = /^https:\/\//.test(process.env.VITE_R2Z2_URL || '') ? new URL(process.env.VITE_R2Z2_URL!).origin : '';
       const csp = readFileSync('public/_headers', 'utf8')
         .match(/Content-Security-Policy:\s*(.+)/)?.[1]
         .replace(/;\s*frame-ancestors[^;]*/, '')
+        .replace(/connect-src([^;]*)/, (all) => (proxy ? `${all} ${proxy}` : all))
         .trim();
       const tags: HtmlTagDescriptor[] = csp ? [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp }, injectTo: 'head-prepend' }] : [];
       const callback = (process.env.VITE_EVE_CALLBACK_URL || '').trim();
