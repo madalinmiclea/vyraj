@@ -5,6 +5,7 @@ import { DEMO_ID, isDemoAuth, demoSystem } from './identity';
 import { tx } from '../i18n';
 import { ESI, esiFetch } from '../services/esiClient';
 import { loadActivities } from '../services/operations';
+import { fetchPrices, type Aggregates } from '../services/market';
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -66,6 +67,21 @@ function loadWorld() {
 type World = Awaited<ReturnType<typeof loadWorld>>;
 
 const idOf = (w: World, name: string) => w.sde.findType(name)?.id ?? w.byName.get(name.toLowerCase());
+
+type Jita = (name: string, side: 'sell' | 'buy', fallback: number) => number;
+
+let jitaPrices: Promise<Map<number, Aggregates>> | null = null;
+
+async function jita(w: World): Promise<Jita> {
+  const ids = [...LOOT, ...SUPPLIES, ...ORDERS.map((o) => [o[0]] as const)].map(([n]) => idOf(w, n)).filter((x): x is number => x != null);
+  jitaPrices ??= fetchPrices(ids).catch(() => new Map<number, Aggregates>());
+  const prices = await jitaPrices;
+  return (name, side, fallback) => {
+    const a = prices.get(idOf(w, name) ?? 0);
+    const v = side === 'sell' ? a?.sellMin : a?.buyMax;
+    return v && v > 0 ? v : fallback;
+  };
+}
 
 const spAt = (rank: number, level: number) => (level <= 0 ? 0 : Math.ceil(250 * rank * Math.pow(32, (level - 1) / 2)));
 
@@ -193,7 +209,7 @@ const LOOT: [string, number][] = [['Large Shield Extender II', 1_650_000], ['Bal
 const SUPPLIES: [string, number][] = [['Nanite Repair Paste', 11_800], ['Hammerhead II', 610_000]];
 const START_BALANCE = 1_240_000_000;
 
-function ledger(w: World, now: number, name: string) {
+function ledger(w: World, now: number, name: string, px: Jita) {
   const firstDay = Math.floor(now / DAY) - 29;
   const raw: Omit<Entry, 'balance'>[] = [];
   const trades: Trade[] = [];
@@ -235,7 +251,8 @@ function ledger(w: World, now: number, name: string) {
     entry(day + 9 * HOUR + Math.floor(r() * 6) * HOUR, 3, { ref_type: 'daily_goal_payouts', amount: 150_000, description: 'Daily Goal Payout', first_party_id: CONCORD, second_party_id: DEMO_ID });
     if (d % 3 === 0) {
       const t = day + 22 * HOUR + 15 * MIN;
-      const [lootName, price] = pick(r, LOOT);
+      const [lootName, base] = pick(r, LOOT);
+      const price = px(lootName, 'sell', base);
       const typeId = idOf(w, lootName);
       if (typeId) {
         const quantity = 3 + Math.floor(r() * 12);
@@ -249,7 +266,8 @@ function ledger(w: World, now: number, name: string) {
     }
     if (d % 4 === 1) {
       const t = day + 15 * HOUR + 40 * MIN;
-      const [supName, price] = pick(r, SUPPLIES);
+      const [supName, base] = pick(r, SUPPLIES);
+      const price = Math.round(px(supName, 'sell', base));
       const typeId = idOf(w, supName);
       if (typeId) {
         const quantity = supName.startsWith('Nanite') ? 200 : 5;
@@ -268,16 +286,27 @@ function ledger(w: World, now: number, name: string) {
   return { journal: journal.reverse(), trades: trades.sort((a, b) => b.transaction_id - a.transaction_id), balance };
 }
 
-function orders(w: World, now: number) {
-  const row = (n: number, name: string, buy: boolean, price: number, total: number, remain: number, ageH: number) => {
+const ORDERS: [string, boolean, number, number, number, number, number][] = [
+  ['Large Shield Extender II', false, 1.03, 10, 6, 30, 1_689_000],
+  ['Ogre II', false, 1, 15, 15, 5, 1_412_000],
+  ['Nanite Repair Paste', true, 0.97, 2000, 1400, 50, 11_250],
+];
+
+const tick = (v: number) => {
+  const step = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, v))) - 3);
+  return Math.round(v / step) * step;
+};
+
+function orders(w: World, now: number, px: Jita) {
+  return ORDERS.map(([name, buy, mult, total, remain, ageH, fallback], i) => {
     const id = idOf(w, name);
-    return id == null ? null : { order_id: 6_900_000_000 + n, type_id: id, region_id: 10000002, location_id: JITA, range: buy ? 'station' : 'region', is_buy_order: buy, price, volume_total: total, volume_remain: remain, min_volume: 1, issued: iso(now - ageH * HOUR), duration: 90, escrow: buy ? price * remain : undefined, is_corporation: false };
-  };
-  return [row(1, 'Large Shield Extender II', false, 1_689_000, 10, 6, 30), row(2, 'Ogre II', false, 1_412_000, 15, 15, 5), row(3, 'Nanite Repair Paste', true, 11_250, 2000, 1400, 50)].filter(Boolean);
+    const price = tick(px(name, buy ? 'buy' : 'sell', fallback) * mult);
+    return id == null ? null : { order_id: 6_900_000_001 + i, type_id: id, region_id: 10000002, location_id: JITA, range: buy ? 'station' : 'region', is_buy_order: buy, price, volume_total: total, volume_remain: remain, min_volume: 1, issued: iso(now - ageH * HOUR), duration: 90, escrow: buy ? price * remain : undefined, is_corporation: false };
+  }).filter(Boolean);
 }
 
-function orderHistory(w: World, now: number) {
-  return orders(w, now).map((o, i) => o && { ...o, order_id: 6_800_000_000 + i, issued: iso(now - (6 + i * 3) * DAY), volume_remain: 0, state: i === 1 ? 'cancelled' : 'expired' });
+function orderHistory(w: World, now: number, px: Jita) {
+  return orders(w, now, px).map((o, i) => o && { ...o, order_id: 6_800_000_000 + i, issued: iso(now - (6 + i * 3) * DAY), volume_remain: 0, state: i === 1 ? 'cancelled' : 'expired' });
 }
 
 function blueprints(w: World) {
@@ -413,12 +442,12 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'ship': { const id = idOf(w, 'Ishtar'); return json({ ship_item_id: SHIP_ITEM, ship_type_id: id, ship_name: 'Ishtar demo' }); }
     case 'location': { const sys = demoSystem(now); return json(sys === CITADEL_SYSTEM ? { solar_system_id: sys, structure_id: CITADEL } : { solar_system_id: sys }); }
     case 'online': return json({ online: true, last_login: iso(now - 2 * HOUR), logins: 812 });
-    case 'wallet': return json(ledger(w, now, name).balance);
-    case 'wallet/journal': return json(ledger(w, now, name).journal);
-    case 'wallet/transactions': return json(ledger(w, now, name).trades);
+    case 'wallet': return json(ledger(w, now, name, await jita(w)).balance);
+    case 'wallet/journal': return json(ledger(w, now, name, await jita(w)).journal);
+    case 'wallet/transactions': return json(ledger(w, now, name, await jita(w)).trades);
     case 'loyalty/points': return json([{ corporation_id: 1000120, loyalty_points: 146_500 }, { corporation_id: 1000035, loyalty_points: 38_200 }]);
-    case 'orders': return json(orders(w, now));
-    case 'orders/history': return json(orderHistory(w, now));
+    case 'orders': return json(orders(w, now, await jita(w)));
+    case 'orders/history': return json(orderHistory(w, now, await jita(w)));
     case 'blueprints': return json(blueprints(w));
     case 'industry/jobs': return json(jobs(w, now));
     case 'planets': return json(planets(now));
