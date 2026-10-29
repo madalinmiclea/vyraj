@@ -216,7 +216,8 @@ export class StarMap {
 
   private hit(x: number, y: number): number | null {
     const [wx, wy] = this.toWorld(x, y);
-    const max = Math.max(9, this.spacing * this.scale * 0.35) / this.scale;
+    const dot = Math.max(1.2, Math.min(4.5, this.spacing * this.scale * 0.16));
+    const max = Math.max(6, dot + 5) / this.scale;
     let best: NavSystem | null = null, bd = max;
     for (const s of this.list) {
       const d = Math.hypot(s.x2 - wx, s.y2 - wy);
@@ -230,7 +231,9 @@ export class StarMap {
     c.addEventListener('wheel', (e) => {
       e.preventDefault();
       const r = c.getBoundingClientRect();
-      this.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016)));
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      this.zoomAt(x, y, Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016)));
+      if (!this.pointers.size) this.hoverAt(x, y);
     }, { passive: false });
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
@@ -267,6 +270,10 @@ export class StarMap {
       if (this.pointers.size) return;
       const d = this.drag;
       this.drag = null;
+      const rr = c.getBoundingClientRect();
+      const ex = e.clientX - rr.left, ey = e.clientY - rr.top;
+      if (e.pointerType === 'mouse' && ex >= 0 && ey >= 0 && ex <= rr.width && ey <= rr.height) this.hoverAt(ex, ey);
+      else this.clearHover();
       if (d && d.moved < 6 && e.type === 'pointerup') {
         const r = c.getBoundingClientRect();
         const id = this.hit(e.clientX - r.left, e.clientY - r.top);
@@ -277,7 +284,14 @@ export class StarMap {
     };
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
-    c.addEventListener('pointerleave', () => { if (!this.pointers.size) { this.hover = null; this.tip.hidden = true; this.redraw(); } });
+    c.addEventListener('pointerleave', () => { if (!this.pointers.size) this.clearHover(); });
+  }
+
+  private clearHover() {
+    this.tip.hidden = true;
+    if (this.hover === null) return;
+    this.hover = null;
+    this.redraw();
   }
 
   zoomAt(x: number, y: number, factor: number) {
@@ -299,7 +313,7 @@ export class StarMap {
       this.redraw();
     }
     const s = id ? this.map.systems.get(id) : null;
-    if (!s) { this.tip.hidden = true; return; }
+    if (!s) { this.clearHover(); return; }
     this.tip.innerHTML = this.opts.tooltip?.(s) ?? `<b>${esc(s.name)}</b>`;
     this.tip.hidden = false;
     const tw = this.tip.offsetWidth, th = this.tip.offsetHeight;
