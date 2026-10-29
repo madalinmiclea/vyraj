@@ -43,6 +43,7 @@
   .neocom-btn[data-tip]::after { display: none; }
   .neocom-btn[data-view]:not(.nc-main) { display: none; }
   .neocom .neocom-more { display: grid; order: 99; }
+  .neocom .app-version { display: none; }
   .neocom-sheet:not([hidden]) {
     position: fixed;
     z-index: 85;

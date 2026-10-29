@@ -200,6 +200,19 @@
 .neocom-btn[data-tip]:not(.active):hover::after { visibility: visible; opacity: 1; transition: opacity 0.12s 0.35s, visibility 0s 0.35s; }
 .neocom-sep { width: 28px; height: 1px; background: var(--line); margin: 6px 0; }
 .neocom-bottom { margin-top: auto; }
+.neocom .app-version {
+  order: 100;
+  margin-top: auto;
+  padding-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  opacity: 0.75;
+  white-space: nowrap;
+  user-select: text;
+}
 
 .sidebar {
   grid-area: sidebar;

@@ -2407,4 +2407,5 @@ export const EN: Record<string, string> = {
   "Total până acum": "Total so far",
   "1 jucător, {n} NPC": "1 player, {n} NPCs",
   "Nu am primit niciun fișier din folderul ales.": "No files came through from the chosen folder.",
+  "Versiune": "Version",
 };

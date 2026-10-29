@@ -76,21 +76,11 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   let selected: number | null = null;
   let importNote = '';
   let routeBusy = false;
-  const colors = new Map<string, string>();
 
   const save = () => saveJson(KEY, settings);
   const whoFilter = () => settings.who || undefined;
   const since = () => (settings.days ? Date.now() - settings.days * 86_400_000 : 0);
   const kspace = () => [...map!.systems.values()].filter(isKspace);
-  const colorOf = (who: string) => {
-    let c = colors.get(who);
-    if (!c) {
-      const i = visitors().indexOf(who);
-      c = i <= 0 ? '' : `hsl(${Math.round((i * 137.508 + 190) % 360)}, 80%, 62%)`;
-      colors.set(who, c);
-    }
-    return c;
-  };
   const trackable = () => loadStoredCharacters().filter((c) => c.kind === 'esi' && c.characterId);
 
   el.innerHTML = loader(tx('Încarc harta sistemelor vizitate'));
@@ -104,13 +94,12 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   function rebuild() {
     if (!map) return;
     pickWho();
-    colors.clear();
     visited = visitedSet(whoFilter(), since());
     counts = visitCounts(whoFilter());
     const by = new Map<string, Segment>();
     const after = since();
-    for (const { who, visits } of pathFor(whoFilter(), after)) {
-      const color = colorOf(who);
+    for (const { visits } of pathFor(whoFilter(), after)) {
+      const color = '';
       for (let i = 1; i < visits.length; i++) {
         const a = map.systems.get(visits[i - 1].systemId);
         const b = map.systems.get(visits[i].systemId);
@@ -126,7 +115,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     positions = [];
     for (const who of settings.who ? [settings.who] : visitors()) {
       const p = lastPosition(who);
-      if (p && Date.now() - p.time < 6 * 3_600_000) positions.push({ who, ...p, color: colorOf(who) });
+      if (p && Date.now() - p.time < 6 * 3_600_000) positions.push({ who, ...p, color: '' });
     }
     star?.redraw();
   }

@@ -1,6 +1,17 @@
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite';
 import { copyFileSync, readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
+
+function appVersion(): string {
+  let count = 0;
+  try {
+    count = Number(execSync('git rev-list --count HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()) || 0;
+  } catch {
+    count = 0;
+  }
+  return `${Math.floor(count / 100) + 1}.${Math.floor(count / 10) % 10}.${count % 10}`;
+}
 
 function staticHost(): Plugin {
   let outDir = 'dist';
@@ -39,6 +50,7 @@ function staticHost(): Plugin {
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [staticHost()],
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
 });
