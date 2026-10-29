@@ -7,10 +7,19 @@ export const WINDOW_MS = 60 * 60 * 1000;
 const MAX_BACKFILL = 1600;
 const MAX_GAP = 1200;
 const BATCH = 16;
-const IDLE_MS = 5000;
-const MAX_STEP = 1 << 22;
-const MAX_FAILS = 2;
-const PROBE_EVERY = 12;
+const IDLE_MS = 6000;
+const RATE_MS = 5500;
+const RATE_MIN = 1000;
+const RATE_MAX = 120_000;
+const SEEK_STEPS = 12;
+const SEEK_SHARE = 0.8;
+const SEEK_MIN = 8;
+const LAG = 2;
+const AHEAD_MAX = 40;
+const SKEW_MAX = 10 * 60_000;
+const RATE_SPAN = 15 * 60_000;
+const SLOW_MAX = 8;
+const RESEEK_MS = 10 * 60_000;
 const RETRY_MIN = 5000;
 const RETRY_MAX = 60_000;
 const MIN_GAP = 100;
@@ -30,7 +39,7 @@ export interface StreamStatus { state: StreamState; loaded: number; lastKill: nu
 type KillListener = (k: LiveKill, live: boolean) => void;
 type StatusListener = (s: StreamStatus) => void;
 
-interface R2Z2Kill { killmail_id: number; hash: string; esi: EsiKillmail; zkb: ZkbMeta; sequence_id?: number }
+interface R2Z2Kill { killmail_id: number; hash: string; esi: EsiKillmail; zkb: ZkbMeta; sequence_id?: number; uploaded_at?: number }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -45,6 +54,12 @@ let saveTimer = 0;
 let retryDelay = RETRY_MIN;
 let nextSlot = 0;
 let bannedUntil = 0;
+let rate = RATE_MS;
+let skew = Infinity;
+let headUp = 0;
+const missed = new Set<number>();
+const marks: [number, number][] = [];
+let slow = 1;
 
 function setStatus(patch: Partial<StreamStatus>) {
   status = { ...status, ...patch };
@@ -81,23 +96,34 @@ const hasKill = (r: R2Z2Kill | null): r is R2Z2Kill => !!r?.esi;
 
 const limited = () => bannedUntil > Date.now();
 
-async function r2z2(path: string, init?: RequestInit): Promise<Response> {
+function ban(): never {
+  bannedUntil = Date.now() + BAN_MS;
+  throw new Error('zKillboard R2Z2');
+}
+
+async function r2z2(path: string, init?: RequestInit): Promise<Response | null> {
   if (limited()) throw new Error('zKillboard R2Z2');
   const now = Date.now();
   const at = Math.max(now, nextSlot);
   nextSlot = at + MIN_GAP;
   if (at > now) await sleep(at - now);
   const res = await fetch(`${R2Z2}/${path}`, init).catch(() => null);
-  if (!res || res.status === 429) {
-    bannedUntil = Date.now() + BAN_MS;
-    throw new Error('zKillboard R2Z2');
-  }
+  if (res?.status === 429) ban();
   return res;
+}
+
+async function reachable(): Promise<boolean> {
+  const res = await r2z2('sequence.json', { cache: 'no-store' });
+  return !!res?.ok;
 }
 
 async function fetchSeq(seq: number): Promise<R2Z2Kill | null> {
   try {
     const res = await r2z2(`${seq}.json`);
+    if (!res) {
+      if (!(await reachable())) ban();
+      return null;
+    }
     return res.ok ? ((await res.json()) as R2Z2Kill) : null;
   } catch (e) {
     if (limited()) throw e;
@@ -105,11 +131,10 @@ async function fetchSeq(seq: number): Promise<R2Z2Kill | null> {
   }
 }
 
-const exists = async (seq: number) => hasKill(await fetchSeq(seq));
-
 async function head(): Promise<number> {
   try {
     const res = await r2z2('sequence.json', { cache: 'no-store' });
+    if (!res) ban();
     if (!res.ok) return 0;
     return ((await res.json()) as { sequence: number }).sequence || 0;
   } catch (e) {
@@ -118,19 +143,96 @@ async function head(): Promise<number> {
   }
 }
 
+const uploaded = (r: R2Z2Kill) => (r.uploaded_at ?? 0) * 1000;
+
+function observe(r: R2Z2Kill) {
+  const up = uploaded(r);
+  const gap = Date.now() - up;
+  if (up && Math.abs(gap) < SKEW_MAX) skew = Math.min(skew, gap);
+}
+
+const serverNow = () => Date.now() - Math.min(0, skew);
+
+const clampRate = (ms: number) => Math.min(RATE_MAX, Math.max(RATE_MIN, ms));
+
+function mark(seq: number, up: number) {
+  const last = marks[marks.length - 1];
+  if (!up || (last && (seq <= last[0] || up < last[1]))) return;
+  marks.push([seq, up]);
+  while (marks.length > 2 && up - marks[1][1] > RATE_SPAN) marks.shift();
+  const [s0, u0] = marks[0];
+  if (seq > s0 && up > u0) rate = clampRate((up - u0) / (seq - s0));
+}
+
+async function probe(seq: number): Promise<R2Z2Kill | null> {
+  if (missed.has(seq)) return null;
+  const r = await fetchSeq(seq);
+  if (!hasKill(r)) {
+    missed.add(seq);
+    return null;
+  }
+  observe(r);
+  return r;
+}
+
 async function findHead(from: number): Promise<number> {
-  let lo = from;
-  let step = 16;
-  while (step <= MAX_STEP && (await exists(lo + step))) {
-    lo += step;
-    step *= 2;
+  let seq = 0;
+  let up = 0;
+  for (let at = from; at > from - 8 && !seq; at--) {
+    const r = await probe(at);
+    if (r) {
+      seq = at;
+      up = uploaded(r) || Date.now();
+      mark(seq, uploaded(r));
+    }
   }
-  let hi = lo + step;
-  while (hi - lo > 1) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (await exists(mid)) lo = mid; else hi = mid;
+  if (!seq) throw new Error('zKillboard R2Z2');
+  for (let i = 0; i < SEEK_STEPS; i++) {
+    const step = Math.floor(((serverNow() - up) / rate) * SEEK_SHARE);
+    if (step < SEEK_MIN) break;
+    const r = await probe(seq + step);
+    if (!r) break;
+    const next = uploaded(r);
+    seq += step;
+    mark(seq, next);
+    up = Math.max(up, next);
   }
-  return lo;
+  headUp = up;
+  return seq;
+}
+
+async function follow() {
+  if (serverNow() - headUp > RESEEK_MS) {
+    const seq = await findHead(lastSeq);
+    await backfill(seq, lastSeq);
+    lastSeq = Math.max(lastSeq, seq);
+    persist();
+    return;
+  }
+  const elapsed = (serverNow() - headUp) / (rate * slow);
+  let ahead = 0;
+  while (ahead < AHEAD_MAX && ahead + 1 + LAG * Math.sqrt(ahead + 1) + LAG <= elapsed) ahead++;
+  if (ahead < 1) return;
+  const from = lastSeq;
+  let found = 0;
+  let foundUp = 0;
+  for (let next = from + 1; next <= from + ahead && running && !paused; next++) {
+    const r = await probe(next);
+    if (!r) continue;
+    add(toLive(r), true);
+    mark(next, uploaded(r));
+    found = next;
+    foundUp = Math.max(foundUp, uploaded(r));
+  }
+  if (!found) {
+    slow = Math.min(slow * 1.5, SLOW_MAX);
+    return;
+  }
+  slow = 1;
+  headUp = foundUp > headUp ? foundUp : headUp + (found - from) * rate;
+  lastSeq = found;
+  for (const m of missed) if (m <= lastSeq) missed.delete(m);
+  persist();
 }
 
 async function backfill(from: number, stopAt: number) {
@@ -175,30 +277,10 @@ async function stream() {
   lastSeq = Math.max(lastSeq, seq);
   goLive();
   persist();
-  let misses = 0;
-  let fails = 0;
   while (running) {
     if (paused) { await sleep(1000); continue; }
-    const r = await fetchSeq(lastSeq + 1);
-    if (hasKill(r)) {
-      lastSeq++;
-      misses = 0;
-      fails = 0;
-      add(toLive(r), true);
-      goLive();
-      persist();
-      continue;
-    }
-    if (++misses >= PROBE_EVERY) {
-      misses = 0;
-      if (await head()) {
-        fails = 0;
-        goLive();
-        if ((await findHead(lastSeq)) > lastSeq) lastSeq++;
-      } else if (++fails >= MAX_FAILS) {
-        setStatus({ state: 'error', error: 'zKillboard R2Z2' });
-      }
-    }
+    await follow();
+    goLive();
     await sleep(IDLE_MS);
     prune();
   }
