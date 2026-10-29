@@ -30,6 +30,7 @@ interface LiveSettings {
   follow: string;
   range: number;
   sound: SoundKind;
+  soundSet?: boolean;
   notify: boolean;
   wh: boolean;
   center: boolean;
@@ -44,7 +45,7 @@ interface Battle { id: number; systems: number[]; main: number; kills: number; v
 interface Followed { id: number; name: string; systemId?: number; online?: boolean; at: number; error?: string }
 
 const SETTINGS_KEY = 'eve-live:settings';
-const DEFAULTS: LiveSettings = { win: 60, mode: 'pvp', labels: true, battles: true, follow: '', range: 5, sound: 'blip', notify: false, wh: true, center: true, ref: 0, tab: 'events' };
+const DEFAULTS: LiveSettings = { win: 60, mode: 'pvp', labels: true, battles: true, follow: '', range: 5, sound: 'off', notify: false, wh: true, center: true, ref: 0, tab: 'events' };
 const RANGES = [1, 2, 3, 5, 7, 10, 15];
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 const INTEL_KEEP = 30 * 60_000;
@@ -110,6 +111,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
   const stored = loadJson<Partial<LiveSettings>>(SETTINGS_KEY, {});
   const settings: LiveSettings = { ...DEFAULTS, ...(isDemo() ? { follow: String(DEMO_ID) } : {}), ...(stored.mode ? {} : { mode: stored.npc ? 'all' : 'pvp' }), ...stored };
   delete settings.npc;
+  if (!settings.soundSet) settings.sound = 'off';
   const save = () => saveJson(SETTINGS_KEY, settings);
 
   el.innerHTML = loader(tx('Încarc harta'));
@@ -237,7 +239,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
   function alarm(title: string, body: string, systemId: number) {
     const d = dist?.get(systemId);
     if (d == null || d > settings.range) return;
-    playSound(settings.sound, d <= 1 ? 0.5 : d <= 3 ? 0.32 : 0.2);
+    if (!isDemo()) playSound(settings.sound, d <= 1 ? 0.5 : d <= 3 ? 0.32 : 0.2);
     if (settings.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
       try { new Notification(title, { body, tag: `vyraj-${systemId}` }); } catch { }
     }
@@ -901,6 +903,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       if (t.id === 'liveRange') { settings.range = Number(t.value); save(); recomputeDistances(); renderRef(); renderSide(); return; }
       if (t.id === 'liveSound') {
         settings.sound = t.value as SoundKind;
+        settings.soundSet = true;
         save();
         unlockAudio();
         playSound(settings.sound);
