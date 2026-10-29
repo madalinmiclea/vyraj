@@ -16,6 +16,7 @@ import { playSound, unlockAudio, type SoundKind } from '../ui/sound';
 import { loadMap, wormholeLinks, type NavMap, type NavSystem, type WormholeLink } from '../services/navigation';
 import { analyzeKills, systemActivity, sovereignty, resolveNames, cachedName, displaySec, secClass, type ActivitySnapshot, type SystemActivity, type SovClaim } from '../services/recon';
 import { startKillStream, onKill, onStreamStatus, liveKills, setStreamPaused, streamPaused, WINDOW_MS, type LiveKill, type StreamStatus } from '../services/killstream';
+import { recordVisit } from '../services/visited';
 import { ChatWatcher, SystemMatcher, parseIntel, chatFolderSupported, type IntelReport } from '../services/chatIntel';
 
 type SideTab = 'events' | 'system' | 'chat';
@@ -752,6 +753,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       followed.set(id, f);
       try {
         const loc = await characterLocation(id);
+        recordVisit(c.name, loc.solar_system_id);
         if (loc.solar_system_id !== f.systemId) moved.push(f);
         f.systemId = loc.solar_system_id;
         f.error = undefined;

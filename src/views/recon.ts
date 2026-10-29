@@ -16,12 +16,13 @@ import { wormholeLinks, type WormholeLink } from '../services/navigation';
 import type { LiveMapView } from './liveMap';
 import { feedKills } from '../services/killstream';
 
-type Tab = 'map' | 'route' | 'local';
+type Tab = 'map' | 'route' | 'local' | 'fight';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'map', label: tx('Hartă live') },
   { id: 'route', label: tx('Rută') },
   { id: 'local', label: tx('Local și D-Scan') },
+  { id: 'fight', label: tx('Analiză luptă') },
 ];
 
 const TAB_KEY = 'eve-recon:tab';
@@ -71,13 +72,16 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   if (!TABS.some((t) => t.id === tab)) tab = 'route';
   const saved = loadJson<{ from: string; to: string; flag: RouteFlag; avoid?: boolean; wh?: boolean }>(ROUTE_KEY, { from: 'Jita', to: 'Amarr', flag: 'shortest' });
 
-  el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Hartă live cu pericole, pericol pe rută și analiza Local / D-Scan'), 'Cladistic Recon')}
+  el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Hartă live cu pericole, pericol pe rută, analiza Local / D-Scan și analiza luptelor din log'), 'Cladistic Recon')}
     <div id="reconMap"></div>
     <div id="reconRoute"></div>
-    <div id="reconLocal"></div>`;
+    <div id="reconLocal"></div>
+    <div id="reconFight"></div>`;
   const mapEl = el.querySelector<HTMLElement>('#reconMap')!;
   const routeEl = el.querySelector<HTMLElement>('#reconRoute')!;
   const localEl = el.querySelector<HTMLElement>('#reconLocal')!;
+  const fightEl = el.querySelector<HTMLElement>('#reconFight')!;
+  let fightReady = false;
   let liveMap: LiveMapView | null = null;
   let mapLoading = false;
   const syncMap = () => {
@@ -110,6 +114,12 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-recon-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     routeEl.hidden = tab !== 'route';
     localEl.hidden = tab !== 'local';
+    fightEl.hidden = tab !== 'fight';
+    if (tab === 'fight' && !fightReady) {
+      fightReady = true;
+      fightEl.innerHTML = loader(tx('Încarc analiza luptei'));
+      import('./fightLog').then((m) => m.createFightView(fightEl, ctx)).catch((err) => { fightReady = false; fightEl.innerHTML = alertBox((err as Error).message); });
+    }
     mapEl.hidden = tab !== 'map';
     el.classList.toggle('view-map', tab === 'map');
     syncMap();

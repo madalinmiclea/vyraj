@@ -13,6 +13,7 @@ import { createOrdersView } from './views/orders';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
 import { createNavigationView } from './views/navigation';
+import { startVisitTracker } from './services/visited';
 import { createMiningView } from './views/mining';
 import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
@@ -523,7 +524,7 @@ async function start() {
   mount(['orders'], () => createOrdersView(viewEl('orders'), ctx, sidePane('orders'), { onOpen: (name, typeId) => { switchView('market'); market.show(name, typeId); } }));
   mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
   mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
-  later('navigation', ['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation')));
+  later('navigation', ['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); } }));
   later('mining', ['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
   later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
@@ -576,6 +577,7 @@ async function refreshStale(ctx: AppContext, skip?: number) {
 
 start();
 startAlertWatcher();
+startVisitTracker();
 itemsReady.then(startOrderWatcher).catch(() => {});
 
 const refreshListed = () => fetchListedTypes().then((ids) => browser.setListed(ids)).catch(() => {  });

@@ -11,3 +11,36 @@
 .nav-krais .panel { margin: 0; }
 @media (max-width: 700px) { .nav-krais { grid-template-columns: minmax(0, 1fr); } }
 .nav-krai td.small { min-width: 130px; }
+.vis-map .live-body { height: calc(100vh - var(--topbar-h) - 180px); }
+.vis-map #visFits .panel { margin: 0; }
+.vis-bar { display: block; height: 3px; margin-top: 3px; background: var(--line); }
+.vis-bar i { display: block; height: 100%; background: var(--accent); }
+.vis-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0; }
+.vis-kpis .value { font-size: 16px; }
+.vis-sel { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-left: 2px solid var(--accent); background: var(--bg-hover); }
+.vis-sel-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.vis-sel-actions, .vis-route-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.vis-regions { display: flex; flex-direction: column; gap: 1px; }
+.vis-region { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 8px; padding: 5px 7px; font-size: 13px; text-align: left; color: var(--text); background: transparent; border: 0; border-radius: 2px; cursor: pointer; }
+.vis-region span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-region .vis-bar { grid-column: 1 / -1; }
+.vis-region:hover { background: var(--bg-hover); }
+.vis-region.active { background: var(--bg-active); color: var(--text-bright); }
+.vis-form { display: flex; flex-direction: column; gap: 8px; }
+.vis-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
+.vis-form .btn { align-self: flex-start; }
+.vis-levels .chip-btn { flex: 1; }
+.vis-levels { display: flex; }
+.vis-steps { display: flex; flex-direction: column; gap: 1px; max-height: 340px; overflow-y: auto; }
+.vis-step { display: flex; align-items: center; gap: 8px; padding: 3px 6px; font-size: 13px; cursor: pointer; border-radius: 2px; }
+.vis-step:hover { background: var(--bg-hover); }
+.vis-step .num:first-child { width: 22px; text-align: right; }
+.vis-step-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-step.new .vis-step-name { color: var(--text-bright); font-weight: 600; }
+.vis-fits td { vertical-align: middle; }
+.vis-fits tr.vis-best td { background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.vis-lg { display: inline-block; width: 16px; height: 4px; background: var(--accent); }
+.vis-lg-jump { height: 0; background: none; border-top: 2px dashed var(--accent); }
+.vis-lg-seen { width: 10px; height: 10px; border-radius: 50%; background: none; border: 2px solid var(--accent); }
+.vis-lg-route { height: 0; background: none; border-top: 2px dashed var(--gold); }
+@media (max-width: 900px) { .vis-map .live-body { height: auto; } }

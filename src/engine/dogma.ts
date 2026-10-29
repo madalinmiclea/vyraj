@@ -313,7 +313,7 @@ export class Dogma {
   }
 
   get owned(): DogmaItem[] {
-    return [...this.modules, ...this.charges, ...this.drones.map((d) => d.item)];
+    return [...this.charges, ...this.drones.map((d) => d.item)];
   }
 
   isEffectActive(item: DogmaItem, effect: EffectInfo): boolean {

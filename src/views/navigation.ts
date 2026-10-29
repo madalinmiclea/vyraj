@@ -14,11 +14,13 @@ import {
 } from '../services/navigation';
 import { tx } from '../i18n';
 import type { SovMapView } from './sovMap';
+import type { VisitedMapView } from './visitedMap';
 
-type Tab = 'jump' | 'pochven' | 'wormholes' | 'sov';
+type Tab = 'jump' | 'visited' | 'pochven' | 'wormholes' | 'sov';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'jump', label: tx('Planificator de salturi') },
+  { id: 'visited', label: tx('Sisteme vizitate') },
   { id: 'pochven', label: 'Pochven' },
   { id: 'wormholes', label: 'Thera / Turnur' },
   { id: 'sov', label: tx('Suveranitate') },
@@ -45,19 +47,21 @@ const ago = (ms: number) => {
 const secCell = (s: NavSystem) => `<span class="num ${secClass(s.sec)}">${formatNum(displaySec(s.sec), 1)}</span>`;
 const dotlan = (name: string, text = name) => `<a class="ext-link" href="https://evemaps.dotlan.net/system/${encodeURIComponent(name.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`;
 
-export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
+export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { openFit: (fit: Fit) => void }) {
   let tab = loadJson<Tab>(TAB_KEY, 'jump');
   if (!TABS.some((t) => t.id === tab)) tab = 'jump';
   const saved = loadJson<PlanForm>(PLAN_KEY, { ship: 'type:28844', from: '', to: '', mode: 'jumps', avoid: '', fatigue: 0 });
 
-  el.innerHTML = `${pageHead(tx('Navigație'), tx('Planificator de salturi pentru capitale, urmărire Pochven, conexiuni Thera / Turnur și harta de suveranitate'), 'Krai Passage')}
+  el.innerHTML = `${pageHead(tx('Navigație'), tx('Planificator de salturi pentru capitale, sistemele prin care ai trecut, urmărire Pochven, conexiuni Thera / Turnur și harta de suveranitate'), 'Krai Passage')}
     <div id="navJump"></div>
+    <div id="navVisited"></div>
     <div id="navPochven"></div>
     <div id="navWormholes"></div>
     <div id="navSov"></div>
     <datalist id="navSystems"></datalist>`;
   const panes: Record<Tab, HTMLElement> = {
     jump: el.querySelector<HTMLElement>('#navJump')!,
+    visited: el.querySelector<HTMLElement>('#navVisited')!,
     pochven: el.querySelector<HTMLElement>('#navPochven')!,
     wormholes: el.querySelector<HTMLElement>('#navWormholes')!,
     sov: el.querySelector<HTMLElement>('#navSov')!,
@@ -67,6 +71,12 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     if (sovMap) { sovMap.show(); return; }
     panes.sov.innerHTML = loader(tx('Încarc harta de suveranitate'));
     import('./sovMap').then((m) => { sovMap ??= m.createSovMap(panes.sov); sovMap.show(); }).catch((err) => failed(panes.sov, err));
+  };
+  let visitedMap: VisitedMapView | null = null;
+  const showVisited = () => {
+    if (visitedMap) { visitedMap.show(); return; }
+    panes.visited.innerHTML = loader(tx('Încarc harta sistemelor vizitate'));
+    import('./visitedMap').then((m) => { visitedMap ??= m.createVisitedMap(panes.visited, ctx, opts); visitedMap.show(); }).catch((err) => failed(panes.visited, err));
   };
   const datalist = el.querySelector<HTMLDataListElement>('#navSystems')!;
   const loaded = new Set<Tab>();
@@ -78,8 +88,9 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Navigație'))}</div>
       <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-nav-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
-    el.classList.toggle('view-map', tab === 'sov');
+    el.classList.toggle('view-map', tab === 'sov' || tab === 'visited');
     if (tab === 'sov') showSov();
+    if (tab === 'visited') showVisited();
     if (!loaded.has(tab)) {
       loaded.add(tab);
       if (tab === 'jump') initJump();
