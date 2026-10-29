@@ -500,6 +500,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     if (!logs.length) { toast(tx('Nu am găsit loguri Local sau Gamelogs în ce ai ales.')); return; }
     importNote = tx('Citesc {n} fișiere…', { n: logs.length });
     renderSide();
+    toast(importNote);
     const entries: VisitEntry[] = [];
     let read = 0;
     for (const f of logs) {
@@ -522,7 +523,11 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     input.multiple = true;
     if (dir) (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
     else input.accept = '.txt,text/plain';
-    input.addEventListener('change', () => runImport([...(input.files ?? [])]));
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    const done = () => { const files = [...(input.files ?? [])]; input.remove(); if (files.length) runImport(files); else toast(tx('Nu am primit niciun fișier din folderul ales.')); };
+    input.addEventListener('change', done, { once: true });
+    input.addEventListener('cancel', () => input.remove(), { once: true });
     input.click();
   }
 
