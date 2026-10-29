@@ -4,6 +4,7 @@ import { importCharacter } from '../character/esi';
 import { upsertStoredCharacter, setActiveCharacterId } from '../character/characters';
 import { DEMO_ID, demoToken } from './identity';
 import { tx } from '../i18n';
+import { seedDemo } from './seed';
 
 export { isDemo } from '../storage';
 
@@ -15,6 +16,7 @@ export async function startDemo(): Promise<void> {
     const c = await importCharacter(DEMO_ID, name);
     upsertStoredCharacter(c);
     setActiveCharacterId(c.id);
+    await seedDemo();
   } catch (e) {
     setDemo(false);
     throw e;

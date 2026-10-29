@@ -2062,7 +2062,6 @@ export const EN: Record<string, string> = {
   "capsulă": "pod",
   "{n} atacatori": "{n} attackers",
   "Încarc kill-urile din ultima oră": "Loading the kills from the last hour",
-  "Fluxul zKillboard nu răspunde acum. Reîncerc singur.": "The zKillboard feed is not responding right now. Retrying on its own.",
   "{n} kill-uri în raza ta în fereastra aleasă.": "{n} kills within your range in the chosen window.",
   "Niciun kill în raza ta în fereastra aleasă.": "No kills within your range in the chosen window.",
   "Cele mai active sisteme": "Most active systems",
@@ -2188,4 +2187,7 @@ export const EN: Record<string, string> = {
   "Interacțiunea planetară primește hartă și rețete.": "Planetary interaction gets a map and recipes.",
   "Găsește planete arată planetele oricărui sistem, inclusiv wormhole, cu resursele P0 de pe fiecare, ce poți fabrica numai de acolo și cele mai apropiate planete de tipul căutat.": "Planet finder shows the planets of any system, wormholes included, with the P0 resources on each, what you can make from there alone and the nearest planets of the type you want.",
   "Schemele pun tot lanțul P0-P4 pe un singur ecran: alegi planetele pe care le ai, apoi un produs, și vezi din ce se face, în ce intră și ce planete îl alimentează.": "Schematics put the whole P0-P4 chain on one screen: pick the planets you have, then a product, and see what it is made from, what it goes into and which planets feed it.",
+  "Flotă Drake": "Drake fleet",
+  "Doctrină de exemplu pentru flote de corporație: DPS cu rachete grele, logi pe scuturi și tackle rapid.": "A sample doctrine for corporation fleets: heavy missile DPS, shield logi and fast tackle.",
+  "Fluxul zKillboard nu răspunde acum: e căzut sau a limitat temporar cererile din rețeaua ta. Harta reîncearcă singură, rar, ca limita să treacă.": "The zKillboard feed is not responding right now: it is down or is temporarily rate limiting your network. The map retries on its own, slowly, so the limit can lift.",
 };

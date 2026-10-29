@@ -1,4 +1,4 @@
-import { loadJson, saveJson, isDemo } from '../storage';
+import { loadJson, saveJson } from '../storage';
 import { summarizeKill, isCapsule, isGateLocation, type EsiKillmail, type KillSummary, type ZkbMeta } from './recon';
 
 const R2Z2 = 'https://r2z2.zkillboard.com/ephemeral';
@@ -13,6 +13,8 @@ const MAX_FAILS = 2;
 const PROBE_EVERY = 12;
 const RETRY_MIN = 5000;
 const RETRY_MAX = 60_000;
+const MIN_GAP = 100;
+const BAN_MS = 60_000;
 
 export interface LiveKill extends KillSummary {
   hash: string;
@@ -41,6 +43,8 @@ let paused = false;
 let lastSeq = 0;
 let saveTimer = 0;
 let retryDelay = RETRY_MIN;
+let nextSlot = 0;
+let bannedUntil = 0;
 
 function setStatus(patch: Partial<StreamStatus>) {
   status = { ...status, ...patch };
@@ -75,11 +79,28 @@ function add(k: LiveKill, live: boolean) {
 
 const hasKill = (r: R2Z2Kill | null): r is R2Z2Kill => !!r?.esi;
 
+const limited = () => bannedUntil > Date.now();
+
+async function r2z2(path: string, init?: RequestInit): Promise<Response> {
+  if (limited()) throw new Error('zKillboard R2Z2');
+  const now = Date.now();
+  const at = Math.max(now, nextSlot);
+  nextSlot = at + MIN_GAP;
+  if (at > now) await sleep(at - now);
+  const res = await fetch(`${R2Z2}/${path}`, init).catch(() => null);
+  if (!res || res.status === 429) {
+    bannedUntil = Date.now() + BAN_MS;
+    throw new Error('zKillboard R2Z2');
+  }
+  return res;
+}
+
 async function fetchSeq(seq: number): Promise<R2Z2Kill | null> {
   try {
-    const res = await fetch(`${R2Z2}/${seq}.json`);
+    const res = await r2z2(`${seq}.json`);
     return res.ok ? ((await res.json()) as R2Z2Kill) : null;
-  } catch {
+  } catch (e) {
+    if (limited()) throw e;
     return null;
   }
 }
@@ -88,10 +109,11 @@ const exists = async (seq: number) => hasKill(await fetchSeq(seq));
 
 async function head(): Promise<number> {
   try {
-    const res = await fetch(`${R2Z2}/sequence.json`, { cache: 'no-store' });
+    const res = await r2z2('sequence.json', { cache: 'no-store' });
     if (!res.ok) return 0;
     return ((await res.json()) as { sequence: number }).sequence || 0;
-  } catch {
+  } catch (e) {
+    if (limited()) throw e;
     return 0;
   }
 }
@@ -129,20 +151,6 @@ async function backfill(from: number, stopAt: number) {
     seq -= batch.length;
     setStatus({ loaded: kills.size });
     if (!recent && got.some(hasKill)) break;
-  }
-}
-
-async function runDemo() {
-  setStatus({ state: 'backfill', loaded: 0, error: undefined });
-  const feed = await (await import('../demo/liveFeed')).createDemoFeed();
-  for (const k of feed.backfill(WINDOW_MS)) add(k, false);
-  setStatus({ state: 'live', loaded: kills.size });
-  while (running) {
-    if (paused) { await sleep(1000); continue; }
-    const { kill, wait } = feed.next();
-    add(kill, true);
-    await sleep(wait);
-    prune();
   }
 }
 
@@ -197,14 +205,13 @@ async function stream() {
 }
 
 async function run() {
-  if (isDemo()) return runDemo();
   while (running) {
     try {
       await stream();
       return;
     } catch (err) {
       setStatus({ state: 'error', error: (err as Error).message });
-      await sleep(retryDelay);
+      await sleep(Math.max(retryDelay, bannedUntil - Date.now()));
       retryDelay = Math.min(retryDelay * 2, RETRY_MAX);
     }
   }

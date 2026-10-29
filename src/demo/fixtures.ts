@@ -3,6 +3,8 @@ import { loadItems, allEveItems } from '../data/items';
 import { spPerMinute, type Attributes } from '../character/training';
 import { DEMO_ID, isDemoAuth, demoSystem } from './identity';
 import { tx } from '../i18n';
+import { ESI, esiFetch } from '../services/esiClient';
+import { loadActivities } from '../services/operations';
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -136,7 +138,7 @@ const ISHTAR: Slots = {
   cargo: [['Nanite Repair Paste', 50]],
 };
 
-const VENTURE: Slots = { hi: ['Miner II', 'Miner II'], med: ['1MN Afterburner II', 'Survey Scanner II'], lo: ['Mining Laser Upgrade II'] };
+const VENTURE: Slots = { hi: ['Miner II', 'Miner II'], med: ['1MN Afterburner II', 'Small Shield Extender II'], lo: ['Mining Laser Upgrade II'] };
 
 function fittings(w: World) {
   const ishtar = idOf(w, 'Ishtar');
@@ -150,6 +152,7 @@ function fittings(w: World) {
 interface Asset { item_id: number; type_id: number; location_id: number; location_flag: string; location_type: string; quantity: number; is_singleton: boolean; is_blueprint_copy?: boolean }
 
 const SHIP_ITEM = 1_050_000_000_001;
+const SKIN_LICENSES = [55626, 74160, 47632, 53135, 36731, 53376, 55603, 60232, 60234, 43762, 91253, 55582];
 
 function assets(w: World): Asset[] {
   const out: Asset[] = [];
@@ -179,6 +182,7 @@ function assets(w: World): Asset[] {
   put('Veldspar', HOME, 'station', 184_000);
   put('Tritanium', HOME, 'station', 520_000);
   put('PLEX', HOME, 'station', 30);
+  for (const typeId of SKIN_LICENSES) out.push({ item_id: next++, type_id: typeId, location_id: HOME, location_flag: 'Hangar', location_type: 'station', quantity: 1, is_singleton: false });
   return out;
 }
 
@@ -215,9 +219,9 @@ function ledger(w: World, now: number, name: string) {
             const n = lo + Math.floor(r() * (hi - lo + 1));
             for (let i = 0; i < n; i++) { const [id] = pick(r, list); kills.set(id, (kills.get(id) ?? 0) + 1); }
           };
-          add(NPCS.bs, 1, 4);
-          add(NPCS.bc, 0, 3);
-          add(NPCS.cr, 0, 2);
+          add(NPCS.bs, 6, 13);
+          add(NPCS.bc, 1, 5);
+          add(NPCS.cr, 1, 3);
           add(NPCS.sm, 0, 3);
           if (r() < 0.04) add(NPCS.rare, 1, 1);
           const bounty = Object.fromEntries([...NPCS.bs, ...NPCS.bc, ...NPCS.cr, ...NPCS.sm, ...NPCS.rare]) as Record<number, number>;
@@ -321,6 +325,64 @@ function planet(now: number, planetId: number) {
   };
 }
 
+async function publicGet<T>(path: string): Promise<T | null> {
+  const res = await esiFetch(`${ESI}${path}`).catch(() => null);
+  return res?.ok ? ((await res.json()) as T) : null;
+}
+
+const DEN = 1_046_000_000_001;
+const DEN_PLANET = 40080195;
+
+async function freelance() {
+  const r = await publicGet<{ freelance_jobs: { id: string; state: string }[] }>('/freelance-jobs?limit=100&before=0');
+  return { freelance_jobs: (r?.freelance_jobs ?? []).filter((j) => j.state === 'Active').slice(3, 5) };
+}
+
+async function participation(id: string) {
+  const job = await publicGet<{ progress: { desired: number } }>(`/freelance-jobs/${id}`);
+  const desired = job?.progress?.desired ?? 0;
+  return { contributed: Math.max(1, Math.round(desired * (0.015 + (id.charCodeAt(0) % 5) / 100))), state: 'Active' };
+}
+
+async function objectives() {
+  const r = await publicGet<{ campaigns: { id: string; state: string }[] }>('/military-campaigns');
+  const out: { id: string; campaign_id: string; contributed: number; is_committed: boolean }[] = [];
+  for (const c of [...(r?.campaigns ?? [])].sort((a, b) => (a.state === 'Active' ? 0 : 1) - (b.state === 'Active' ? 0 : 1)).slice(0, 2)) {
+    const o = await publicGet<{ objectives: { id: string; state: string }[] }>(`/military-campaigns/${c.id}/objectives?limit=100&before=0`);
+    for (const [i, x] of (o?.objectives ?? []).slice(0, 3).entries()) out.push({ id: x.id, campaign_id: c.id, contributed: [12, 4, 27][i], is_committed: i !== 1 });
+  }
+  return { objectives: out };
+}
+
+function mercenaryDen(w: World, now: number) {
+  return { id: DEN, type_id: idOf(w, 'Mercenary Den') ?? 85230, state: 'Running', evolution: { anarchy: { amount: 34, level: 'Level1' }, development: { amount: 61, level: 'Level2' } }, infomorphs: { amount: 1840 }, reinforcement_timer: undefined, skyhook: { corporation_id: 1000120, id: 1_046_000_000_101, planet_id: DEN_PLANET }, last_updated: iso(now - 40 * MIN) };
+}
+
+function tacticalOps(now: number) {
+  return [
+    { id: 'a3f1c2d4-0000-4000-8000-000000000001', dungeon_type_id: 12367, expires: iso(now + 19 * HOUR), mercenary_den_id: DEN, state: 'Available' },
+    { id: 'a3f1c2d4-0000-4000-8000-000000000002', dungeon_type_id: 12369, expires: iso(now + 5 * HOUR), mercenary_den_id: DEN, state: 'Started' },
+  ];
+}
+
+async function skinrLicenses() {
+  const r = await publicGet<{ listings: { skinr_id: string; state: string }[] }>('/paragon-hub/skinr?limit=100&before=0');
+  const ids = [...new Set((r?.listings ?? []).filter((l) => l.state === 'listed').map((l) => l.skinr_id))].slice(0, 4);
+  return { licenses: ids.map((skinr_id, i) => ({ skinr_id, activated: i % 2 === 0, unactivated: i === 1 ? 2 : i === 3 ? 1 : 0 })) };
+}
+
+async function skinrComponents() {
+  const a = await loadActivities().catch(() => null);
+  const ids = Object.entries(a?.components ?? {}).filter((_, i) => i % 41 === 0).slice(0, 10);
+  return { licenses: ids.map(([id, c], i) => ({ component_id: Number(id), type: c.category === 'Pattern' ? 'pattern' : 'nanocoating', runs: i % 3 === 0 ? { unlimited: true } : { remaining: 2 + (i * 7) % 18 } })) };
+}
+
+async function sellerListings(now: number) {
+  const r = await skinrLicenses();
+  const first = r.licenses[0];
+  return { listings: first ? [{ id: 'b7e2d9a1-0000-4000-8000-000000000001', skinr_id: first.skinr_id, seller_id: DEMO_ID, state: 'listed', quantity: 3, created: iso(now - 2 * DAY), expires: iso(now + 12 * DAY), price: { isk: 45_000_000 } }] : [] };
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'x-pages': '1' } });
 }
@@ -336,7 +398,8 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
   const structure = path.match(/^\/universe\/structures\/(\d+)\/?$/);
   if (structure) return Number(structure[1]) === CITADEL ? json({ name: 'Y-W1Q3 - Astrahus', solar_system_id: CITADEL_SYSTEM, type_id: 35832, owner_id: 1 }) : json({ error: 'Forbidden' }, 403);
   const m = path.match(/^\/characters\/(\d+)\/(.*?)\/?$/);
-  if (!m || Number(m[1]) !== DEMO_ID) return json({ error: 'Not found' }, 404);
+  if (!m) return esiFetch(`${url.origin}${url.pathname}${url.search}`);
+  if (Number(m[1]) !== DEMO_ID) return json({ error: 'Not found' }, 404);
   const route = m[2];
   const name = JSON.parse(atob(new Headers(init?.headers).get('authorization')!.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).name as string;
   switch (route) {
@@ -359,9 +422,21 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'blueprints': return json(blueprints(w));
     case 'industry/jobs': return json(jobs(w, now));
     case 'planets': return json(planets(now));
+    case 'freelance-jobs': return json(await freelance());
+    case 'military-campaigns/objectives': return json(await objectives());
+    case 'structures/mercenary-dens': return json({ mercenary_dens: [{ id: DEN }] });
+    case `structures/mercenary-dens/${DEN}`: return json(mercenaryDen(w, now));
+    case 'mercenary-tactical-operations': return json({ operations: tacticalOps(now).map((o) => ({ id: o.id })) });
+    case 'cosmetics/skinr': return json(await skinrLicenses());
+    case 'cosmetics/skinr/components': return json(await skinrComponents());
+    case 'paragon-hub/skinr': return json(await sellerListings(now));
     default: {
       const pl = route.match(/^planets\/(\d+)$/);
       if (pl) { const body = planet(now, Number(pl[1])); return body ? json(body) : json({ error: 'Not found' }, 404); }
+      const part = route.match(/^freelance-jobs\/([^/]+)\/participation$/);
+      if (part) return json(await participation(part[1]));
+      const op = tacticalOps(now).find((o) => route === `mercenary-tactical-operations/${o.id}`);
+      if (op) return json(op);
       return json([], 200);
     }
   }

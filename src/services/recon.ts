@@ -175,14 +175,23 @@ interface EsiSovSystem {
 }
 
 let sov: { at: number; map: Map<number, SovClaim> } | null = null;
+const LEGACY_SOV_DATE = '2025-12-16';
 
 export async function sovereignty(): Promise<Map<number, SovClaim>> {
   if (sov && Date.now() - sov.at < 30 * 60 * 1000) return sov.map;
-  const r = await esiJson<{ solar_systems: EsiSovSystem[] }>('/sovereignty/systems');
   const map = new Map<number, SovClaim>();
-  for (const x of r.solar_systems) {
-    const c = x.claim;
-    map.set(x.solar_system_id, c.alliance ? { kind: 'alliance', id: c.alliance.alliance_id, capital: !!c.alliance.is_capital_system } : c.faction ? { kind: 'faction', id: c.faction.faction_id } : null);
+  const r = await esiJson<{ solar_systems: EsiSovSystem[] }>('/sovereignty/systems').catch(() => null);
+  if (r) {
+    for (const x of r.solar_systems) {
+      const c = x.claim;
+      map.set(x.solar_system_id, c.alliance ? { kind: 'alliance', id: c.alliance.alliance_id, capital: !!c.alliance.is_capital_system } : c.faction ? { kind: 'faction', id: c.faction.faction_id } : null);
+    }
+  } else {
+    const res = await fetch(`${ESI}/sovereignty/map?compatibility_date=${LEGACY_SOV_DATE}`);
+    if (!res.ok) throw new Error(`ESI /sovereignty/systems: ${res.status}`);
+    for (const x of (await res.json()) as { system_id: number; alliance_id?: number; faction_id?: number }[]) {
+      map.set(x.system_id, x.alliance_id ? { kind: 'alliance', id: x.alliance_id } : x.faction_id ? { kind: 'faction', id: x.faction_id } : null);
+    }
   }
   sov = { at: Date.now(), map };
   return map;

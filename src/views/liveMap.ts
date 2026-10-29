@@ -434,7 +434,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
         <div class="live-ev-sub">${s ? `${secSpan(s.sec)} <span>${esc(s.name)}</span> <span class="dim">· ${esc(map!.region(s))}</span>` : `#${k.systemId}`}</div>
         <div class="live-ev-sub dim">${agoShort(k.time)} · ${tx('{n} atacatori', { n: k.players || k.attackers })} ${badges}</div>
       </div>
-      ${k.hash === 'demo' ? '' : `<a class="ext-link" href="https://zkillboard.com/kill/${k.id}/" target="_blank" rel="noopener noreferrer" aria-label="zKillboard">${icon('external')}</a>`}
+      <a class="ext-link" href="https://zkillboard.com/kill/${k.id}/" target="_blank" rel="noopener noreferrer" aria-label="zKillboard">${icon('external')}</a>
     </div>`;
   }
 
@@ -444,7 +444,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const hot = [...stats.entries()].sort((a, b) => (b[1].n + b[1].pods + (b[1].camp ? 10 : 0)) - (a[1].n + a[1].pods + (a[1].camp ? 10 : 0))).slice(0, 8);
     const camps = [...stats.entries()].filter(([, st]) => st.camp);
     if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultima oră'));
-    if (status.state === 'error' && !all.length) return alertBox(tx('Fluxul zKillboard nu răspunde acum. Reîncerc singur.'), 'warn');
+    if (status.state === 'error' && !all.length) return alertBox(tx('Fluxul zKillboard nu răspunde acum: e căzut sau a limitat temporar cererile din rețeaua ta. Harta reîncearcă singură, rar, ca limita să treacă.'), 'warn');
     const inRange = dist ? camps.filter(([id]) => (dist!.get(id) ?? Infinity) <= settings.range) : camps;
     const campList = (list: typeof camps) => list.slice(0, 6).map(([id]) => {
       const d = dist?.get(id);

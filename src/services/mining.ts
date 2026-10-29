@@ -156,6 +156,8 @@ export function refinedUnitValue(ore: Ore, yieldPct: number, price: (id: number)
   return (total / ore.portion) * (1 - tax / 100);
 }
 
+const OUTLIER = 3;
+
 export interface OreValue {
   raw: number;
   compressed: number;
@@ -164,8 +166,10 @@ export interface OreValue {
 }
 
 export function oreValuePerM3(ore: Ore, yieldPct: number, price: (id: number) => number, tax: number): OreValue {
-  const raw = price(ore.id) / ore.volume;
-  const compressed = ore.compressedId ? price(ore.compressedId) / ore.volume : 0;
+  const ceiling = ore.materials.length ? (refinedUnitValue(ore, 1, price, 0) / ore.volume) * OUTLIER : Infinity;
+  const sane = (v: number) => (ceiling > 0 && v > ceiling ? 0 : v);
+  const raw = sane(price(ore.id) / ore.volume);
+  const compressed = ore.compressedId ? sane(price(ore.compressedId) / ore.volume) : 0;
   const refined = ore.materials.length ? refinedUnitValue(ore, yieldPct, price, tax) / ore.volume : 0;
   const best = refined > raw && refined >= compressed ? 'refined' : compressed > raw ? 'compressed' : 'raw';
   return { raw, compressed, refined, best };

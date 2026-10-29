@@ -98,6 +98,7 @@
   .stack > *, .panel { min-width: 0; }
   .side-resizer { display: none; }
   .panel-head { flex-wrap: wrap; row-gap: 8px; }
+  .panel-actions { flex-wrap: wrap; min-width: 0; max-width: 100%; }
   .ship-head { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px; }
   .ship-head > :nth-child(3) { grid-column: 1 / -1; }
   .ship-actions { width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-items: stretch; }
@@ -119,3 +120,10 @@
   .toast { left: 12px; right: 12px; bottom: calc(var(--neocom-h) + env(safe-area-inset-bottom) + 12px); transform: none; text-align: center; }
 }
 .slot-group-head { flex-wrap: wrap; }
+
+@media (max-width: 400px) {
+  .topbar { gap: 5px; padding-right: 6px; }
+  .brand { letter-spacing: 1px; }
+  .lang-switch button { padding: 5px 5px; }
+  .theme-switch button { padding: 5px 4px; }
+}
