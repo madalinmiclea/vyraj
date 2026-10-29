@@ -63,10 +63,11 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     body: `<p class="dim small">${tx('EVE scrie tot ce se întâmplă în luptă în fișierele Gamelogs: damage dat și primit, neut, tackle, ratări și reîncărcări. Vyraj le citește direct în browser, fără să trimită nimic pe vreun server, și reconstruiește lupta din punctul tău de vedere.')}</p>
       <ul class="small dim live-paths"><li>Windows: <code>Documents\\EVE\\logs\\Gamelogs</code></li><li>Mac: <code>Documents/EVE/logs/Gamelogs</code></li></ul>
       <label class="fight-drop" id="fightDrop">${icon('upload')}<span>${tx('Trage aici unul sau mai multe fișiere .txt din Gamelogs sau dă click să le alegi')}</span><input type="file" id="fightFiles" accept=".txt,text/plain" multiple hidden /></label>
+      <input type="file" id="fightFolder" webkitdirectory multiple hidden />
       <textarea class="input area" id="fightPaste" rows="4" spellcheck="false" placeholder="${esc(tx('...sau lipește aici conținutul log-ului'))}"></textarea>
       <div class="row-actions">
         ${button(tx('Analizează textul'), { iconName: 'search', attrs: 'data-fight-paste' })}
-        ${folderSupported() ? button(tx('Alege folderul Gamelogs'), { iconName: 'download', cls: 'ghost', attrs: 'data-fight-folder' }) : ''}
+        ${button(tx('Alege folderul Gamelogs'), { iconName: 'download', cls: 'ghost', attrs: 'data-fight-folder' })}
         ${button(tx('Vezi un exemplu'), { iconName: 'play', cls: 'ghost', attrs: 'data-fight-sample' })}
         ${button(tx('Golește'), { cls: 'ghost', attrs: 'data-fight-clear' })}
       </div>`,
@@ -74,6 +75,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
 
   const drop = el.querySelector<HTMLElement>('#fightDrop')!;
   const fileInput = el.querySelector<HTMLInputElement>('#fightFiles')!;
+  const folderInput = el.querySelector<HTMLInputElement>('#fightFolder')!;
   const paste = el.querySelector<HTMLTextAreaElement>('#fightPaste')!;
   const result = el.querySelector<HTMLElement>('#fightResult')!;
 
@@ -114,25 +116,27 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     load(texts, txt.length === 1 ? txt[0].name : tx('{n} fișiere', { n: txt.length }));
   }
 
+  async function loadFolder(all: File[], name: string) {
+    const since = Date.now() - FOLDER_DAYS * 86400000;
+    const files = all.filter((f) => logFileName(f.name) && f.lastModified >= since);
+    if (!files.length) { result.innerHTML = alertBox(tx('Nu am găsit log-uri din ultimele {n} zile în acest folder. Verifică dacă e folderul Gamelogs.', { n: FOLDER_DAYS }), 'warn'); return; }
+    result.innerHTML = loader(tx('Citesc {n} fișiere', { n: files.length }));
+    const texts = await Promise.all(files.map(async (f) => ({ name: f.name, text: await readText(f) })));
+    load(texts, `${name} · ${tx('{n} fișiere', { n: files.length })}`);
+  }
+
   async function pickFolder() {
+    if (!folderSupported()) { folderInput.click(); return; }
     let dir: DirLike;
     try {
       dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirLike> }).showDirectoryPicker({ id: 'vyraj-gamelogs', mode: 'read' });
     } catch { return; }
     result.innerHTML = loader(tx('Caut log-urile din ultimele {n} zile', { n: FOLDER_DAYS }));
-    const since = Date.now() - FOLDER_DAYS * 86400000;
     const files: File[] = [];
     try {
-      for await (const h of dir.values()) {
-        if (h.kind !== 'file' || !logFileName(h.name)) continue;
-        const f = await h.getFile();
-        if (f.lastModified >= since) files.push(f);
-      }
+      for await (const h of dir.values()) if (h.kind === 'file' && logFileName(h.name)) files.push(await h.getFile());
     } catch (err) { result.innerHTML = alertBox((err as Error).message); return; }
-    if (!files.length) { result.innerHTML = alertBox(tx('Nu am găsit log-uri din ultimele {n} zile în acest folder. Verifică dacă e folderul Gamelogs.', { n: FOLDER_DAYS }), 'warn'); return; }
-    result.innerHTML = loader(tx('Citesc {n} fișiere', { n: files.length }));
-    const texts = await Promise.all(files.map(async (f) => ({ name: f.name, text: await readText(f) })));
-    load(texts, `${dir.name} · ${tx('{n} fișiere', { n: files.length })}`);
+    await loadFolder(files, dir.name);
   }
 
   function loadSample() {
@@ -149,6 +153,12 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     drop.classList.remove('over');
     const files = [...(e.dataTransfer?.files ?? [])];
     if (files.length) void loadFiles(files);
+  });
+  folderInput.addEventListener('change', () => {
+    const files = [...(folderInput.files ?? [])];
+    folderInput.value = '';
+    const name = files[0]?.webkitRelativePath.split('/')[0] || 'Gamelogs';
+    if (files.length) void loadFolder(files, name);
   });
   fileInput.addEventListener('change', () => {
     const files = [...(fileInput.files ?? [])];
@@ -339,7 +349,6 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const hits = a.buckets.map((_, i) => `<rect class="hit" data-i="${i}" x="${x(i).toFixed(1)}" width="${step.toFixed(1)}" y="${top}" height="${(plotH + capH + 8).toFixed(1)}" />`).join('');
     return `<div class="series-wrap" data-chart="timeline"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
       ${ticks.map((v) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${(mid - y(v)).toFixed(1)}" y2="${(mid - y(v)).toFixed(1)}" /><line class="grid" x1="${pl}" x2="${w - pr}" y1="${(mid + y(v)).toFixed(1)}" y2="${(mid + y(v)).toFixed(1)}" /><text x="${pl - 6}" y="${(mid - y(v) + 4).toFixed(1)}" text-anchor="end">${compact(v)}</text><text x="${pl - 6}" y="${(mid + y(v) + 4).toFixed(1)}" text-anchor="end">${compact(v)}</text>`).join('')}
-      <text x="${pl - 6}" y="${(top + 10).toFixed(1)}" text-anchor="end" class="axis-out">↑</text>
       ${bars}
       <line class="zero" x1="${pl}" x2="${w - pr}" y1="${mid}" y2="${mid}" />
       ${capH ? `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${capTop + capH}" y2="${capTop + capH}" /><text x="${pl - 6}" y="${capTop + capH - 4}" text-anchor="end">GJ</text>${capBars}` : ''}

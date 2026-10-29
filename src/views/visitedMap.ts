@@ -512,8 +512,8 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    input.accept = '.txt,text/plain';
-    if (dir) input.setAttribute('webkitdirectory', '');
+    if (dir) (input as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true;
+    else input.accept = '.txt,text/plain';
     input.addEventListener('change', () => runImport([...(input.files ?? [])]));
     input.click();
   }

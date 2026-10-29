@@ -58,7 +58,6 @@
 .fight-chart rect.in { fill: var(--f-in); opacity: 0.8; }
 .fight-chart rect.cap { fill: var(--f-cap); opacity: 0.75; }
 .fight-chart .zero { stroke: var(--line-strong); stroke-width: 1; }
-.fight-chart .axis-out { fill: var(--f-out); }
 .fight-chart .line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .fight-chart .line.out { stroke: var(--f-out); }
 .fight-chart .line.in { stroke: var(--f-in); }
