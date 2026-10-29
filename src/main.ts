@@ -29,9 +29,9 @@ import { startAlertWatcher } from './services/alerts';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
-import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVENT, type TokenSet } from './character/sso';
-import { loadStoredCharacters } from './character/characters';
-import { portraitUrl } from './character/esi';
+import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
+import { loadStoredCharacters, upsertStoredCharacter } from './character/characters';
+import { importCharacter, portraitUrl } from './character/esi';
 import { fetchListedTypes } from './services/market';
 import { showItemInfo, hasItemInfo } from './ui/itemInfo';
 import { loadJson, saveJson, onStorageError } from './storage';
@@ -210,6 +210,17 @@ mobile.addEventListener('change', () => setSide(false));
 document.addEventListener('error', (e) => {
   if (e.target instanceof HTMLImageElement) e.target.style.visibility = 'hidden';
 }, true);
+
+const RELOAD_KEY = 'vyraj:chunk-reload';
+const STALE_AFTER = 30 * 60 * 1000;
+window.addEventListener('vite:preloadError', (e) => {
+  let last = 0;
+  try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch { return; }
+  if (Date.now() - last < 30_000) return;
+  try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { return; }
+  e.preventDefault();
+  location.reload();
+});
 
 const itemsReady = loadItems().then((items) => {
   browser.setData(items, marketGroups);
@@ -424,7 +435,7 @@ pollHealth();
 repeatAfter(pollHealth, 5 * 60_000);
 
 async function start() {
-  let login: (TokenSet & { returnTo?: string }) | null = null;
+  let login: (TokenSet & { returnTo?: string; wanted?: number }) | null = null;
   let loginError = '';
   try { login = await handleCallback(); } catch (err) { loginError = (err as Error).message; }
   const stored = loadJson<string>(VIEW_KEY, 'home');
@@ -459,7 +470,7 @@ async function start() {
     const active = ctx.character;
     const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
     charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
-        <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.keys(c.skills).length })}</small></span></button>`).join('')}
+        <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}</small></span></button>`).join('')}
       ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span><small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
       <div class="char-menu-sep"></div>
       <button class="char-menu-item login" data-char-login>${icon('login')}<span>${isDemo() ? tx('Ieși din demo și fă login') : anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>
@@ -494,6 +505,7 @@ async function start() {
     toast(tx('Sesiunea EVE pentru {name} a expirat sau a fost revocată. Fă din nou login din meniul de caractere.', { name: c?.name ?? String(id) }));
     ctx.reloadCharacters();
   });
+  window.addEventListener(SCOPES_CHANGED_EVENT, () => ctx.reloadCharacters());
 
   infoHandler = (typeId) => showItemInfo(ctx, typeId);
   infoAvailable = (typeId) => hasItemInfo(ctx.sde, typeId);
@@ -541,7 +553,25 @@ async function start() {
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);
+  if (login?.wanted && login.wanted !== login.characterId) {
+    const want = loadStoredCharacters().find((c) => c.characterId === login.wanted)?.name ?? String(login.wanted);
+    toast(tx('Ai aprobat pentru {got}, nu pentru {want}. Repetă și alege {want} pe pagina EVE.', { got: login.characterName, want }));
+  }
   if (view && loginError) view.showError(loginError);
+  if (!isDemo()) refreshStale(ctx, login?.characterId);
+}
+
+async function refreshStale(ctx: AppContext, skip?: number) {
+  const stale = loadStoredCharacters().filter((c) => c.kind === 'esi' && c.characterId && c.characterId !== skip && hasTokens(c.characterId)
+    && Date.now() - (Date.parse(c.updated ?? '') || 0) > STALE_AFTER);
+  let changed = false;
+  for (const c of stale) {
+    try {
+      upsertStoredCharacter({ ...(await importCharacter(c.characterId!, c.name)), id: c.id });
+      changed = true;
+    } catch { }
+  }
+  if (changed) ctx.reloadCharacters();
 }
 
 start();

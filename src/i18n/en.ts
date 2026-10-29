@@ -511,6 +511,8 @@ export const EN: Record<string, string> = {
   "{name} adăugată în hangarul de drone (nelansată: {why})": "{name} added to the drone bay (not launched: {why})",
   "{name} față de Jita": "{name} vs Jita",
   "{name} importat": "{name} imported",
+  "Permisiuni actualizate pentru {name}": "Permissions updated for {name}",
+  "Ai aprobat pentru {got}, nu pentru {want}. Repetă și alege {want} pe pagina EVE.": "You approved {got}, not {want}. Try again and pick {want} on the EVE page.",
   "{name} nu are mărimea potrivită pentru nava asta.": "{name} is not the right size for this ship.",
   "{name} nu e pentru nava asta.": "{name} is not for this ship.",
   "{name} nu se poate fita pe navă.": "{name} cannot be fitted to the ship.",

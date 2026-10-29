@@ -44,7 +44,8 @@ const ago = (ms: number) => {
   const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
   if (m < 60) return tx('acum {n} min', { n: m });
   if (m < 2880) return tx('acum {n} h', { n: Math.round(m / 60) });
-  return tx('acum {n} zile', { n: Math.round(m / 1440) });
+  if (m < 60 * 24 * 60) return tx('acum {n} zile', { n: Math.round(m / 1440) });
+  return new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 export function createPiView(el: HTMLElement, side: HTMLElement) {

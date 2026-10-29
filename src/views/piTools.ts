@@ -2,6 +2,7 @@ import { panel, loader, alertBox, esc, formatNum, emptyState, button, badge } fr
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import { rosterCharacters } from '../character/roster';
+import { getActiveCharacterId } from '../character/characters';
 import { hasScope } from '../character/sso';
 import { characterLocation } from '../character/esi';
 import { formatDuration } from '../character/training';
@@ -181,7 +182,9 @@ export function createPlanetFinder(pane: HTMLElement, ready: Promise<PiData>, on
       locError = '';
       draw();
       try {
-        const loc = await characterLocation(locators()[0].characterId!);
+        const list = locators();
+        const who = list.find((c) => c.id === getActiveCharacterId()) ?? list[0];
+        const loc = await characterLocation(who.characterId!);
         const s = atlas.system(loc.solar_system_id);
         if (s) saved.system = s.name;
         save();

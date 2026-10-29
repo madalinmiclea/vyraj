@@ -73,13 +73,13 @@ async function challengeFor(verifier: string): Promise<string> {
   return base64url(new Uint8Array(digest));
 }
 
-export async function startLogin(scopes: string[] = BASE_SCOPES, returnTo?: string): Promise<void> {
+export async function startLogin(scopes: string[] = BASE_SCOPES, returnTo?: string, wanted?: number): Promise<void> {
   if (isDemo()) setDemo(false);
   const { clientId } = getSettings();
   if (!clientId) throw new Error(tx('Lipsește Client ID-ul aplicației EVE. Îl pui în secțiunea Setări login.'));
   const verifier = randomString(48);
   const state = randomString(16);
-  saveJson(PENDING_KEY, { verifier, state, returnTo });
+  saveJson(PENDING_KEY, { verifier, state, returnTo, wanted });
   const params = new URLSearchParams({
     response_type: 'code',
     redirect_uri: callbackUrl(),
@@ -102,6 +102,7 @@ export function decodeJwt(token: string): { characterId: number; characterName: 
 export class SessionExpiredError extends Error {}
 
 export const SESSION_EXPIRED_EVENT = 'vyraj-session-expired';
+export const SCOPES_CHANGED_EVENT = 'vyraj-scopes-changed';
 
 async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
   const res = await fetch(TOKEN_URL, {
@@ -125,12 +126,12 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
   };
 }
 
-export async function handleCallback(): Promise<(TokenSet & { returnTo?: string }) | null> {
+export async function handleCallback(): Promise<(TokenSet & { returnTo?: string; wanted?: number }) | null> {
   if (location.pathname !== new URL(callbackUrl(), location.href).pathname) return null;
   const params = new URLSearchParams(location.search);
   history.replaceState(null, '', import.meta.env.BASE_URL);
   const code = params.get('code');
-  const pending = loadJson<{ verifier: string; state: string; returnTo?: string } | null>(PENDING_KEY, null);
+  const pending = loadJson<{ verifier: string; state: string; returnTo?: string; wanted?: number } | null>(PENDING_KEY, null);
   removeKey(PENDING_KEY);
   if (!code || !pending) return null;
   if (params.get('state') !== pending.state) throw new Error(tx('Login EVE: răspuns invalid (state diferit). Încearcă din nou.'));
@@ -141,7 +142,7 @@ export async function handleCallback(): Promise<(TokenSet & { returnTo?: string 
     code_verifier: pending.verifier,
   });
   storeTokens(tokens);
-  return { ...tokens, returnTo: pending.returnTo };
+  return { ...tokens, returnTo: pending.returnTo, wanted: pending.wanted };
 }
 
 function allTokens(): Record<string, TokenSet> {
@@ -188,7 +189,9 @@ async function refresh(characterId: number): Promise<string> {
   if (Date.now() < t.expiresAt) return t.accessToken;
   try {
     const fresh = await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refreshToken, client_id: getSettings().clientId });
+    const before = decodeJwt(t.accessToken).scopes;
     storeTokens(fresh);
+    if (decodeJwt(fresh.accessToken).scopes.some((x) => !before.includes(x))) window.dispatchEvent(new CustomEvent<number>(SCOPES_CHANGED_EVENT, { detail: characterId }));
     return fresh.accessToken;
   } catch (e) {
     if (e instanceof SessionExpiredError) {

@@ -62,7 +62,7 @@ export function hasPermission(characterId: number, id: PermId): boolean {
 export function requestPermission(ids: PermId[], characterId?: number | null, returnTo?: string): Promise<void> {
   const keep = characterId && hasTokens(characterId) ? grantedScopes(characterId) : [];
   const scopes = [...new Set([...BASE_SCOPES, ...keep, ...ids.flatMap((id) => permission(id).scopes)])];
-  return startLogin(scopes, returnTo);
+  return startLogin(scopes, returnTo, characterId ?? undefined);
 }
 
 export function permissionGate(id: PermId, characterId: number, name?: string): string {

@@ -39,6 +39,7 @@ const isk = (v: number) => `<span class="num">${compactISK(v)}</span>`;
 const signed = (v: number) => `<span class="num ${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : '−'}${compactISK(Math.abs(v))}</span>`;
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+const describe = (e: WalletEntry) => (e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '');
 
 export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, view: WalletState, force = false) {
   const fetchedAll = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {});
@@ -102,7 +103,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const f = flow(list);
     el.innerHTML = `<p class="dim small">${tx('{n} intrări · câștigat {in} · cheltuit {out}', { n: formatInt(list.length), in: compactISK(f.earned), out: compactISK(f.spent) })}${list.length > JOURNAL_LIMIT ? ' · ' + tx('se văd primele {n}', { n: JOURNAL_LIMIT }) : ''}</p>
       ${list.length ? `<table class="table compact wallet-journal"><thead><tr><th>${tx('Data')}</th><th>${tx('Tip')}</th><th class="r">${tx('Sumă')}</th><th class="r">${tx('Sold')}</th><th>${tx('Descriere')}</th></tr></thead><tbody>
-        ${list.slice(0, JOURNAL_LIMIT).map((e) => `<tr><td class="num dim">${dateTime(Date.parse(e.date))}</td><td>${esc(refLabel(e.ref_type))}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${e.balance != null ? isk(e.balance) : ''}</td><td class="desc dim" title="${esc(e.description ?? '')}">${esc(e.description ?? '')}</td></tr>`).join('')}
+        ${list.slice(0, JOURNAL_LIMIT).map((e) => `<tr><td class="num dim">${dateTime(Date.parse(e.date))}</td><td>${esc(refLabel(e.ref_type))}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${e.balance != null ? isk(e.balance) : ''}</td><td class="desc dim" title="${esc(describe(e))}">${esc(describe(e))}</td></tr>`).join('')}
       </tbody></table>` : `<p class="dim">${tx('Nicio intrare pentru filtrele alese.')}</p>`}`;
   }
 

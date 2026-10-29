@@ -52,7 +52,7 @@ const span = (ms: number) => {
   const m = Math.max(0, Math.round((ms - Date.now()) / 60000));
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
 };
-const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 const until = (ms: number) => (ms <= Date.now() ? tx('acum') : tx('în {t}', { t: span(ms) }));
 
 export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
@@ -388,7 +388,7 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
             <td>${esc(hookPlanets.get(h.planetId) ?? '…')}</td>
             <td class="small">${c ? esc(cachedName(c.id) || `#${c.id}`) : '<span class="dim">—</span>'}</td>
             <td>${live ? badge(tx('acum, încă {t}', { t: span(h.end) }), 'danger', true) : badge(until(h.start), 'gold')}</td>
-            <td class="dim small nowrap">${clock(h.start)} – ${clock(h.end)}</td>
+            <td class="dim small nowrap">${clock(h.start)} – ${clock(h.end)} EVE</td>
           </tr>`;
         }).join('')}
         </tbody></table></div>` : emptyState({ title: tx('Niciun skyhook raidabil acum') })}`,

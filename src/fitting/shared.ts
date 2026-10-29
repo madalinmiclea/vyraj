@@ -41,7 +41,7 @@ export interface FitEnv {
   sde: Sde;
   ctx: AppContext;
   getFit(): Fit | null;
-  setFit(fit: Fit): void;
+  setFit(fit: Fit, clean?: boolean): void;
   change(fn: (draft: Fit) => void): void;
   profileId(): string;
   targetState(): TargetState;

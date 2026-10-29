@@ -126,7 +126,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     sde,
     ctx,
     getFit: () => fit,
-    setFit: (next) => { if (next) void openFit(next); },
+    setFit: (next, clean) => {
+      if (!next) return;
+      void openFit(next).then((ok) => { if (ok && clean && fit) { pristine.set(fit.id, JSON.stringify(fit)); render(); } });
+    },
     change: (fn) => change(fn),
     profileId: () => profileId,
     targetState: () => targetState,
@@ -148,6 +151,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     charSelect.innerHTML = allCharacters(sde).map((c) => `<option value="${esc(c.id)}" ${c.id === ctx.character.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   }
 
+  const pristine = new Map<string, string>();
+
   function persist() {
     tabs[active] = fit;
     saveJson(OPEN_KEY, { fits: tabs, active });
@@ -155,7 +160,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   }
 
   function isDirty(f: Fit, saved: Map<string, string>) {
-    const was = saved.get(f.id);
+    const was = saved.get(f.id) ?? pristine.get(f.id);
     if (was != null) return was !== JSON.stringify(f);
     return SLOT_KINDS.some((k) => f.slots[k].some(Boolean)) || f.drones.length > 0 || f.cargo.length > 0 || f.implants.length > 0 || !!f.notes?.trim();
   }

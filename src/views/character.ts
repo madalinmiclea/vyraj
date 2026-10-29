@@ -101,7 +101,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${isActive ? badge(tx('Activ'), 'ok', true) : ''}
         </div>
         ${c.characterId ? `<div class="dim small" data-char-public="${c.characterId}"></div>` : ''}
-        <div class="dim small">${c.totalSp ? formatInt(c.totalSp) + ' SP · ' : ''}${tx('{n} skill-uri', { n: Object.keys(c.skills).length })}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(locale) : ''}</div>
+        <div class="dim small">${c.totalSp ? formatInt(c.totalSp) + ' SP · ' : ''}${tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(locale) : ''}</div>
         <div class="row-actions">
           ${isActive ? '' : button(tx('Folosește'), { cls: 'sm', attrs: `data-use="${esc(c.id)}"` })}
           ${c.kind === 'esi' && logged ? button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-refresh="${esc(c.id)}"` }) : ''}
@@ -218,9 +218,15 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
     async imported(characterId: number, characterName: string) {
       try {
         const c = await importCharacter(characterId, characterName);
+        const known = loadStoredCharacters().some((x) => x.id === c.id);
         upsertStoredCharacter(c);
-        ctx.setCharacter(c.id);
-        toast(tx('{name} importat', { name: characterName }));
+        if (known) {
+          ctx.reloadCharacters();
+          toast(tx('Permisiuni actualizate pentru {name}', { name: characterName }));
+        } else {
+          ctx.setCharacter(c.id);
+          toast(tx('{name} importat', { name: characterName }));
+        }
       } catch (err) {
         render((err as Error).message);
       }

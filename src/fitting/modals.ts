@@ -278,7 +278,7 @@ export function createFitModals(env: FitEnv) {
         if (!ship) return;
         const loaded = await fitFromShipWithAbyssal(sde, ship, label(ship), dynamicItem);
         closeModal();
-        env.setFit(loaded);
+        env.setFit(loaded, true);
         toast(tx('Fit încărcat de pe {name}', { name: label(ship) }));
       });
     } catch (err) {
@@ -314,7 +314,7 @@ export function createFitModals(env: FitEnv) {
         const open = t.closest<HTMLElement>('[data-esi-open]');
         if (open) {
           const f = list.find((x) => x.fitting_id === Number(open.dataset.esiOpen));
-          if (f && sde.types.has(f.ship_type_id)) { closeModal(); env.setFit(fromEsiFitting(sde, f)); toast(tx('Fit importat din EVE')); }
+          if (f && sde.types.has(f.ship_type_id)) { closeModal(); env.setFit(fromEsiFitting(sde, f), true); toast(tx('Fit importat din EVE')); }
         }
         const send = t.closest<HTMLButtonElement>('[data-send]');
         if (send && !send.disabled) {
