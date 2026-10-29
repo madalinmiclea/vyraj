@@ -15,9 +15,10 @@ const MASTERY_OUT = path.join(RAW_DIR, 'masteries.json');
 const MAP_OUT = path.join(RAW_DIR, 'map.json');
 const INDUSTRY_OUT = path.join(RAW_DIR, 'industry.json');
 const PI_OUT = path.join(RAW_DIR, 'pi.json');
+const PLANETS_OUT = path.join(RAW_DIR, 'planets.json');
 const ACTIVITIES_OUT = path.join(RAW_DIR, 'activities.json');
 const ZIP_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
-const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES];
+const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'mapPlanets', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES];
 const SHIP_CATEGORY = 6;
 
 const en = (v: any): string => (typeof v === 'string' ? v : v?.en ?? v?.['en-us'] ?? '');
@@ -212,6 +213,46 @@ export function buildPi(dir: string) {
     return { generated: new Date().toISOString(), source: 'sde', types: outTypes, schematics: outSchematics, planets, pins };
 }
 
+export function buildPlanets(dir: string) {
+    const planets = readJsonl(dir, 'mapPlanets');
+    const systems = readJsonl(dir, 'mapSolarSystems');
+    const constellations = readJsonl(dir, 'mapConstellations');
+    const regions = readJsonl(dir, 'mapRegions');
+    const types = readJsonl(dir, 'types');
+    const kinds: number[] = [];
+    const names: Record<number, string> = {};
+    const bySystem = new Map<number, [number, number][]>();
+    for (const p of planets.values()) {
+        const t = Number(p.typeID);
+        if (!kinds.includes(t)) {
+            kinds.push(t);
+            names[t] = en(types.get(t)?.name).replace(/^Planet \((.*)\)$/, '$1');
+        }
+        const list = bySystem.get(p.solarSystemID) ?? bySystem.set(p.solarSystemID, []).get(p.solarSystemID)!;
+        list.push([Number(p.celestialIndex), t]);
+    }
+    kinds.sort((a, b) => a - b);
+    if (kinds.length > 36) throw new Error(`Prea multe tipuri de planete în SDE: ${kinds.length}`);
+    const outSystems: Record<number, string> = {};
+    for (const [id, list] of bySystem) {
+        list.sort((a, b) => a[0] - b[0]);
+        outSystems[id] = list.map(([, t]) => kinds.indexOf(t).toString(36)).join('');
+    }
+    const wh: [number, string, number, number][] = [];
+    const whRegions: Record<number, string> = {};
+    for (const [id, s] of systems) {
+        if (s.regionID < KSPACE_MAX_REGION || !bySystem.has(id)) continue;
+        const c = constellations.get(s.constellationID);
+        const r = regions.get(s.regionID);
+        const cls = Number(s.wormholeClassID ?? c?.wormholeClassID ?? r?.wormholeClassID ?? 0);
+        wh.push([id, en(s.name), cls, s.regionID]);
+        whRegions[s.regionID] = en(r?.name);
+    }
+    wh.sort((a, b) => a[0] - b[0]);
+    if (Object.keys(outSystems).length < 7000 || wh.length < 2000) throw new Error(`Planetele din SDE par incomplete: ${Object.keys(outSystems).length} sisteme, ${wh.length} wormhole`);
+    return { generated: new Date().toISOString(), source: 'sde', kinds, names, systems: outSystems, wh, regions: whRegions };
+}
+
 export async function generateSkins() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-sde-'));
     try {
@@ -225,6 +266,7 @@ export async function generateSkins() {
         fs.writeFileSync(ACTIVITIES_OUT, JSON.stringify(buildActivities(dir)));
         fs.writeFileSync(INDUSTRY_OUT, JSON.stringify(buildIndustry((name) => readJsonl(dir, name))));
         fs.writeFileSync(PI_OUT, JSON.stringify(buildPi(dir)));
+        fs.writeFileSync(PLANETS_OUT, JSON.stringify(buildPlanets(dir)));
         return data;
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });
@@ -245,7 +287,7 @@ export function skinsAge() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     console.log('⏳ Descarc SDE-ul oficial pentru SKIN-uri, mastery și hartă...');
     generateSkins()
-        .then((d) => console.log(`✅ data/skins.json: ${d.lines.length} colecții, ${d.lines.reduce((a, l) => a + l.s.length, 0)} SKIN-uri, data/masteries.json, data/map.json, data/pi.json`))
+        .then((d) => console.log(`✅ data/skins.json: ${d.lines.length} colecții, ${d.lines.reduce((a, l) => a + l.s.length, 0)} SKIN-uri, data/masteries.json, data/map.json, data/pi.json, data/planets.json`))
         .then(() => console.log('✅ public/data:', publishData()))
         .catch((e: Error) => { console.error('Eroare:', e.message); process.exitCode = 1; });
 }

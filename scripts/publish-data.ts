@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const RAW_DIR = path.join(ROOT, 'data');
 const OUT_DIR = path.join(ROOT, 'public', 'data');
-const NAMES = ['sde', 'items', 'skins', 'masteries', 'map', 'pi', 'industry', 'mining', 'traits', 'descriptions', 'activities'];
+const NAMES = ['sde', 'items', 'skins', 'masteries', 'map', 'pi', 'planets', 'industry', 'mining', 'traits', 'descriptions', 'activities'];
 
 export function publishData() {
     fs.mkdirSync(OUT_DIR, { recursive: true });

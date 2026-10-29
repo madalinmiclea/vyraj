@@ -1,7 +1,7 @@
 .pi-form input.pi-num { width: 110px; }
 .pi-form input.pi-product { width: 260px; }
 .pi-form select.input { width: 140px; }
-#piChains, #piPlanner, #piColonies { margin-top: var(--gap); }
+#piChains, #piPlanner, #piColonies, #piFinder, #piSchematics { margin-top: var(--gap); }
 .pi-prod, .pi-node { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pi-ext, .pi-fac { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .pi-prod .row-icon, .pi-ext .row-icon, .pi-fac .row-icon, .pi-node .row-icon { width: 22px; height: 22px; }
@@ -29,7 +29,64 @@
 .pi-tree, .pi-tree ul { list-style: none; margin: 0; padding: 0; }
 .pi-tree ul { margin-left: 11px; padding-left: 14px; border-left: 1px solid var(--line); }
 .pi-tree li { padding: 3px 0; }
-@media (max-width: 1100px) { .pi-plan-grid { grid-template-columns: minmax(0, 1fr); } }
+#piFinder > .panel + .panel, #piFinder > .pi-finder-grid + .panel, #piFinder > .panel + .pi-finder-grid, #piSchematics > .panel + .pi-schem-grid { margin-top: var(--gap); }
+.pi-lead { margin: 0 0 12px; }
+.pi-finder-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--gap); align-items: start; }
+.pi-finder-grid .panel, .pi-schem-grid .panel { margin: 0; }
+.pi-finder-grid .stack { display: flex; flex-direction: column; gap: var(--gap); }
+.pi-sys-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; font-size: 16px; }
+.pi-sys-head b { color: var(--text-bright); }
+.pi-planet-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.pi-planet-card { padding: 10px 12px; border: 1px solid var(--line); background: var(--bg-inset); border-radius: 3px; }
+.pi-planet-card.none { opacity: 0.6; }
+.pi-planet-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pi-planet-head .row-icon { width: 40px; height: 40px; border-radius: 50%; }
+.pi-planet-head div { display: flex; flex-direction: column; gap: 1px; }
+.pi-raws { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.pi-raw, .pi-chain-item { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; font-size: 13px; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s; }
+.pi-raw:hover, .pi-chain-item:hover { border-color: var(--line-accent); background: var(--bg-hover); color: var(--text-bright); }
+.pi-raw .row-icon, .pi-chain-item .row-icon, .pi-type-chip .row-icon, .pi-count .row-icon, .pi-planet-tag .row-icon { width: 20px; height: 20px; }
+.pi-make-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+.pi-make-row > .pi-tier { margin-top: 5px; }
+.pi-type-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.pi-type-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px 3px 5px; }
+.pi-type-chip .row-icon { border-radius: 50%; }
+.pi-counts, .pi-planet-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.pi-count, .pi-planet-tag { display: inline-flex; align-items: center; gap: 4px; }
+.pi-planet-tag { padding: 2px 8px 2px 3px; border: 1px solid var(--line); border-radius: 3px; font-size: 13px; }
+.pi-planet-tag .row-icon { border-radius: 50%; }
+.pi-schem-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--gap); align-items: start; }
+.pi-schem-side { position: sticky; top: var(--gap); }
+.pi-columns { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 4px 10px; }
+.pi-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pi-col-head { font-size: 12px; color: var(--text-faint); padding: 0 0 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.pi-col .pi-chain-item { border-color: transparent; width: 100%; }
+.pi-col .pi-chain-item { align-items: flex-start; line-height: 1.3; padding-top: 4px; padding-bottom: 4px; }
+.pi-col .pi-chain-item span { min-width: 0; overflow-wrap: anywhere; padding-top: 1px; }
+.pi-col .pi-chain-item .row-icon { flex: none; }
+.pi-chain-item.off { opacity: 0.32; }
+.pi-columns.has-sel .pi-chain-item:not(.sel):not(.up):not(.down) { opacity: 0.4; }
+.pi-columns.has-sel .pi-chain-item.off:not(.sel):not(.up):not(.down) { opacity: 0.2; }
+.pi-col .pi-chain-item.sel { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.22); color: var(--text-bright); }
+.pi-col .pi-chain-item.up { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.pi-col .pi-chain-item.down { border-color: color-mix(in srgb, var(--gold) 55%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.pi-legend { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; }
+.pi-key { display: inline-block; width: 12px; height: 12px; border-radius: 2px; border: 1px solid; }
+.pi-key.up { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 20%, transparent); }
+.pi-key.down { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 20%, transparent); margin-left: 10px; }
+.pi-detail-head { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.pi-detail-head .row-icon { width: 48px; height: 48px; }
+.pi-detail-h { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.pi-chain-list { display: flex; flex-direction: column; gap: 4px; }
+.pi-chain-list .pi-chain-item .num { margin-left: auto; }
+@media (max-width: 1100px) {
+  .pi-plan-grid, .pi-finder-grid, .pi-schem-grid { grid-template-columns: minmax(0, 1fr); }
+  .pi-schem-side { position: static; }
+}
+@media (max-width: 760px) {
+  .pi-columns { grid-template-columns: minmax(0, 1fr); }
+  .pi-col + .pi-col { margin-top: 10px; }
+}
 @media (max-width: 760px) {
   .view table.pi-colonies { display: block; overflow: visible; }
   .pi-colonies thead { display: none; }

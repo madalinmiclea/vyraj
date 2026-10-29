@@ -4,6 +4,15 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-29',
+    title: tx('Pământ sub fiecare stea'),
+    lead: tx('Interacțiunea planetară primește hartă și rețete.'),
+    items: [
+      tx('Găsește planete arată planetele oricărui sistem, inclusiv wormhole, cu resursele P0 de pe fiecare, ce poți fabrica numai de acolo și cele mai apropiate planete de tipul căutat.'),
+      tx('Schemele pun tot lanțul P0-P4 pe un singur ecran: alegi planetele pe care le ai, apoi un produs, și vezi din ce se face, în ce intră și ce planete îl alimentează.'),
+    ],
+  },
+  {
     date: '2026-10-28',
     title: tx('Un prag pentru fiecare pilot'),
     lead: tx('Vyraj își deschide porțile spre comunitate.'),

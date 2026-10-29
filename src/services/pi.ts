@@ -57,6 +57,31 @@ export class PiData {
     return [...this.planets.values()].find((p) => p.name.toLowerCase() === name.toLowerCase());
   }
 
+  cover(raws: number[], among: Iterable<PlanetType> = this.planets.values()) {
+    const left = new Set(raws);
+    const pool = [...among];
+    const chosen: { id: number; name: string; raws: number[] }[] = [];
+    while (left.size) {
+      let pick: { id: number; name: string; raws: number[] } | null = null;
+      for (const p of pool) {
+        const hit = p.raws.filter((r) => left.has(r));
+        if (hit.length && (!pick || hit.length > pick.raws.length)) pick = { id: p.id, name: p.name, raws: hit };
+      }
+      if (!pick) break;
+      chosen.push(pick);
+      pick.raws.forEach((r) => left.delete(r));
+    }
+    return chosen;
+  }
+
+  rawSet(typeId: number): Set<number> {
+    return new Set(this.rawNeeds(typeId, 1).keys());
+  }
+
+  usedIn(typeId: number): Schematic[] {
+    return [...this.schematics.values()].filter((s) => s.ins.some(([id]) => id === typeId));
+  }
+
   rawNeeds(typeId: number, qty: number, out = new Map<number, number>()): Map<number, number> {
     const s = this.byOutput.get(typeId);
     if (!s) {

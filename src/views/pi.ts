@@ -11,9 +11,10 @@ import {
   PI_SCOPE, TIER_NAMES, EXPORT_BASE,
   type PiData, type ChainRow, type ChainOptions, type ColonyEntry, type Colony, type PriceSide,
 } from '../services/pi';
+import { createPlanetFinder, createSchematics } from './piTools';
 import { tx, locale } from '../i18n';
 
-type Tab = 'colonies' | 'chains' | 'planner';
+type Tab = 'colonies' | 'chains' | 'planner' | 'finder' | 'schematics';
 type ChainSort = 'name' | 'tier' | 'outValue' | 'inCost' | 'tax' | 'profitCycle' | 'profitHour' | 'margin';
 type ColonySort = 'expiry' | 'character' | 'system';
 
@@ -21,6 +22,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'colonies', label: tx('Colonii și timere') },
   { id: 'chains', label: tx('Profit pe lanțuri') },
   { id: 'planner', label: tx('Planificator lanț') },
+  { id: 'finder', label: tx('Găsește planete') },
+  { id: 'schematics', label: tx('Scheme') },
 ];
 
 const TAB_KEY = 'eve-pi:tab';
@@ -51,15 +54,19 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   const plan = { product: 0, qty: 1000, ...loadJson<{ product?: number; qty?: number }>(PLAN_KEY, {}) };
   let colonySort = loadJson<ColonySort>(COLONY_SORT_KEY, 'expiry');
 
-  el.innerHTML = `${pageHead(tx('Interacțiune planetară'), tx('Profit pe lanțuri P0-P4 la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave', { hub: true })}
+  el.innerHTML = `${pageHead(tx('Interacțiune planetară'), tx('Planete și resurse, scheme P0-P4, profit la prețuri Jita și timer-ele de extracție pe toate caracterele'), 'Rootweave', { hub: true })}
     <div id="piColonies"></div>
     <div id="piChains"></div>
     <div id="piPlanner"></div>
+    <div id="piFinder"></div>
+    <div id="piSchematics"></div>
     <datalist id="piProducts"></datalist>`;
   const panes: Record<Tab, HTMLElement> = {
     colonies: el.querySelector<HTMLElement>('#piColonies')!,
     chains: el.querySelector<HTMLElement>('#piChains')!,
     planner: el.querySelector<HTMLElement>('#piPlanner')!,
+    finder: el.querySelector<HTMLElement>('#piFinder')!,
+    schematics: el.querySelector<HTMLElement>('#piSchematics')!,
   };
   const datalist = el.querySelector<HTMLDataListElement>('#piProducts')!;
 
@@ -85,7 +92,22 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
   }
 
   const loaded = new Set<Tab>();
-  const renderers: Record<Tab, () => void> = { colonies: renderColonies, chains: renderChains, planner: renderPlanner };
+  let schematics: ReturnType<typeof createSchematics> | null = null;
+  const renderers: Record<Tab, () => void> = {
+    colonies: renderColonies,
+    chains: renderChains,
+    planner: renderPlanner,
+    finder: () => createPlanetFinder(panes.finder, ready, openSchematic),
+    schematics: () => { schematics = createSchematics(panes.schematics, ready, openPlanner); },
+  };
+
+  function openSchematic(product: number) {
+    tab = 'schematics';
+    saveJson(TAB_KEY, tab);
+    renderTabs();
+    schematics?.show(product);
+    el.scrollIntoView({ block: 'start' });
+  }
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Interacțiune planetară'))}</div>
@@ -103,7 +125,9 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
     if ((e.target as HTMLElement).closest('[data-pi-prices]')) {
       if (pi) forgetPrices(pi.types.keys());
       prices = null;
-      loaded.clear();
+      loaded.delete('chains');
+      loaded.delete('planner');
+      loaded.delete('colonies');
       renderTabs();
       return;
     }
@@ -377,22 +401,6 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
     priced().then(drawPlanner).catch((e) => failed(panes.planner, e));
   }
 
-  function coverPlanets(d: PiData, raws: number[]) {
-    const left = new Set(raws);
-    const chosen: { name: string; raws: number[] }[] = [];
-    while (left.size) {
-      let pick: { name: string; raws: number[] } | null = null;
-      for (const p of d.planets.values()) {
-        const hit = p.raws.filter((r) => left.has(r));
-        if (hit.length && (!pick || hit.length > pick.raws.length)) pick = { name: p.name, raws: hit };
-      }
-      if (!pick) break;
-      chosen.push(pick);
-      pick.raws.forEach((r) => left.delete(r));
-    }
-    return chosen;
-  }
-
   function treeHtml(d: PiData, id: number, qty: number, depth = 0): string {
     const s = d.byOutput.get(id);
     const price = priceOf(prices!, id, 'sell');
@@ -410,7 +418,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
     const qty = Math.max(1, plan.qty || 1);
     const raws = d.rawNeeds(id, qty);
     const levels = d.levelNeeds(id, qty);
-    const cover = coverPlanets(d, [...raws.keys()]);
+    const cover = d.cover([...raws.keys()]);
     const tier = d.tier(id);
     const valueAt = (t: number, side: PriceSide) => [...levels].filter(([x]) => d.tier(x) === t).reduce((s, [x, n]) => s + priceOf(prices!, x, side) * n, 0);
     const taxAt = (t: number) => [...levels].filter(([x]) => d.tier(x) === t).reduce((s, [x, n]) => s + exportTax(d, x, n, opts.taxRate), 0);
