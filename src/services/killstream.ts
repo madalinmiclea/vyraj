@@ -6,7 +6,7 @@ const CACHE_KEY = 'eve-live:kills';
 export const WINDOW_MS = 60 * 60 * 1000;
 const MAX_BACKFILL = 800;
 const BACKFILL_MS = 30 * 60 * 1000;
-const MAX_GAP = 1200;
+const MAX_GAP = 800;
 const BATCH = 16;
 const IDLE_MS = 6000;
 const RATE_MS = 5500;
@@ -267,7 +267,7 @@ function goLive() {
 async function stream() {
   if (status.state !== 'error') setStatus({ state: 'backfill', loaded: kills.size, error: undefined });
   const cached = lastSeq ? null : loadJson<{ seq: number; at: number; kills: LiveKill[] } | null>(CACHE_KEY, null);
-  const fresh = cached && cached.seq && Date.now() - cached.at < WINDOW_MS ? cached : null;
+  const fresh = cached && cached.seq && Date.now() - cached.at < BACKFILL_MS ? cached : null;
   const start = Math.max(await head(), lastSeq, fresh?.seq ?? 0);
   if (!start) throw new Error('zKillboard R2Z2');
   const seq = await findHead(start);
