@@ -7,13 +7,14 @@ import { portraitUrl } from '../character/esi';
 import { resolveIds } from '../services/recon';
 import { tx } from '../i18n';
 import {
-  parseCombatLog, splitEncounters, analyzeFight, logFileName, QUALITIES,
+  parseCombatLog, splitEncounters, analyzeFight, playerFocus, logFileName, QUALITIES,
   type ParsedLog, type Encounter, type FightAnalysis, type ActorStats, type WeaponStats, type Moment, type Actor,
 } from '../services/combatLog';
 import { sampleCombatLog, recordedCombatLog } from '../demo/combatLogSample';
 import { VARGUR_FIGHT, GILA_FIGHT } from '../demo/combatLogRecorded';
 
 const PVE_KEY = 'eve-recon:fight-pve';
+const FOCUS_KEY = 'eve-recon:fight-focus';
 const FOLDER_DAYS = 30;
 const MAX_ROWS = 60;
 const MAX_ACTOR_ROWS = 14;
@@ -46,6 +47,13 @@ const dateLabel = (t: number) => {
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 const compact = (n: number) => (n >= 1e6 ? `${formatNum(n / 1e6, 2)}m` : n >= 1e4 ? `${formatNum(n / 1e3, 1)}k` : formatInt(n));
 
+const niceCeil = (v: number) => {
+  const p = 10 ** Math.floor(Math.log10(v));
+  return ([1, 2, 2.5, 5, 10].find((m) => m * p >= v) ?? 10) * p;
+};
+const stripTags = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+const momentGroup = (k: Moment['kind']) => (k === 'tackleIn' || k === 'tackleOut' || k === 'warpBlocked' ? 'g-tackle' : k === 'neutIn' || k === 'capEmpty' ? 'g-cap' : k === 'arrive' || k === 'peakIn' ? 'g-in' : k === 'silent' || k === 'peakOut' ? 'g-out' : 'g-other');
+
 const QUALITY_CLASS: Record<string, string> = { Wrecks: 'q0', Smashes: 'q1', Penetrates: 'q2', Hits: 'q3', 'Glances Off': 'q4', Grazes: 'q5' };
 
 export function createFightView(el: HTMLElement, ctx: AppContext) {
@@ -53,6 +61,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
   let encounters: Encounter[] = [];
   let selected = '';
   let showPve = loadJson<boolean>(PVE_KEY, false);
+  let focusOn = loadJson<boolean>(FOCUS_KEY, true);
   let sourceLabel = '';
   let sample = false;
   const ids = new Map<string, number>();
@@ -68,7 +77,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       <div class="row-actions">
         ${button(tx('Analizează textul'), { iconName: 'search', attrs: 'data-fight-paste' })}
         ${button(tx('Alege folderul Gamelogs'), { iconName: 'download', cls: 'ghost', attrs: 'data-fight-folder' })}
-        ${button(tx('Vezi un exemplu'), { iconName: 'play', cls: 'ghost', attrs: 'data-fight-sample' })}
+        ${isDemo() ? button(tx('Vezi un exemplu'), { iconName: 'play', cls: 'ghost', attrs: 'data-fight-sample' }) : ''}
         ${button(tx('Golește'), { cls: 'ghost', attrs: 'data-fight-clear' })}
       </div>`,
   })}<div id="fightResult"></div>`;
@@ -174,7 +183,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       return;
     }
     if (t.closest('[data-fight-folder]')) { void pickFolder(); return; }
-    if (t.closest('[data-fight-sample]')) { loadSample(); return; }
+    if (t.closest('[data-fight-sample]') && isDemo()) { loadSample(); return; }
     if (t.closest('[data-fight-clear]')) { paste.value = ''; logs = []; encounters = []; selected = ''; render(); return; }
     const row = t.closest<HTMLElement>('[data-fight-id]');
     if (row) { selected = row.dataset.fightId!; ids.clear(); systemId = 0; zkbState = 'idle'; render(); result.querySelector('#fightDetail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
@@ -182,6 +191,12 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
   });
   el.addEventListener('change', (e) => {
     const t = e.target as HTMLInputElement;
+    if (t.matches('[data-fight-focus]')) {
+      focusOn = t.checked;
+      saveJson(FOCUS_KEY, focusOn);
+      render();
+      return;
+    }
     if (t.matches('[data-fight-pve]')) {
       showPve = t.checked;
       saveJson(PVE_KEY, showPve);
@@ -218,9 +233,11 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       result.innerHTML = panel({ body: emptyState({ title: tx('Nicio luptă găsită'), text: tx('Log-ul nu conține linii de luptă. Verifică dacă ai ales fișierele din Gamelogs, nu din Chatlogs.') }) });
       return;
     }
-    const enc = encounters.find((e) => e.id === selected);
+    const full = encounters.find((e) => e.id === selected);
+    const focus = full ? playerFocus(full) : null;
+    const enc = focus && focusOn ? focus : full;
     const a = enc ? analyzeFight(enc) : null;
-    result.innerHTML = `${renderList()}${enc && a ? `<div id="fightDetail">${renderFight(enc, a)}</div>` : ''}`;
+    result.innerHTML = `${renderList()}${enc && a && full ? `<div id="fightDetail">${renderFight(enc, a, focus ? full : null)}</div>` : ''}`;
     if (enc && a) bindCharts(enc, a);
   }
 
@@ -231,6 +248,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       ? `<div class="table-scroll"><table class="table compact fight-list"><thead><tr>
           <th>${tx('Când (EVE)')}</th><th>${tx('Sistem')}</th><th class="r">${tx('Durată')}</th><th>${tx('Adversari')}</th><th class="r">${tx('Damage dat')}</th><th class="r">${tx('Damage primit')}</th><th></th>
         </tr></thead><tbody>${rows.slice(0, MAX_ROWS).map((e) => {
+          const f = focusOn ? playerFocus(e) : null;
           const foes = [...e.actors.values()];
           const players = foes.filter((a) => a.player);
           const shown = (players.length ? players : foes).slice(0, 3).map((a) => esc(a.player && a.ship ? `${a.name} (${a.ship})` : a.name)).join(', ');
@@ -238,10 +256,10 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
           return `<tr class="clickable ${e.id === selected ? 'selected' : ''}" data-fight-id="${esc(e.id)}">
             <td class="num">${dateLabel(e.start)}</td>
             <td>${esc(e.system || '—')}</td>
-            <td class="r num">${rel(e.end - e.start + 1000)}</td>
+            <td class="r num">${rel((f ? f.end - f.start : e.end - e.start) + 1000)}</td>
             <td class="fight-foes">${shown}${more > 0 ? ` <span class="dim">+${more}</span>` : ''}</td>
-            <td class="r num fight-out">${formatInt(e.dmgOut)}</td>
-            <td class="r num fight-in">${formatInt(e.dmgIn)}</td>
+            <td class="r num fight-out">${formatInt((f ?? e).dmgOut)}</td>
+            <td class="r num fight-in">${formatInt((f ?? e).dmgIn)}</td>
             <td>${e.pvp ? badge('PvP', 'danger') : badge('PvE')}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`
@@ -258,7 +276,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     return `<div class="panel stat fight-stat ${tone}"><div class="stat-label"><i></i>${esc(label)}</div><div class="stat-value">${value}</div><div class="stat-meta">${meta}</div></div>`;
   }
 
-  function renderFight(enc: Encounter, a: FightAnalysis) {
+  function renderFight(enc: Encounter, a: FightAnalysis, full: Encounter | null) {
     const dur = a.duration;
     const players = a.actors.filter((s) => s.actor.player);
     const npcs = a.actors.length - players.length;
@@ -268,7 +286,8 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const accIn = pct(a.hitsIn, a.hitsIn + a.missIn);
     const head = `<div class="fight-head">
       <div><h2>${esc(enc.system || tx('Sistem necunoscut'))} <span class="dim">· ${dateLabel(enc.start)} EVE</span></h2>
-      <p class="dim small">${enc.listener ? `${tx('Log-ul lui {name}', { name: esc(enc.listener) })} · ` : ''}${tx('{p} jucători, {n} NPC', { p: players.length, n: npcs })} · ${tx('durată {d}', { d: rel(dur * 1000) })}</p></div>
+      <p class="dim small">${enc.listener ? `${tx('Log-ul lui {name}', { name: esc(enc.listener) })} · ` : ''}${tx(players.length === 1 ? '1 jucător, {n} NPC' : '{p} jucători, {n} NPC', { p: players.length, n: npcs })} · ${tx('durată {d}', { d: rel(dur * 1000) })}</p>
+      ${full ? `<label class="check small fight-focus"><input type="checkbox" data-fight-focus ${focusOn ? 'checked' : ''} /> ${tx('Doar partea cu jucători')}</label><p class="dim small">${focusOn ? tx('Arăt doar cele {d} cu jucători. Toată lupta din log, cu NPC-uri cu tot, a durat {all}.', { d: rel(dur * 1000), all: rel(full.end - full.start + 1000) }) : tx('Arăt toată lupta din log, cu NPC-uri cu tot. Partea cu jucători a durat {d}.', { d: rel((playerFocus(full)!.end - playerFocus(full)!.start) + 1000) })}</p>` : ''}</div>
       ${enc.pvp ? badge('PvP', 'danger', true) : badge('PvE', '', true)}
     </div>
     <div class="fight-share" title="${esc(tx('Partea ta din tot damage-ul schimbat în luptă'))}">
@@ -286,12 +305,12 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
 
     const timeline = panel({
       title: tx('Desfășurarea luptei'),
-      actions: `<span class="fight-legend"><span class="li"><span class="k out"></span>${tx('DPS dat')}</span><span class="li"><span class="k in"></span>${tx('DPS primit')}</span>${a.capIn ? `<span class="li"><span class="k cap"></span>${tx('Neut primit')}</span>` : ''}</span>`,
-      body: `${timelineChart(enc, a)}<p class="dim small fight-legend fight-marks"><span class="li"><span class="m tackle"></span>${tx('tackle / warp blocat')}</span><span class="li"><span class="m neut"></span>${tx('neut / capacitor gol')}</span><span class="li"><span class="m arrive"></span>${tx('intră un adversar')}</span><span class="li"><span class="m silent"></span>${tx('dispare un adversar')}</span><span class="li"><span class="m other"></span>${tx('reîncărcare / jam / warp')}</span></p><p class="dim small">${tx('Fiecare bară acoperă {s} s. Treci cu mouse-ul peste marcaje și bare pentru detalii.', { s: a.step })}</p>`,
+      actions: `<span class="fight-legend"><span class="li"><span class="k out"></span>${tx('DPS dat de tine')}</span><span class="li"><span class="k in"></span>${tx('DPS primit')}</span>${a.capIn ? `<span class="li"><span class="k cap"></span>${tx('Neut primit')}</span>` : ''}</span>`,
+      body: `${timelineChart(enc, a)}<p class="dim small">${tx('Liniile arată câte damage pe secundă ai dat și ai primit, mediat pe {s} s, pe aceeași scală. Numerele de pe rândul Evenimente sunt cele din lista Momente cheie de mai jos.', { s: a.step * 3 })}</p>`,
     });
 
-    const cumul = panel({ title: tx('Cursa damage-ului'), body: `${cumulativeChart(enc, a)}<p class="dim small">${tx('Damage-ul adunat de la începutul luptei. Unde linia roșie urcă mai repede, pierzi cursa.')}</p>` });
-    const cap = a.capIn || a.capOut ? panel({ title: tx('Presiune pe capacitor'), body: `${capChart(enc, a)}<p class="dim small">${tx('GJ scoși din capacitorul tău pe secundă de neut-uri și nos-uri, plus totalul adunat.')}</p>` }) : '';
+    const cumul = panel({ title: tx('Cursa damage-ului'), actions: `<span class="fight-legend"><span class="li"><span class="k out"></span>${tx('dat de tine')}</span><span class="li"><span class="k in"></span>${tx('primit')}</span></span>`, body: `${cumulativeChart(enc, a)}<p class="dim small">${tx('Damage-ul adunat de la începutul luptei. Unde linia roșie urcă mai repede, pierzi cursa.')}</p>` });
+    const cap = a.capIn || a.capOut ? panel({ title: tx('Presiune pe capacitor'), body: `${capChart(enc, a)}<p class="dim small">${tx('Câți GJ pe secundă ți-au scos neut-urile și nos-urile din capacitor. Totalul adunat apare când treci cu mouse-ul.')}</p>` }) : '';
 
     return `${panel({ body: head })}${stats}${timeline}<div class="fight-two">${cumul}${cap}</div>
       ${panel({ title: tx('Cine a făcut ce și când'), body: activityRows(enc, a) })}
@@ -315,87 +334,103 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
   }
 
   function timelineChart(enc: Encounter, a: FightAnalysis) {
-    const w = 760, h = 300, pl = 52, pr = 10, top = 26, lane = 26, pb = 22;
-    const capH = a.capIn ? 34 : 0;
-    const plotH = h - top - pb - capH - (capH ? 8 : 0);
-    const mid = top + plotH / 2;
+    const w = 760, pl = 100, pr = 14, top = 14, plotH = 190;
     const n = a.buckets.length;
-    const step = (w - pl - pr) / n;
-    const x = (i: number) => pl + step * i;
-    const maxD = Math.max(1, ...a.buckets.map((b) => Math.max(b.dmgOut, b.dmgIn) / a.step));
-    const half = plotH / 2 - 2;
-    const y = (v: number) => (v / maxD) * half;
-    const bw = Math.max(0.8, step * 0.78);
-    const bars = a.buckets.map((b, i) => {
-      const o = y(b.dmgOut / a.step), d = y(b.dmgIn / a.step);
-      const bx = (x(i) + (step - bw) / 2).toFixed(1);
-      return `${o ? `<rect class="out" x="${bx}" width="${bw.toFixed(1)}" y="${(mid - o).toFixed(1)}" height="${o.toFixed(1)}" />` : ''}${d ? `<rect class="in" x="${bx}" width="${bw.toFixed(1)}" y="${mid.toFixed(1)}" height="${d.toFixed(1)}" />` : ''}`;
-    }).join('');
-    const capTop = top + plotH + 8;
-    const maxCap = Math.max(1, ...a.buckets.map((b) => b.neutIn + b.nosIn));
-    const capBars = capH ? a.buckets.map((b, i) => {
-      const v = ((b.neutIn + b.nosIn) / maxCap) * (capH - 4);
-      return v ? `<rect class="cap" x="${(x(i) + (step - bw) / 2).toFixed(1)}" width="${bw.toFixed(1)}" y="${(capTop + capH - v).toFixed(1)}" height="${v.toFixed(1)}" />` : '';
-    }).join('') : '';
-    const span = Math.max(1, enc.end - enc.start + 1000);
-    const tx0 = (t: number) => pl + Math.min(1, (t - enc.start) / span) * (w - pl - pr);
-    const marks = a.moments.filter((m) => m.kind !== 'start' && m.kind !== 'end' && m.kind !== 'peakIn' && m.kind !== 'peakOut').map((m) => {
-      const mx = tx0(m.t).toFixed(1);
-      return `<g class="mark ${m.kind}"><line x1="${mx}" x2="${mx}" y1="${top - 4}" y2="${top + plotH}" /><circle cx="${mx}" cy="${top - lane / 2 + 2}" r="4.5"><title>${esc(`${rel(m.t - enc.start)} · ${momentText(enc, m)}`)}</title></circle></g>`;
-    }).join('');
-    const ticks = [maxD, maxD / 2];
+    const span = n * a.step * 1000;
+    const plotW = w - pl - pr;
+    const xt = (t: number) => pl + Math.min(1, Math.max(0, (t - enc.start) / span)) * plotW;
+    const xc = (i: number) => pl + ((i + 0.5) / n) * plotW;
+    const smooth = (k: 'dmgOut' | 'dmgIn') => a.buckets.map((_, i) => {
+      const lo = Math.max(0, i - 1), hi = Math.min(n - 1, i + 1);
+      let sum = 0;
+      for (let j = lo; j <= hi; j++) sum += a.buckets[j][k];
+      return sum / ((hi - lo + 1) * a.step);
+    });
+    const out = smooth('dmgOut'), inc = smooth('dmgIn');
+    const maxY = niceCeil(Math.max(1, ...out, ...inc));
+    const y = (v: number) => top + (1 - v / maxY) * plotH;
+    const base = top + plotH;
+    const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${xc(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+    const area = (vals: number[]) => `${line(vals)}L${xc(n - 1).toFixed(1)},${base}L${xc(0).toFixed(1)},${base}Z`;
+    let cursor = base + 22;
     const every = Math.max(1, Math.ceil(n / 8));
-    const labels = a.buckets.map((b, i) => (i % every === 0 ? `<text x="${(x(i) + step / 2).toFixed(1)}" y="${h - 6}" text-anchor="middle">${rel(b.t - enc.start)}</text>` : '')).join('');
-    const hits = a.buckets.map((_, i) => `<rect class="hit" data-i="${i}" x="${x(i).toFixed(1)}" width="${step.toFixed(1)}" y="${top}" height="${(plotH + capH + 8).toFixed(1)}" />`).join('');
+    const xLabels = a.buckets.map((b, i) => (i % every === 0 ? `<text x="${xc(i).toFixed(1)}" y="${base + 16}" text-anchor="middle">${rel(b.t - enc.start)}</text>` : '')).join('');
+    let capLane = '';
+    if (a.capIn) {
+      const capTop = cursor + 10, capH = 34;
+      const maxCap = Math.max(1, ...a.buckets.map((b) => b.neutIn + b.nosIn));
+      const bw = Math.max(0.8, (plotW / n) * 0.7);
+      capLane = `<text class="lane-label" x="${pl - 10}" y="${capTop + capH / 2 + 4}" text-anchor="end">${esc(tx('Neut primit'))}</text>
+        <line class="grid" x1="${pl}" x2="${w - pr}" y1="${capTop + capH}" y2="${capTop + capH}" />
+        ${a.buckets.map((b, i) => { const v = ((b.neutIn + b.nosIn) / maxCap) * capH; return v ? `<rect class="cap" x="${(xc(i) - bw / 2).toFixed(1)}" width="${bw.toFixed(1)}" y="${(capTop + capH - v).toFixed(1)}" height="${v.toFixed(1)}" />` : ''; }).join('')}`;
+      cursor = capTop + capH;
+    }
+    const evTop = cursor + 16, rowH = 22;
+    const rows: number[] = [];
+    const marks = a.moments.map((m, i) => {
+      const x = xt(m.t);
+      let r = rows.findIndex((last) => x - last >= 20);
+      if (r < 0) { r = rows.length < 3 ? rows.length : rows.indexOf(Math.min(...rows)); }
+      rows[r] = x;
+      const cy = evTop + 10 + r * rowH;
+      return `<g class="ev ${momentGroup(m.kind)}"><circle cx="${x.toFixed(1)}" cy="${cy}" r="9" /><text x="${x.toFixed(1)}" y="${cy + 4}" text-anchor="middle">${i + 1}</text><title>${esc(`${i + 1}. ${rel(m.t - enc.start)} · ${stripTags(momentText(enc, m))}`)}</title></g>`;
+    }).join('');
+    const evH = Math.max(1, rows.length) * rowH;
+    const evLabel = `<text class="lane-label" x="${pl - 10}" y="${evTop + 14}" text-anchor="end">${esc(tx('Evenimente'))}</text><line class="grid faint" x1="${pl}" x2="${w - pr}" y1="${evTop - 4}" y2="${evTop - 4}" />`;
+    const h = evTop + evH + 26;
+    const hits = a.buckets.map((_, i) => `<rect class="hit" data-i="${i}" x="${(pl + (i / n) * plotW).toFixed(1)}" width="${(plotW / n).toFixed(1)}" y="${top}" height="${plotH}" />`).join('');
     return `<div class="series-wrap" data-chart="timeline"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
-      ${ticks.map((v) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${(mid - y(v)).toFixed(1)}" y2="${(mid - y(v)).toFixed(1)}" /><line class="grid" x1="${pl}" x2="${w - pr}" y1="${(mid + y(v)).toFixed(1)}" y2="${(mid + y(v)).toFixed(1)}" /><text x="${pl - 6}" y="${(mid - y(v) + 4).toFixed(1)}" text-anchor="end">${compact(v)}</text><text x="${pl - 6}" y="${(mid + y(v) + 4).toFixed(1)}" text-anchor="end">${compact(v)}</text>`).join('')}
-      ${bars}
-      <line class="zero" x1="${pl}" x2="${w - pr}" y1="${mid}" y2="${mid}" />
-      ${capH ? `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${capTop + capH}" y2="${capTop + capH}" /><text x="${pl - 6}" y="${capTop + capH - 4}" text-anchor="end">GJ</text>${capBars}` : ''}
-      ${labels}
-      ${marks}
-      <line class="cursor" x1="0" x2="0" y1="${top}" y2="${top + plotH + capH + 8}" style="display:none" />
+      <text class="axis-title" transform="translate(14 ${top + plotH / 2}) rotate(-90)" text-anchor="middle">${esc(tx('DPS (damage pe secundă)'))}</text>
+      ${[0, 0.25, 0.5, 0.75, 1].map((f) => `<line class="grid${f ? ' faint' : ''}" x1="${pl}" x2="${w - pr}" y1="${y(maxY * f).toFixed(1)}" y2="${y(maxY * f).toFixed(1)}" /><text x="${pl - 8}" y="${(y(maxY * f) + 4).toFixed(1)}" text-anchor="end">${formatInt(maxY * f)}</text>`).join('')}
+      <path class="area out" d="${area(out)}" /><path class="area in" d="${area(inc)}" />
+      <path class="line out" d="${line(out)}" /><path class="line in" d="${line(inc)}" />
+      ${xLabels}
+      ${capLane}
+      ${evLabel}${marks}
+      <text class="axis-title" x="${pl + plotW / 2}" y="${h - 4}" text-anchor="middle">${esc(tx('Timp de la primul foc (min:sec)'))}</text>
+      <line class="cursor" x1="0" x2="0" y1="${top}" y2="${base}" style="display:none" />
       ${hits}
     </svg><div class="series-tip" style="display:none"></div></div>`;
   }
 
   function cumulativeChart(enc: Encounter, a: FightAnalysis) {
-    const w = 380, h = 200, pl = 46, pr = 8, pt = 10, pb = 22;
+    const w = 380, h = 214, pl = 62, pr = 10, pt = 10, pb = 36;
     let o = 0, d = 0;
     const pts = a.buckets.map((b) => ({ t: b.t, o: (o += b.dmgOut), d: (d += b.dmgIn) }));
-    const max = Math.max(1, o, d);
+    const max = niceCeil(Math.max(1, o, d));
     const n = pts.length;
+    const plotH = h - pt - pb;
     const x = (i: number) => pl + ((i + 1) / n) * (w - pl - pr);
-    const y = (v: number) => pt + (1 - v / max) * (h - pt - pb);
+    const y = (v: number) => pt + (1 - v / max) * plotH;
     const path = (k: 'o' | 'd') => `M${pl},${y(0)}` + pts.map((p, i) => `L${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join('');
     const every = Math.max(1, Math.ceil(n / 4));
     return `<div class="series-wrap" data-chart="cumul"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
+      <text class="axis-title" transform="translate(12 ${pt + plotH / 2}) rotate(-90)" text-anchor="middle">${esc(tx('Damage adunat'))}</text>
       ${[0, 0.5, 1].map((f) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${y(max * f)}" y2="${y(max * f)}" /><text x="${pl - 6}" y="${y(max * f) + 4}" text-anchor="end">${compact(max * f)}</text>`).join('')}
-      ${pts.map((p, i) => (i % every === 0 ? `<text x="${x(i).toFixed(1)}" y="${h - 6}" text-anchor="middle">${rel(p.t - enc.start + a.step * 1000)}</text>` : '')).join('')}
+      ${pts.map((p, i) => (i % every === 0 ? `<text x="${x(i).toFixed(1)}" y="${pt + plotH + 16}" text-anchor="middle">${rel(p.t - enc.start + a.step * 1000)}</text>` : '')).join('')}
+      <text class="axis-title" x="${pl + (w - pl - pr) / 2}" y="${h - 3}" text-anchor="middle">${esc(tx('Timp (min:sec)'))}</text>
       <path class="line out" d="${path('o')}" /><path class="line in" d="${path('d')}" />
-      <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${h - pb}" style="display:none" />
-      ${pts.map((_, i) => `<rect class="hit" data-i="${i}" x="${(x(i) - (w - pl - pr) / n).toFixed(1)}" width="${((w - pl - pr) / n).toFixed(1)}" y="${pt}" height="${h - pt - pb}" />`).join('')}
+      <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${pt + plotH}" style="display:none" />
+      ${pts.map((_, i) => `<rect class="hit" data-i="${i}" x="${(x(i) - (w - pl - pr) / n).toFixed(1)}" width="${((w - pl - pr) / n).toFixed(1)}" y="${pt}" height="${plotH}" />`).join('')}
     </svg><div class="series-tip" style="display:none"></div></div>`;
   }
 
   function capChart(enc: Encounter, a: FightAnalysis) {
-    const w = 380, h = 200, pl = 46, pr = 40, pt = 10, pb = 22;
+    const w = 380, h = 214, pl = 62, pr = 10, pt = 10, pb = 36;
     const n = a.buckets.length;
     const step = (w - pl - pr) / n;
     const rates = a.buckets.map((b) => (b.neutIn + b.nosIn) / a.step);
-    const maxR = Math.max(1, ...rates);
-    let c = 0;
-    const cum = a.buckets.map((b) => (c += b.neutIn + b.nosIn));
-    const maxC = Math.max(1, c);
+    const maxR = niceCeil(Math.max(1, ...rates));
     const plotH = h - pt - pb;
     const bw = Math.max(0.8, step * 0.75);
     const every = Math.max(1, Math.ceil(n / 4));
     return `<div class="series-wrap" data-chart="cap"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
-      ${[0, 0.5, 1].map((f) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${pt + (1 - f) * plotH}" y2="${pt + (1 - f) * plotH}" /><text x="${pl - 6}" y="${pt + (1 - f) * plotH + 4}" text-anchor="end">${formatInt(maxR * f)}</text><text x="${w - pr + 6}" y="${pt + (1 - f) * plotH + 4}">${compact(maxC * f)}</text>`).join('')}
+      <text class="axis-title" transform="translate(12 ${pt + plotH / 2}) rotate(-90)" text-anchor="middle">${esc(tx('GJ pe secundă'))}</text>
+      ${[0, 0.5, 1].map((f) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${pt + (1 - f) * plotH}" y2="${pt + (1 - f) * plotH}" /><text x="${pl - 6}" y="${pt + (1 - f) * plotH + 4}" text-anchor="end">${formatInt(maxR * f)}</text>`).join('')}
       ${rates.map((r, i) => { const v = (r / maxR) * plotH; return v ? `<rect class="cap" x="${(pl + step * i + (step - bw) / 2).toFixed(1)}" width="${bw.toFixed(1)}" y="${(pt + plotH - v).toFixed(1)}" height="${v.toFixed(1)}" />` : ''; }).join('')}
-      <path class="line cap" d="${cum.map((v, i) => `${i ? 'L' : 'M'}${(pl + step * (i + 1)).toFixed(1)},${(pt + (1 - v / maxC) * plotH).toFixed(1)}`).join('')}" />
-      ${a.buckets.map((b, i) => (i % every === 0 ? `<text x="${(pl + step * (i + 0.5)).toFixed(1)}" y="${h - 6}" text-anchor="middle">${rel(b.t - enc.start)}</text>` : '')).join('')}
-      <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${h - pb}" style="display:none" />
+      ${a.buckets.map((b, i) => (i % every === 0 ? `<text x="${(pl + step * (i + 0.5)).toFixed(1)}" y="${pt + plotH + 16}" text-anchor="middle">${rel(b.t - enc.start)}</text>` : '')).join('')}
+      <text class="axis-title" x="${pl + (w - pl - pr) / 2}" y="${h - 3}" text-anchor="middle">${esc(tx('Timp (min:sec)'))}</text>
+      <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${pt + plotH}" style="display:none" />
       ${a.buckets.map((_, i) => `<rect class="hit" data-i="${i}" x="${(pl + step * i).toFixed(1)}" width="${step.toFixed(1)}" y="${pt}" height="${plotH}" />`).join('')}
     </svg><div class="series-tip" style="display:none"></div></div>`;
   }
@@ -502,7 +537,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
   }
 
   function momentList(enc: Encounter, moments: Moment[]) {
-    return `<ol class="fight-moments">${moments.map((m) => `<li class="${m.kind}"><span class="num fight-mt">${rel(m.t - enc.start)}</span><span class="num dim fight-mc">${clock(m.t)}</span><span>${momentText(enc, m)}</span></li>`).join('')}</ol>`;
+    return `<ol class="fight-moments">${moments.map((m, i) => `<li class="${momentGroup(m.kind)}"><span class="fight-mn">${i + 1}</span><span class="num fight-mt">${rel(m.t - enc.start)}</span><span class="num dim fight-mc">${clock(m.t)}</span><span>${momentText(enc, m)}</span></li>`).join('')}</ol>`;
   }
 
   function bindTip(root: HTMLElement, name: string, content: (i: number) => string) {
@@ -529,7 +564,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     };
     bindTip(result, 'timeline', (i) => {
       const b = a.buckets[i];
-      return `${head(i)}<span class="fight-out">${tx('Dat')}: ${formatInt(b.dmgOut)} (${formatInt(b.dmgOut / a.step)} DPS)</span><span class="fight-in">${tx('Primit')}: ${formatInt(b.dmgIn)} (${formatInt(b.dmgIn / a.step)} DPS)</span>${b.neutIn + b.nosIn ? `<span class="fight-cap">${tx('Neut + nos')}: ${formatInt(b.neutIn + b.nosIn)} GJ</span>` : ''}${b.repIn ? `<span>${tx('Reparat')}: ${formatInt(b.repIn)}</span>` : ''}`;
+      return `${head(i)}<span class="dim">${tx('În aceste {s} s', { s: a.step })}</span><span class="fight-out">${tx('Dat')}: ${formatInt(b.dmgOut)} (${formatInt(b.dmgOut / a.step)} DPS)</span><span class="fight-in">${tx('Primit')}: ${formatInt(b.dmgIn)} (${formatInt(b.dmgIn / a.step)} DPS)</span>${b.neutIn + b.nosIn ? `<span class="fight-cap">${tx('Neut + nos')}: ${formatInt(b.neutIn + b.nosIn)} GJ</span>` : ''}${b.repIn ? `<span>${tx('Reparat')}: ${formatInt(b.repIn)}</span>` : ''}`;
     });
     let o = 0, d = 0;
     const cum = a.buckets.map((b) => ({ o: (o += b.dmgOut), d: (d += b.dmgIn) }));
@@ -538,7 +573,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const capCum = a.buckets.map((b) => (c += b.neutIn + b.nosIn));
     bindTip(result, 'cap', (i) => {
       const b = a.buckets[i];
-      return `${head(i)}<span>${tx('Neut')}: ${formatInt(b.neutIn)} GJ</span><span>Nos: ${formatInt(b.nosIn)} GJ</span><span class="fight-cap">${tx('Total')}: ${formatInt(capCum[i])} GJ</span>`;
+      return `${head(i)}<span>${tx('Neut')}: ${formatInt(b.neutIn)} GJ</span><span>Nos: ${formatInt(b.nosIn)} GJ</span><span class="fight-cap">${tx('Total până acum')}: ${formatInt(capCum[i])} GJ</span>`;
     });
   }
 

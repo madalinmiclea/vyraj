@@ -46,13 +46,6 @@
 .fight-legend .k.in { background: var(--f-in); }
 .fight-legend .k.cap { background: var(--f-cap); }
 .fight-legend .k.tackle { background: var(--f-tackle); }
-.fight-marks { margin-bottom: 0; }
-.fight-legend .m { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
-.fight-legend .m.tackle { background: var(--f-tackle); }
-.fight-legend .m.neut { background: var(--f-cap); }
-.fight-legend .m.arrive { background: var(--f-in); }
-.fight-legend .m.silent { background: var(--f-out); }
-.fight-legend .m.other { background: var(--text-faint); }
 
 .fight-chart rect.out { fill: var(--f-out); opacity: 0.85; }
 .fight-chart rect.in { fill: var(--f-in); opacity: 0.8; }
@@ -61,25 +54,21 @@
 .fight-chart .line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .fight-chart .line.out { stroke: var(--f-out); }
 .fight-chart .line.in { stroke: var(--f-in); }
-.fight-chart .line.cap { stroke: var(--f-cap); stroke-dasharray: 4 3; }
-.fight-chart .mark line { stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.55; }
-.fight-chart .mark circle { stroke: var(--bg-panel-solid); stroke-width: 1.5; cursor: help; }
-.fight-chart .mark.tackleIn line, .fight-chart .mark.tackleOut line { stroke: var(--f-tackle); }
-.fight-chart .mark.tackleIn circle, .fight-chart .mark.tackleOut circle { fill: var(--f-tackle); }
-.fight-chart .mark.neutIn line { stroke: var(--f-cap); }
-.fight-chart .mark.neutIn circle { fill: var(--f-cap); }
-.fight-chart .mark.capEmpty line { stroke: var(--f-cap); }
-.fight-chart .mark.capEmpty circle { fill: var(--f-cap); }
-.fight-chart .mark.warpBlocked line { stroke: var(--f-tackle); }
-.fight-chart .mark.warpBlocked circle { fill: var(--f-tackle); }
-.fight-chart .mark.warp line { stroke: var(--text-faint); }
-.fight-chart .mark.warp circle { fill: var(--text-bright); }
-.fight-chart .mark.reload line, .fight-chart .mark.jam line { stroke: var(--text-faint); }
-.fight-chart .mark.reload circle, .fight-chart .mark.jam circle { fill: var(--text-faint); }
-.fight-chart .mark.arrive line { stroke: var(--f-in); }
-.fight-chart .mark.arrive circle { fill: var(--f-in); }
-.fight-chart .mark.silent line { stroke: var(--f-out); }
-.fight-chart .mark.silent circle { fill: var(--f-out); }
+.fight-chart .area { stroke: none; }
+.fight-chart .area.out { fill: var(--f-out); opacity: 0.16; }
+.fight-chart .area.in { fill: none; }
+.fight-chart .line.out, .fight-chart .line.in { stroke-width: 2.2; stroke-linejoin: round; }
+.fight-chart .grid.faint { opacity: 0.45; stroke-dasharray: 2 4; }
+.fight-chart .axis-title { fill: var(--text-dim); font-family: var(--font-body); font-size: 12.5px; }
+.fight-chart .lane-label { fill: var(--text-dim); font-family: var(--font-body); font-size: 12.5px; }
+.fight-chart .ev { cursor: help; }
+.fight-chart .ev circle { stroke: var(--bg-panel-solid); stroke-width: 1.5; }
+.fight-chart .ev text { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; fill: #0b0f14; pointer-events: none; }
+.fight-chart .ev.g-tackle circle, .fight-mn.g-tackle, .fight-moments li.g-tackle .fight-mn { fill: var(--f-tackle); background: var(--f-tackle); }
+.fight-chart .ev.g-cap circle, .fight-moments li.g-cap .fight-mn { fill: var(--f-cap); background: var(--f-cap); }
+.fight-chart .ev.g-in circle, .fight-moments li.g-in .fight-mn { fill: var(--f-in); background: var(--f-in); }
+.fight-chart .ev.g-out circle, .fight-moments li.g-out .fight-mn { fill: var(--f-out); background: var(--f-out); }
+.fight-chart .ev.g-other circle, .fight-moments li.g-other .fight-mn { fill: var(--text-faint); background: var(--text-faint); }
 #fightDetail .series-tip span { font-family: var(--font-mono); font-size: 12.5px; }
 
 .fight-act { display: flex; flex-direction: column; gap: 6px; }
@@ -113,20 +102,19 @@
 .fight-qlegend i { display: inline-block; width: 9px; height: 9px; }
 
 .fight-moments { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.fight-moments li { display: grid; grid-template-columns: 52px 74px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 7px 0 7px 12px; border-bottom: 1px solid var(--line); box-shadow: inset 2px 0 0 var(--line-strong); }
+.fight-mn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #0b0f14; }
+.fight-moments li { display: grid; grid-template-columns: 22px 52px 74px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .fight-moments li:last-child { border-bottom: 0; }
 .fight-mt { color: var(--text-bright); font-weight: 600; }
 .fight-mc { font-size: 12px; }
-.fight-moments li.tackleIn, .fight-moments li.tackleOut { box-shadow: inset 2px 0 0 var(--f-tackle); }
-.fight-moments li.neutIn, .fight-moments li.capEmpty { box-shadow: inset 2px 0 0 var(--f-cap); }
-.fight-moments li.warpBlocked { box-shadow: inset 2px 0 0 var(--f-tackle); }
-.fight-moments li.warp { box-shadow: inset 2px 0 0 var(--text-bright); }
-.fight-moments li.arrive, .fight-moments li.peakIn { box-shadow: inset 2px 0 0 var(--f-in); }
-.fight-moments li.silent, .fight-moments li.peakOut { box-shadow: inset 2px 0 0 var(--f-out); }
 
 @media (max-width: 720px) {
   .fight-act-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .fight-moments li { grid-template-columns: 46px minmax(0, 1fr); }
+  .fight-moments li { grid-template-columns: 22px 46px minmax(0, 1fr); }
   .fight-mc { display: none; }
   .fight-head { flex-direction: column; }
 }
+
+.fight-focus { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text); cursor: pointer; }
+.fight-focus input { accent-color: var(--accent); }
+.fight-focus + p { margin: 2px 0 0; }

@@ -16,7 +16,7 @@ import { formatDuration } from '../character/training';
 import { cloneFit, newFitId, type Fit } from '../engine/fit';
 import {
   visitedSet, visitCounts, pathFor, lastPosition, visitors, hasManual, importVisits, setManual, clearVisits, onVisitsChange, visitStats,
-  parseLog, readLogFile, isLogFile, planExplore, allowedFor, isKspace, demoHistory, trackNow, startVisitTracker,
+  parseLog, readLogFile, isLogFile, planExplore, allowedFor, isKspace, EXORDIUM_REGION, demoHistory, trackNow, startVisitTracker,
   type RiskLevel, type ExplorePlan, type VisitEntry,
 } from '../services/visited';
 import { travelFits, rankTravelFits, INSTA_ALIGN, type TravelFit } from '../services/travelFits';
@@ -95,8 +95,15 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
 
   el.innerHTML = loader(tx('Încarc harta sistemelor vizitate'));
 
+  function pickWho() {
+    const list = visitors();
+    if (list.includes(settings.who)) return;
+    settings.who = list.includes(ctx.character.name) ? ctx.character.name : list[0] ?? '';
+  }
+
   function rebuild() {
     if (!map) return;
+    pickWho();
     colors.clear();
     visited = visitedSet(whoFilter(), since());
     counts = visitCounts(whoFilter());
@@ -230,6 +237,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     const pvp = a ? a.ship + a.pod : 0;
     return `<b>${esc(s.name)}</b> ${secSpan(s.sec)}<small>${esc(map!.region(s))} · ${esc(map!.constellation(s))}</small>
       ${first != null ? `<span class="tip-row">${tx('Vizitat din {date}', { date: dateText(first * 1000) })}${n > 1 ? ` · ${tx('de {n} ori', { n })}` : ''}</span>` : `<span class="tip-row dim">${tx('Nevizitat')}</span>`}
+      ${s.regionId === EXORDIUM_REGION ? `<span class="tip-row dim">${tx('Zona tutorialului pentru caractere noi. Nu intră în progres și nici în rutele sugerate.')}</span>` : ''}
       ${freshSet.has(s.id) ? `<span class="tip-row">${tx('Sistem nou pe ruta sugerată')}</span>` : ''}
       ${pvp ? `<span class="tip-row warn-text">${tx('{n} nave și capsule distruse în ultima oră', { n: pvp })}</span>` : ''}`;
   }
@@ -377,7 +385,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     const stamp = el.querySelector<HTMLElement>('#visStamp');
     if (stamp) {
       const total = kspace().length;
-      stamp.textContent = tx('{n} din {total} sisteme vizitate', { n: formatInt([...visited.keys()].filter((id) => map!.systems.has(id)).length), total: formatInt(total) });
+      stamp.textContent = tx('{n} din {total} sisteme vizitate', { n: formatInt([...visited.keys()].filter((id) => { const s = map!.systems.get(id); return !!s && isKspace(s); }).length), total: formatInt(total) });
     }
   }
 
@@ -386,7 +394,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     if (!sel) return;
     const list = visitors();
     if (settings.who && !list.includes(settings.who)) list.push(settings.who);
-    sel.innerHTML = `<option value="">${tx('Toate caracterele')}</option>${list.map((w) => `<option value="${esc(w)}" ${settings.who === w ? 'selected' : ''}>${esc(w)}</option>`).join('')}`;
+    sel.innerHTML = list.length ? list.map((w) => `<option value="${esc(w)}" ${settings.who === w ? 'selected' : ''}>${esc(w)}</option>`).join('') : '<option value="">—</option>';
   }
 
   function priceOf(f: TravelFit): number | null {
@@ -584,7 +592,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     loadFits();
     loadActivity().then(() => star?.redraw());
     onVisitsChange(() => refresh());
-    ctx.onCharacterChange(() => { loadFits(); renderSide(); });
+    ctx.onCharacterChange(() => { if (visitors().includes(ctx.character.name)) settings.who = ctx.character.name; loadFits(); refresh(); });
     startVisitTracker();
   }
 

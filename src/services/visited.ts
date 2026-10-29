@@ -291,7 +291,8 @@ export function parseLog(text: string, fileName: string, map: NavMap, fallbackWh
   return out;
 }
 
-export const isKspace = (s: NavSystem) => s.regionId < WH_REGION;
+export const EXORDIUM_REGION = 10001004;
+export const isKspace = (s: NavSystem) => s.regionId < WH_REGION && s.regionId !== EXORDIUM_REGION;
 
 export function allowedFor(level: RiskLevel, s: NavSystem): boolean {
   if (!isKspace(s) || s.id === ZARZAKH) return false;

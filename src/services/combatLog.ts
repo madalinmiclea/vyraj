@@ -430,3 +430,19 @@ export const logFileDate = (name: string) => {
   const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(name);
   return m ? stamp(m[1], m[2], m[3], m[4], m[5], m[6]) : 0;
 };
+
+const FOCUS_PAD_MS = 5000;
+const TAIL_KINDS = new Set<EventKind>(['reload', 'capEmpty', 'warpBlocked', 'warp']);
+
+export function playerFocus(enc: Encounter): Encounter | null {
+  const players = new Set([...enc.actors.values()].filter((a) => a.player).map((a) => a.key));
+  if (!players.size || players.size === enc.actors.size) return null;
+  const own = enc.events.filter((e) => e.who && players.has(e.who));
+  if (!own.length) return null;
+  const start = own[0].t, end = own[own.length - 1].t;
+  const events = enc.events.filter((e) => (e.who ? players.has(e.who) && e.t >= start && e.t <= end : TAIL_KINDS.has(e.kind) && e.t >= start - FOCUS_PAD_MS && e.t <= end + FOCUS_PAD_MS));
+  const actors = new Map([...enc.actors].filter(([k]) => players.has(k)));
+  let dmgOut = 0, dmgIn = 0;
+  for (const e of events) if (e.kind === 'dmg') { if (e.dir === 'out') dmgOut += e.amount; else dmgIn += e.amount; }
+  return { ...enc, start, end, events, actors, dmgOut, dmgIn, pvp: true };
+}
