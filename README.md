@@ -190,6 +190,12 @@ Vyraj stands on the work of the EVE community and of CCP. Thank you to everyone 
 
 Built with [TypeScript](https://www.typescriptlang.org/) and [Vite](https://vite.dev/), hosted on [GitHub Pages](https://pages.github.com/).
 
+## License
+
+© 2026 Vyraj. The Vyraj code and design are released under the [GNU Affero General Public License v3.0](LICENSE). You may use, study, change and share them, but any modified version that you publish or run as a website must make its full source code available under the same license.
+
+EVE Online data, names and artwork are not covered by this license; they belong to CCP hf. (see the notice below).
+
 ## CCP copyright notice
 
 EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are reserved worldwide. All other trademarks are the property of their respective owners. EVE Online, the EVE logo, EVE and all associated logos and designs are the intellectual property of CCP hf. All artwork, screenshots, characters, vehicles, storylines, world facts or other recognizable features of the intellectual property relating to these trademarks are likewise the intellectual property of CCP hf. CCP hf. has granted permission to Vyraj to use EVE Online and all associated logos and designs for promotional and information purposes on its website but does not endorse, and is not in any way affiliated with, Vyraj. CCP is in no way responsible for the content on or functioning of this website, nor can it be liable for any damage arising from the use of this website.

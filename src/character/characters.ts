@@ -106,6 +106,11 @@ export function getActiveCharacterId(): string {
   return loadJson<string>(ACTIVE_KEY, 'all5');
 }
 
+export function storedActiveCharacter(): StoredCharacter | undefined {
+  const id = getActiveCharacterId();
+  return loadStoredCharacters().find((c) => c.id === id);
+}
+
 export function setActiveCharacterId(id: string) {
   saveJson(ACTIVE_KEY, id);
 }

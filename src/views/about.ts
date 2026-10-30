@@ -7,6 +7,7 @@ interface Source { name: string; url: string; host: string; who?: string; role: 
 interface Group { id: string; title: string; items: Source[] }
 
 export const ISSUES_URL = 'https://github.com/madalinmiclea/vyraj/issues';
+const LICENSE_URL = 'https://github.com/madalinmiclea/vyraj/blob/main/LICENSE';
 const LINKEDIN = 'https://www.linkedin.com/in/madalin-miclea-45573290/';
 const AUTHOR = 'Madalin Miclea';
 const PILOT = { name: 'moonKL', id: 109537098, race: 'Caldari', bloodline: 'Civire', corp: 'State War Academy', ticker: 'SWA', since: 2010, ship: 'Golem', shipId: 28710, shipGroup: 'Marauder' };
@@ -91,6 +92,10 @@ function body() {
       ${pilot()}
     </section>
     <div id="about-notice">${notice()}</div>
+    <footer class="about-copy" id="about-copyright">
+      <span class="about-copy-mark">© 2026 Vyraj</span>
+      <span>${tx('Codul și designul Vyraj sunt publicate sub licența')} ${ext(LICENSE_URL, 'GNU AGPL-3.0')}. ${tx('Datele, numele și grafica EVE Online aparțin CCP hf.')}</span>
+    </footer>
   </div>`;
 }
 

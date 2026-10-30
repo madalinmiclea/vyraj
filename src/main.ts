@@ -34,7 +34,7 @@ import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
 import { handleCallback, hasTokens, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
-import { loadStoredCharacters, upsertStoredCharacter } from './character/characters';
+import { loadStoredCharacters, upsertStoredCharacter, getActiveCharacterId, storedActiveCharacter } from './character/characters';
 import { importCharacter, portraitUrl } from './character/esi';
 import { fetchListedTypes } from './services/market';
 import { showItemInfo, hasItemInfo } from './ui/itemInfo';
@@ -84,6 +84,12 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
+const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : `<span class="char-placeholder">${icon('character')}</span>`);
+const earlyChar = storedActiveCharacter();
+const earlyId = getActiveCharacterId();
+const earlyName = earlyChar?.name ?? (earlyId === 'all0' ? tx('Toate la 0') : tx('Toate la V'));
+const earlyLabel = earlyChar ? tx('Caracter') : tx('Skill-uri');
+
 document.querySelector('#app')!.innerHTML = `
   <div class="shell">
     <header class="topbar">
@@ -95,7 +101,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="topbar-stat optional"><span class="label">ESI</span><span class="value esi-health" id="esiHealth"><i class="dot"></i><span>—</span></span></div>
       <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
       <div class="char-switch" id="charSwitch">
-        <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label" id="topCharacterLabel">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
+        <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar">${portrait(earlyChar?.characterId)}</span><span class="topbar-stat"><span class="label" id="topCharacterLabel">${earlyLabel}</span><span class="value accent" id="topCharacter">${esc(earlyName)}</span></span>${icon('chevron', 'chev')}</button>
         <div class="char-menu" id="charMenu" hidden></div>
       </div>
       <button class="btn ghost sm sso-btn" id="ssoBtn" data-tip="${tx('Permisiuni EVE')}" aria-label="${tx('Permisiuni EVE')}">${icon('login')}<span>SSO</span></button>
@@ -107,7 +113,7 @@ document.querySelector('#app')!.innerHTML = `
       ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></button>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
-      <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__}">v${__APP_VERSION__}</div>
+      <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · AGPL-3.0">v${__APP_VERSION__}</div>
     </nav>
     <div class="neocom-sheet" id="neocomSheet" hidden>
       ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<button class="sheet-btn" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></button>`).join('')}
@@ -477,7 +483,6 @@ async function start() {
   home.setContext(ctx);
   const topCharacter = document.getElementById('topCharacter')!;
   const avatar = document.getElementById('charAvatar')!;
-  const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : `<span class="char-placeholder">${icon('character')}</span>`);
   const renderCharMenu = () => {
     const stored = loadStoredCharacters();
     const active = ctx.character;

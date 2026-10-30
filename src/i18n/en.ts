@@ -1577,6 +1577,8 @@ export const EN: Record<string, string> = {
   "Vyraj nu ar exista fără oamenii care construiesc, documentează și împart EVE de peste douăzeci de ani. Fiecare preț, fiecare fit, fiecare ghid și fiecare hartă de aici vine din munca lor, oferită gratuit comunității. Vă mulțumim tuturor. o7": "Vyraj would not exist without the people who have been building, documenting and sharing EVE for more than twenty years. Every price, every fit, every guide and every map here comes from their work, given freely to the community. Thank you, all of you. o7",
   "Profil LinkedIn": "LinkedIn profile",
   "Notă de copyright CCP": "CCP copyright notice",
+  "Codul și designul Vyraj sunt publicate sub licența": "Vyraj code and design are published under the",
+  "Datele, numele și grafica EVE Online aparțin CCP hf.": "EVE Online data, names and artwork belong to CCP hf.",
   "Mulțumim, New Eden.": "Thank you, New Eden.",
   "Construit de": "Built by",
   "Vyraj e un proiect personal, gratuit, făcut din pasiune pentru EVE. Ideile și feedback-ul sunt binevenite.": "Vyraj is a free personal project, made out of love for EVE. Ideas and feedback are welcome.",

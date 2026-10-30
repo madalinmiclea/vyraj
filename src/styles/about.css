@@ -36,6 +36,9 @@
 .about-ship { width: 210px; height: auto; margin-left: auto; flex: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
 .about-notice { margin: 0; }
 .about-notice p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-faint); }
+.about-copy { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; color: var(--text-faint); }
+.about-copy-mark { font-family: var(--font-mono); color: var(--text-dim); }
+.about-copy a { color: var(--accent); }
 
 @media (max-width: 760px) {
   .shell.no-sidebar { grid-template-columns: minmax(0, 1fr); }

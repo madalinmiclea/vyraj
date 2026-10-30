@@ -1,6 +1,6 @@
 import type { AppContext } from '../app/context';
 import type { Fit } from '../engine/fit';
-import { loadStoredCharacters } from '../character/characters';
+import { loadStoredCharacters, storedActiveCharacter } from '../character/characters';
 import { hasTokens } from '../character/sso';
 import { portraitUrl } from '../character/esi';
 import { formatDuration } from '../character/training';
@@ -55,7 +55,7 @@ export function createHomeView(el: HTMLElement, opts: { tiles: Tile[]; go: (id: 
 
   function hero() {
     const logged = loadStoredCharacters().some((c) => c.kind === 'esi' && c.characterId && hasTokens(c.characterId));
-    const c = ctx?.character;
+    const c = ctx ? ctx.character : storedActiveCharacter();
     if (logged && c && c.kind === 'esi' && c.characterId) {
       const last = c.queue.at(-1)?.finish;
       const left = last ? (new Date(last).getTime() - Date.now()) / 1000 : 0;
