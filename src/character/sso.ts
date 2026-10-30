@@ -23,6 +23,14 @@ export const SCOPES = [
   'esi-structures.read_character.v1',
   'esi-activities.read_character.v1',
   'esi.cosmetic.char:read',
+  'esi-mail.read_mail.v1',
+  'esi-mail.organize_mail.v1',
+  'esi-mail.send_mail.v1',
+  'esi-contracts.read_character_contracts.v1',
+  'esi-contracts.read_corporation_contracts.v1',
+  'esi-characters.read_corporation_roles.v1',
+  'esi-wallet.read_corporation_wallets.v1',
+  'esi-corporations.read_divisions.v1',
 ];
 
 export const BASE_SCOPES = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-clones.read_implants.v1'];

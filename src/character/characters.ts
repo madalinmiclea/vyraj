@@ -15,6 +15,12 @@ export interface QueueEntry {
   finish?: string;
 }
 
+export interface RemapInfo {
+  bonus: number;
+  next?: string;
+  last?: string;
+}
+
 export interface StoredCharacter {
   id: string;
   name: string;
@@ -26,6 +32,7 @@ export interface StoredCharacter {
   queue: QueueEntry[];
   totalSp?: number;
   unallocatedSp?: number;
+  remap?: RemapInfo;
   updated?: string;
 }
 
@@ -40,6 +47,7 @@ export interface Character extends CharacterSkills {
   queue: QueueEntry[];
   totalSp?: number;
   unallocatedSp?: number;
+  remap?: RemapInfo;
   updated?: string;
 }
 

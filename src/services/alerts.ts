@@ -3,6 +3,7 @@ import { fetchPrices } from './market';
 import { repeatAfter } from './esiClient';
 import { compactISK, toast } from '../ui/components';
 import { tx } from '../i18n';
+import { notify } from './pwa';
 
 export interface PriceAlert {
   id: string;
@@ -52,7 +53,7 @@ async function runCheck() {
   for (const a of fired) {
     const text = `${a.name}: ${a.side} ${compactISK(a.current ?? 0)} ISK (${a.op === 'below' ? '≤' : '≥'} ${compactISK(a.price)})`;
     toast(text);
-    if ('Notification' in window && Notification.permission === 'granted') new Notification(tx('Alertă preț Jita'), { body: text, tag: `vyraj-alert-${a.id}` });
+    notify(tx('Alertă preț Jita'), { body: text, tag: `vyraj-alert-${a.id}` });
   }
 }
 

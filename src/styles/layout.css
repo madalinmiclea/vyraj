@@ -1,11 +1,14 @@
 .shell {
   display: grid;
   grid-template-columns: var(--rail-w) var(--sidebar-w) 1fr;
-  grid-template-rows: var(--topbar-h) 1fr;
+  grid-template-rows: calc(var(--topbar-h) + var(--safe-top)) 1fr;
   grid-template-areas:
     'topbar topbar topbar'
     'rail   sidebar main';
   height: 100vh;
+  height: 100dvh;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 .shell.no-sidebar { grid-template-columns: var(--rail-w) 0 1fr; }
 .shell.no-sidebar .sidebar { display: none; }
@@ -15,7 +18,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 16px 0 0;
+  padding: var(--safe-top) 16px 0 0;
   background: linear-gradient(180deg, rgba(14, 20, 27, 0.95), rgba(8, 11, 15, 0.95));
   border-bottom: 1px solid var(--line);
   position: relative;

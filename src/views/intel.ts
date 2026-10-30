@@ -5,7 +5,7 @@ import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import {
   loadScan, scanJita, SCAN_STALE_MS, feesFromSkills, netMarginPct, priceTrend, volumeTrend, bookPressure, stationTrade,
-  HUBS, fetchHubPrices, hubPricesAt, forgetHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
+  allHubs, fetchHubPrices, hubPricesAt, forgetHubPrices, fetchPackagedVolumes, haulRoutes, BASE_SALES_TAX, BASE_BROKER_FEE,
   type Scan, type IntelRow, type Fees, type HaulRow,
 } from '../services/intel';
 import { tx } from '../i18n';
@@ -228,7 +228,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
 
   async function loadHaul() {
     if (!scan) return;
-    const hub = HUBS.find((h) => h.id === settings.hub) ?? HUBS[0];
+    const hub = allHubs().find((h) => h.id === settings.hub) ?? allHubs()[0];
     haulError = '';
     body.innerHTML = panel({ body: loader(tx('Prețuri {name}', { name: hub.name })) });
     try {
@@ -244,7 +244,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
   }
 
   function transport() {
-    const hub = HUBS.find((h) => h.id === settings.hub) ?? HUBS[0];
+    const hub = allHubs().find((h) => h.id === settings.hub) ?? allHubs()[0];
     if (!haul || haul.hub !== hub.id) { if (!haulError) { loadHaul(); return; } }
     const cargo = settings.cargo;
     const list = sorted('haul', (haul?.rows ?? []).filter((h) => (settings.direction === 'all' || h.direction === settings.direction) && (!settings.category || h.row.category === settings.category) && h.margin >= settings.minMargin), {
@@ -256,7 +256,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       title: tx('Transport între hub-uri'),
       count: tx('{n} rute', { n: formatInt(list.length) }),
       body: `<div class="form-grid">
-          <label>Hub<select class="input" data-set="hub">${HUBS.map((h) => `<option value="${h.id}" ${h.id === hub.id ? 'selected' : ''}>${h.name}</option>`).join('')}</select></label>
+          <label>Hub<select class="input" data-set="hub">${allHubs().map((h) => `<option value="${h.id}" ${h.id === hub.id ? 'selected' : ''}>${h.name}</option>`).join('')}</select></label>
           <label>${tx('Direcție')}<select class="input" data-set="direction">
             <option value="all" ${settings.direction === 'all' ? 'selected' : ''}>${tx('Ambele')}</option>
             <option value="out" ${settings.direction === 'out' ? 'selected' : ''}>Jita → ${hub.name}</option>
@@ -309,7 +309,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
     if (tb) { tab = tb.dataset.intelTab as Tab; saveJson(TAB_KEY, tab); render(); return; }
     if (at('[data-scan]')) { runScan(); return; }
     if (at('[data-fee-reset]')) { settings.fees = null; save(); render(); return; }
-    if (at('[data-haul-reload]')) { forgetHubPrices(HUBS.find((h) => h.id === settings.hub) ?? HUBS[0]); haul = null; haulError = ''; render(); return; }
+    if (at('[data-haul-reload]')) { forgetHubPrices(allHubs().find((h) => h.id === settings.hub) ?? allHubs()[0]); haul = null; haulError = ''; render(); return; }
     const s = at('[data-sort]');
     if (s) {
       const [id, key] = s.dataset.sort!.split(':');

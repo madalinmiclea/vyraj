@@ -177,6 +177,30 @@ export const HUBS: Hub[] = [
   { id: 'hek', name: 'Hek', station: 60005686, region: 10000042 },
 ];
 
+const CUSTOM_HUBS_KEY = 'eve-intel:custom-hubs';
+
+export const customHubs = () => loadJson<Hub[]>(CUSTOM_HUBS_KEY, []);
+export const allHubs = (): Hub[] => [...HUBS, ...customHubs()];
+
+export function saveCustomHubs(list: Hub[]) {
+  saveJson(CUSTOM_HUBS_KEY, list);
+}
+
+export interface SystemStations { system: string; region: number; stations: { id: number; name: string }[] }
+
+export async function systemStations(name: string): Promise<SystemStations> {
+  const ids = await esiFetch(`${ESI}/universe/ids/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([name.trim()]) });
+  const found = ids.ok ? ((await ids.json()) as { systems?: { id: number; name: string }[] }).systems?.[0] : undefined;
+  if (!found) throw new Error(tx('Nu găsesc sistemul „{name}”. Scrie numele exact, ca în joc.', { name: name.trim() }));
+  const sys = await (await esiFetch(`${ESI}/universe/systems/${found.id}/`)).json() as { stations?: number[]; constellation_id: number };
+  const con = await (await esiFetch(`${ESI}/universe/constellations/${sys.constellation_id}/`)).json() as { region_id: number };
+  const stationIds = sys.stations ?? [];
+  if (!stationIds.length) throw new Error(tx('{name} nu are stații NPC. Prețurile se citesc doar din stații NPC.', { name: found.name }));
+  const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stationIds) });
+  const names = res.ok ? (await res.json()) as { id: number; name: string }[] : [];
+  return { system: found.name, region: con.region_id, stations: stationIds.map((id) => ({ id, name: names.find((n) => n.id === id)?.name ?? String(id) })) };
+}
+
 export interface HubPrice {
   sellMin: number;
   buyMax: number;

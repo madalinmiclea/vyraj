@@ -38,7 +38,7 @@ export interface EsiFitting {
 export async function importCharacter(characterId: number, characterName: string): Promise<StoredCharacter> {
   const [skills, attributes, implants, queue] = await Promise.all([
     esi<EsiSkills>(characterId, `/characters/${characterId}/skills/`),
-    esi<Attributes>(characterId, `/characters/${characterId}/attributes/`),
+    esi<Attributes & { bonus_remaps?: number; accrued_remap_cooldown_date?: string; last_remap_date?: string }>(characterId, `/characters/${characterId}/attributes/`),
     esi<number[]>(characterId, `/characters/${characterId}/implants/`),
     esi<EsiQueueEntry[]>(characterId, `/characters/${characterId}/skillqueue/`).catch(() => []),
   ]);
@@ -63,6 +63,7 @@ export async function importCharacter(characterId: number, characterName: string
       .map((q) => ({ skillId: q.skill_id, level: q.finished_level, finish: q.finish_date })),
     totalSp: skills.total_sp,
     unallocatedSp: skills.unallocated_sp,
+    remap: { bonus: attributes.bonus_remaps ?? 0, next: attributes.accrued_remap_cooldown_date, last: attributes.last_remap_date },
     updated: new Date().toISOString(),
   };
 }
@@ -123,7 +124,7 @@ async function namesBatch(ids: number[], out: Map<number, string>): Promise<void
 export async function universeNames(ids: number[], characterId?: number): Promise<Map<number, string>> {
   const out = new Map<number, string>();
   const unique = [...new Set(ids)];
-  const known = unique.filter((id) => id > 0 && id < 100_000_000);
+  const known = unique.filter((id) => (id > 0 && id < 100_000_000) || (id >= 2_100_000_000 && id < 2_200_000_000));
   for (let i = 0; i < known.length; i += 1000) await namesBatch(known.slice(i, i + 1000), out);
   const structures = unique.filter((id) => id >= 1e12);
   if (!structures.length) return out;

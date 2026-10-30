@@ -6,6 +6,9 @@ import { tx } from '../i18n';
 import { ESI, esiFetch } from '../services/esiClient';
 import { loadActivities } from '../services/operations';
 import { fetchPrices, type Aggregates } from '../services/market';
+import { demoMail, demoNameLookup, demoIdLookup } from './mail';
+import { demoBusiness, businessNames } from './business';
+import { DEMO_CORP } from '../services/corporation';
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -420,10 +423,43 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
   const url = new URL(input);
   const path = url.pathname.replace(/^\/(latest|v\d+)\//, '/');
   if (new RegExp(`^/characters/${DEMO_ID}/?$`).test(path)) return json({ name: tx('Pilot demo'), corporation_id: 1000120, birthday: '2019-04-12T18:00:00Z', gender: 'female', race_id: 4, bloodline_id: 7, security_status: 2.4 });
+  if (/^\/universe\/names\/?$/.test(path) && init?.body) {
+    const ids = JSON.parse(String(init.body)) as number[];
+    const biz = businessNames();
+    const own = ids.filter((id) => biz[id]).map((id) => ({ id, name: biz[id], category: id === DEMO_CORP ? 'corporation' : 'character' }));
+    if (own.length) {
+      const others = ids.filter((id) => !biz[id]);
+      if (!others.length) return json(own);
+      const res = await esiFetch(input, { ...init, body: JSON.stringify(others) });
+      return json([...own, ...(res.ok ? (await res.json()) as unknown[] : [])]);
+    }
+  }
+  if (/^\/universe\/names\/?$/.test(path) && init?.body) {
+    const { known, rest } = demoNameLookup(JSON.parse(String(init.body)) as number[]);
+    if (known.length) {
+      if (!rest.length) return json(known);
+      const res = await esiFetch(input, { ...init, body: JSON.stringify(rest) });
+      return json([...known, ...(res.ok ? (await res.json()) as unknown[] : [])]);
+    }
+  }
+  if (/^\/universe\/ids\/?$/.test(path) && init?.body) {
+    const wanted = JSON.parse(String(init.body)) as string[];
+    const found = demoIdLookup(wanted);
+    const hits = new Set(Object.values(found).flat().map((x) => x.name.toLowerCase()));
+    const rest = wanted.filter((n) => !hits.has(n.toLowerCase()));
+    if (!hits.size) return null;
+    if (!rest.length) return json(found);
+    const res = await esiFetch(input, { ...init, body: JSON.stringify(rest) });
+    const real = (res.ok ? await res.json() : {}) as Record<string, { id: number; name: string }[]>;
+    for (const [k, v] of Object.entries(real)) found[k] = [...(found[k] ?? []), ...v];
+    return json(found);
+  }
   if (!isDemoAuth(new Headers(init?.headers).get('authorization'))) return null;
   const method = (init?.method ?? 'GET').toUpperCase();
   const w = await loadWorld();
   const now = Date.now();
+  const business = demoBusiness(path.replace(/\/$/, ''), now);
+  if (business !== undefined) return json(business);
   const structure = path.match(/^\/universe\/structures\/(\d+)\/?$/);
   if (structure) return Number(structure[1]) === CITADEL ? json({ name: 'Y-W1Q3 - Astrahus', solar_system_id: CITADEL_SYSTEM, type_id: 35832, owner_id: 1 }) : json({ error: 'Forbidden' }, 403);
   const m = path.match(/^\/characters\/(\d+)\/(.*?)\/?$/);
@@ -460,6 +496,8 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'cosmetics/skinr/components': return json(await skinrComponents());
     case 'paragon-hub/skinr': return json(await sellerListings(now));
     default: {
+      const mail = demoMail(route, method, url, init?.body ? JSON.parse(String(init.body)) : null, now);
+      if (mail) return json(mail.body, mail.status);
       const pl = route.match(/^planets\/(\d+)$/);
       if (pl) { const body = planet(now, Number(pl[1])); return body ? json(body) : json({ error: 'Not found' }, 404); }
       const part = route.match(/^freelance-jobs\/([^/]+)\/participation$/);

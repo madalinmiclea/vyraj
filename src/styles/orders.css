@@ -13,3 +13,27 @@
 .history-kpis .value.ord-bad { color: var(--danger); }
 .ord-note { margin-top: 12px; max-width: 900px; }
 .ord-table .ord-item + .badge { margin-left: 6px; vertical-align: 1px; }
+.history-kpis .value.accent { color: var(--accent-bright); }
+.ct-scope { margin: 0 0 var(--gap); }
+.ct-filters { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.ct-table .ord-item svg { width: 16px; height: 16px; margin-right: 6px; color: var(--text-dim); flex: none; }
+.ct-table .ord-place { max-width: 360px; }
+.ct-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 14px; }
+.ct-facts dt { color: var(--text-dim); }
+.ct-facts dd { margin: 0; color: var(--text-bright); }
+.ct-sub { margin: 14px 0 6px; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-bright); }
+.remap-table td.num, .remap-table th { white-space: nowrap; }
+.cw-div tr.active td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.cw-who { display: inline-flex; align-items: center; gap: 8px; }
+.cw-who img { width: 24px; height: 24px; border-radius: 2px; }
+.cw-members td { white-space: nowrap; }
+.cw-bar { display: inline-block; width: 80px; height: 6px; margin-right: 8px; vertical-align: middle; background: var(--bg-raised); border: 1px solid var(--line); }
+.cw-bar i { display: block; height: 100%; background: var(--accent); }
+.nt-master { margin-bottom: 4px; }
+.nt-kinds { display: grid; gap: 10px; margin-top: 10px; }
+.nt-kinds.off { opacity: 0.55; }
+.nt-kind { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; }
+.nt-kind .small { grid-column: 1 / -1; }
+.nt-lead { min-width: 150px; }
+.nt-next { margin-top: 12px; }
+.nt-next .ord-side-label { margin: 0 0 6px; }

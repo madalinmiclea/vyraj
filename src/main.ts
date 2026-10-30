@@ -10,6 +10,7 @@ import { createSkillsView } from './views/skills';
 import { createRosterView } from './views/roster';
 import { createWalletView } from './views/walletView';
 import { createOrdersView } from './views/orders';
+import { createMailView } from './views/mail';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
 import { createNavigationView } from './views/navigation';
@@ -27,6 +28,7 @@ import { createMissionsView, type MissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
 import { esiHealth } from './services/operations';
 import { startAlertWatcher } from './services/alerts';
+import { startNotifyWatcher } from './services/notify';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
@@ -47,11 +49,12 @@ import { readSharedFit } from './io/shareLink';
 import { downloadBackup, pickBackup } from './io/backup';
 import { ESI, esiFetch, repeatAfter } from './services/esiClient';
 import { isDemo, startDemo, exitDemo } from './demo/demo';
+import { registerServiceWorker, canInstall, installApp, INSTALL_EVENT } from './services/pwa';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'mail' | 'about';
 
 const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const;
+const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -76,6 +79,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
   { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
   { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
+  { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 9 },
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
@@ -105,6 +109,7 @@ document.querySelector('#app')!.innerHTML = `
     </nav>
     <div class="neocom-sheet" id="neocomSheet" hidden>
       ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<button class="sheet-btn" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></button>`).join('')}
+      <button class="sheet-btn sheet-install" id="sheetInstall" hidden>${icon('download')}<span>${tx('Instalează aplicația')}</span></button>
     </div>
 
     <aside class="sidebar">
@@ -153,7 +158,7 @@ market.setFees(() => intel.fees());
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
 let doctrines: DoctrinesView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -353,7 +358,11 @@ document.getElementById('neocomMore')!.addEventListener('click', (e) => {
 document.getElementById('neocomSheet')!.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sheet-btn[data-view]');
   if (btn) switchView(btn.dataset.view as ViewId);
+  if ((e.target as HTMLElement).closest('#sheetInstall')) { e.stopPropagation(); document.getElementById('neocomSheet')!.hidden = true; installApp(); }
 });
+const syncInstall = () => { document.getElementById('sheetInstall')!.hidden = !canInstall(); };
+syncInstall();
+window.addEventListener(INSTALL_EVENT, syncInstall);
 document.addEventListener('click', (e) => {
   const sheet = document.getElementById('neocomSheet')!;
   if (!sheet.hidden && !sheet.contains(e.target as Node)) sheet.hidden = true;
@@ -450,7 +459,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -529,6 +538,7 @@ async function start() {
   later('mining', ['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
   later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
+  later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
   later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
@@ -577,7 +587,9 @@ async function refreshStale(ctx: AppContext, skip?: number) {
 }
 
 start();
+registerServiceWorker();
 startAlertWatcher();
+startNotifyWatcher();
 startVisitTracker();
 itemsReady.then(startOrderWatcher).catch(() => {});
 

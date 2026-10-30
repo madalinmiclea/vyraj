@@ -1,7 +1,8 @@
 import { icon } from '../ui/icons';
 import { pageHead, searchField, statCard, emptyState, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel, lore } from '../ui/components';
 import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
-import { HUBS, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
+import { openHubModal } from './hubModal';
+import { allHubs, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { addAlert, loadAlerts, hit } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
@@ -52,11 +53,11 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   let history: HistoryDay[] = [];
   let range = loadJson<number>(RANGE_KEY, 90);
   let hubId = loadJson<string>(HUB_KEY, 'rens');
-  if (!HUBS.some((h) => h.id === hubId)) hubId = 'rens';
+  if (!allHubs().some((h) => h.id === hubId)) hubId = 'rens';
   let historyMarket = loadJson<string>(HISTORY_MARKET_KEY, 'jita');
   let getFees: () => Fees = () => ({ salesTax: BASE_SALES_TAX, brokerFee: BASE_BROKER_FEE });
   let jitaPrices: Aggregates | null = null;
-  const hub = () => HUBS.find((h) => h.id === hubId)!;
+  const hub = () => allHubs().find((h) => h.id === hubId)!;
   const historyName = () => (current && isGlobalMarket(current.typeId) ? tx('piața globală PLEX') : historyMarket === 'hub' ? hub().name : 'Jita');
 
   input.addEventListener('input', () => onType?.(input.value));
@@ -72,6 +73,14 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     if (info) { if (showInfo) showInfo(Number(info.dataset.showInfo)); else toast(tx('Datele de fitting încă se încarcă')); return; }
     const r = target.closest<HTMLElement>('[data-range]');
     if (r) { range = Number(r.dataset.range); saveJson(RANGE_KEY, range); renderHistory(); return; }
+    if (target.closest('[data-hub-add]')) {
+      openHubModal((id) => {
+        if (id) { hubId = id; saveJson(HUB_KEY, hubId); }
+        if (!allHubs().some((h) => h.id === hubId)) hubId = 'rens';
+        if (current) loadHub(current.typeId, requestId);
+      });
+      return;
+    }
     const hb = target.closest<HTMLElement>('[data-hub]');
     if (hb && current) { hubId = hb.dataset.hub!; saveJson(HUB_KEY, hubId); loadHub(current.typeId, requestId); if (historyMarket === 'hub') loadHistory(current.typeId, requestId); return; }
     const hm = target.closest<HTMLElement>('[data-history-market]');
@@ -176,7 +185,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     const el = state.querySelector<HTMLElement>('#hubPanel');
     if (!el || !jitaPrices || isGlobalMarket(typeId)) return;
     const h = hub();
-    const actions = `<div class="advice-sort">${HUBS.map((x) => `<button class="chip-btn ${x.id === h.id ? 'active' : ''}" data-hub="${x.id}">${x.name}</button>`).join('')}</div>`;
+    const actions = `<div class="advice-sort">${allHubs().map((x) => `<button class="chip-btn ${x.id === h.id ? 'active' : ''}" data-hub="${x.id}">${esc(x.name)}</button>`).join('')}<button class="chip-btn" data-hub-add title="${esc(tx('Adaugă un hub propriu'))}">+</button></div>`;
     el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: loader(tx('Prețuri {name}', { name: h.name })) });
     try {
       const prices = await fetchHubPrices(h, [typeId], { fresh: true });

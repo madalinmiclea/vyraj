@@ -20,7 +20,7 @@ interface Tile { id: string; label: string; icon: string }
 
 const GROUPS: { title: string; vy: string; ids: string[] }[] = [
   { title: tx('Nave'), vy: 'Svarog', ids: ['fitting', 'doctrines', 'skins'] },
-  { title: tx('Pilot'), vy: 'Perun', ids: ['character'] },
+  { title: tx('Pilot'), vy: 'Perun', ids: ['character', 'mail'] },
   { title: tx('PvE'), vy: 'Morana', ids: ['missions', 'operations'] },
   { title: tx('Piață și comerț'), vy: 'Veles', ids: ['market', 'intel', 'orders', 'wallet'] },
   { title: tx('Producție'), vy: 'Mokosh', ids: ['industry', 'pi', 'mining'] },
@@ -36,6 +36,7 @@ const ABOUT: Record<string, string> = {
   doctrines: tx('Fituri de flotă pentru corporație: cine le poate zbura și cât costă tot.'),
   skins: tx('Colecția de SKIN-uri și cel mai ieftin drum spre o colecție completă.'),
   character: tx('Skill-uri, coada de antrenament, plan de skill-uri și toate caracterele.'),
+  mail: tx('Mailurile din joc: etichete, liste de mail, citire, răspuns și trimitere.'),
   missions: tx('Misiuni L1–L5 și complexe DED, magazin LP și jurnal abisal.'),
   operations: tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri de jefuit, citite direct din ESI.'),
   industry: tx('Cost de fabricație și invenție față de prețul din Jita.'),

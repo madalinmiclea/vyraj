@@ -5,6 +5,7 @@ import { loadJson, saveJson } from '../storage';
 import { typeName } from './typeNames';
 import { compactISK, formatISK, toast } from '../ui/components';
 import { tx } from '../i18n';
+import { notify } from './pwa';
 
 export const ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 export const ORDERS_EVENT = 'vyraj-orders-updated';
@@ -222,7 +223,7 @@ function notifyChanges(scan: OrdersScan) {
     : tx('{n} ordine depășite', { n: fired.length });
   const body = fired.slice(0, 5).map(line).join('\n') + (fired.length > 5 ? '\n…' : '');
   toast(`${title}: ${fired.map((o) => typeName(o.type_id)).slice(0, 3).join(', ')}`);
-  if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body, tag: 'vyraj-orders' });
+  notify(title, { body, tag: 'vyraj-orders', url: '#/orders' });
 }
 
 export function startOrderWatcher() {

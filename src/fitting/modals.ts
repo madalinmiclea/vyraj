@@ -11,6 +11,7 @@ import { permissionGate, hasPermission } from '../character/permissions';
 import { parseEft, exportEft, exportMultibuy, exportDna } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
 import { fromEsiFitting, toEsiFitting } from '../io/esiFit';
+import { fitFromKillmail, isKillLink } from '../io/killmail';
 import { typeIconUrl } from '../services/market';
 import { loadFits, deleteFit } from './savedFits';
 import { icon } from '../ui/icons';
@@ -48,13 +49,28 @@ export function createFitModals(env: FitEnv) {
 
   function openImport() {
     const modal = openModal(tx('Importă fit (EFT)'), `
-      <p class="dim small">${tx('Lipește un fit copiat din joc (Fitting → Copy to clipboard) sau din Pyfa.')}</p>
+      <p class="dim small">${tx('Lipește un fit copiat din joc (Fitting → Copy to clipboard) sau din Pyfa, ori un link de killmail (zKillboard sau Copy External Kill Link din joc).')}</p>
       <textarea class="input area" id="eftInput" rows="14" spellcheck="false" placeholder="[Drake, PvE]&#10;Ballistic Control System II&#10;..."></textarea>
       <div id="eftError"></div>
       <div class="row-actions">${button(tx('Importă'), { iconName: 'upload', attrs: 'data-do-import' })}</div>`, { wide: true });
-    modal.querySelector('[data-do-import]')!.addEventListener('click', () => {
+    modal.querySelector('[data-do-import]')!.addEventListener('click', async () => {
+      const text = modal.querySelector<HTMLTextAreaElement>('#eftInput')!.value;
+      if (isKillLink(text)) {
+        const btn = modal.querySelector<HTMLButtonElement>('[data-do-import]')!;
+        btn.disabled = true;
+        try {
+          const parsed = await fitFromKillmail(sde, text);
+          closeModal();
+          env.setFit(parsed);
+          toast(tx('Fit importat din killmail'));
+        } catch (err) {
+          btn.disabled = false;
+          modal.querySelector('#eftError')!.innerHTML = alertBox((err as Error).message);
+        }
+        return;
+      }
       try {
-        const { fit: parsed, unknown } = parseEft(sde, modal.querySelector<HTMLTextAreaElement>('#eftInput')!.value);
+        const { fit: parsed, unknown } = parseEft(sde, text);
         closeModal();
         env.setFit(parsed);
         toast(unknown.length ? tx('Importat; {n} linii necunoscute', { n: unknown.length }) : tx('Fit importat'));

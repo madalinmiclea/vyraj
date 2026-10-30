@@ -10,6 +10,7 @@ import { loadStoredCharacters } from '../character/characters';
 import { permissionButtons } from '../character/permissions';
 import { allEveItems } from '../data/items';
 import { tx } from '../i18n';
+import { notify } from '../services/pwa';
 import { fold } from '../ui/fold';
 import { StarMap, type MapPainter } from '../ui/starMap';
 import { playSound, unlockAudio, type SoundKind } from '../ui/sound';
@@ -246,9 +247,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const d = dist?.get(systemId);
     if (d == null || d > settings.range) return;
     if (!isDemo()) playSound(settings.sound, d <= 1 ? 0.5 : d <= 3 ? 0.32 : 0.2);
-    if (settings.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-      try { new Notification(title, { body, tag: `vyraj-${systemId}` }); } catch { }
-    }
+    if (settings.notify && document.hidden) notify(title, { body, tag: `vyraj-${systemId}` });
     if (!visible) toast(`${title} · ${body}`, 6000);
     el.querySelector('.live-alert')?.remove();
     const box = document.createElement('div');

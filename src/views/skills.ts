@@ -10,6 +10,8 @@ import { icon } from '../ui/icons';
 import { requirementTreeHtml, roman, showItemInfo, skillPlanText } from '../ui/itemInfo';
 import { fold } from '../ui/fold';
 import { tx, locale, lang } from '../i18n';
+import { optimalRemap, ATTRIBUTE_KEYS } from '../character/remap';
+import type { Attributes } from '../character/training';
 import { addItemToPlan, addToPlan, loadPlan, movePlan, planRows, planText, removeFromPlan, savePlan, type PlanEntry } from '../character/skillPlan';
 
 const SKILL_GROUP_RO: Record<string, string> = {
@@ -38,7 +40,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   el.innerHTML = `<div class="stack">
       <div class="char-plan-grid">
-        <div id="skillPlan"></div>
+        <div id="skillPlan" class="stack"></div>
         <div class="stack">
           ${panel({ title: tx('Cerințe pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
           <div id="reqDetail"></div>
@@ -76,6 +78,40 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
           </tbody></table>
           <div class="row-actions"><button class="btn ghost sm" data-plan-copy>${tx('Copiază pentru EVE')}</button><button class="btn ghost sm" data-plan-clear>${tx('Golește')}</button></div>`
         : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de cerințe, din grupurile de skill-uri sau din „Skill-uri de îmbunătățire” din Fitting.')}</p>`,
+    }) + remapHtml(rows);
+  }
+
+  const ATTR_LABEL: Record<keyof Attributes, string> = {
+    perception: tx('Percepție'), memory: tx('Memorie'), willpower: tx('Voință'), intelligence: tx('Inteligență'), charisma: tx('Carismă'),
+  };
+
+  function remapHtml(rows: { skillId: number; sp: number }[]) {
+    const c = ctx.character;
+    if (c.kind !== 'esi' && c.kind !== 'custom') return '';
+    const r = optimalRemap(sde, c, rows);
+    if (!r) return '';
+    const gain = r.currentSeconds - r.optimalSeconds;
+    const same = gain < 60;
+    const next = c.remap?.next ? Date.parse(c.remap.next) : NaN;
+    const ready = (c.remap?.bonus ?? 0) > 0 || (Number.isFinite(next) && next <= Date.now());
+    const status = !c.remap
+      ? ''
+      : ready
+        ? badge((c.remap.bonus ?? 0) > 0 ? tx('Remap-uri bonus disponibile: {n}', { n: c.remap.bonus }) : tx('Remap disponibil acum'), 'ok', true)
+        : Number.isFinite(next) ? badge(tx('Următorul remap: {d}', { d: new Date(next).toLocaleDateString(locale) }), '', true) : '';
+    return panel({
+      title: tx('Remap optim pentru plan'),
+      count: same ? tx('atributele sunt deja optime') : tx('−{t}', { t: formatDuration(gain) }),
+      body: `<p class="small dim">${same
+        ? tx('Cu atributele de acum planul durează {t}. Niciun remap nu-l scurtează.', { t: formatDuration(r.currentSeconds) })
+        : tx('Planul durează {now} cu atributele de acum și {best} cu remap-ul de mai jos, cu {gain} mai puțin. Implanturile sunt incluse.', { now: formatDuration(r.currentSeconds), best: formatDuration(r.optimalSeconds), gain: formatDuration(gain) })}</p>
+        <table class="table compact remap-table"><thead><tr><th>${tx('Atribut')}</th><th class="r">${tx('Acum')}</th><th class="r">${tx('Optim')}</th><th class="r">Δ</th></tr></thead><tbody>
+          ${ATTRIBUTE_KEYS.map((k) => {
+            const d = r.optimal[k] - r.current[k];
+            return `<tr><td>${ATTR_LABEL[k]}</td><td class="r num">${r.current[k]}</td><td class="r num"><b>${r.optimal[k]}</b></td><td class="r num ${d > 0 ? 'pos' : d < 0 ? 'neg' : 'dim'}">${d > 0 ? '+' : ''}${d || '·'}</td></tr>`;
+          }).join('')}
+        </tbody></table>
+        ${status ? `<div class="row-actions">${status}</div>` : ''}`,
     });
   }
 

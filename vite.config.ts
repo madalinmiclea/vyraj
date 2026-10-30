@@ -1,7 +1,8 @@
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite';
-import { copyFileSync, readFileSync } from 'node:fs';
+import { copyFileSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 
 function appVersion(): string {
   let count = 0;
@@ -43,6 +44,21 @@ function staticHost(): Plugin {
     },
     closeBundle() {
       copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));
+      const sw = resolve(outDir, 'sw.js');
+      if (!existsSync(sw)) return;
+      const list = (dir: string, test: RegExp) => (existsSync(resolve(outDir, dir)) ? readdirSync(resolve(outDir, dir)).filter((f) => test.test(f)).map((f) => `${dir}/${f}`) : []);
+      const precache = [
+        './',
+        'index.html',
+        'manifest.webmanifest',
+        'favicon.svg',
+        'icon-192.png',
+        'apple-touch-icon.png',
+        ...list('assets', /\.(js|css)$/),
+        ...list('fonts', /\.woff2$/),
+      ];
+      const build = createHash('sha256').update(precache.join('|')).update(readFileSync(resolve(outDir, 'index.html'))).digest('hex').slice(0, 12);
+      writeFileSync(sw, readFileSync(sw, 'utf8').replace("'__VYRAJ_BUILD__'", JSON.stringify(build)).replace("['__VYRAJ_PRECACHE__']", JSON.stringify(precache)));
     },
   };
 }

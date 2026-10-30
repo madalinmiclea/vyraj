@@ -4,7 +4,7 @@ import { button, esc } from '../ui/components';
 import { icon } from '../ui/icons';
 import { tx } from '../i18n';
 
-export type PermId = 'fittings' | 'assets' | 'location' | 'wallet' | 'loyalty' | 'orders' | 'planets' | 'industry' | 'freelance' | 'campaigns' | 'mercenary' | 'skinr';
+export type PermId = 'fittings' | 'assets' | 'location' | 'wallet' | 'loyalty' | 'orders' | 'planets' | 'industry' | 'freelance' | 'campaigns' | 'mercenary' | 'skinr' | 'mail' | 'contracts' | 'corporation';
 
 export interface Permission { id: PermId; label: string; why: string; scopes: string[] }
 
@@ -21,6 +21,9 @@ export const PERMISSIONS: Permission[] = [
   { id: 'campaigns', label: tx('Campanii militare'), why: tx('Citește obiectivele din campaniile militare la care participi și contribuția ta.'), scopes: ['esi.activity.char:read'] },
   { id: 'mercenary', label: tx('Mercenary Dens'), why: tx('Citește Mercenary Dens-urile tale (dezvoltare, anarhie, infomorfi) și operațiunile tactice disponibile.'), scopes: ['esi-structures.read_character.v1', 'esi-activities.read_character.v1'] },
   { id: 'skinr', label: tx('Licențe SKINR'), why: tx('Citește licențele SKINR, componentele (nanocoating, pattern) și listările tale din Paragon Hub.'), scopes: ['esi.cosmetic.char:read'] },
+  { id: 'mail', label: tx('Mail EVE'), why: tx('Citește mailurile, etichetele și listele de mail, le marchează citite, le mută sau le șterge și trimite mailuri doar când apeși Trimite.'), scopes: ['esi-mail.read_mail.v1', 'esi-mail.organize_mail.v1', 'esi-mail.send_mail.v1'] },
+  { id: 'contracts', label: tx('Contracte'), why: tx('Citește contractele tale (schimb de iteme, licitații, curier), itemele și ofertele din ele, ca să le evaluezi la prețurile Jita și să știi când expiră.'), scopes: ['esi-contracts.read_character_contracts.v1', 'esi-universe.read_structures.v1'] },
+  { id: 'corporation', label: tx('Corporație'), why: tx('Citește rolurile tale în corporație, contractele corporației și, dacă ești Director sau Accountant, walleturile, diviziile și jurnalul corporației.'), scopes: ['esi-characters.read_corporation_roles.v1', 'esi-contracts.read_corporation_contracts.v1', 'esi-wallet.read_corporation_wallets.v1', 'esi-corporations.read_divisions.v1', 'esi-universe.read_structures.v1'] },
 ];
 
 export const SCOPE_INFO: Record<string, { text: string; write?: boolean }> = {
@@ -40,6 +43,14 @@ export const SCOPE_INFO: Record<string, { text: string; write?: boolean }> = {
   'esi-planets.manage_planets.v1': { text: tx('Citește coloniile planetare. Numele EVE sună a „manage”, dar ESI nu poate schimba nimic în colonii.') },
   'esi-characters.read_blueprints.v1': { text: tx('Citește blueprint-urile, cu ME, TE și runs.') },
   'esi-industry.read_character_jobs.v1': { text: tx('Citește joburile de industrie active și terminate.') },
+  'esi-mail.read_mail.v1': { text: tx('Citește mailurile, etichetele și listele de mail.') },
+  'esi-mail.organize_mail.v1': { text: tx('Marchează mailurile citite, schimbă etichetele și șterge mailuri sau etichete, doar la cererea ta.'), write: true },
+  'esi-mail.send_mail.v1': { text: tx('Trimite un mail doar când apeși Trimite.'), write: true },
+  'esi-contracts.read_character_contracts.v1': { text: tx('Citește contractele caracterului, cu itemele și ofertele lor.') },
+  'esi-contracts.read_corporation_contracts.v1': { text: tx('Citește contractele corporației.') },
+  'esi-characters.read_corporation_roles.v1': { text: tx('Citește rolurile tale în corporație, ca să știm ce date de corporație poți vedea.') },
+  'esi-wallet.read_corporation_wallets.v1': { text: tx('Citește soldurile și jurnalul walleturilor corporației (doar cu rol de Director sau Accountant).') },
+  'esi-corporations.read_divisions.v1': { text: tx('Citește numele diviziilor de wallet ale corporației.') },
 };
 
 export function scopeList(scopes: string[]): string {
