@@ -3,7 +3,7 @@ import { panel, loader, esc, formatInt, formatNum, formatISK, compactISK, button
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
-import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, pveSessions, archiveJournal, archiveTrades, bountyDetailMissing, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
+import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, entryLabel, entryDescription, pveSessions, archiveJournal, archiveTrades, bountyDetailMissing, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
 import { npcInfo, type NpcInfo } from '../services/npcKills';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { heatmap } from '../ui/heatmap';
@@ -50,7 +50,7 @@ const remaining = (ms: number) => {
   if (h < 48) return `${h} h ${String(m % 60).padStart(2, '0')} min`;
   return tx('{n} zile', { n: Math.floor(h / 24) });
 };
-const describe = (e: WalletEntry) => (e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '');
+const describe = (e: WalletEntry) => entryDescription(e);
 
 export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, view: WalletState, force = false) {
   const fetchedAll = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {});
@@ -102,7 +102,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       if (direction === 'in' && a <= 0) return false;
       if (direction === 'out' && a >= 0) return false;
       if (ref && e.ref_type !== ref) return false;
-      if (q && !`${e.description ?? ''} ${refLabel(e.ref_type)}`.toLowerCase().includes(q)) return false;
+      if (q && !`${describe(e)} ${entryLabel(e)}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -114,7 +114,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const f = flow(list);
     el.innerHTML = `<p class="dim small">${tx('{n} intrări · câștigat {in} · cheltuit {out}', { n: formatInt(list.length), in: compactISK(f.earned), out: compactISK(f.spent) })}${list.length > JOURNAL_LIMIT ? ' · ' + tx('se văd primele {n}', { n: JOURNAL_LIMIT }) : ''}</p>
       ${list.length ? `<table class="table compact wallet-journal"><thead><tr><th>${tx('Data')}</th><th>${tx('Tip')}</th><th class="r">${tx('Sumă')}</th><th class="r">${tx('Sold')}</th><th>${tx('Descriere')}</th></tr></thead><tbody>
-        ${list.slice(0, JOURNAL_LIMIT).map((e) => `<tr><td class="num dim">${dateTime(Date.parse(e.date))}</td><td>${esc(refLabel(e.ref_type))}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${e.balance != null ? isk(e.balance) : ''}</td><td class="desc dim" title="${esc(describe(e))}">${esc(describe(e))}</td></tr>`).join('')}
+        ${list.slice(0, JOURNAL_LIMIT).map((e) => `<tr><td class="num dim">${dateTime(Date.parse(e.date))}</td><td>${esc(entryLabel(e))}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${e.balance != null ? isk(e.balance) : ''}</td><td class="desc dim" title="${esc(describe(e))}">${esc(describe(e))}</td></tr>`).join('')}
       </tbody></table>` : `<p class="dim">${tx('Nicio intrare pentru filtrele alese.')}</p>`}`;
   }
 

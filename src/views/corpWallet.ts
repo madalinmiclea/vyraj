@@ -3,7 +3,7 @@ import { panel, loader, alertBox, esc, formatInt, compactISK, emptyState, badge 
 import { loadJson, saveJson } from '../storage';
 import { universeNames, portraitUrl } from '../character/esi';
 import { permissionGate } from '../character/permissions';
-import { refLabel } from '../services/wallet';
+import { entryLabel } from '../services/wallet';
 import { corpAccess, corpDivisions, corpJournal, memberTaxes, type CorpJournalEntry, type CorpDivision } from '../services/corpWallet';
 import { WALLET_ROLES } from '../services/corporation';
 import { tx, locale } from '../i18n';
@@ -112,7 +112,7 @@ export async function renderCorpWallet(body: HTMLElement, ctx: AppContext, chara
         count: recent.length,
         body: `<div class="history-kpis"><div><span class="label">${tx('Intrări')}</span><span class="value">${signed(income)}</span></div><div><span class="label">${tx('Ieșiri')}</span><span class="value">${signed(spent)}</span></div><div><span class="label">${tx('Net')}</span><span class="value">${signed(income + spent)}</span></div></div>
           ${recent.length ? `<div class="table-scroll"><table class="table compact"><thead><tr><th>${tx('Data')}</th><th>${tx('Tip')}</th><th>${tx('De la / către')}</th><th class="r">${tx('Sumă')}</th><th class="r">${tx('Sold')}</th></tr></thead><tbody>
-            ${recent.slice(0, JOURNAL_ROWS).map((e) => `<tr><td class="num dim nowrap">${dateTime(Date.parse(e.date))}</td><td>${esc(refLabel(e.ref_type))}</td><td class="small">${party(e.first_party_id)} → ${party(e.second_party_id)}${e.reason ? `<div class="dim">${esc(e.reason)}</div>` : ''}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${isk(e.balance ?? 0)}</td></tr>`).join('')}
+            ${recent.slice(0, JOURNAL_ROWS).map((e) => `<tr><td class="num dim nowrap">${dateTime(Date.parse(e.date))}</td><td>${esc(entryLabel(e))}</td><td class="small">${party(e.first_party_id)} → ${party(e.second_party_id)}${e.reason ? `<div class="dim">${esc(e.reason)}</div>` : ''}</td><td class="r">${signed(e.amount ?? 0)}</td><td class="r">${isk(e.balance ?? 0)}</td></tr>`).join('')}
           </tbody></table></div>` : `<p class="dim">${tx('Nicio înregistrare în perioada aleasă.')}</p>`}`,
       })}
     </div>`;

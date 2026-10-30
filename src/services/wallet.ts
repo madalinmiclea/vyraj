@@ -16,7 +16,7 @@ export const REF_LABELS: Record<string, string> = {
   agent_mission_reward: tx('Misiuni'),
   agent_mission_time_bonus_reward: tx('Bonus misiuni'),
   market_transaction: tx('Piață'),
-  market_escrow: tx('Garanție ordine'),
+  market_escrow: tx('Escrow ordine'),
   transaction_tax: tx('Taxă tranzacții'),
   brokers_fee: tx('Comision broker'),
   player_donation: tx('Donații'),
@@ -36,6 +36,16 @@ export const REF_LABELS: Record<string, string> = {
 };
 
 export const refLabel = (ref: string) => REF_LABELS[ref] ?? ref.replace(/_/g, ' ');
+
+export function entryLabel(e: { ref_type: string; amount?: number }) {
+  if (e.ref_type === 'market_escrow') return (e.amount ?? 0) < 0 ? tx('Blocat în escrow') : tx('Returnat din escrow');
+  return refLabel(e.ref_type);
+}
+
+export function entryDescription(e: { ref_type: string; amount?: number; description?: string; reason?: string }) {
+  if (e.ref_type === 'market_escrow') return (e.amount ?? 0) < 0 ? tx('ISK mutat din portofel în escrow pentru un ordin de cumpărare') : tx('ISK întors din escrow în portofel (ordin expirat, anulat sau modificat)');
+  return e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '';
+}
 
 export interface Session {
   start: number;

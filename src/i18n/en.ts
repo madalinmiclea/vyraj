@@ -2716,4 +2716,9 @@ export const EN: Record<string, string> = {
   "Unele ordine au escrow mai mic decât valoarea lor, datorită skill-ului Margin Trading. Diferența se ia din portofel abia când se cumpără, așa că păstrează ISK disponibil.": "Some orders hold less escrow than their value because of the Margin Trading skill. The difference is taken from your wallet only when items are bought, so keep ISK available.",
   "În escrow": "In escrow",
   "ISK blocat în ordinele de cumpărare active. Se întoarce în portofel la expirare sau anulare.": "ISK held in active buy orders. It returns to your wallet on expiry or cancellation.",
+  "Escrow ordine": "Order escrow",
+  "Blocat în escrow": "Held in escrow",
+  "Returnat din escrow": "Returned from escrow",
+  "ISK mutat din portofel în escrow pentru un ordin de cumpărare": "ISK moved from the wallet into escrow for a buy order",
+  "ISK întors din escrow în portofel (ordin expirat, anulat sau modificat)": "ISK returned from escrow to the wallet (order expired, cancelled or modified)",
 };
