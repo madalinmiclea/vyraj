@@ -121,7 +121,10 @@ const ALLOWED = new Set(['B', 'I', 'U', 'BR', 'P', 'DIV', 'SPAN', 'A', 'FONT', '
 function color(raw: string | null): string | null {
   const m = raw?.trim().match(/^#?([0-9a-f]{6}|[0-9a-f]{8})$/i);
   if (!m) return null;
-  return `#${m[1].length === 8 ? m[1].slice(2) : m[1]}`;
+  const hex = m[1].length === 8 ? m[1].slice(2) : m[1];
+  const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  if (Math.max(...rgb) - Math.min(...rgb) < 40) return null;
+  return `#${hex}`;
 }
 
 function clean(node: Node, doc: Document): Node[] {
@@ -147,7 +150,7 @@ function clean(node: Node, doc: Document): Node[] {
   } else if (el.tagName === 'FONT') {
     out = doc.createElement('span');
     const c = color(el.getAttribute('color'));
-    if (c) out.style.color = c;
+    if (c) { out.className = 'mail-fc'; out.style.setProperty('--mail-fc', c); }
   } else {
     out = doc.createElement(el.tagName.toLowerCase());
   }

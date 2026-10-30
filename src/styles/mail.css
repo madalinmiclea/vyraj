@@ -38,6 +38,8 @@
 .mail-text { margin-top: 16px; font-size: 14px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
 .mail-text a { color: var(--accent); text-decoration: underline; }
 .mail-text .mail-ref { color: var(--gold); }
+.mail-text .mail-fc { color: var(--mail-fc); }
+:root[data-theme='light'] .mail-text .mail-fc { color: color-mix(in srgb, var(--mail-fc) 55%, #000); }
 .mail-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text-dim); }
 .mail-area { font-family: var(--font-body); font-size: 14px; }
 .mail-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
