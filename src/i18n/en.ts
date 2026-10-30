@@ -2714,4 +2714,6 @@ export const EN: Record<string, string> = {
   "Niciun ordin de cumpărare activ, deci nimic blocat în escrow.": "No active buy orders, so nothing is held in escrow.",
   "Ordinele de corporație ({isk}) folosesc walletul corporației și nu intră în totalul de mai sus; la expirare sau anulare escrow-ul lor se întoarce acolo.": "Corporation orders ({isk}) use the corporation wallet and are not in the total above; on expiry or cancellation their escrow returns there.",
   "Unele ordine au escrow mai mic decât valoarea lor, datorită skill-ului Margin Trading. Diferența se ia din portofel abia când se cumpără, așa că păstrează ISK disponibil.": "Some orders hold less escrow than their value because of the Margin Trading skill. The difference is taken from your wallet only when items are bought, so keep ISK available.",
+  "În escrow": "In escrow",
+  "ISK blocat în ordinele de cumpărare active. Se întoarce în portofel la expirare sau anulare.": "ISK held in active buy orders. It returns to your wallet on expiry or cancellation.",
 };

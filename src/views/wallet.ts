@@ -243,7 +243,9 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const title = tx('ISK blocat în escrow');
     const fees = rows.filter((e) => e.ref_type === 'brokers_fee').reduce((a, e) => a - Math.min(0, e.amount ?? 0), 0);
     const note = `<p class="dim small wallet-note">${tx('Escrow-ul este ISK-ul luat din portofel când pui un ordin de cumpărare, pentru cantitatea rămasă. Pe măsură ce ordinul se umple, plata se face din escrow. Când ordinul expiră sau îl anulezi, tot ce a rămas în escrow se întoarce automat în portofel. Comisionul de broker, plătit la plasare și la modificări, nu se mai întoarce.')}</p>`;
+    const kpi = root.querySelector<HTMLElement>('#walletEscrowKpi .value');
     if (!hasScope(characterId, ORDERS_SCOPE)) {
+      if (kpi) kpi.textContent = '—';
       el.innerHTML = panel({ title, body: permissionGate('orders', characterId) + note });
       return;
     }
@@ -252,6 +254,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     try {
       list = await characterOrders(characterId);
     } catch (err) {
+      if (kpi && seq === escrowSeq) kpi.textContent = '—';
       if (seq === escrowSeq && alive()) el.innerHTML = panel({ title, body: `<p class="dim">${esc((err as Error).message)}</p>` });
       return;
     }
@@ -263,6 +266,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const held = sum(own);
     const value = own.reduce((a, o) => a + o.price * o.volume_remain, 0);
     const next = own[0];
+    if (kpi) kpi.textContent = compactISK(held);
     const margin = own.some((o) => (o.escrow ?? 0) < o.price * o.volume_remain - 0.5);
     const row = (o: CharacterOrder) => {
       const full = o.price * o.volume_remain;
@@ -329,6 +333,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
         title: tx('Sold și flux'),
         body: `<div class="history-kpis">
             <div><span class="label">${tx('Sold')}</span><span class="value">${compactISK(balance)}</span></div>
+            <div id="walletEscrowKpi" title="${tx('ISK blocat în ordinele de cumpărare active. Se întoarce în portofel la expirare sau anulare.')}"><span class="label">${tx('În escrow')}</span><span class="value">…</span></div>
             <div title="${tx('Suma tuturor intrărilor pozitive din perioadă ({n})', { n: formatInt(inCount) })}"><span class="label">${tx('Venit total')}</span><span class="value up">${compactISK(f.earned)}</span></div>
             <div title="${tx('Suma tuturor intrărilor negative din perioadă ({n})', { n: formatInt(outCount) })}"><span class="label">${tx('Cheltuieli totale')}</span><span class="value down">${compactISK(f.spent)}</span></div>
             <div title="${tx('Venit total minus cheltuieli totale')}"><span class="label">Net</span><span class="value ${f.net >= 0 ? 'up' : 'down'}">${f.net >= 0 ? '+' : '−'}${compactISK(Math.abs(f.net))}</span></div>
@@ -340,6 +345,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           <div class="wallet-chart">${flowChart(points)}</div>
           ${partial || (period === 'all' && entries.length) ? `<p class="dim small wallet-note">${tx('Graficul începe la {date}, prima zi cu date salvate local.', { date: day(oldest) })}</p>` : ''}`,
       })}
+      <div id="walletEscrow"></div>
       <div class="tool-grid even">
         ${panel({
           title: tx('Toate perioadele'),
@@ -356,8 +362,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
             ${cats.map((r) => `<tr><td><button class="link" data-wallet-ref="${esc(r.ref)}">${esc(refLabel(r.ref))}</button></td><td class="r up">${r.income ? isk(r.income) : ''}</td><td class="r down">${r.spent ? isk(r.spent) : ''}</td><td class="r">${signed(r.income - r.spent)}</td></tr>`).join('')}
             </tbody></table></div>` : `<p class="dim">${tx('Nicio intrare în perioada aleasă.')}</p>`,
         })}
-      </div>
-      <div id="walletEscrow"></div>`;
+      </div>`;
     const journal = () => panel({
         title: tx('Jurnal'),
         actions: button(tx('Export CSV'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-wallet-csv' }),
