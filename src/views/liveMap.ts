@@ -575,7 +575,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     if (!s) return;
     const paused = streamPaused();
     const txt = paused ? tx('Pauză')
-      : status.state === 'backfill' ? tx('Încarc ultimele 30 de minute ({n} kill-uri)', { n: status.loaded })
+      : status.state === 'backfill' ? tx('Încarc ultima oră ({n} kill-uri)', { n: status.loaded })
       : status.state === 'error' ? tx('zKillboard nu răspunde')
       : status.state === 'live' ? (status.lastKill ? (Date.now() - status.lastKill > 10 * 60_000 ? tx('Live · zKillboard întârzie, ultimul kill {ago}', { ago: agoShort(status.lastKill) }) : tx('Live · ultimul kill {ago}', { ago: agoShort(status.lastKill) })) : 'Live') : '';
     s.innerHTML = `<button class="live-pill ${paused ? 'paused' : status.state}" data-pause title="${esc(paused ? tx('Pornește fluxul live') : tx('Oprește fluxul live'))}"><i></i>${esc(txt)}</button>`;
@@ -626,7 +626,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const near = dist ? all.filter((k) => (dist!.get(k.systemId) ?? Infinity) <= settings.range) : [];
     const hot = [...stats.entries()].sort((a, b) => (b[1].n + b[1].pods + (b[1].camp ? 10 : 0)) - (a[1].n + a[1].pods + (a[1].camp ? 10 : 0))).slice(0, 8);
     const camps = [...stats.entries()].filter(([, st]) => st.camp);
-    if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultimele 30 de minute'));
+    if (status.state === 'backfill' && !all.length) return loader(tx('Încarc kill-urile din ultima oră'));
     if (status.state === 'error' && !all.length) return alertBox(tx('Fluxul zKillboard nu răspunde acum: e căzut sau a limitat temporar cererile din rețeaua ta. Harta reîncearcă singură, rar, ca limita să treacă.'), 'warn');
     const inRange = dist ? camps.filter(([id]) => (dist!.get(id) ?? Infinity) <= settings.range) : camps;
     const campList = (list: typeof camps) => list.slice(0, 6).map(([id]) => {

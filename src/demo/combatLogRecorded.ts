@@ -783,6 +783,9 @@ export const GILA_FIGHT = `
 100|combat|-33 GJ energy drained to Gila [KSTR] [Aldric Venn] - - Medium Ghoul Compact Energy Nosferatu
 100|combat|-4 GJ energy drained to Gila [KSTR] [Aldric Venn] - - Small Energy Nosferatu II
 101|combat|621 to Aldric Venn[KSTR](Gila) - Caldari Navy Mjolnir Cruise Missile - Hits
+103|notify|Caldari Navy Mjolnir Cruise Missile deactivates as the item it was targeted at is no longer present.
+106|notify|Interference from Capsule — Aldric Venn's warp prevents your sensors from locking the target.
+108|notify|The target Capsule — Aldric Venn is too far away. It must be within 148 km.
 101|combat|32 from Tetrimon Heretic - Smashes
 103|combat|5 GJ energy neutralized Tetrimon Crucifier - Tetrimon Crucifier
 103|combat|5 from Tetrimon Crucifier - Grazes

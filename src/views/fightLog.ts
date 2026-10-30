@@ -51,8 +51,13 @@ const niceCeil = (v: number) => {
   const p = 10 ** Math.floor(Math.log10(v));
   return ([1, 2, 2.5, 5, 10].find((m) => m * p >= v) ?? 10) * p;
 };
+const TICK_SECONDS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+const tickEvery = (n: number, step: number, max: number) => {
+  const sec = TICK_SECONDS.find((c) => c % step === 0 && (n * step) / c <= max);
+  return sec ? sec / step : Math.max(1, Math.ceil(n / max));
+};
 const stripTags = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-const momentGroup = (k: Moment['kind']) => (k === 'tackleIn' || k === 'tackleOut' || k === 'warpBlocked' ? 'g-tackle' : k === 'neutIn' || k === 'capEmpty' ? 'g-cap' : k === 'arrive' || k === 'peakIn' ? 'g-in' : k === 'silent' || k === 'peakOut' ? 'g-out' : 'g-other');
+const momentGroup = (k: Moment['kind']) => (k === 'tackleIn' || k === 'tackleOut' || k === 'warpBlocked' ? 'g-tackle' : k === 'neutIn' || k === 'capEmpty' ? 'g-cap' : k === 'arrive' || k === 'peakIn' ? 'g-in' : k === 'silent' || k === 'peakOut' || k === 'kill' ? 'g-out' : 'g-other');
 
 const QUALITY_CLASS: Record<string, string> = { Wrecks: 'q0', Smashes: 'q1', Penetrates: 'q2', Hits: 'q3', 'Glances Off': 'q4', Grazes: 'q5' };
 
@@ -299,7 +304,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       ${statTile(tx('Damage dat'), formatInt(enc.dmgOut), tx('{dps} DPS mediu · vârf {peak}', { dps: formatInt(enc.dmgOut / dur), peak: formatInt(a.peakOut.dps) }), 'fight-tone-out')}
       ${statTile(tx('Damage primit'), formatInt(enc.dmgIn), tx('{dps} DPS mediu · vârf {peak}', { dps: formatInt(enc.dmgIn / dur), peak: formatInt(a.peakIn.dps) }), 'fight-tone-in')}
       ${statTile(tx('Capacitor pierdut'), `${formatInt(a.capIn)}<small>GJ</small>`, a.capIn ? tx('{rate} GJ/s în medie prin neut și nos', { rate: formatNum(a.capIn / dur, 1) }) : tx('Nimeni nu ți-a neutralizat capacitorul'), 'fight-tone-cap')}
-      ${statTile(tx('Precizie'), `${accOut}%`, tx('lovituri reușite; ale lor: {pct}%', { pct: accIn }), 'fight-tone-acc')}
+      ${statTile(tx('Precizie'), a.hitsOut + a.missOut ? `${accOut}%` : '—', a.hitsIn + a.missIn ? tx('lovituri reușite; ale lor: {pct}%', { pct: accIn }) : tx('lovituri reușite; ei nu au tras în tine'), 'fight-tone-acc')}
       ${a.repIn ? statTile(tx('Reparații primite'), formatInt(a.repIn), tx('de la flotă, prin module remote'), 'fight-tone-rep') : ''}
     </div>`;
 
@@ -353,7 +358,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${xc(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
     const area = (vals: number[]) => `${line(vals)}L${xc(n - 1).toFixed(1)},${base}L${xc(0).toFixed(1)},${base}Z`;
     let cursor = base + 22;
-    const every = Math.max(1, Math.ceil(n / 8));
+    const every = tickEvery(n, a.step, 8);
     const xLabels = a.buckets.map((b, i) => (i % every === 0 ? `<text x="${xc(i).toFixed(1)}" y="${base + 16}" text-anchor="middle">${rel(b.t - enc.start)}</text>` : '')).join('');
     let capLane = '';
     if (a.capIn) {
@@ -403,11 +408,11 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const x = (i: number) => pl + ((i + 1) / n) * (w - pl - pr);
     const y = (v: number) => pt + (1 - v / max) * plotH;
     const path = (k: 'o' | 'd') => `M${pl},${y(0)}` + pts.map((p, i) => `L${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join('');
-    const every = Math.max(1, Math.ceil(n / 4));
+    const every = tickEvery(n, a.step, 4);
     return `<div class="series-wrap" data-chart="cumul"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
       <text class="axis-title" transform="translate(12 ${pt + plotH / 2}) rotate(-90)" text-anchor="middle">${esc(tx('Damage adunat'))}</text>
       ${[0, 0.5, 1].map((f) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${y(max * f)}" y2="${y(max * f)}" /><text x="${pl - 6}" y="${y(max * f) + 4}" text-anchor="end">${compact(max * f)}</text>`).join('')}
-      ${pts.map((p, i) => (i % every === 0 ? `<text x="${x(i).toFixed(1)}" y="${pt + plotH + 16}" text-anchor="middle">${rel(p.t - enc.start + a.step * 1000)}</text>` : '')).join('')}
+      ${pts.map((p, i) => ((i + 1) % every === 0 ? `<text x="${x(i).toFixed(1)}" y="${pt + plotH + 16}" text-anchor="middle">${rel(p.t - enc.start + a.step * 1000)}</text>` : '')).join('')}
       <text class="axis-title" x="${pl + (w - pl - pr) / 2}" y="${h - 3}" text-anchor="middle">${esc(tx('Timp (min:sec)'))}</text>
       <path class="line out" d="${path('o')}" /><path class="line in" d="${path('d')}" />
       <line class="cursor" x1="0" x2="0" y1="${pt}" y2="${pt + plotH}" style="display:none" />
@@ -423,7 +428,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     const maxR = niceCeil(Math.max(1, ...rates));
     const plotH = h - pt - pb;
     const bw = Math.max(0.8, step * 0.75);
-    const every = Math.max(1, Math.ceil(n / 4));
+    const every = tickEvery(n, a.step, 4);
     return `<div class="series-wrap" data-chart="cap"><svg class="series-chart fight-chart" viewBox="0 0 ${w} ${h}" role="img">
       <text class="axis-title" transform="translate(12 ${pt + plotH / 2}) rotate(-90)" text-anchor="middle">${esc(tx('GJ pe secundă'))}</text>
       ${[0, 0.5, 1].map((f) => `<line class="grid" x1="${pl}" x2="${w - pr}" y1="${pt + (1 - f) * plotH}" y2="${pt + (1 - f) * plotH}" /><text x="${pl - 6}" y="${pt + (1 - f) * plotH + 4}" text-anchor="end">${formatInt(maxR * f)}</text>`).join('')}
@@ -464,6 +469,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
 
   function actorTable(enc: Encounter, a: FightAnalysis) {
     const tackleLabel = (s: string) => s.split(', ').map((k) => (k === 'scramble' ? 'scram' : k === 'disruption' ? 'point' : k)).join(', ');
+    const killed = new Set(a.moments.filter((m) => m.kind === 'kill').map((m) => m.who));
     const rows = a.actors.map((s: ActorStats) => {
       const id = ids.get(s.actor.name.toLowerCase());
       const name = id
@@ -472,7 +478,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       const avatar = id ? `<img class="row-icon round" src="${portraitUrl(id, 32)}" alt="" loading="lazy" />` : '';
       const tackle = [s.tackledBy ? `<span class="fight-in">${tx('te ține')}: ${esc(tackleLabel(s.tackledBy))}</span>` : '', s.tackled ? `<span class="fight-out">${tx('îl ții')}: ${esc(tackleLabel(s.tackled))}</span>` : ''].filter(Boolean).join('<br>');
       return `<tr>
-        <td><span class="recon-ship">${shipIcon(s.actor)}${avatar}<span class="recon-aff">${name}<small>${esc([s.actor.player ? s.actor.ship : 'NPC', s.actor.corp ? `[${s.actor.corp}]` : '', s.actor.alliance ? `<${s.actor.alliance}>` : ''].filter(Boolean).join(' '))}</small></span></span></td>
+        <td><span class="recon-ship">${shipIcon(s.actor)}${avatar}<span class="recon-aff">${name}<small>${esc([s.actor.player ? s.actor.ship : 'NPC', s.actor.corp ? `[${s.actor.corp}]` : '', s.actor.alliance ? `<${s.actor.alliance}>` : ''].filter(Boolean).join(' '))}${killed.has(s.actor.key) ? ` · <span class="fight-out">${tx('distrus')}</span>` : ''}</small></span></span></td>
         <td class="r num fight-in">${s.dmgFrom ? formatInt(s.dmgFrom) : '<span class="dim">—</span>'}</td>
         <td class="r num">${s.maxFrom ? formatInt(s.maxFrom) : '<span class="dim">—</span>'}</td>
         <td class="r num">${s.hitsFrom + s.missFrom ? `${pct(s.hitsFrom, s.hitsFrom + s.missFrom)}%` : '<span class="dim">—</span>'}</td>
@@ -524,6 +530,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       case 'tackleOut': return tx('Îl prinzi pe {who} cu {kind}', { who, kind });
       case 'neutIn': return tx('{who} începe să-ți golească capacitorul', { who });
       case 'arrive': return tx('{who} intră în luptă', { who });
+      case 'kill': return tx('{who} își pierde nava: în log apare capsula lui', { who });
       case 'silent': return tx('{who} dispare din log după ultimele tale lovituri: distrus sau a plecat', { who });
       case 'jam': return tx('Ești bruiat de {who}', { who });
       case 'reload': return tx('Reîncărcare: {weapon}', { weapon: esc(m.text) });

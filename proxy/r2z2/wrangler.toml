@@ -1,3 +1,11 @@
 name = "vyraj-r2z2"
 main = "worker.js"
 compatibility_date = "2026-10-01"
+
+[[durable_objects.bindings]]
+name = "FEED"
+class_name = "Feed"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Feed"]

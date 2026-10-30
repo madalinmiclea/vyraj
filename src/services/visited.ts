@@ -353,7 +353,7 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
   const seen = new Set(visited);
   seen.add(start);
   const ok = (s: NavSystem) => isKspace(s) && s.id !== ZARZAKH;
-  const isTarget = (s: NavSystem) => allowedFor(level, s) && !seen.has(s.id) && (!opts.region || s.regionId === opts.region);
+  const isTarget = (s: NavSystem) => allowedFor(level, s) && !seen.has(s.id) && (!opts.region || s.regionId === opts.region) && (level === 'yolo' || !isRiskyStop(level, opts.activity?.get(s.id)));
   const path: number[] = [start];
   const fresh: number[] = [];
   const waypoints: number[] = [];

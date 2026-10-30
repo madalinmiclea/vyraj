@@ -308,9 +308,10 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         const s = map!.systems.get(id)!;
         const a = activity?.get(id);
         const pvp = a ? a.ship + a.pod : 0;
-        return `<div class="vis-step ${freshSet.has(id) ? 'new' : ''}" data-sys="${id}">
+        const fresh = freshSet.has(id) && plan!.path.indexOf(id) === i;
+        return `<div class="vis-step ${fresh ? 'new' : ''}" data-sys="${id}">
           <span class="num dim">${i || '·'}</span>${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
-          ${freshSet.has(id) ? badge(tx('nou'), 'gold') : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), plan!.risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
+          ${fresh ? badge(tx('nou'), 'gold') : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), plan!.risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
         </div>`;
       }).join('');
       return `<div class="history-kpis vis-kpis">
@@ -341,14 +342,19 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
 
   function importHtml() {
     const chars = trackable();
-    const live = chars.filter((c) => hasScope(c.characterId!, LOCATION_SCOPE));
-    const missing = chars.filter((c) => !hasScope(c.characterId!, LOCATION_SCOPE)).map((c) => ({ characterId: c.characterId!, name: c.name }));
+    const pilot = chars.find((c) => c.name === settings.who) ?? chars.find((c) => c.name === ctx.character.name);
+    const tracked = !!pilot && hasScope(pilot.characterId!, LOCATION_SCOPE);
+    const others = chars.filter((c) => c !== pilot && hasScope(c.characterId!, LOCATION_SCOPE)).length;
     const st = visitStats();
     const who = visitors();
+    const liveHtml = !pilot
+      ? `<p class="dim small">${settings.who ? tx('{name} nu e logat cu EVE în Vyraj, așa că sistemele lui vin doar din importul de loguri.', { name: esc(settings.who) }) : tx('Fă login cu EVE și permite locația ca Vyraj să noteze singur sistemele prin care treci.')}</p>`
+      : tracked
+        ? `<p class="small">${tx('Vyraj notează singur sistemul în care e {name}. Merge cât timp aplicația e deschisă, chiar și în fundal.', { name: `<b>${esc(pilot.name)}</b>` })}${others ? ` <span class="dim">${tx(others === 1 ? 'Încă un caracter e urmărit la fel.' : 'Încă {n} caractere sunt urmărite la fel.', { n: others })}</span>` : ''}</p>
+          <div class="vis-route-actions">${button(tx('Verifică acum'), { iconName: 'refresh', cls: 'ghost sm', attrs: 'data-vis-track' })}</div>`
+        : permissionButtons('location', [{ characterId: pilot.characterId!, name: pilot.name }]);
     return `<div class="label">${tx('Urmărire live')}</div>
-      ${live.length ? `<p class="small">${tx('Vyraj notează singur sistemul în care ești pentru: {list}. Merge cât timp aplicația e deschisă, chiar și în fundal.', { list: `<b>${live.map((c) => esc(c.name)).join(', ')}</b>` })}</p>
-        <div class="vis-route-actions">${button(tx('Verifică acum'), { iconName: 'refresh', cls: 'ghost sm', attrs: 'data-vis-track' })}</div>` : `<p class="dim small">${tx('Fă login cu EVE și permite locația ca Vyraj să noteze singur sistemele prin care treci.')}</p>`}
-      ${missing.length ? permissionButtons('location', missing) : ''}
+      ${liveHtml}
       <div class="label">${tx('Import din loguri EVE')}</div>
       <p class="dim small">${tx('Pentru istoricul de dinainte, alege folderul logs al jocului (de obicei Documente/EVE/logs). Vyraj citește doar canalul Local din Chatlogs și salturile din Gamelogs, direct în browser; nimic nu pleacă de pe calculator.')}</p>
       <div class="vis-route-actions">

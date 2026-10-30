@@ -1,5 +1,5 @@
 export type Dir = 'out' | 'in';
-export type EventKind = 'dmg' | 'miss' | 'neut' | 'nos' | 'rep' | 'tackle' | 'jam' | 'reload' | 'capEmpty' | 'warpBlocked' | 'warp';
+export type EventKind = 'dmg' | 'miss' | 'neut' | 'nos' | 'rep' | 'tackle' | 'jam' | 'reload' | 'capEmpty' | 'warpBlocked' | 'warp' | 'pod';
 
 export interface Actor {
   key: string;
@@ -65,6 +65,7 @@ const WARP_BLOCKED = /^External factors are preventing your warp/;
 const WARPING = /^You cannot do that while warping/;
 const JUMP = /^Jumping from .+? to (.+)$/;
 const UNDOCK = /^Undocking from .+? to (.+?) solar system/;
+const POD = /\bCapsule — (.+?)(?:'s | is )/;
 
 const strip = (s: string) => s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
@@ -141,6 +142,8 @@ export function parseCombatLog(raw: string): ParsedLog {
       if (c) out.events.push({ t, kind: 'capEmpty', dir: 'in', amount: parseFloat(c[2].replace(',', '.')), who: '', weapon: c[1].trim(), quality: '', sub: '' });
       if (WARP_BLOCKED.test(text)) out.events.push({ t, kind: 'warpBlocked', dir: 'in', amount: 0, who: '', weapon: '', quality: '', sub: '' });
       if (WARPING.test(text)) out.events.push({ t, kind: 'warp', dir: 'out', amount: 0, who: '', weapon: '', quality: '', sub: '' });
+      const pod = POD.exec(text)?.[1].trim().toLowerCase();
+      if (pod && out.actors.has(pod) && !out.events.some((e) => e.kind === 'pod' && e.who === pod)) out.events.push({ t, kind: 'pod', dir: 'out', amount: 0, who: pod, weapon: '', quality: '', sub: '' });
       continue;
     }
     if (channel !== 'combat') continue;
@@ -179,7 +182,7 @@ export function parseCombatLog(raw: string): ParsedLog {
 }
 
 const ACTIVE = new Set<EventKind>(['dmg', 'miss', 'neut', 'nos', 'tackle', 'jam', 'rep']);
-const TAIL = new Set<EventKind>(['warp', 'warpBlocked', 'capEmpty']);
+const TAIL = new Set<EventKind>(['warp', 'warpBlocked', 'capEmpty', 'pod']);
 
 export function splitEncounters(logs: ParsedLog[]): Encounter[] {
   const list: Encounter[] = [];
@@ -259,7 +262,7 @@ export interface WeaponStats {
 
 export interface Moment {
   t: number;
-  kind: 'start' | 'tackleIn' | 'tackleOut' | 'neutIn' | 'jam' | 'reload' | 'peakIn' | 'peakOut' | 'silent' | 'end' | 'arrive' | 'capEmpty' | 'warpBlocked' | 'warp';
+  kind: 'start' | 'tackleIn' | 'tackleOut' | 'neutIn' | 'jam' | 'reload' | 'peakIn' | 'peakOut' | 'silent' | 'end' | 'arrive' | 'capEmpty' | 'warpBlocked' | 'warp' | 'kill';
   text: string;
   who?: string;
   value?: number;
@@ -340,7 +343,7 @@ export function analyzeFight(enc: Encounter): FightAnalysis {
 
   for (const e of enc.events) {
     const b = buckets[Math.min(count - 1, Math.floor((e.t - start) / 1000 / step))];
-    const s = e.who ? statOf(e.who, e.t) : null;
+    const s = e.who && e.kind !== 'pod' ? statOf(e.who, e.t) : null;
     if (s && e.kind !== 'reload') s.marks.push({ t: e.t, kind: e.kind, dir: e.dir });
     if (s && e.weapon && e.dir === 'in' && !s.weapons.includes(e.weapon) && e.kind !== 'tackle') s.weapons.push(e.weapon);
     switch (e.kind) {
@@ -398,9 +401,11 @@ export function analyzeFight(enc: Encounter): FightAnalysis {
   if (tOut) moments.push({ t: tOut.t, kind: 'tackleOut', text: tOut.sub, who: tOut.who });
   const nIn = firstOf((e) => (e.kind === 'neut' || e.kind === 'nos') && e.dir === 'in');
   if (nIn) moments.push({ t: nIn.t, kind: 'neutIn', text: nIn.weapon, who: nIn.who });
+  const killed = new Map(enc.events.filter((e) => e.kind === 'pod').map((e) => [e.who, e.t]));
+  for (const [who, t] of killed) moments.push({ t, kind: 'kill', text: '', who });
   for (const s of actors) {
     if (s.first > start + 5000 && (s.dmgFrom > 0 || s.neut > 0 || s.tackledBy)) moments.push({ t: s.first, kind: 'arrive', text: '', who: s.actor.key });
-    if (s.lastHitTo && s.dmgTo > 0 && enc.end - s.last > 8000 && s.last - s.lastHitTo < 6000) moments.push({ t: s.last, kind: 'silent', text: '', who: s.actor.key });
+    if (!killed.has(s.actor.key) && s.lastHitTo && s.dmgTo > 0 && enc.end - s.last > 8000 && s.last - s.lastHitTo < 6000) moments.push({ t: s.last, kind: 'silent', text: '', who: s.actor.key });
   }
   const lastOf: Partial<Record<EventKind, number>> = {};
   const spaced = (e: CombatEvent) => {
@@ -441,10 +446,10 @@ const TAIL_KINDS = new Set<EventKind>(['reload', 'capEmpty', 'warpBlocked', 'war
 export function playerFocus(enc: Encounter): Encounter | null {
   const players = new Set([...enc.actors.values()].filter((a) => a.player).map((a) => a.key));
   if (!players.size || players.size === enc.actors.size) return null;
-  const own = enc.events.filter((e) => e.who && players.has(e.who));
+  const own = enc.events.filter((e) => e.who && players.has(e.who) && e.kind !== 'pod');
   if (!own.length) return null;
   const start = own[0].t, end = own[own.length - 1].t;
-  const events = enc.events.filter((e) => (e.who ? players.has(e.who) && e.t >= start && e.t <= end : TAIL_KINDS.has(e.kind) && e.t >= start - FOCUS_PAD_MS && e.t <= end + FOCUS_PAD_MS));
+  const events = enc.events.filter((e) => (e.who ? players.has(e.who) && e.t >= start && e.t <= (e.kind === 'pod' ? end + TAIL_MS : end) : TAIL_KINDS.has(e.kind) && e.t >= start - FOCUS_PAD_MS && e.t <= end + FOCUS_PAD_MS));
   const actors = new Map([...enc.actors].filter(([k]) => players.has(k)));
   let dmgOut = 0, dmgIn = 0;
   for (const e of events) if (e.kind === 'dmg') { if (e.dir === 'out') dmgOut += e.amount; else dmgIn += e.amount; }
