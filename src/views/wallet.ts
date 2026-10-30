@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { panel, loader, esc, formatInt, formatNum, compactISK, button, dataStamp } from '../ui/components';
+import { panel, loader, esc, formatInt, formatNum, formatISK, compactISK, button, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
@@ -11,6 +11,9 @@ import type { Dmg } from '../services/missions';
 import { flowChart, bindFlowChart, type FlowPoint } from '../ui/charts';
 import { typeIconUrl } from '../services/market';
 import { allEveItems } from '../data/items';
+import { characterOrders, expiresAt, typeName, ORDERS_SCOPE, type CharacterOrder } from '../services/orders';
+import { hasScope } from '../character/sso';
+import { permissionGate } from '../character/permissions';
 import { tx, locale } from '../i18n';
 
 const PERIOD_KEY = 'eve-tools:wallet-period';
@@ -39,6 +42,14 @@ const isk = (v: number) => `<span class="num">${compactISK(v)}</span>`;
 const signed = (v: number) => `<span class="num ${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : '−'}${compactISK(Math.abs(v))}</span>`;
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+const remaining = (ms: number) => {
+  const m = Math.round(ms / 60000);
+  if (m <= 0) return tx('expirat');
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h} h ${String(m % 60).padStart(2, '0')} min`;
+  return tx('{n} zile', { n: Math.floor(h / 24) });
+};
 const describe = (e: WalletEntry) => (e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '');
 
 export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, view: WalletState, force = false) {
@@ -224,6 +235,62 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     }) : ''}`;
   }
 
+  let escrowSeq = 0;
+  async function renderEscrow(rows: WalletEntry[]) {
+    const el = root.querySelector<HTMLElement>('#walletEscrow');
+    if (!el) return;
+    const seq = ++escrowSeq;
+    const title = tx('ISK blocat în escrow');
+    const fees = rows.filter((e) => e.ref_type === 'brokers_fee').reduce((a, e) => a - Math.min(0, e.amount ?? 0), 0);
+    const note = `<p class="dim small wallet-note">${tx('Escrow-ul este ISK-ul luat din portofel când pui un ordin de cumpărare, pentru cantitatea rămasă. Pe măsură ce ordinul se umple, plata se face din escrow. Când ordinul expiră sau îl anulezi, tot ce a rămas în escrow se întoarce automat în portofel. Comisionul de broker, plătit la plasare și la modificări, nu se mai întoarce.')}</p>`;
+    if (!hasScope(characterId, ORDERS_SCOPE)) {
+      el.innerHTML = panel({ title, body: permissionGate('orders', characterId) + note });
+      return;
+    }
+    el.innerHTML = panel({ title, body: loader(tx('Citesc ordinele de cumpărare')) });
+    let list: CharacterOrder[];
+    try {
+      list = await characterOrders(characterId);
+    } catch (err) {
+      if (seq === escrowSeq && alive()) el.innerHTML = panel({ title, body: `<p class="dim">${esc((err as Error).message)}</p>` });
+      return;
+    }
+    if (seq !== escrowSeq || !alive()) return;
+    const buys = list.filter((o) => o.is_buy_order).sort((a, b) => expiresAt(a) - expiresAt(b));
+    const own = buys.filter((o) => !o.is_corporation);
+    const corp = buys.filter((o) => o.is_corporation);
+    const sum = (l: CharacterOrder[]) => l.reduce((a, o) => a + (o.escrow ?? 0), 0);
+    const held = sum(own);
+    const value = own.reduce((a, o) => a + o.price * o.volume_remain, 0);
+    const next = own[0];
+    const margin = own.some((o) => (o.escrow ?? 0) < o.price * o.volume_remain - 0.5);
+    const row = (o: CharacterOrder) => {
+      const full = o.price * o.volume_remain;
+      const left = expiresAt(o) - Date.now();
+      return `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(o.type_id, 32)}" alt="" loading="lazy" /><span>${esc(typeName(o.type_id))}</span></span>${o.is_corporation ? ' <span class="badge">Corp</span>' : ''}</td>
+        <td class="r num">${formatISK(o.price)}</td>
+        <td class="r num nowrap">${formatInt(o.volume_remain)} <span class="small dim">/ ${formatInt(o.volume_total)}</span></td>
+        <td class="r">${isk(o.escrow ?? 0)}${(o.escrow ?? 0) < full - 0.5 ? `<div class="small dim">${tx('din {v}', { v: compactISK(full) })}</div>` : ''}</td>
+        <td class="r num nowrap">${remaining(left)}<div class="small dim">${dateTime(expiresAt(o))}</div></td></tr>`;
+    };
+    el.innerHTML = panel({
+      title,
+      count: buys.length ? tx('{n} ordine de cumpărare', { n: formatInt(buys.length) }) : '',
+      actions: `<a class="btn ghost sm" href="#/orders">${tx('Deschide ordinele')}</a>`,
+      body: `<div class="history-kpis">
+          <div title="${tx('Suma care se întoarce în portofel dacă toate ordinele de cumpărare expiră sau le anulezi acum')}"><span class="label">${tx('În escrow acum')}</span><span class="value">${compactISK(held)}</span></div>
+          <div title="${tx('Soldul din portofel plus ISK-ul din escrow')}"><span class="label">${tx('Sold cu escrow')}</span><span class="value">${compactISK(balance + held)}</span></div>
+          <div><span class="label">${tx('Rămas de cumpărat')}</span><span class="value">${compactISK(value)}</span></div>
+          <div title="${tx('Comision de broker plătit în perioada aleasă. Nu se returnează.')}"><span class="label">${tx('Comision broker în perioadă')}</span><span class="value down">${compactISK(fees)}</span></div>
+          <div><span class="label">${tx('Primul expiră în')}</span><span class="value">${next ? remaining(expiresAt(next) - Date.now()) : '—'}</span></div>
+        </div>
+        ${buys.length ? `<div class="wallet-scroll"><table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Preț')}</th><th class="r">${tx('Rămas')}</th><th class="r">Escrow</th><th class="r">${tx('Expiră')}</th></tr></thead><tbody>${buys.map(row).join('')}</tbody></table></div>` : `<p class="dim">${tx('Niciun ordin de cumpărare activ, deci nimic blocat în escrow.')}</p>`}
+        ${corp.length ? `<p class="dim small wallet-note">${tx('Ordinele de corporație ({isk}) folosesc walletul corporației și nu intră în totalul de mai sus; la expirare sau anulare escrow-ul lor se întoarce acolo.', { isk: compactISK(sum(corp)) })}</p>` : ''}
+        ${margin ? `<p class="dim small wallet-note">${tx('Unele ordine au escrow mai mic decât valoarea lor, datorită skill-ului Margin Trading. Diferența se ia din portofel abia când se cumpără, așa că păstrează ISK disponibil.')}</p>` : ''}
+        ${note}`,
+    });
+  }
+
   function exportCsv(rows: WalletEntry[]) {
     const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const lines = [['date', 'type', 'amount', 'balance', 'description'].join(','), ...journalRows(rows).map((e) => [e.date, e.ref_type, e.amount ?? 0, e.balance ?? '', e.description ?? ''].map(cell).join(','))];
@@ -289,7 +356,8 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
             ${cats.map((r) => `<tr><td><button class="link" data-wallet-ref="${esc(r.ref)}">${esc(refLabel(r.ref))}</button></td><td class="r up">${r.income ? isk(r.income) : ''}</td><td class="r down">${r.spent ? isk(r.spent) : ''}</td><td class="r">${signed(r.income - r.spent)}</td></tr>`).join('')}
             </tbody></table></div>` : `<p class="dim">${tx('Nicio intrare în perioada aleasă.')}</p>`,
         })}
-      </div>`;
+      </div>
+      <div id="walletEscrow"></div>`;
     const journal = () => panel({
         title: tx('Jurnal'),
         actions: button(tx('Export CSV'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-wallet-csv' }),
@@ -331,7 +399,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       ratting: () => '<div id="walletTicks" class="stack"></div>',
     };
     root.innerHTML = bar + content[view.section]();
-    if (view.section === 'overview') bindFlowChart(root, points);
+    if (view.section === 'overview') { bindFlowChart(root, points); renderEscrow(rows); }
     if (view.section === 'journal') renderJournal(rows);
     if (view.section === 'bounty' || view.section === 'ratting') renderTicks(rows);
   }

@@ -6,10 +6,10 @@ import { loginProblem } from '../character/sso';
 import { permissionGate, hasPermission } from '../character/permissions';
 import { portraitUrl } from '../character/esi';
 import {
-  listMail, readMail, updateMail, deleteMail, mailLabels, createLabel, deleteLabel, mailingLists, sendMail, lookupRecipients, nameMap,
+  listMail, readMail, updateMail, deleteMail, createLabel, deleteLabel, sendMail, lookupRecipients, cachedGet, mailPath, mailNames, cachedMailName,
   mailHtml, mailText, bodyFromText, canRead, canOrganize, canSend,
   LABEL_INBOX, LABEL_SENT, LABEL_CORP, LABEL_ALLIANCE, LABEL_COLORS,
-  type MailHeader, type MailBody, type MailLabel, type MailingList, type MailRecipient,
+  type MailHeader, type MailBody, type MailLabel, type MailLabels, type MailingList, type MailRecipient, type Fresh,
 } from '../services/mail';
 import { tx, locale } from '../i18n';
 
@@ -33,6 +33,15 @@ const sameFolder = (a: Folder, b: Folder) => a.kind === b.kind && (a.kind === 'a
 
 interface Compose { to: string; list: number; subject: string; body: string }
 
+interface FolderCache { first?: Fresh<MailHeader[]>; older: MailHeader[]; more: boolean }
+
+interface Store { labels?: Fresh<MailLabels>; lists?: Fresh<MailingList[]>; folders: Record<string, FolderCache>; bodies: Record<string, MailBody> }
+
+const CACHE_KEY = (id: number) => `eve-mail:cache:${id}`;
+const MAX_BODIES = 300;
+
+const folderKey = (f: Folder) => (f.kind === 'label' ? `label:${f.id}` : 'all');
+
 export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   const ui = loadJson<{ folder: Folder }>(UI_KEY, { folder: { kind: 'label', id: LABEL_INBOX } });
   let owner = 0;
@@ -40,9 +49,14 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
   let lists: MailingList[] = [];
   let headers: MailHeader[] = [];
   let more = false;
-  let cursor = 0;
+  let store: Store = { folders: {}, bodies: {} };
   let names = new Map<number, string>();
-  const bodies = new Map<number, MailBody>();
+  const bodies = {
+    get: (id: number): MailBody | undefined => store.bodies[id],
+    has: (id: number) => id in store.bodies,
+    set: (id: number, b: MailBody) => { store.bodies[id] = b; persist(); },
+    delete: (id: number) => { delete store.bodies[id]; },
+  };
   let selected: number | null = null;
   let loading = false;
   let error = '';
@@ -52,7 +66,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
   const body = el.querySelector<HTMLElement>('#mailBody')!;
 
   const save = () => saveJson(UI_KEY, ui);
-  const who = (id?: number) => (id ? names.get(id) ?? '…' : '—');
+  const who = (id?: number) => (id ? lists.find((l) => l.mailing_list_id === id)?.name ?? names.get(id) ?? cachedMailName(id) ?? '…' : '—');
   const labelById = (id: number) => labels.find((l) => l.label_id === id);
   const listRecipient = (h: MailHeader) => h.recipients?.find((r) => r.recipient_type === 'mailing_list')?.recipient_id;
 
@@ -95,7 +109,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const b = bodies.get(selected);
     if (!b) return `<div class="mail-empty">${loader(tx('Citim mailul'))}</div>`;
     const recips = (b.recipients ?? h?.recipients ?? []).map((r) => `<span class="mail-to-chip">${esc(who(r.recipient_id))}</span>`).join('');
-    const mine = new Set(b.labels ?? h?.labels ?? []);
+    const mine = new Set(h?.labels ?? b.labels ?? []);
     const organize = canOrganize(owner);
     const labelChips = labels.filter((l) => l.label_id !== LABEL_SENT).map((l) => `<button class="chip-btn ${mine.has(l.label_id) ? 'active' : ''}" data-mail-label="${l.label_id}" ${organize ? '' : 'disabled'}><i class="mail-dot" style="--mail-c:${esc(l.color ?? 'transparent')}"></i>${esc(labelName(l))}</button>`).join('');
     return `<article class="mail-read">
@@ -146,71 +160,134 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     })}`;
   }
 
-  async function resolve(ids: number[]) {
-    const missing = [...new Set(ids)].filter((id) => id && !names.has(id));
-    if (!missing.length) return;
-    const found = await nameMap(missing, lists);
-    for (const [id, n] of found) names.set(id, n);
+  function persist() {
+    if (!owner) return;
+    const ids = Object.keys(store.bodies).map(Number).sort((x, y) => y - x);
+    for (const id of ids.slice(MAX_BODIES)) delete store.bodies[id];
+    if (saveJson(CACHE_KEY(owner), store)) return;
+    for (const id of ids.slice(50)) delete store.bodies[id];
+    saveJson(CACHE_KEY(owner), store);
   }
 
-  const idsOf = (list: { from?: number; recipients?: MailRecipient[] }[]) => list.flatMap((h) => [h.from ?? 0, ...(h.recipients ?? []).map((r) => r.recipient_id)]);
+  const folderCache = (f: Folder = ui.folder) => (store.folders[folderKey(f)] ??= { older: [], more: false });
 
-  async function fetchPage(reset: boolean) {
+  function sync() {
+    const fc = folderCache();
+    const first = fc.first?.data ?? [];
+    const seen = new Set(first.map((h) => h.mail_id));
+    let all = [...first, ...fc.older.filter((h) => !seen.has(h.mail_id))];
+    const f = ui.folder;
+    if (f.kind === 'list') all = all.filter((h) => h.recipients?.some((r) => r.recipient_id === f.id));
+    headers = all;
+    more = fc.more;
+    labels = store.labels?.data.labels ?? [];
+    lists = store.lists?.data ?? [];
+  }
+
+  const peopleOf = (list: { from?: number; recipients?: MailRecipient[] }[]) => list.flatMap((h) => [h.from ?? 0, ...(h.recipients ?? []).filter((r) => r.recipient_type !== 'mailing_list').map((r) => r.recipient_id)]);
+
+  async function fillNames(list: { from?: number; recipients?: MailRecipient[] }[]) {
+    if (await mailNames(peopleOf(list))) render();
+  }
+
+  function patch(id: number, change: Partial<MailHeader>) {
+    for (const fc of Object.values(store.folders)) for (const h of [...(fc.first?.data ?? []), ...fc.older]) if (h.mail_id === id) Object.assign(h, change);
+    const b = store.bodies[id];
+    if (b && change.labels) b.labels = change.labels;
+    persist();
+  }
+
+  function drop(id: number) {
+    for (const fc of Object.values(store.folders)) {
+      if (fc.first) fc.first.data = fc.first.data.filter((h) => h.mail_id !== id);
+      fc.older = fc.older.filter((h) => h.mail_id !== id);
+    }
+    delete store.bodies[id];
+    persist();
+  }
+
+  async function loadMeta(force = false) {
+    const t = token;
+    const [l, m] = await Promise.all([
+      cachedGet<MailLabels>(owner, '/mail/labels/', store.labels, force).catch(() => null),
+      cachedGet<MailingList[]>(owner, '/mail/lists/', store.lists, force).catch(() => null),
+    ]);
+    if (t !== token) return;
+    if (l) store.labels = l.entry;
+    if (m) store.lists = m.entry;
+    sync();
+  }
+
+  async function loadFirst(force: boolean) {
     const t = token;
     const f = ui.folder;
-    let page = await listMail(owner, { labels: f.kind === 'label' ? [f.id] : undefined, lastMailId: reset ? undefined : cursor });
+    const fc = folderCache(f);
+    const { entry, changed } = await cachedGet<MailHeader[]>(owner, mailPath({ labels: f.kind === 'label' ? [f.id] : undefined }), fc.first, force);
     if (t !== token) return;
-    more = page.length >= PAGE;
-    if (page.length) cursor = Math.min(...page.map((h) => h.mail_id));
-    if (f.kind === 'list') page = page.filter((h) => h.recipients?.some((r) => r.recipient_id === f.id));
-    await resolve(idsOf(page));
-    if (t !== token) return;
-    headers = reset ? page : [...headers, ...page.filter((h) => !headers.some((x) => x.mail_id === h.mail_id))];
-  }
-
-  async function loadFolder(reset = true) {
-    if (!owner) return;
-    loading = true;
-    error = '';
-    if (reset) { headers = []; selected = null; cursor = 0; }
-    render();
-    try {
-      await fetchPage(reset);
-    } catch (err) {
-      error = (err as Error).message;
-    } finally {
-      loading = false;
-      render();
+    fc.first = entry;
+    if (changed) {
+      const floor = Math.min(...entry.data.map((h) => h.mail_id));
+      fc.older = entry.data.length ? fc.older.filter((h) => h.mail_id < floor) : [];
+      if (!fc.older.length) fc.more = entry.data.length >= PAGE;
     }
   }
 
-  async function refreshLabels() {
+  async function load(force = false) {
+    if (!owner) return;
     const t = token;
-    const [l, m] = await Promise.all([mailLabels(owner).catch(() => null), mailingLists(owner).catch(() => [] as MailingList[])]);
-    if (t !== token) return;
-    if (l) labels = l.labels ?? [];
-    lists = m;
-    for (const x of lists) names.set(x.mailing_list_id, x.name);
+    error = '';
+    const cached = !!folderCache().first;
+    loading = true;
+    sync();
+    render();
+    try {
+      await Promise.all([loadMeta(force), loadFirst(force)]);
+      if (t !== token) return;
+      persist();
+      sync();
+    } catch (err) {
+      if (t === token && !cached) error = (err as Error).message;
+    } finally {
+      if (t === token) { loading = false; render(); fillNames(headers); }
+    }
+  }
+
+  async function loadOlder() {
+    const t = token;
+    const fc = folderCache();
+    const all = [...(fc.first?.data ?? []), ...fc.older];
+    if (!all.length) return;
+    loading = true;
+    render();
+    try {
+      const page = await listMail(owner, { labels: ui.folder.kind === 'label' ? [ui.folder.id] : undefined, lastMailId: Math.min(...all.map((h) => h.mail_id)) });
+      if (t !== token) return;
+      fc.older.push(...page);
+      fc.more = page.length >= PAGE;
+      persist();
+      sync();
+    } catch (err) {
+      toast((err as Error).message, 3500);
+    } finally {
+      if (t === token) { loading = false; render(); fillNames(headers); }
+    }
   }
 
   async function start() {
     token++;
     const c = ctx.character;
     owner = c.kind === 'esi' && c.characterId && !loginProblem({ kind: c.kind, characterId: c.characterId, name: c.name }) && canRead(c.characterId) ? c.characterId : 0;
-    labels = [];
-    lists = [];
-    headers = [];
+    store = owner ? loadJson<Store>(CACHE_KEY(owner), { folders: {}, bodies: {} }) : { folders: {}, bodies: {} };
+    store.folders ??= {};
+    store.bodies ??= {};
     names = new Map();
-    bodies.clear();
     selected = null;
     error = '';
+    sync();
     if (!owner) { render(); return; }
-    loading = true;
-    render();
-    await refreshLabels();
-    if (ui.folder.kind === 'label' && !labels.some((l) => l.label_id === (ui.folder as { id: number }).id)) ui.folder = { kind: 'label', id: LABEL_INBOX };
-    if (ui.folder.kind === 'list' && !lists.some((l) => l.mailing_list_id === (ui.folder as { id: number }).id)) ui.folder = { kind: 'label', id: LABEL_INBOX };
-    await loadFolder();
+    if (ui.folder.kind === 'label' && labels.length && !labels.some((l) => l.label_id === (ui.folder as { id: number }).id)) ui.folder = { kind: 'label', id: LABEL_INBOX };
+    if (ui.folder.kind === 'list' && lists.length && !lists.some((l) => l.mailing_list_id === (ui.folder as { id: number }).id)) ui.folder = { kind: 'label', id: LABEL_INBOX };
+    await load();
   }
 
   function adjustUnread(h: MailHeader, delta: number) {
@@ -227,15 +304,15 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     try {
       if (!bodies.has(id)) {
         const b = await readMail(owner, id);
-        await resolve(idsOf([b]));
         bodies.set(id, b);
+        fillNames([b]);
       }
       if (selected !== id) return;
       render();
       if (h && !h.is_read && canOrganize(owner)) {
         await updateMail(owner, id, { read: true });
-        h.is_read = true;
         adjustUnread(h, -1);
+        patch(id, { is_read: true });
         render();
       }
     } catch (err) {
@@ -248,7 +325,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const h = headers.find((x) => x.mail_id === selected);
     try {
       await updateMail(owner, selected, { read: false });
-      if (h && h.is_read) { h.is_read = false; adjustUnread(h, 1); }
+      if (h && h.is_read) { adjustUnread(h, 1); patch(h.mail_id, { is_read: false }); }
       selected = null;
       render();
     } catch (err) { toast((err as Error).message, 3500); }
@@ -259,17 +336,24 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const id = selected;
     const h = headers.find((x) => x.mail_id === id);
     const b = bodies.get(id);
-    const current = new Set(b?.labels ?? h?.labels ?? []);
+    const current = new Set(h?.labels ?? b?.labels ?? []);
     if (current.has(labelId)) current.delete(labelId); else current.add(labelId);
     if (!current.size) { toast(tx('Un mail trebuie să aibă cel puțin o etichetă.')); return; }
     const next = [...current];
     try {
       await updateMail(owner, id, { labels: next });
-      if (b) b.labels = next;
-      if (h) h.labels = next;
-      if (ui.folder.kind === 'label' && !current.has(ui.folder.id)) { headers = headers.filter((x) => x.mail_id !== id); selected = null; }
+      patch(id, { labels: next });
+      for (const [key, fc] of Object.entries(store.folders)) {
+        const m = key.match(/^label:(\d+)$/);
+        if (!m || current.has(Number(m[1]))) continue;
+        if (fc.first) fc.first.data = fc.first.data.filter((x) => x.mail_id !== id);
+        fc.older = fc.older.filter((x) => x.mail_id !== id);
+      }
+      if (ui.folder.kind === 'label' && !current.has(ui.folder.id)) selected = null;
+      persist();
+      sync();
       render();
-      refreshLabels().then(render);
+      loadMeta(true).then(() => { persist(); render(); });
     } catch (err) { toast((err as Error).message, 3500); }
   }
 
@@ -280,11 +364,11 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     if (!(await confirmDialog(tx('Ștergi definitiv mailul „{s}”? Dispare și din joc.', { s: h?.subject || tx('(fără subiect)') }), { title: tx('Șterge mailul'), ok: tx('Șterge'), danger: true }))) return;
     try {
       await deleteMail(owner, id);
-      headers = headers.filter((x) => x.mail_id !== id);
-      bodies.delete(id);
+      if (h && !h.is_read) adjustUnread(h, -1);
+      drop(id);
       selected = null;
+      sync();
       render();
-      refreshLabels().then(render);
       toast(tx('Mail șters'));
     } catch (err) { toast((err as Error).message, 3500); }
   }
@@ -309,7 +393,8 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
       try {
         await createLabel(owner, name, color);
         closeModal();
-        await refreshLabels();
+        await loadMeta(true);
+        persist();
         render();
         toast(tx('Etichetă creată'));
       } catch (err) { toast((err as Error).message, 3500); }
@@ -324,8 +409,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
       await deleteLabel(owner, ui.folder.id);
       ui.folder = { kind: 'label', id: LABEL_INBOX };
       save();
-      await refreshLabels();
-      await loadFolder();
+      await load(true);
     } catch (err) { toast((err as Error).message, 3500); }
   }
 
@@ -371,7 +455,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
         await sendMail(owner, { recipients, subject: subject.value.trim(), body: bodyFromText(text.value) });
         closeModal();
         toast(tx('Mail trimis'));
-        if (ui.folder.kind === 'label' && ui.folder.id === LABEL_SENT) loadFolder();
+        if (ui.folder.kind === 'label' && ui.folder.id === LABEL_SENT) load(true);
       } catch (err) {
         toast((err as Error).message, 4000);
         sending = false;
@@ -417,8 +501,9 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const next: Folder = kind === 'all' ? { kind: 'all' } : { kind: kind as 'label' | 'list', id: Number(id) };
     if (sameFolder(next, ui.folder) && headers.length) return;
     ui.folder = next;
+    selected = null;
     save();
-    loadFolder();
+    load();
   });
 
   body.addEventListener('click', (e) => {
@@ -426,8 +511,8 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const row = t.closest<HTMLElement>('[data-mail-open]');
     if (row) { open(Number(row.dataset.mailOpen)); return; }
     if (t.closest('[data-mail-back]')) { selected = null; render(); return; }
-    if (t.closest('[data-mail-refresh]')) { refreshLabels().then(() => loadFolder()); return; }
-    if (t.closest('[data-mail-more]')) { loadFolder(false); return; }
+    if (t.closest('[data-mail-refresh]')) { load(true); return; }
+    if (t.closest('[data-mail-more]')) { loadOlder(); return; }
     if (t.closest('[data-mail-compose]')) { compose(); return; }
     if (t.closest('[data-mail-del-label]')) { removeLabel(); return; }
     const r = t.closest<HTMLElement>('[data-mail-reply]');

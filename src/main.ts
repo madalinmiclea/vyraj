@@ -176,8 +176,7 @@ const browser = createItemBrowser(document.getElementById('treeView')!, {
     if (activeView === 'fitting') fitting?.selectItem(name, typeId);
     else { if (activeView !== 'market') switchView('market'); market.show(name, typeId); }
   },
-  onInfo: (typeId) => infoHandler?.(typeId),
-  hasInfo: (typeId) => !infoAvailable || infoAvailable(typeId),
+  onInfo: (typeId) => (infoHandler ? infoHandler(typeId) : toast(tx('Datele de fitting încă se încarcă'))),
   onScopeClear: () => fitting?.clearSlot(),
 });
 treeFilter.addEventListener('input', () => browser.filter(treeFilter.value));

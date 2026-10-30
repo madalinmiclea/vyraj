@@ -1,6 +1,6 @@
 import { accessToken, hasScope } from '../character/sso';
 import { ESI, esiFetch } from './esiClient';
-import { resolveNames } from './recon';
+import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 
 export const MAIL_READ_SCOPE = 'esi-mail.read_mail.v1';
@@ -65,13 +65,36 @@ async function call<T>(characterId: number, path: string, init: RequestInit = {}
   return (raw ? JSON.parse(raw) : undefined) as T;
 }
 
-export function listMail(characterId: number, { labels, lastMailId }: { labels?: number[]; lastMailId?: number } = {}): Promise<MailHeader[]> {
+export interface Fresh<T> { data: T; expires: number; etag?: string }
+
+const DEFAULT_TTL = 30_000;
+
+export async function cachedGet<T>(characterId: number, path: string, prev?: Fresh<T> | null, force = false): Promise<{ entry: Fresh<T>; changed: boolean }> {
+  if (prev && !force && Date.now() < prev.expires) return { entry: prev, changed: false };
+  const token = await accessToken(characterId);
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (prev?.etag) headers['If-None-Match'] = prev.etag;
+  const res = await esiFetch(`${ESI}/characters/${characterId}${path}`, { headers });
+  const expires = Date.parse(res.headers.get('expires') ?? '') || Date.now() + DEFAULT_TTL;
+  if (res.status === 304 && prev) return { entry: { ...prev, expires }, changed: false };
+  if (!res.ok) {
+    if (res.status === 403) throw new Error(tx('EVE a refuzat cererea (lipsă permisiune sau acces).'));
+    throw new Error(`ESI ${path}: ${res.status} ${await res.text()}`);
+  }
+  const etag = res.headers.get('etag') ?? undefined;
+  const data = (await res.json()) as T;
+  return { entry: { data, expires, etag }, changed: !prev || !etag || etag !== prev.etag };
+}
+
+export function mailPath({ labels, lastMailId }: { labels?: number[]; lastMailId?: number } = {}): string {
   const q = new URLSearchParams();
   if (labels?.length) q.set('labels', labels.join(','));
   if (lastMailId) q.set('last_mail_id', String(lastMailId));
   const qs = q.toString();
-  return call<MailHeader[]>(characterId, `/mail/${qs ? `?${qs}` : ''}`);
+  return `/mail/${qs ? `?${qs}` : ''}`;
 }
+
+export const listMail = (characterId: number, opts: { labels?: number[]; lastMailId?: number } = {}) => call<MailHeader[]>(characterId, mailPath(opts));
 
 export const readMail = (characterId: number, mailId: number) => call<MailBody>(characterId, `/mail/${mailId}/`);
 
@@ -80,14 +103,12 @@ export const updateMail = (characterId: number, mailId: number, change: { read?:
 
 export const deleteMail = (characterId: number, mailId: number) => call<void>(characterId, `/mail/${mailId}/`, { method: 'DELETE' });
 
-export const mailLabels = (characterId: number) => call<MailLabels>(characterId, '/mail/labels/');
 
 export const createLabel = (characterId: number, name: string, color: string) =>
   call<number>(characterId, '/mail/labels/', { method: 'POST', body: JSON.stringify({ name, color }) });
 
 export const deleteLabel = (characterId: number, labelId: number) => call<void>(characterId, `/mail/labels/${labelId}/`, { method: 'DELETE' });
 
-export const mailingLists = (characterId: number) => call<MailingList[]>(characterId, '/mail/lists/');
 
 export const sendMail = (characterId: number, mail: { recipients: MailRecipient[]; subject: string; body: string }) =>
   call<number>(characterId, '/mail/', { method: 'POST', body: JSON.stringify({ ...mail, approved_cost: 0 }) });
@@ -105,15 +126,32 @@ export async function lookupRecipients(names: string[]): Promise<{ found: (MailR
   return { found, missing: wanted.filter((n) => !hit.has(n.toLowerCase())) };
 }
 
-export async function nameMap(ids: number[], lists: MailingList[]): Promise<Map<number, string>> {
-  const out = new Map<number, string>();
-  for (const l of lists) out.set(l.mailing_list_id, l.name);
-  const rest = [...new Set(ids)].filter((id) => id && !out.has(id));
-  if (rest.length) {
-    const names = await resolveNames(rest).catch(() => new Map<number, string>());
-    for (const id of rest) { const n = names.get(id); if (n && n !== String(id)) out.set(id, n); }
+const NAMES_KEY = 'eve-mail:names';
+const nameCache = new Map<number, string>(Object.entries(loadJson<Record<string, string>>(NAMES_KEY, {})).map(([k, v]) => [Number(k), v]));
+const nameMisses = new Set<number>();
+
+async function namesBatch(ids: number[]): Promise<void> {
+  const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) }).catch(() => null);
+  if (res?.ok) {
+    for (const x of (await res.json()) as { id: number; name: string }[]) nameCache.set(x.id, x.name);
+    return;
   }
-  return out;
+  if (res?.status === 404 && ids.length > 1) {
+    const mid = Math.ceil(ids.length / 2);
+    await Promise.all([namesBatch(ids.slice(0, mid)), namesBatch(ids.slice(mid))]);
+    return;
+  }
+  for (const id of ids) nameMisses.add(id);
+}
+
+export const cachedMailName = (id: number) => nameCache.get(id);
+
+export async function mailNames(ids: number[]): Promise<boolean> {
+  const missing = [...new Set(ids)].filter((id) => id > 0 && !nameCache.has(id) && !nameMisses.has(id));
+  if (!missing.length) return false;
+  await Promise.all(Array.from({ length: Math.ceil(missing.length / 1000) }, (_, i) => namesBatch(missing.slice(i * 1000, i * 1000 + 1000))));
+  saveJson(NAMES_KEY, Object.fromEntries(nameCache));
+  return true;
 }
 
 const ALLOWED = new Set(['B', 'I', 'U', 'BR', 'P', 'DIV', 'SPAN', 'A', 'FONT', 'UL', 'OL', 'LI']);

@@ -293,6 +293,7 @@ const ORDERS: [string, boolean, number, number, number, number, number][] = [
   ['Large Shield Extender II', false, 1.03, 10, 6, 30, 1_689_000],
   ['Ogre II', false, 1, 15, 15, 5, 1_412_000],
   ['Nanite Repair Paste', true, 0.97, 2000, 1400, 50, 11_250],
+  ['Hammerhead II', true, 0.95, 40, 26, 140, 560_000],
 ];
 
 const tick = (v: number) => {
