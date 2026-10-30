@@ -24,6 +24,7 @@ import { createHomeView } from './views/home';
 import { createDoctrinesView, type DoctrinesView } from './views/doctrines';
 import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
 import { requestPermission, type PermId } from './character/permissions';
+import { openPermissionsModal } from './character/loginModal';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
 import { esiHealth } from './services/operations';
@@ -32,7 +33,7 @@ import { startNotifyWatcher } from './services/notify';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
-import { handleCallback, hasTokens, startLogin, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
+import { handleCallback, hasTokens, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
 import { loadStoredCharacters, upsertStoredCharacter } from './character/characters';
 import { importCharacter, portraitUrl } from './character/esi';
 import { fetchListedTypes } from './services/market';
@@ -97,6 +98,7 @@ document.querySelector('#app')!.innerHTML = `
         <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar"></span><span class="topbar-stat"><span class="label" id="topCharacterLabel">${tx('Caracter')}</span><span class="value accent" id="topCharacter">—</span></span>${icon('chevron', 'chev')}</button>
         <div class="char-menu" id="charMenu" hidden></div>
       </div>
+      <button class="btn ghost sm sso-btn" id="ssoBtn" data-tip="${tx('Permisiuni EVE')}" aria-label="${tx('Permisiuni EVE')}">${icon('login')}<span>SSO</span></button>
       <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', tx('Luminos')], ['dark', 'moon', tx('Întunecat')], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
       <div class="lang-switch" role="group" aria-label="${tx('Limbă')}">${(['ro', 'en'] as Lang[]).map((l) => `<button class="${l === lang ? 'active' : ''}" data-lang="${l}" aria-pressed="${l === lang}" title="${LANG_NAME[l]}" aria-label="${LANG_NAME[l]}">${FLAG[l]}</button>`).join('')}</div>
     </header>
@@ -302,7 +304,7 @@ const home = createHomeView(viewEl('home'), {
   openFit: (f) => { switchView('fitting'); fitting?.load(f); },
   login: () => {
     if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-    startLogin().catch((err) => toast((err as Error).message));
+    openPermissionsModal(null, activeView);
   },
 });
 async function hardRefresh() {
@@ -507,8 +509,14 @@ async function start() {
     if (t.closest('[data-char-login]')) {
       closeCharMenu();
       if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-      startLogin().catch((err) => toast((err as Error).message));
+      openPermissionsModal(null, activeView);
     }
+  });
+  document.getElementById('ssoBtn')!.addEventListener('click', () => {
+    closeCharMenu();
+    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+    const c = ctx.character;
+    openPermissionsModal(c.kind === 'esi' && c.characterId && hasTokens(c.characterId) ? c.characterId : null, activeView);
   });
   window.addEventListener(SESSION_EXPIRED_EVENT, (e) => {
     const id = (e as CustomEvent<number>).detail;

@@ -1,7 +1,8 @@
 import type { AppContext } from '../app/context';
 import { importCharacter, portraitUrl } from '../character/esi';
 import { PERMISSIONS, hasPermission, scopeList } from '../character/permissions';
-import { BASE_SCOPES, BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES, startLogin } from '../character/sso';
+import { openPermissionsModal } from '../character/loginModal';
+import { BASE_SCOPES, BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES } from '../character/sso';
 import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
 import { formatDuration } from '../character/training';
 import { forgetPlan } from '../character/skillPlan';
@@ -131,6 +132,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         <div class="perm-list">${rows}</div>
         <div class="row-actions">
           ${missing.length > 1 ? button(tx('Permite tot ce lipsește'), { iconName: 'login', cls: 'sm', attrs: `data-grant="${missing.map((p) => p.id).join(',')}" data-grant-char="${id}"` }) : ''}
+          ${missing.length ? button(tx('Alege pe grupuri'), { cls: 'ghost sm', attrs: `data-perm-modal="${id}"` }) : ''}
           <a class="btn ghost sm" href="https://community.eveonline.com/support/third-party-applications/" target="_blank" rel="noopener">${icon('external')}${tx('Aplicațiile tale EVE')}</a>
         </div>`);
   }
@@ -173,8 +175,12 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       toast(tx('Client ID salvat'));
       return render();
     }
+    if (at('[data-perm-modal]')) {
+      openPermissionsModal(Number(at('[data-perm-modal]')!.dataset.permModal), 'character');
+      return;
+    }
     if (at('[data-login]')) {
-      try { await startLogin(); } catch (err) { render((err as Error).message); }
+      openPermissionsModal(null, 'character');
       return;
     }
     const stored = loadStoredCharacters();

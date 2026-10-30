@@ -133,3 +133,27 @@ button.brand { text-align: left; }
 .perm-scopes li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; line-height: 1.4; }
 .perm-scopes code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11.5px; color: var(--text-bright); padding: 1px 5px; background: var(--bg-inset); border: 1px solid var(--line); }
 .perm-scopes li .dim { flex-basis: 100%; }
+
+.sso-btn { height: 38px; gap: 6px; font-weight: 600; letter-spacing: 0.4px; }
+.perm-modal > p { line-height: 1.55; }
+.perm-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.perm-group { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); background: var(--bg-inset); cursor: pointer; transition: border-color 0.15s var(--ease), background 0.15s var(--ease); }
+.perm-group:hover { border-color: var(--line-accent); }
+.perm-group:has(input:checked) { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.08); }
+.perm-group.done, .perm-group.base { cursor: default; }
+.perm-group.base { margin-top: 14px; border-color: var(--line-accent); background: rgba(var(--accent-rgb), 0.05); }
+.perm-group input { margin-top: 3px; accent-color: var(--accent); flex: none; }
+.perm-group-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 1px solid var(--line-strong); background: var(--bg-panel-solid); color: var(--accent); }
+.perm-group-ico svg { width: 17px; height: 17px; }
+.perm-group-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.perm-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.perm-group-head b { font-size: 14px; font-weight: 600; color: var(--text-bright); }
+.perm-group-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.perm-group-chips .chip { padding: 2px 7px; font-size: 11.5px; color: var(--text-dim); border: 1px solid var(--line); background: var(--bg-panel-solid); }
+.perm-modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+@media (max-width: 760px) {
+  .perm-groups { grid-template-columns: minmax(0, 1fr); }
+  .sso-btn { height: 36px; padding: 0 8px; }
+  .sso-btn span { display: none; }
+}
