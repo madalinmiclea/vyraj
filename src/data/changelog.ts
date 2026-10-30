@@ -4,6 +4,19 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-30',
+    title: tx('Vyraj în buzunar'),
+    lead: tx('Se instalează pe telefon, vorbește cu tine și îți aduce mailurile din joc.'),
+    items: [
+      tx('Vyraj se instalează ca aplicație pe Android și iPhone cu butonul Instalează aplicația: pornește pe tot ecranul, se potrivește cu decupajul iPhone-ului, merge și fără internet cu datele salvate și te anunță când apare o versiune nouă.'),
+      tx('Notificări când se termină un skill, când coada de antrenament rămâne goală, când e gata un job de industrie, un contract sau un extractor PI.'),
+      tx('Mailul din EVE vine în Vyraj: citești, organizezi pe etichete și liste de mail, răspunzi și trimiți mailuri noi.'),
+      tx('Butonul SSO deschide toate permisiunile EVE într-o singură fereastră, în patru grupuri, cu Acceptă toate pentru cine vrea totul dintr-un click.'),
+      tx('Contractele personale și ale corporației, cu valoarea din Jita a fiecărui item pus lângă prețul cerut.'),
+      tx('Corporația la vedere: walleturile pe divizii și taxele aduse de fiecare membru, plus optimizatorul de remap care îți calculează atributele ideale pentru skill plan.'),
+    ],
+  },
+  {
     date: '2026-10-29',
     title: tx('Pământ sub fiecare stea'),
     lead: tx('Planete pe hartă, bătălii în timp real și un demo care trăiește.'),
