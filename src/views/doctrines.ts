@@ -17,10 +17,12 @@ import { alertBox, button, closeModal, compactISK, confirmDialog, copyText, data
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
+import { fold } from '../ui/fold';
 
 export interface DoctrinesView {
   render(): void;
   importShared(d: Doctrine): Promise<void>;
+  openMatching(query: string): boolean;
 }
 
 const SEL_KEY = 'eve-fit:doctrine-selected';
@@ -349,6 +351,13 @@ export function createDoctrinesView(el: HTMLElement, ctx: AppContext, side: HTML
 
   return {
     render,
+    openMatching(query: string) {
+      const words = fold(query).split(/\s+/).filter(Boolean);
+      const hit = list().find((d) => { const n = fold(d.name); return words.every((w) => n.includes(w)); });
+      if (!hit) return false;
+      select(hit.id);
+      return true;
+    },
     async importShared(d: Doctrine) {
       const ok = await confirmDialog(tx('Imporți doctrina „{name}” cu {n} fituri? O găsești apoi în Doctrine.', { name: d.name, n: d.fits.length }), { title: tx('Doctrină din link'), ok: tx('Importă') });
       if (!ok) return;

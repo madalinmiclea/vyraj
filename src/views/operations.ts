@@ -12,15 +12,17 @@ import { raidableSkyhooks, sovereignty, resolveNames, cachedName, displaySec, se
 import { loadMap, type NavMap } from '../services/navigation';
 import { planetNames } from '../services/pi';
 import { fold } from '../ui/fold';
+import { createIncursionsPanel } from './incursions';
 import { tx, locale } from '../i18n';
 
-type Tab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks';
+type Tab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks' | 'incursions';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'jobs', label: tx('Joburi freelance') },
   { id: 'campaigns', label: tx('Campanii militare') },
   { id: 'dens', label: tx('Mercenary Dens') },
   { id: 'skyhooks', label: tx('Skyhook-uri raidabile') },
+  { id: 'incursions', label: tx('Incursiuni') },
 ];
 
 const TAB_KEY = 'eve-ops:tab';
@@ -55,14 +57,16 @@ const span = (ms: number) => {
 const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 const until = (ms: number) => (ms <= Date.now() ? tx('acum') : tx('în {t}', { t: span(ms) }));
 
-export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
+export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { openDoctrine?: (query: string) => boolean } = {}) {
   let tab = loadJson<Tab>(TAB_KEY, 'jobs');
   if (!TABS.some((t) => t.id === tab)) tab = 'jobs';
   let run = 0;
 
-  el.innerHTML = `${pageHead(tx('Operațiuni'), tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri raidabile, direct din ESI'), 'Pohod')}
+  el.innerHTML = `${pageHead(tx('Operațiuni'), tx('Joburi freelance, campanii militare, Mercenary Dens, skyhook-uri raidabile și incursiuni, direct din ESI'), 'Pohod')}
     <div id="opsBody"></div>`;
   const body = el.querySelector<HTMLElement>('#opsBody')!;
+  const incBox = document.createElement('div');
+  const inc = createIncursionsPanel(incBox, ctx, opts);
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Operațiuni'))}</div>
@@ -82,7 +86,9 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
   function render() {
     renderTabs();
     run++;
-    ({ jobs, campaigns, dens, skyhooks } as Record<Tab, () => void>)[tab]();
+    if (tab === 'incursions') { body.replaceChildren(incBox); inc.show(); return; }
+    if (incBox.isConnected) incBox.remove();
+    ({ jobs, campaigns, dens, skyhooks } as Record<Exclude<Tab, 'incursions'>, () => void>)[tab]();
   }
 
   let jobList: FreelanceJob[] = [];
@@ -405,6 +411,7 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
 
   body.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    if (tab === 'incursions') return;
     if (t.closest('[data-ops-refresh]')) {
       run++;
       if (tab === 'jobs') { details.clear(); jobs(true); } else if (tab === 'campaigns') { objectives.clear(); campaigns(true); } else if (tab === 'skyhooks') skyhooks(true); else dens();
@@ -423,7 +430,8 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
   ctx.onCharacterChange(() => {
     myJobs = null;
     mineObj = null;
-    render();
+    inc.reset();
+    if (tab !== 'incursions') render();
   });
 
   render();

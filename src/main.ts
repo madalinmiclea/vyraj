@@ -551,7 +551,7 @@ async function start() {
   later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
   later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
-  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
+  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
   later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   runLazy(activeView);

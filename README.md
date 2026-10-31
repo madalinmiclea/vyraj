@@ -180,6 +180,7 @@ Vyraj stands on the work of the EVE community and of CCP. Thank you to everyone 
 - **[EVE Survival](https://eve-survival.org/)**, the main source for the mission and DED site guides.
 - **[EVE University Wiki](https://wiki.eveuniversity.org/)** for mission reports, DED sites and general game mechanics.
 - **[EVE Workbench](https://eveworkbench.com/)** and the pilots who publish fits there, the source of the PvE and PvP starter fits. Each fit links back to its original page.
+- **[Warp To Me Incursions](https://wtmincursions.com/doctrines)** for the HQ and Vanguard incursion doctrines shown in demo mode.
 - The EVE Online forums and the r/Eve community, for years of shared knowledge on fitting, missions and the market.
 
 ### Fonts

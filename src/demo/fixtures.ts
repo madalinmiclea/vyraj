@@ -281,6 +281,10 @@ function ledger(w: World, now: number, name: string, px: Jita) {
     if (d % 5 === 2) entry(day + 14 * HOUR, 7, { ref_type: 'brokers_fee', amount: -Math.round(300_000 + r() * 600_000), description: 'Brokers fee', first_party_id: DEMO_ID, second_party_id: CONCORD });
     if (d % 4 === 3) entry(day + 12 * HOUR, 8, { ref_type: 'planetary_export_tax', amount: -Math.round(900_000 + r() * 700_000), description: 'Planetary Export Tax', first_party_id: DEMO_ID, second_party_id: CONCORD });
     if (d % 3 === 1) entry(day + 13 * HOUR, 9, { ref_type: 'industry_job_tax', amount: -Math.round(250_000 + r() * 400_000), description: 'Industry Job Tax', first_party_id: DEMO_ID, second_party_id: CONCORD });
+    if (d % 6 === 2) {
+      const sites = 9 + (d % 5);
+      for (let k = 0; k < sites; k++) entry(day + 19 * HOUR + k * (8 * MIN + (k % 3) * MIN), 3, { ref_type: 'corporate_reward_payout', amount: 10_395_000, description: `CONCORD rewarded ${name} for completing an incursion site`, first_party_id: CONCORD, second_party_id: DEMO_ID });
+    }
     if (d % 9 === 4) entry(day + 20 * HOUR, 0, { ref_type: 'skill_purchase', amount: -Math.round(18_000_000 + r() * 30_000_000), description: 'Skill purchase', first_party_id: DEMO_ID, second_party_id: CONCORD });
   }
   raw.sort((a, b) => a.id - b.id);

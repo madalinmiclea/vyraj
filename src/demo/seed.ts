@@ -2,10 +2,13 @@ import { loadSde } from '../data/sde';
 import { loadItems, allEveItems } from '../data/items';
 import { parseEft } from '../io/eft';
 import { saveJson } from '../storage';
-import { doctrineFit, newDoctrine, saveDoctrines, type Role } from '../fitting/doctrines';
+import { doctrineFit, newDoctrine, saveDoctrines } from '../fitting/doctrines';
+import { WTM_DOCTRINES } from './wtmDoctrines';
 import { saveRuns, WEATHERS, type AbyssalRun } from '../services/abyssal';
 import { saveAlerts, type PriceAlert } from '../services/alerts';
 import { tx } from '../i18n';
+import { saveLog } from '../services/incursions';
+import { demoIncursionLog } from './incursionLog';
 
 const DAY = 86_400_000;
 
@@ -72,73 +75,6 @@ Medium Core Defense Field Extender I
 
 Vespa II x2`;
 
-const DOCTRINE: [Role, number, string][] = [
-  ['dps', 12, `[Drake, Drake fleet DPS]
-Ballistic Control System II
-Ballistic Control System II
-Damage Control II
-Power Diagnostic System II
-
-Large Shield Extender II
-Large Shield Extender II
-Multispectrum Shield Hardener II
-EM Shield Hardener II
-10MN Afterburner II
-
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-Heavy Missile Launcher II, Scourge Heavy Missile
-
-Medium Core Defense Field Extender I
-Medium Core Defense Field Extender I
-Medium Core Defense Field Extender I`],
-  ['logi', 4, `[Osprey, Drake fleet logi]
-Damage Control II
-Power Diagnostic System II
-Power Diagnostic System II
-
-Medium Remote Shield Booster II
-Medium Remote Shield Booster II
-Medium Remote Shield Booster II
-Medium Shield Extender II
-10MN Afterburner II
-
-Medium Capacitor Control Circuit I
-Medium Capacitor Control Circuit I
-Medium Capacitor Control Circuit I`],
-  ['tackle', 2, `[Stiletto, Drake fleet tackle]
-Nanofiber Internal Structure II
-Nanofiber Internal Structure II
-
-5MN Microwarpdrive II
-Warp Disruptor II
-Warp Scrambler II
-Small Shield Extender II
-
-125mm Gatling AutoCannon II, Republic Fleet EMP S
-125mm Gatling AutoCannon II, Republic Fleet EMP S
-
-Small Polycarbon Engine Housing I
-Small Polycarbon Engine Housing I`],
-  ['logi', 1, `[Scimitar, Drake fleet backup logi]
-Damage Control II
-Power Diagnostic System II
-Power Diagnostic System II
-
-Large Remote Shield Booster II
-Large Remote Shield Booster II
-Large Remote Shield Booster II
-Large Remote Shield Booster II
-10MN Afterburner II
-
-Medium Capacitor Control Circuit I
-Medium Capacitor Control Circuit I`],
-];
-
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -178,10 +114,18 @@ export async function seedDemo(): Promise<void> {
   const fit = (text: string) => parseEft(sde, text).fit;
   const fits = [ISHTAR, GILA, RETRIEVER, VENTURE].map(fit);
   saveJson('eve-fit:saved-fits', fits);
-  const doctrine = newDoctrine(tx('Flotă Drake'));
-  doctrine.notes = tx('Doctrină de exemplu pentru flote de corporație: DPS cu rachete grele, logi pe scuturi și tackle rapid.');
-  doctrine.fits = DOCTRINE.map(([role, qty, text]) => ({ ...doctrineFit(sde, fit(text), role), qty }));
-  saveDoctrines([doctrine]);
+  saveDoctrines(WTM_DOCTRINES.map((w) => {
+    const doctrine = newDoctrine(w.name);
+    doctrine.notes = w.fits.some(([, tier]) => tier)
+      ? tx('Fiturile flotei de incursiuni Warp To Me (wtmincursions.com/doctrines), pe tier: Optimal, Intermediate și Starter.')
+      : tx('Fiturile flotei de incursiuni Warp To Me (wtmincursions.com/doctrines).');
+    doctrine.fits = w.fits.map(([role, tier, text]) => {
+      const f = fit(text);
+      if (tier) f.name = `${f.name} · ${tier}`;
+      return doctrineFit(sde, f, role);
+    });
+    return doctrine;
+  }));
   const now = Date.now();
   saveRuns(abyssalRuns(now));
   const typeOf = (name: string) => allEveItems.find((i) => i.n === name)?.t;
@@ -191,4 +135,5 @@ export async function seedDemo(): Promise<void> {
     { typeId: typeOf('Large Skill Injector') ?? 40520, name: 'Large Skill Injector', side: 'buy', op: 'above', price: 900_000_000 },
   ];
   saveAlerts(alerts.map((a, i) => ({ ...a, id: `demo-alert-${i}` })));
+  saveLog(await demoIncursionLog(now));
 }

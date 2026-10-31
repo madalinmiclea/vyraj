@@ -43,6 +43,7 @@ const GROUPS: Group[] = [
   { id: 'guides', title: tx('Ghiduri și fituri'), items: [
     { name: 'EVE Survival', ico: 'evesurvival', url: 'https://eve-survival.org/', host: 'eve-survival.org', role: tx('Sursa principală a ghidurilor de misiuni și complexe DED: camere, valuri, triggere și blitz.') },
     { name: 'EVE University', ico: 'eveuni', url: 'https://wiki.eveuniversity.org/', host: 'wiki.eveuniversity.org', role: tx('Wiki-ul cu rapoarte de misiuni, situri DED și mecanicile jocului, explicate pentru oricine.') },
+    { name: 'Warp To Me Incursions', ico: 'wtm', url: 'https://wtmincursions.com/doctrines', host: 'wtmincursions.com', role: tx('Doctrinele de incursiuni din modul demo: fiturile HQ și Vanguard, pe tier și rol.') },
     { name: 'EVE Workbench', ico: 'eveworkbench', url: 'https://eveworkbench.com/', host: 'eveworkbench.com', role: tx('Fiturile PvE și PvP publicate de piloți, din care pornesc butoanele de fit. Fiecare fit trimite înapoi la pagina lui.') },
   ] },
   { id: 'community', title: tx('Comunitate'), items: [
