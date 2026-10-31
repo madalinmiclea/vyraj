@@ -93,6 +93,9 @@
 .char-menu-item img, .char-menu-item .char-placeholder { width: 32px; height: 32px; flex: none; border: 1px solid var(--line); background: var(--bg-inset); }
 .char-menu-item.login { color: var(--accent-bright); }
 .char-menu-item.login svg { width: 16px; height: 16px; margin: 0 8px; }
+.char-menu-item.logout { color: var(--danger); }
+.char-menu-item.logout svg { width: 16px; height: 16px; margin: 0 8px; flex: none; }
+.char-menu-item.logout:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .char-menu-sep { height: 1px; margin: 6px 0; background: var(--line); }
 .lang-switch {
   display: flex;

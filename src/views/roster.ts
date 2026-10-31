@@ -8,7 +8,9 @@ import { displaySec, secClass } from '../services/recon';
 import { badge, button, closeModal, compactISK, esc, formatInt, lore, openModal, toast } from '../ui/components';
 import { icon } from '../ui/icons';
 import { roman } from '../ui/itemInfo';
-import { loadJson, saveJson } from '../storage';
+import { loadJson, saveJson, isDemo } from '../storage';
+import { DEMO_ID } from '../demo/identity';
+import { logoutCharacter } from '../character/logout';
 import { tx, locale } from '../i18n';
 import type { StoredCharacter } from '../character/characters';
 
@@ -168,7 +170,7 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
                 <td data-label="${tx('Locație')}">${locationCell(e)}</td>
                 <td data-label="Omega">${omegaCell(c, e, now)}</td>
                 <td class="r num" data-label="ISK">${e?.wallet != null ? compactISK(e.wallet) : '<span class="dim">—</span>'}</td>
-                <td class="r"><button class="btn ghost sm icon-only" data-roster-edit="${esc(c.id)}" title="${tx('Cont și Omega')}">${icon('settings')}</button></td>
+                <td class="r roster-actions"><button class="btn ghost sm icon-only" data-roster-edit="${esc(c.id)}" title="${tx('Cont și Omega')}">${icon('settings')}</button>${isDemo() && c.characterId === DEMO_ID ? '' : `<button class="btn ghost sm icon-only" data-roster-logout="${esc(c.id)}" title="${tx('Delogare')}" aria-label="${tx('Delogare')}">${icon('power')}</button>`}</td>
               </tr>`;
             }).join('')}</tbody>
           </table>
@@ -244,7 +246,9 @@ export function createRosterView(el: HTMLElement, ctx: AppContext) {
     const use = t.closest<HTMLElement>('[data-roster-use]');
     if (use) { ctx.setCharacter(use.dataset.rosterUse!); document.querySelector('.main')?.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     const edit = t.closest<HTMLElement>('[data-roster-edit]');
-    if (edit) editAccount(edit.dataset.rosterEdit!);
+    if (edit) { editAccount(edit.dataset.rosterEdit!); return; }
+    const out = t.closest<HTMLElement>('[data-roster-logout]');
+    if (out) logoutCharacter(out.dataset.rosterLogout!);
   });
 
   el.addEventListener('change', (ev) => {

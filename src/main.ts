@@ -25,6 +25,7 @@ import { createDoctrinesView, type DoctrinesView } from './views/doctrines';
 import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
 import { requestPermission, type PermId } from './character/permissions';
 import { openPermissionsModal } from './character/loginModal';
+import { logoutCharacter, showLogoutFlash } from './character/logout';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
 import { esiHealth } from './services/operations';
@@ -50,6 +51,7 @@ import { readSharedFit } from './io/shareLink';
 import { downloadBackup, pickBackup } from './io/backup';
 import { ESI, esiFetch, repeatAfter } from './services/esiClient';
 import { isDemo, startDemo, exitDemo } from './demo/demo';
+import { DEMO_ID } from './demo/identity';
 import { registerServiceWorker, canInstall, installApp, INSTALL_EVENT } from './services/pwa';
 
 type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'mail' | 'about';
@@ -490,6 +492,7 @@ async function start() {
         <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}</small></span></button>`).join('')}
       ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span><small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
       <div class="char-menu-sep"></div>
+      ${active.kind === 'esi' && !(isDemo() && active.characterId === DEMO_ID) ? `<button class="char-menu-item logout" data-char-logout="${esc(active.id)}">${icon('power')}<span>${tx('Delogare {name}', { name: esc(active.name) })}</span></button>` : ''}
       <button class="char-menu-item login" data-char-login>${icon('login')}<span>${isDemo() ? tx('Ieși din demo și fă login') : anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>
       ${isDemo() ? `<button class="char-menu-item login" data-demo-exit>${icon('close')}<span>${tx('Ieși din demo')}</span></button>` : anyLogged ? '' : `<button class="char-menu-item login" data-demo-start>${icon('play')}<span>${tx('Încearcă cu date demo')}</span></button>`}`;
   };
@@ -501,6 +504,7 @@ async function start() {
   };
   ctx.onCharacterChange(showCharacter);
   showCharacter();
+  showLogoutFlash();
   document.getElementById('charSwitchBtn')!.addEventListener('click', () => {
     renderCharMenu();
     charMenu.hidden = !charMenu.hidden;
@@ -510,6 +514,8 @@ async function start() {
     const t = e.target as HTMLElement;
     const sw = t.closest<HTMLElement>('[data-switch]');
     if (sw) { closeCharMenu(); ctx.setCharacter(sw.dataset.switch!); return; }
+    const out = t.closest<HTMLElement>('[data-char-logout]');
+    if (out) { closeCharMenu(); logoutCharacter(out.dataset.charLogout!); return; }
     if (t.closest('[data-char-login]')) {
       closeCharMenu();
       if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }

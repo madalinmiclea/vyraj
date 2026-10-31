@@ -2,18 +2,15 @@ import type { AppContext } from '../app/context';
 import { importCharacter, portraitUrl } from '../character/esi';
 import { PERMISSIONS, hasPermission, scopeList } from '../character/permissions';
 import { openPermissionsModal } from '../character/loginModal';
-import { BASE_SCOPES, BUILT_IN_CLIENT_ID, callbackUrl, forgetTokens, getSettings, hasTokens, saveSettings, SCOPES } from '../character/sso';
-import { loadStoredCharacters, removeStoredCharacter, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
+import { BASE_SCOPES, BUILT_IN_CLIENT_ID, callbackUrl, getSettings, hasTokens, saveSettings, SCOPES } from '../character/sso';
+import { loadStoredCharacters, upsertStoredCharacter, type StoredCharacter } from '../character/characters';
+import { logoutCharacter } from '../character/logout';
 import { formatDuration } from '../character/training';
-import { forgetPlan } from '../character/skillPlan';
-import { forgetRoster } from '../character/roster';
-import { forgetSkins } from '../services/skins';
-import { forgetWallet } from '../services/wallet';
 import { loadJson, saveJson, isDemo } from '../storage';
 import { DEMO_ID } from '../demo/identity';
 import { icon } from '../ui/icons';
 import { showItemInfo } from '../ui/itemInfo';
-import { alertBox, badge, button, confirmDialog, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
+import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { backupPanel } from '../io/backup';
@@ -111,7 +108,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${button(tx('Copie editabilă'), { cls: 'ghost sm', attrs: `data-clone="${esc(c.id)}"` })}
         </div>
       </div>
-      ${isDemo() && c.characterId === DEMO_ID ? '' : `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Șterge')}" aria-label="${tx('Șterge')}">✕</button>`}
+      ${isDemo() && c.characterId === DEMO_ID ? '' : c.kind === 'esi' ? `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Delogare')}" aria-label="${tx('Delogare')}">${icon('power')}</button>` : `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Șterge')}" aria-label="${tx('Șterge')}">✕</button>`}
     </div>`;
   }
 
@@ -199,21 +196,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       return;
     }
     const remove = at('[data-remove]');
-    if (remove && await confirmDialog(tx('Ștergi caracterul din aplicație, împreună cu datele lui salvate în browser (istoric portofel, plan de skill-uri, SKIN-uri)?'), { ok: tx('Șterge'), danger: true })) {
-      const c = stored.find((x) => x.id === remove.dataset.remove);
-      if (c) {
-        forgetPlan(c.id);
-        forgetSkins(c.id);
-        forgetRoster(c.id);
-        if (c.characterId && !stored.some((x) => x.id !== c.id && x.characterId === c.characterId)) {
-          forgetTokens(c.characterId);
-          forgetWallet(c.characterId);
-        }
-      }
-      removeStoredCharacter(remove.dataset.remove!);
-      if (ctx.character.id === remove.dataset.remove) ctx.setCharacter('all5');
-      else ctx.reloadCharacters();
-    }
+    if (remove) await logoutCharacter(remove.dataset.remove!);
   };
 
   el.addEventListener('click', onClick);

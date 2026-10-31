@@ -9,6 +9,8 @@
 .roster-chip.danger .value { color: var(--danger); }
 .roster-note { margin: 8px 0; }
 .roster-table td { vertical-align: top; }
+.roster-actions { white-space: nowrap; }
+.roster-actions .btn + .btn { margin-left: 4px; }
 .roster-table tr.active td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .roster-table td:nth-child(2) { min-width: 220px; }
 .roster-table td:nth-child(3) { min-width: 200px; max-width: 320px; }

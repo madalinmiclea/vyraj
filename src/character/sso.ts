@@ -169,6 +169,18 @@ export function forgetTokens(characterId: number) {
   saveJson(TOKENS_KEY, all);
 }
 
+const REVOKE_URL = TOKEN_URL.replace(/token\/?$/, 'revoke');
+
+export async function revokeTokens(characterId: number): Promise<void> {
+  const t = allTokens()[characterId];
+  forgetTokens(characterId);
+  refreshing.delete(characterId);
+  if (!t?.refreshToken) return;
+  const body = new URLSearchParams({ token_type_hint: 'refresh_token', token: t.refreshToken, client_id: getSettings().clientId });
+  const send = fetch(REVOKE_URL, { method: 'POST', mode: 'no-cors', keepalive: true, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }).then(() => undefined, () => undefined);
+  await Promise.race([send, new Promise<void>((r) => setTimeout(r, 2000))]);
+}
+
 export function hasScope(characterId: number, scope: string): boolean {
   const t = allTokens()[characterId];
   return t ? decodeJwt(t.accessToken).scopes.includes(scope) : false;
