@@ -54,11 +54,13 @@ export async function logoutCharacter(id: string): Promise<boolean> {
   if (esi && lastOfId) { if (isDemo()) forgetTokens(c.characterId!); else await revokeTokens(c.characterId!); }
   forgetCharacterData(c, lastOfId);
   removeStoredCharacter(c.id);
-  if (getActiveCharacterId() === c.id) {
-    const next = loadStoredCharacters().find((x) => x.kind === 'esi');
-    setActiveCharacterId(next?.id ?? 'all5');
+  const wasActive = getActiveCharacterId() === c.id;
+  if (wasActive) {
+    setActiveCharacterId('all5');
+    saveJson('eve-fit:ui:view', 'home');
   }
-  try { sessionStorage.setItem(FLASH_KEY, esi ? tx('{name} a fost delogat', { name: c.name }) : tx('{name} a fost șters', { name: c.name })); } catch { location.reload(); return true; }
+  try { sessionStorage.setItem(FLASH_KEY, esi ? tx('{name} a fost delogat', { name: c.name }) : tx('{name} a fost șters', { name: c.name })); } catch { void 0; }
+  if (wasActive) history.replaceState(null, '', `${location.pathname}${location.search}#/home`);
   location.reload();
   return true;
 }
