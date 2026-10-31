@@ -11,6 +11,9 @@ import { createRosterView } from './views/roster';
 import { createWalletView } from './views/walletView';
 import { createOrdersView } from './views/orders';
 import { createMailView } from './views/mail';
+import { createNotificationsView, type NotificationsView } from './views/notifications';
+import { unreadCount, LOG_EVENT } from './services/notices';
+import { startNearbyWatcher } from './services/nearbyKills';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
 import { createNavigationView } from './views/navigation';
@@ -54,10 +57,10 @@ import { isDemo, startDemo, exitDemo } from './demo/demo';
 import { DEMO_ID } from './demo/identity';
 import { registerServiceWorker, canInstall, installApp, INSTALL_EVENT } from './services/pwa';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'mail' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'mail' | 'notifications' | 'about';
 
 const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const;
+const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -83,6 +86,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
   { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
   { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 9 },
+  { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 9 },
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
@@ -168,7 +172,8 @@ market.setFees(() => intel.fees());
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
 let doctrines: DoctrinesView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+let notifications: NotificationsView | null = null;
+for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -281,6 +286,7 @@ function switchView(id: ViewId, push = true) {
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   runLazy(id);
   if (id === 'missions') missions?.show();
+  if (id === 'notifications') notifications?.show();
   setSide(false);
   syncSubnav();
 }
@@ -468,7 +474,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -557,6 +563,7 @@ async function start() {
   later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
   later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
+  later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
   later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
@@ -608,9 +615,23 @@ start();
 registerServiceWorker();
 startAlertWatcher();
 startNotifyWatcher();
+startNearbyWatcher();
 startVisitTracker();
 itemsReady.then(startOrderWatcher).catch(() => {});
 
 const refreshListed = () => fetchListedTypes().then((ids) => browser.setListed(ids)).catch(() => {  });
 refreshListed();
 setInterval(refreshListed, 60 * 60 * 1000);
+
+const syncBadge = () => {
+  const n = unreadCount();
+  for (const b of document.querySelectorAll<HTMLElement>('[data-view="notifications"]')) {
+    let el = b.querySelector<HTMLElement>('.nc-badge');
+    if (!n) { el?.remove(); continue; }
+    if (!el) { el = document.createElement('span'); el.className = 'nc-badge'; b.append(el); }
+    el.textContent = n > 99 ? '99+' : String(n);
+  }
+};
+window.addEventListener(LOG_EVENT, syncBadge);
+window.addEventListener('storage', (e) => { if (e.key?.endsWith('eve-notify:log')) syncBadge(); });
+syncBadge();

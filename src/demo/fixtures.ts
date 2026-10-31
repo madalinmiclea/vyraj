@@ -9,6 +9,7 @@ import { fetchPrices, type Aggregates } from '../services/market';
 import { demoMail, demoNameLookup, demoIdLookup } from './mail';
 import { demoBusiness, businessNames } from './business';
 import { DEMO_CORP } from '../services/corporation';
+import { demoGameNotices } from './notices';
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -489,6 +490,7 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'loyalty/points': return json([{ corporation_id: 1000120, loyalty_points: 146_500 }, { corporation_id: 1000035, loyalty_points: 38_200 }]);
     case 'orders': return json(orders(w, now, await jita(w)));
     case 'orders/history': return json(orderHistory(w, now, await jita(w)));
+    case 'notifications': return json(demoGameNotices(now));
     case 'blueprints': return json(blueprints(w));
     case 'industry/jobs': return json(jobs(w, now));
     case 'planets': return json(planets(now));

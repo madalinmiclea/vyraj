@@ -5,69 +5,45 @@ import { rosterCharacters } from '../character/roster';
 import { industryJobs, ACTIVITY } from './industry';
 import { loadPi, fetchColonies, loadColonies, saveColonies, planetNames, PI_SCOPE } from './pi';
 import { scanContracts, lastContracts, contractCharacters, dueAt, isActive } from './contracts';
+import { lastScan, expiresAt } from './orders';
+import { listMail, canRead, mailNames, cachedMailName, LABEL_INBOX } from './mail';
+import { pollGame } from './gameNotices';
 import { typeName, resolveTypeNames } from './typeNames';
-import { toast } from '../ui/components';
 import { tx } from '../i18n';
-import { notify } from './pwa';
+import { noticeSettings, deliver, kindOn, type NoticeKind } from './notices';
 
-export type NotifyKind = 'skill' | 'queue' | 'industry' | 'contracts' | 'pi';
+export interface Upcoming { key: string; kind: NoticeKind; at: number; title: string; body: string; url?: string; charId?: number }
 
-export interface NotifySettings {
-  enabled: boolean;
-  kinds: Record<NotifyKind, { on: boolean; lead: number }>;
-}
-
-export interface Upcoming { key: string; kind: NotifyKind; at: number; title: string; body: string }
-
-export const NOTIFY_EVENT = 'vyraj-notify-updated';
-export const LEADS = [0, 1, 2, 4, 12, 24];
-
-const SETTINGS_KEY = 'eve-notify:settings';
 const FIRED_KEY = 'eve-notify:fired';
+const MAIL_SEEN_KEY = 'eve-notify:mail-seen';
 const CHECK_MS = 5 * 60 * 1000;
 const FETCH_MS = 20 * 60 * 1000;
 const STALE_MS = 6 * 3_600_000;
 const HOUR = 3_600_000;
 
-export const NOTIFY_KINDS: { id: NotifyKind; label: string; hint: string; lead: boolean }[] = [
-  { id: 'skill', label: tx('Skill terminat'), hint: tx('Fiecare skill din coada de antrenament, când se termină.'), lead: false },
-  { id: 'queue', label: tx('Coada de skill-uri se golește'), hint: tx('Înainte să se termine ultimul skill din coadă, ca să adaugi altele.'), lead: true },
-  { id: 'industry', label: tx('Job de industrie gata'), hint: tx('Fabricație, cercetare, invenție și reacții, când se termină.'), lead: true },
-  { id: 'contracts', label: tx('Contract care expiră'), hint: tx('Contractele tale active și termenele de livrare la curier.'), lead: true },
-  { id: 'pi', label: tx('Extractor PI oprit'), hint: tx('Când un extractor planetar ajunge la capătul ciclului și trebuie repornit.'), lead: true },
-];
-
-const DEFAULTS: NotifySettings = {
-  enabled: false,
-  kinds: { skill: { on: true, lead: 0 }, queue: { on: true, lead: 12 }, industry: { on: true, lead: 0 }, contracts: { on: true, lead: 4 }, pi: { on: true, lead: 2 } },
-};
-
-export function notifySettings(): NotifySettings {
-  const s = loadJson<Partial<NotifySettings>>(SETTINGS_KEY, {});
-  return { enabled: s.enabled ?? DEFAULTS.enabled, kinds: { ...DEFAULTS.kinds, ...(s.kinds ?? {}) } };
-}
-
-export function saveNotifySettings(s: NotifySettings) {
-  saveJson(SETTINGS_KEY, s);
-  if (s.enabled && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {}).finally(() => window.dispatchEvent(new Event(NOTIFY_EVENT)));
-  window.dispatchEvent(new Event(NOTIFY_EVENT));
-  check().catch(() => {});
-}
-
-export const browserPermission = (): NotificationPermission | 'unsupported' => ('Notification' in window ? Notification.permission : 'unsupported');
-
 interface Cache { jobs: Map<number, Upcoming[]>; pi: Upcoming[]; at: { jobs: number; pi: number; contracts: number } }
 const cache: Cache = { jobs: new Map(), pi: [], at: { jobs: 0, pi: 0, contracts: 0 } };
+
+const roman = (n: number) => ['', 'I', 'II', 'III', 'IV', 'V'][n] ?? String(n);
 
 function skillEvents(): Upcoming[] {
   const out: Upcoming[] = [];
   for (const c of loadStoredCharacters().filter((x) => x.kind === 'esi' && x.characterId)) {
     const queue = c.queue.filter((q) => q.finish && Date.parse(q.finish) > Date.now() - STALE_MS);
-    for (const q of queue) out.push({ key: `skill:${c.characterId}:${q.skillId}:${q.level}`, kind: 'skill', at: Date.parse(q.finish!), title: tx('Skill terminat · {name}', { name: c.name }), body: `${typeName(q.skillId)} ${['', 'I', 'II', 'III', 'IV', 'V'][q.level] ?? q.level}` });
+    for (const q of queue) out.push({ key: `skill:${c.characterId}:${q.skillId}:${q.level}`, kind: 'skill', at: Date.parse(q.finish!), title: tx('Skill terminat · {name}', { name: c.name }), body: `${typeName(q.skillId)} ${roman(q.level)}`, url: '#/character', charId: c.characterId });
     const last = queue[queue.length - 1];
-    if (last) out.push({ key: `queue:${c.characterId}:${last.finish}`, kind: 'queue', at: Date.parse(last.finish!), title: tx('Coada de skill-uri se golește · {name}', { name: c.name }), body: tx('Ultimul skill din coadă: {skill}', { skill: `${typeName(last.skillId)} ${['', 'I', 'II', 'III', 'IV', 'V'][last.level] ?? last.level}` }) });
+    if (last) out.push({ key: `queue:${c.characterId}:${last.finish}`, kind: 'queue', at: Date.parse(last.finish!), title: tx('Coada de skill-uri se golește · {name}', { name: c.name }), body: tx('Ultimul skill din coadă: {skill}', { skill: `${typeName(last.skillId)} ${roman(last.level)}` }), url: '#/character', charId: c.characterId });
   }
   return out;
+}
+
+function orderEvents(): Upcoming[] {
+  return (lastScan()?.orders ?? []).map((o) => ({
+    key: `order-exp:${o.characterId}:${o.order_id}`, kind: 'expiring' as const, at: expiresAt(o),
+    title: tx('Ordin care expiră · {name}', { name: o.characterName }),
+    body: `${typeName(o.type_id)} (${o.is_buy_order ? 'buy' : 'sell'}) · ${tx('rămase {n} din {total}', { n: o.volume_remain, total: o.volume_total })}`,
+    url: '#/orders', charId: o.characterId,
+  }));
 }
 
 async function jobEvents(force: boolean): Promise<Upcoming[]> {
@@ -77,7 +53,7 @@ async function jobEvents(force: boolean): Promise<Upcoming[]> {
       try {
         const jobs = (await industryJobs(c.characterId!)).filter((j) => j.status === 'active');
         await resolveTypeNames(jobs.map((j) => j.product_type_id ?? j.blueprint_type_id));
-        cache.jobs.set(c.characterId!, jobs.map((j) => ({ key: `job:${j.job_id}`, kind: 'industry', at: Date.parse(j.end_date), title: tx('Job de industrie gata · {name}', { name: c.name }), body: `${ACTIVITY[j.activity_id] ?? ''} · ${typeName(j.product_type_id ?? j.blueprint_type_id)} × ${j.runs}` })));
+        cache.jobs.set(c.characterId!, jobs.map((j) => ({ key: `job:${j.job_id}`, kind: 'industry', at: Date.parse(j.end_date), title: tx('Job de industrie gata · {name}', { name: c.name }), body: `${ACTIVITY[j.activity_id] ?? ''} · ${typeName(j.product_type_id ?? j.blueprint_type_id)} × ${j.runs}`, url: '#/industry', charId: c.characterId })));
       } catch { }
     }
   }
@@ -103,6 +79,7 @@ async function piEvents(force: boolean): Promise<Upcoming[]> {
       key: `pi:${x.pinId}:${x.expiry}`, kind: 'pi' as const, at: x.expiry,
       title: tx('Extractor PI oprit · {name}', { name: who.get(e.characterId) ?? '' }),
       body: tx('{planet}: extractorul de {product} se oprește.', { planet: names.get(p.planetId) ?? `#${p.planetId}`, product: typeName(x.product) }),
+      url: '#/pi', charId: e.characterId,
     }))));
   }
   return cache.pi;
@@ -119,27 +96,47 @@ async function contractEvents(force: boolean): Promise<Upcoming[]> {
     const at = dueAt(c);
     if (at == null) return [];
     const courier = c.type === 'courier' && c.status === 'in_progress';
-    return [{ key: `contract:${c.contract_id}:${at}`, kind: 'contracts' as const, at, title: courier ? tx('Termen de livrare curier') : tx('Contract care expiră'), body: c.title?.trim() || (courier ? tx('Contract de curier') : tx('Contract #{id}', { id: c.contract_id })) }];
+    return [{ key: `contract:${c.contract_id}:${at}`, kind: 'contracts' as const, at, title: courier ? tx('Termen de livrare curier') : tx('Contract care expiră'), body: c.title?.trim() || (courier ? tx('Contract de curier') : tx('Contract #{id}', { id: c.contract_id })), url: '#/orders' }];
   });
 }
 
 export async function upcoming(force = false): Promise<Upcoming[]> {
-  const s = notifySettings();
+  const s = noticeSettings();
   const [jobs, pi, contracts] = await Promise.all([
     s.kinds.industry.on ? jobEvents(force) : Promise.resolve([]),
     s.kinds.pi.on ? piEvents(force) : Promise.resolve([]),
     s.kinds.contracts.on ? contractEvents(force) : Promise.resolve([]),
   ]);
   await resolveTypeNames(loadStoredCharacters().flatMap((c) => c.queue.map((q) => q.skillId))).catch(() => {});
-  return [...skillEvents().filter((e) => s.kinds[e.kind].on), ...jobs, ...pi, ...contracts].filter((e) => e.at > Date.now() - STALE_MS).sort((a, b) => a.at - b.at);
+  const orders = s.kinds.expiring.on ? orderEvents() : [];
+  return [...skillEvents().filter((e) => s.kinds[e.kind].on), ...orders, ...jobs, ...pi, ...contracts].filter((e) => e.at > Date.now() - STALE_MS).sort((a, b) => a.at - b.at);
 }
 
-export const fireAt = (e: Upcoming, s = notifySettings()) => e.at - s.kinds[e.kind].lead * HOUR;
+export const fireAt = (e: Upcoming, s = noticeSettings()) => e.at - s.kinds[e.kind].lead * HOUR;
+
+async function pollMail() {
+  if (!kindOn('mail')) return;
+  const seen = loadJson<Record<string, number>>(MAIL_SEEN_KEY, {});
+  for (const c of rosterCharacters().filter((x) => x.characterId != null && canRead(x.characterId))) {
+    const id = c.characterId!;
+    let list;
+    try { list = await listMail(id, { labels: [LABEL_INBOX] }); } catch { continue; }
+    const max = list.reduce((m, h) => Math.max(m, h.mail_id), 0);
+    const last = seen[id];
+    seen[id] = Math.max(last ?? 0, max);
+    if (last == null) continue;
+    const fresh = list.filter((h) => h.mail_id > last && !h.is_read && h.from !== id).slice(0, 5).reverse();
+    if (!fresh.length) continue;
+    await mailNames(fresh.map((h) => h.from ?? 0).filter(Boolean)).catch(() => false);
+    for (const h of fresh) deliver('mail', { title: tx('Mail nou · {name}', { name: c.name }), body: `${cachedMailName(h.from ?? 0) ?? '?'}: ${h.subject ?? ''}`, url: '#/mail', charId: id, tag: `vyraj-mail-${h.mail_id}`, at: Date.parse(h.timestamp ?? '') || Date.now() });
+  }
+  saveJson(MAIL_SEEN_KEY, seen);
+}
 
 let running = false;
 
 export async function check(force = false): Promise<void> {
-  const s = notifySettings();
+  const s = noticeSettings();
   if (!s.enabled || running) return;
   running = true;
   try {
@@ -150,12 +147,12 @@ export async function check(force = false): Promise<void> {
     for (const e of due.slice(0, 6)) {
       fired[e.key] = now;
       const when = e.at > now ? tx('{t} rămase', { t: left(e.at - now) }) : '';
-      const body = when ? `${e.body} · ${when}` : e.body;
-      if (browserPermission() === 'granted' && !isDemo()) notify(e.title, { body, tag: e.key });
-      else toast(`${e.title}: ${body}`, 5000);
+      deliver(e.kind, { title: e.title, body: when ? `${e.body} · ${when}` : e.body, url: e.url, charId: e.charId, tag: e.key });
     }
     for (const e of due.slice(6)) fired[e.key] = now;
     saveJson(FIRED_KEY, fired);
+    await pollMail().catch(() => {});
+    await pollGame().catch(() => {});
   } finally {
     running = false;
   }
@@ -171,7 +168,7 @@ export function left(ms: number) {
 
 export function startNotifyWatcher() {
   const run = () => {
-    if (!notifySettings().enabled) return;
+    if (!noticeSettings().enabled) return;
     const job = () => check();
     (navigator.locks ? navigator.locks.request('vyraj-notify', { ifAvailable: true }, (lock) => (lock ? job() : undefined)) : job()).catch(() => {});
   };

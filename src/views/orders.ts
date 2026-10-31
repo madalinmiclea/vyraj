@@ -188,6 +188,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
           <div class="ord-meta small dim">
             <span>${tx('Verificat la {time}. Se reverifică singur la 5 minute cât timp aplicația e deschisă.', { time: dateTime(scan.at) })}</span>
             <label class="ord-toggle"><input type="checkbox" data-ord-notify ${notifyEnabled() ? 'checked' : ''} /> ${tx('Notificare la outbid / undercut')}</label>
+            <a class="small" href="#/notifications">${tx('Toate notificările')}</a>
           </div>
           ${list.length ? `<div class="table-scroll"><table class="table compact ord-table"><thead><tr>
             <th>Item</th><th class="r">${tx('Prețul meu')}</th><th class="r">${tx('Concurență')}</th><th>${tx('Stare')}</th><th class="r">${tx('Rămas')}</th><th class="r">${tx('Expiră')}</th><th class="r">${tx('Preț nou')}</th>

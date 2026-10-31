@@ -1,9 +1,9 @@
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices } from './market';
 import { repeatAfter } from './esiClient';
-import { compactISK, toast } from '../ui/components';
+import { compactISK } from '../ui/components';
 import { tx } from '../i18n';
-import { notify } from './pwa';
+import { deliver, askBrowser } from './notices';
 
 export interface PriceAlert {
   id: string;
@@ -29,7 +29,7 @@ export function saveAlerts(list: PriceAlert[]) {
 
 export function addAlert(a: Omit<PriceAlert, 'id'>) {
   saveAlerts([...loadAlerts(), { ...a, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }]);
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  askBrowser();
 }
 
 export const hit = (a: PriceAlert, value: number) => value > 0 && (a.op === 'below' ? value <= a.price : value >= a.price);
@@ -52,8 +52,7 @@ async function runCheck() {
   saveAlerts(list);
   for (const a of fired) {
     const text = `${a.name}: ${a.side} ${compactISK(a.current ?? 0)} ISK (${a.op === 'below' ? '≤' : '≥'} ${compactISK(a.price)})`;
-    toast(text);
-    notify(tx('Alertă preț Jita'), { body: text, tag: `vyraj-alert-${a.id}` });
+    deliver('alerts', { title: tx('Alertă preț Jita'), body: text, short: text, tag: `vyraj-alert-${a.id}`, url: '#/orders' });
   }
 }
 

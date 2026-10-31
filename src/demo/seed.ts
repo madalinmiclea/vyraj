@@ -9,6 +9,8 @@ import { saveAlerts, type PriceAlert } from '../services/alerts';
 import { tx } from '../i18n';
 import { saveLog } from '../services/incursions';
 import { demoIncursionLog } from './incursionLog';
+import { demoNoticeLog } from './notices';
+import { saveLog as saveNoticeLog } from '../services/notices';
 
 const DAY = 86_400_000;
 
@@ -136,4 +138,5 @@ export async function seedDemo(): Promise<void> {
   ];
   saveAlerts(alerts.map((a, i) => ({ ...a, id: `demo-alert-${i}` })));
   saveLog(await demoIncursionLog(now));
+  saveNoticeLog(demoNoticeLog(now, tx('Pilot demo')));
 }

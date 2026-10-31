@@ -15,7 +15,6 @@ import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { backupPanel } from '../io/backup';
 import { tx, locale } from '../i18n';
-import { mountNotifyPanel } from './notifyPanel';
 import { characterPublic, loadActivities } from '../services/operations';
 import { loreText } from '../i18n/lore';
 
@@ -70,8 +69,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
 
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
-    aside.innerHTML = `${queuePanel()}<div id="notifyBox"></div>${permissionsPanel()}${setup}${backupPanel()}`;
-    mountNotifyPanel(aside.querySelector<HTMLElement>('#notifyBox'));
+    aside.innerHTML = `${queuePanel()}${permissionsPanel()}${setup}${backupPanel()}`;
     fillPublic();
   }
 

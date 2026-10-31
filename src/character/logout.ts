@@ -9,6 +9,7 @@ import { forgetSkins } from '../services/skins';
 import { forgetWallet } from '../services/wallet';
 import { loadColonies, saveColonies } from '../services/pi';
 import { clearVisits } from '../services/visited';
+import { forgetCharacterNotices } from '../services/notices';
 
 const FLASH_KEY = 'vyraj:flash';
 
@@ -33,6 +34,7 @@ function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   if (visitedUi.who === c.name) saveJson('eve-nav:visited-ui', { ...visitedUi, who: '' });
   const orders = loadJson<Record<string, unknown>>('eve-orders:ui', {});
   if (orders.character === id) saveJson('eve-orders:ui', { ...orders, character: 0 });
+  forgetCharacterNotices(id);
   const fired = loadJson<Record<string, number>>('eve-notify:fired', {});
   const marker = `:${id}:`;
   if (Object.keys(fired).some((k) => k.includes(marker))) saveJson('eve-notify:fired', Object.fromEntries(Object.entries(fired).filter(([k]) => !k.includes(marker))));

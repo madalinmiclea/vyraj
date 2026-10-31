@@ -37,3 +37,31 @@
 .nt-lead { min-width: 150px; }
 .nt-next { margin-top: 12px; }
 .nt-next .ord-side-label { margin: 0 0 6px; }
+.nt-delivery { display: grid; gap: 8px; }
+.nt-delivery p { margin: 0; }
+.nt-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; align-items: start; }
+.nt-kind.muted > .ord-toggle { color: var(--text-faint); }
+.nt-kind-side { display: flex; justify-content: flex-end; }
+.nt-missing { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: var(--warn, #d9a441); }
+.nt-missing svg { width: 14px; height: 14px; flex: none; }
+.nt-missing .btn { margin-left: auto; }
+.nt-status { grid-column: 1 / -1; padding-left: 2px; border-left: 2px solid rgba(var(--accent-rgb), 0.55); padding: 2px 0 2px 8px; }
+.nt-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 13px; }
+.nt-link svg { width: 14px; height: 14px; vertical-align: -2px; }
+.nt-log { display: grid; }
+.nt-day { margin: 14px 0 4px; font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.nt-day:first-child { margin-top: 0; }
+.nt-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 9px 8px; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; }
+a.nt-row:hover { background: var(--bg-hover); }
+.nt-row.unread { border-left: 2px solid var(--accent); background: rgba(var(--accent-rgb), 0.05); }
+.nt-ico svg { width: 18px; height: 18px; color: var(--text-dim); }
+.nt-text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.nt-text .dim { font-size: 13px; }
+.nt-meta { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.nc-badge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #fff; font: 600 10px/16px var(--font-mono); text-align: center; pointer-events: none; }
+.sheet-btn { position: relative; }
+@media (max-width: 720px) {
+  .nt-groups { grid-template-columns: 1fr; }
+  .nt-row { grid-template-columns: 22px 1fr; }
+  .nt-meta { grid-column: 2; justify-items: start; text-align: left; display: flex; gap: 8px; }
+}

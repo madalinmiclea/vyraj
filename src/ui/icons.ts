@@ -46,6 +46,7 @@ const paths: Record<string, string> = {
   skill: '<path d="M12 3 21 8l-9 5-9-5z"/><path d="M6 10v5c2 2 10 2 12 0v-5"/>',
   orders: '<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/><path d="m14 17 2 2 4-4"/>',
   mail: '<path d="M3 6h18v12H3z"/><path d="m3 6 9 7 9-7"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/><path d="M12 3v2"/>',
   reply: '<path d="M10 8 4 13l6 5"/><path d="M4 13h10a6 6 0 0 1 6 6"/>',
   forward: '<path d="m14 8 6 5-6 5"/><path d="M20 13H10a6 6 0 0 0-6 6"/>',
   unread: '<path d="M3 6h18v12H3z"/><path d="m3 6 9 7 9-7"/><circle cx="19" cy="6" r="3" fill="currentColor" stroke="none"/>',

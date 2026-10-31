@@ -4,6 +4,15 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-10-31',
+    title: tx('Glasul fiecărui sistem'),
+    lead: tx('Vyraj îți spune singur ce s-a întâmplat, iar tu alegi ce vrei să auzi.'),
+    items: [
+      tx('Modul nou Notificări: alegi fiecare tip în parte, de la ordine vândute sau cumpărate (și parțial), ordine expirate, outbid și alerte de preț, până la skill-uri, mail nou, industrie, PI și contracte, cu un istoric al tuturor notificărilor.'),
+      tx('Kill-uri PvP în sistemul tău și în cele la un salt, doar cele făcute după ce ai ajuns acolo, plus notificările din joc: structuri atacate, războaie, corporație, kill-uri și asigurări.'),
+    ],
+  },
+  {
     date: '2026-10-30',
     title: tx('Vyraj în buzunar'),
     lead: tx('Se instalează pe telefon, vorbește cu tine și îți aduce mailurile din joc.'),
