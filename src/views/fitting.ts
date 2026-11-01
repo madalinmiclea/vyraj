@@ -13,6 +13,7 @@ import { requirementsFor, fitTypeIds } from '../character/requirements';
 import { allCharacters, allLevels } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
+import { openShareModal } from '../ui/shareModal';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, typeRenderUrl } from '../services/market';
 import { loadFits, saveFit } from '../fitting/savedFits';
 import { loadJson, saveJson } from '../storage';
@@ -98,7 +99,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           ${button(tx('Fit-uri'), { iconName: 'fitting', cls: 'ghost sm', attrs: 'data-action="saved"' })}
           ${button(tx('Importă'), { iconName: 'upload', cls: 'ghost sm', attrs: 'data-action="import"' })}
           ${button(tx('Exportă'), { iconName: 'download', cls: 'ghost sm', attrs: 'data-action="export"' })}
-          ${button(tx('Link'), { iconName: 'link', cls: 'ghost sm', attrs: `data-action="share" title="${tx('Copiază un link care deschide fit-ul direct în Vyraj')}"` })}
+          ${button(tx('Share'), { iconName: 'link', cls: 'sm', attrs: `data-action="share" title="${tx('Trimite un link care deschide fit-ul direct în Vyraj')}"` })}
           <details class="more-menu">
             <summary class="btn ghost sm">${icon('chevron')}${tx('Mai mult')}</summary>
             <div class="more-list">
@@ -865,10 +866,16 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         return openImport();
       case 'export':
         return openExport();
-      case 'share':
+      case 'share': {
         if (!fit) return toast(tx('Nu ai niciun fit'));
-        shareUrl(fit).then((url) => copyText(url, tx('Link copiat. Cine îl deschide primește fit-ul într-un tab nou.'))).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
+        const shared = fit;
+        shareUrl(shared).then((url) => openShareModal(url, {
+          title: tx('Share fit'),
+          text: tx('Fit {name} ({ship}) în Vyraj', { name: shared.name, ship: sde.types.get(shared.shipId)?.name ?? '' }),
+          hint: tx('Cine deschide linkul primește fit-ul în Vyraj, gata de modificat.'),
+        })).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
         break;
+      }
       case 'compare':
         return openCompare();
       case 'esi':

@@ -39,7 +39,7 @@ export function sharedCode(key: ShareKey): string | null {
   return h ? h[1] : null;
 }
 
-export const hasSharedLink = () => SHARE_KEYS.some((k) => sharedCode(k));
+export const hasSharedLink = () => SHARE_KEYS.some((k) => sharedCode(k)) || new URLSearchParams(location.search).has('s');
 
 export function clearShared(key: ShareKey) {
   const params = new URLSearchParams(location.search);

@@ -2,7 +2,8 @@ import type { Sde } from '../data/sde';
 import type { ModuleState } from '../engine/dogma';
 import { SHIP_BONUSES } from '../engine/fleet';
 import { canLoadCharge, defaultState, emptyFit, SLOT_KINDS, type Fit, type FitModule } from '../engine/fit';
-import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
+import { clearShared, sharedCode } from '../app/route';
+import { shortLink } from './shortLink';
 
 const MAX_CODE = 16000;
 const MAX_JSON = 200_000;
@@ -123,7 +124,7 @@ export async function decodeCode(code: string, maxCode = MAX_CODE, limit = MAX_J
 }
 
 export async function shareUrl(fit: Fit): Promise<string> {
-  return shareLinkUrl('fit', await encodeCode(compactFit(fit)));
+  return shortLink('fit', await encodeCode(compactFit(fit)));
 }
 
 export function hasSharedFit(): boolean {

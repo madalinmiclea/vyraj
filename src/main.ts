@@ -52,6 +52,7 @@ import { initSuggest } from './ui/suggest';
 import { initTooltips } from './ui/tooltip';
 import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
+import { resolveShortLink } from './io/shortLink';
 import { downloadBackup, pickBackup } from './io/backup';
 import { ESI, esiFetch, repeatAfter } from './services/esiClient';
 import { isDemo, startDemo, exitDemo } from './demo/demo';
@@ -598,9 +599,11 @@ async function start() {
     }).catch(() => toast(tx('Linkul de doctrină nu e valid sau e incomplet.')));
   };
   const openBuild = () => { if (sharedCode('build') && activeView !== 'industry') switchView('industry'); };
-  openShared();
-  openDoctrine();
-  openBuild();
+  resolveShortLink().catch(() => toast(tx('Linkul scurt nu mai există sau nu e valid.'))).finally(() => {
+    openShared();
+    openDoctrine();
+    openBuild();
+  });
   window.addEventListener('hashchange', () => { migrateLegacyHash(); openShared(); openDoctrine(); openBuild(); });
 
   const view = character as ReturnType<typeof createCharacterView> | null;

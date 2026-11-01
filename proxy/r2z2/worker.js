@@ -2,7 +2,8 @@ const UPSTREAM = 'https://r2z2.zkillboard.com/ephemeral/';
 const PATH = /^\/ephemeral\/(sequence|\d{1,12})\.json$/;
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+  'access-control-allow-methods': 'GET, HEAD, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
   'access-control-max-age': '86400',
 };
 const HEADERS = { 'user-agent': 'Vyraj R2Z2 proxy', accept: 'application/json', 'accept-encoding': 'gzip' };
@@ -13,6 +14,18 @@ const IDLE_MS = 6000;
 const SLEEP_AFTER_MS = 10 * 60 * 1000;
 const MAX_BACK = 3000;
 const SAVE_MS = 60 * 1000;
+
+const LINK_KEYS = ['fit', 'doctrine', 'build'];
+const LINK_CODE = /^[A-Za-z0-9_-]{1,16000}$/;
+const LINK_ID = /^[A-Za-z0-9]{6,12}$/;
+const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+async function linkId(text, size) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  let out = '';
+  for (let i = 0; i < size; i++) out += ALPHABET[bytes[i] % 62];
+  return out;
+}
 
 const reply = (status, body = null, extra = {}) => new Response(body, { status, headers: { ...CORS, ...extra } });
 
@@ -112,11 +125,54 @@ export class Feed {
   }
 }
 
+export class Links {
+  constructor(ctx) {
+    this.ctx = ctx;
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (request.method === 'POST') {
+      const { k, c } = await request.json();
+      for (let size = 8; size <= 12; size += 2) {
+        const id = await linkId(`${k}=${c}`, size);
+        const found = await this.ctx.storage.get(id);
+        if (found && (found.k !== k || found.c !== c)) continue;
+        if (!found) await this.ctx.storage.put(id, { k, c, t: Date.now() });
+        return Response.json({ id });
+      }
+      return new Response(null, { status: 409 });
+    }
+    const found = await this.ctx.storage.get(url.searchParams.get('id'));
+    return found ? Response.json({ k: found.k, c: found.c }) : new Response(null, { status: 404 });
+  }
+}
+
+async function links(request, env, url) {
+  const store = env.LINKS.get(env.LINKS.idFromName('main'));
+  const json = { 'content-type': 'application/json' };
+  if (request.method === 'POST') {
+    const body = await request.text();
+    if (body.length > 16100) return reply(413, null, { 'cache-control': 'no-store' });
+    let data;
+    try { data = JSON.parse(body); } catch { return reply(400, null, { 'cache-control': 'no-store' }); }
+    if (!LINK_KEYS.includes(data?.k) || typeof data.c !== 'string' || !LINK_CODE.test(data.c)) return reply(400, null, { 'cache-control': 'no-store' });
+    const res = await store.fetch('https://links/', { method: 'POST', body: JSON.stringify({ k: data.k, c: data.c }) });
+    return reply(res.status, res.ok ? await res.text() : null, { ...json, 'cache-control': 'no-store' });
+  }
+  const id = url.pathname.slice(3);
+  if (!LINK_ID.test(id)) return reply(404, null, { 'cache-control': 'no-store' });
+  const res = await store.fetch(`https://links/?id=${id}`);
+  return reply(res.status, res.ok ? await res.text() : null, { ...json, 'cache-control': res.ok ? 'public, max-age=86400, immutable' : 'no-store' });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return reply(204);
-    if (request.method !== 'GET' && request.method !== 'HEAD') return reply(405);
     const url = new URL(request.url);
+    if (url.pathname === '/s' && request.method === 'POST') return links(request, env, url);
+    if (request.method !== 'GET' && request.method !== 'HEAD') return reply(405);
+    if (url.pathname.startsWith('/s/')) return links(request, env, url);
     if (url.pathname === '/recent') {
       const since = Number(url.searchParams.get('since')) || 0;
       const feed = env.FEED.get(env.FEED.idFromName('main'));
