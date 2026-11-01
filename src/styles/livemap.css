@@ -115,3 +115,4 @@
 .sov-score { height: 4px; margin: 3px 0 1px; background: color-mix(in srgb, var(--danger) 55%, transparent); }
 .sov-score span { display: block; height: 100%; background: var(--accent); }
 .sov-map .live-body { height: calc(100vh - var(--topbar-h) - 180px); }
+.sov-sub { margin-top: 12px; }

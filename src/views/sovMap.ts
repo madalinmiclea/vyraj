@@ -3,12 +3,14 @@ import { icon } from '../ui/icons';
 import { tx, locale } from '../i18n';
 import { fold } from '../ui/fold';
 import { StarMap, type MapPainter } from '../ui/starMap';
-import { loadMap, type NavMap, type NavSystem } from '../services/navigation';
+import { loadMap, JOVE_REGIONS, type NavMap, type NavSystem } from '../services/navigation';
 import { sovereignty, sovCampaigns, resolveNames, cachedName, displaySec, secClass, type SovClaim, type SovCampaign } from '../services/recon';
 
 type SideTab = 'alliances' | 'campaigns';
 
-interface Holder { id: number; n: number; color: string; capital?: number; systems: number[] }
+interface Holder { id: number; kind: 'alliance' | 'faction'; n: number; color: string; capital?: number; systems: number[] }
+
+const JOVE_EMPIRE = 500005;
 
 const CAMPAIGN_TYPE: Record<string, string> = {
   ihub_defense: tx('Apărare IHub'),
@@ -33,6 +35,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
   let started = false;
   let claims = new Map<number, SovClaim>();
   let holders: Holder[] = [];
+  let factions: Holder[] = [];
   let territory = new Map<number, string>();
   let campaigns: SovCampaign[] = [];
   let contested = new Map<number, SovCampaign[]>();
@@ -43,25 +46,40 @@ export function createSovMap(el: HTMLElement): SovMapView {
 
   el.innerHTML = loader(tx('Încarc harta de suveranitate'));
 
+  function claimOf(sys: number): SovClaim {
+    const c = claims.get(sys);
+    if (c) return c;
+    const s = map?.systems.get(sys);
+    return s && JOVE_REGIONS.has(s.regionId) ? { kind: 'faction', id: JOVE_EMPIRE } : null;
+  }
+
   function build() {
     const by = new Map<number, Holder>();
-    for (const [sys, c] of claims) {
-      if (c?.kind !== 'alliance') continue;
-      const h = by.get(c.id) ?? { id: c.id, n: 0, color: '', systems: [] };
+    for (const sys of map ? map.systems.keys() : claims.keys()) {
+      const c = claimOf(sys);
+      if (!c) continue;
+      if (c.kind === 'faction') {
+        const s = map?.systems.get(sys);
+        if (!s || displaySec(s.sec) > 0) continue;
+      }
+      const h = by.get(c.id) ?? { id: c.id, kind: c.kind, n: 0, color: '', systems: [] };
       h.n++;
       h.systems.push(sys);
-      if (c.capital) h.capital = sys;
+      if (c.kind === 'alliance' && c.capital) h.capital = sys;
       by.set(c.id, h);
     }
-    holders = [...by.values()].sort((a, b) => b.n - a.n);
+    const all = [...by.values()].sort((a, b) => b.n - a.n);
+    holders = all.filter((h) => h.kind === 'alliance');
+    factions = all.filter((h) => h.kind === 'faction');
     holders.forEach((h, i) => { h.color = `hsl(${Math.round((i * 137.508) % 360)}, 70%, 55%)`; });
+    factions.forEach((h, i) => { h.color = `hsl(${Math.round((i * 97 + 20) % 360)}, 14%, 52%)`; });
     territory = new Map();
-    for (const h of holders) if (!focus || focus === h.id) for (const s of h.systems) territory.set(s, h.color);
+    for (const h of [...factions, ...holders]) if (!focus || focus === h.id) for (const s of h.systems) territory.set(s, h.color);
     contested = new Map();
     for (const c of campaigns) (contested.get(c.systemId) ?? contested.set(c.systemId, []).get(c.systemId)!).push(c);
     labels = [];
     if (!map) return;
-    for (const h of holders.slice(0, 60)) {
+    for (const h of [...holders.slice(0, 60), ...factions]) {
       const groups = new Map<number, NavSystem[]>();
       for (const id of h.systems) {
         const s = map.systems.get(id);
@@ -119,18 +137,22 @@ export function createSovMap(el: HTMLElement): SovMapView {
   }
 
   function tooltip(s: NavSystem) {
-    const c = claims.get(s.id);
+    const c = claimOf(s.id);
     const camp = contested.get(s.id) ?? [];
     return `<b>${esc(s.name)}</b> ${secSpan(s.sec)}<small>${esc(map!.region(s))} · ${esc(map!.constellation(s))}</small>
-      ${c ? `<span class="tip-row">${esc(cachedName(c.id) || `#${c.id}`)}${c.kind === 'alliance' && c.capital ? ` · ${tx('capitală')}` : ''}${c.kind === 'faction' ? ` <span class="dim">(${tx('facțiune NPC')})</span>` : ''}</span>` : `<span class="tip-row dim">${tx('Nerevendicat')}</span>`}
+      ${c ? `<span class="tip-row">${esc(cachedName(c.id) || `#${c.id}`)}${c.kind === 'alliance' && c.capital ? ` · ${tx('capitală')}` : ''}${c.kind === 'faction' ? ` <span class="dim">(${tx(displaySec(s.sec) <= 0 ? 'null-sec NPC, fără suveranitate de jucători' : 'facțiune NPC')})</span>` : ''}</span>` : `<span class="tip-row dim">${tx('Nerevendicat')}</span>`}
       ${camp.map((x) => `<span class="tip-row warn-text">${esc(CAMPAIGN_TYPE[x.type] ?? x.type)} · ${whenText(x.start)} · ${Math.round(x.defenderScore * 100)}% ${tx('apărare')}</span>`).join('')}`;
   }
+
+  const row = (h: Holder) => `<button class="sov-row ${focus === h.id ? 'active' : ''}" data-sov="${h.id}"><i style="background:${h.color}"></i><span>${esc(cachedName(h.id) || `#${h.id}`)}</span><span class="num dim">${h.n}</span></button>`;
 
   function sideHtml() {
     if (tab === 'alliances') {
       return `<div class="label">${tx('{n} alianțe dețin {s} sisteme', { n: holders.length, s: formatInt(holders.reduce((n, h) => n + h.n, 0)) })}</div>
         ${focus ? `<button class="btn ghost sm" data-sov-clear>${icon('close')}${tx('Arată toate alianțele')}</button>` : ''}
-        <div class="sov-list">${holders.map((h) => `<button class="sov-row ${focus === h.id ? 'active' : ''}" data-sov="${h.id}"><i style="background:${h.color}"></i><span>${esc(cachedName(h.id) || `#${h.id}`)}</span><span class="num dim">${h.n}</span></button>`).join('')}</div>`;
+        <div class="sov-list">${holders.map(row).join('')}</div>
+        ${factions.length ? `<div class="label sov-sub">${tx('Null-sec NPC: {n} sisteme ale facțiunilor NPC, fără suveranitate de jucători', { n: formatInt(factions.reduce((n, h) => n + h.n, 0)) })}</div>
+        <div class="sov-list">${factions.map(row).join('')}</div>` : ''}`;
     }
     const list = [...campaigns].sort((a, b) => a.start - b.start);
     return `<div class="label">${tx('{n} campanii active sau programate', { n: list.length })}</div>
@@ -165,7 +187,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
     build();
     star?.invalidateTerritory();
     renderSide();
-    const h = holders.find((x) => x.id === id);
+    const h = [...holders, ...factions].find((x) => x.id === id);
     if (h) star?.fitSystems(h.systems);
   }
 
@@ -175,6 +197,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
     campaigns = camp;
     const ids = new Set<number>();
     for (const x of c.values()) if (x) ids.add(x.id);
+    ids.add(JOVE_EMPIRE);
     for (const x of camp) if (x.defenderId) ids.add(x.defenderId);
     await resolveNames([...ids]).catch(() => null);
     loadedAt = Date.now();
@@ -197,7 +220,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
     el.innerHTML = `<div class="live-map sov-map">
       <div class="live-toolbar">
         <input class="input live-jump" id="sovFind" data-list="sovNames" placeholder="${esc(tx('Caută alianță, sistem sau regiune'))}" autocomplete="off" spellcheck="false" />
-        <span class="small dim">${tx('★ capitală · cerc punctat = campanie de suveranitate')}</span>
+        <span class="small dim">${tx('★ capitală · cerc punctat = campanie de suveranitate · gri = null-sec NPC')}</span>
         <span class="live-status small dim" id="sovStamp"></span>
         <button class="btn ghost sm" data-sov-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
       </div>
@@ -224,8 +247,8 @@ export function createSovMap(el: HTMLElement): SovMapView {
       tooltip,
       labelFirst: (id) => contested.has(id),
       onSelect: (id) => {
-        const c = id ? claims.get(id) : null;
-        if (c?.kind === 'alliance') { tab = 'alliances'; setFocus(c.id); }
+        const c = id ? claimOf(id) : null;
+        if (c && [...holders, ...factions].some((h) => h.id === c.id)) { tab = 'alliances'; setFocus(c.id); }
         if (id && contested.has(id)) { tab = 'campaigns'; renderSide(); }
       },
     });
@@ -234,10 +257,10 @@ export function createSovMap(el: HTMLElement): SovMapView {
     find.addEventListener('input', () => {
       const q = fold(find.value.trim());
       if (!q || !map) { list.innerHTML = ''; return; }
-      const alliances = holders.filter((h) => fold(cachedName(h.id)).includes(q)).slice(0, 8);
+      const alliances = [...holders, ...factions].filter((h) => fold(cachedName(h.id)).includes(q)).slice(0, 8);
       const regions = [...map.regions.values()].filter((n) => fold(n).startsWith(q)).slice(0, 4);
       list.innerHTML = [
-        ...alliances.map((h) => `<option value="${esc(cachedName(h.id))}">${tx('alianță')} · ${h.n}</option>`),
+        ...alliances.map((h) => `<option value="${esc(cachedName(h.id))}">${h.kind === 'faction' ? tx('facțiune NPC') : tx('alianță')} · ${h.n}</option>`),
         ...regions.map((n) => `<option value="${esc(n)}">${tx('regiune')}</option>`),
         ...map.suggest(find.value, 6).map((s) => `<option value="${esc(s.name)}">${esc(map!.region(s))}</option>`),
       ].join('');
@@ -245,7 +268,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
     const go = () => {
       const q = fold(find.value.trim());
       if (!q || !map) return;
-      const h = holders.find((x) => fold(cachedName(x.id)) === q);
+      const h = [...holders, ...factions].find((x) => fold(cachedName(x.id)) === q);
       if (h) { tab = 'alliances'; setFocus(h.id); return; }
       const region = [...map.regions.entries()].find(([, n]) => fold(n) === q);
       if (region) { star?.fitRegion(region[0]); return; }

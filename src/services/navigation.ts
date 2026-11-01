@@ -6,7 +6,7 @@ const SCOUT = 'https://api.eve-scout.com/v2/public/signatures';
 
 export const POCHVEN_REGION = 10000070;
 export const ZARZAKH = 30100000;
-const JOVE_REGIONS = new Set([10000004, 10000017, 10000019]);
+export const JOVE_REGIONS = new Set([10000004, 10000017, 10000019]);
 const NO_CYNO_REGIONS = new Set([POCHVEN_REGION, 10001000, ...JOVE_REGIONS]);
 
 export const ISOTOPES: Record<number, string> = { 16274: 'Helium Isotopes', 17887: 'Oxygen Isotopes', 17888: 'Nitrogen Isotopes', 17889: 'Hydrogen Isotopes' };
