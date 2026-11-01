@@ -15,6 +15,7 @@ import {
   type IndustryData, type Blueprint, type Facility, type BuildResult, type Basis, type Decryptor, type OwnedBlueprint, type IndustryJob, type CostIndices,
 } from '../services/industry';
 import { tx } from '../i18n';
+import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
 
 type Tab = 'calc' | 'mine' | 'jobs';
 
@@ -46,7 +47,6 @@ const signed = (n: number) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${n >= 0 
 const pct = (n: number) => `<span class="${n >= 0 ? 'pos' : 'neg'}">${formatNum(n, 1)}%</span>`;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
 
-const SHARE_PREFIX = '#build=';
 
 const encodeShare = (o: unknown) => {
   let bin = '';
@@ -385,13 +385,14 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function shareLink() {
     const code = encodeShare({ v: 1, c: { product: calc.product, me: calc.me, te: calc.te, runs: calc.runs, source: calc.source, decryptor: calc.decryptor }, s: settings });
-    copyText(`${location.origin}${location.pathname}${SHARE_PREFIX}${code}`, tx('Linkul calculului e în clipboard'));
+    copyText(shareLinkUrl('build', code), tx('Linkul calculului e în clipboard'));
   }
 
   function applyShared(): boolean {
-    if (!location.hash.startsWith(SHARE_PREFIX)) return false;
-    const o = decodeShare(location.hash.slice(SHARE_PREFIX.length));
-    history.replaceState(null, '', `${location.pathname}${location.search}#/industry`);
+    const shared = sharedCode('build');
+    if (!shared) return false;
+    const o = decodeShare(shared);
+    clearShared('build');
     const c = o?.c as Record<string, unknown> | undefined;
     const st = o?.s as Record<string, unknown> | undefined;
     const product = str(c?.product, 120);

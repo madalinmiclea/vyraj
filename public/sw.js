@@ -102,7 +102,7 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || at('#/home');
+  const target = event.notification.data?.url || at('');
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const open = all.find((c) => c.url.startsWith(SCOPE.href));

@@ -1,7 +1,6 @@
 import type { AppContext } from '../app/context';
 import { pageHead, panel, esc, loader, alertBox, button, badge, windowTitle, confirmDialog, emptyState } from '../ui/components';
 import { icon } from '../ui/icons';
-import { loadJson, saveJson } from '../storage';
 import { tx, locale } from '../i18n';
 import { rosterCharacters } from '../character/roster';
 import { hasTokens, hasScope } from '../character/sso';
@@ -14,16 +13,15 @@ import { upcoming, fireAt, left, type Upcoming } from '../services/notify';
 import { gameNotices, gameKind, gameTitle, humanType, GAME_SCOPE, type GameNotice } from '../services/gameNotices';
 import { nearbyStatus, NEARBY_EVENT } from '../services/nearbyKills';
 import { loadMap, type NavMap } from '../services/navigation';
+import { viewHref } from '../app/route';
 
 type Section = 'settings' | 'history' | 'upcoming' | 'game';
 
-const SECTION_KEY = 'eve-notify:section';
-
 const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'settings', label: tx('Ce primești') },
   { id: 'history', label: tx('Istoric') },
   { id: 'upcoming', label: tx('Următoarele') },
   { id: 'game', label: tx('Din joc') },
+  { id: 'settings', label: tx('Setări') },
 ];
 
 const leadLabel = (h: number) => (h === 0 ? tx('la momentul respectiv') : tx('cu {n} h înainte', { n: h }));
@@ -35,8 +33,7 @@ const groupIcon = (g: NoticeGroup) => GROUPS.find((x) => x.id === g)!.icon;
 export interface NotificationsView { show(section?: Section): void }
 
 export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement): NotificationsView {
-  const saved = loadJson<Section>(SECTION_KEY, 'settings');
-  let section: Section = SECTIONS.some((s) => s.id === saved) ? saved : 'settings';
+  let section: Section = 'history';
   let filter: NoticeGroup | 'all' = 'all';
   let next: Upcoming[] | null = null;
   let nextBusy = false;
@@ -103,7 +100,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
           ${k.id === 'nearby' && conf.on && s.enabled ? nearbyLine() : ''}
         </div>`;
       }).join('');
-      const extra = g.id === 'pvp' ? `<div class="nt-kind nt-link"><span>${icon('recon')} ${tx('Alarmele hărții live, pe raza aleasă de tine, se setează din Intel PvP > Hartă live.')}</span><a class="btn ghost sm" href="#/recon">${tx('Deschide')}</a></div>` : '';
+      const extra = g.id === 'pvp' ? `<div class="nt-kind nt-link"><span>${icon('recon')} ${tx('Alarmele hărții live, pe raza aleasă de tine, se setează din Intel PvP > Hartă live.')}</span><a class="btn ghost sm" href="${viewHref('recon')}">${tx('Deschide')}</a></div>` : '';
       const on = kinds.filter((k) => s.kinds[k.id].on).length;
       return panel({
         title: g.label,
@@ -139,7 +136,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
 
   function upcomingSection() {
     const s = noticeSettings();
-    if (!s.enabled) return panel({ title: tx('Următoarele'), body: `<p class="dim">${tx('Notificările sunt oprite. Pornește-le din Ce primești.')}</p>` });
+    if (!s.enabled) return panel({ title: tx('Următoarele'), body: `<p class="dim">${tx('Notificările sunt oprite. Pornește-le din Setări.')}</p>` });
     const list = (next ?? []).filter((e) => s.kinds[e.kind].on && e.at > Date.now()).slice(0, 40);
     const actions = button(nextBusy ? tx('Se verifică…') : tx('Verifică acum'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-nt-refresh ${nextBusy ? 'disabled' : ''}` });
     const content = next === null || nextBusy ? loader(tx('Adunăm evenimentele'))
@@ -199,7 +196,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
   }
 
   function show(s?: Section) {
-    if (s) { section = s; saveJson(SECTION_KEY, s); }
+    if (s) section = s;
     render();
     if (section === 'upcoming' && next === null) loadUpcoming();
     if (section === 'game' && (!game || game.charId !== ctx.character.characterId)) loadGame();

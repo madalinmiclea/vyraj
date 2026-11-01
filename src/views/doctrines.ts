@@ -226,8 +226,8 @@ export function createDoctrinesView(el: HTMLElement, ctx: AppContext, side: HTML
     modal.addEventListener('click', (e) => {
       if (!(e.target as HTMLElement).closest('[data-eft-go]')) return;
       const text = modal.querySelector<HTMLTextAreaElement>('#docEft')!.value;
-      const link = text.match(/#doctrine=[A-Za-z0-9_-]+/);
-      if (link) { closeModal(); location.hash = link[0]; return; }
+      const link = text.match(/[#?&]doctrine=([A-Za-z0-9_-]+)/);
+      if (link) { closeModal(); location.hash = `doctrine=${link[1]}`; return; }
       const res = parseDoctrineText(sde, text);
       if (!res.fits.length) {
         modal.querySelector('#docEftMsg')!.innerHTML = alertBox(tx('Nu am găsit niciun fit EFT valid. Fiecare fit începe cu un rând de forma [Navă, Nume fit].'));

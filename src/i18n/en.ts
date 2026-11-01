@@ -2965,4 +2965,6 @@ export const EN: Record<string, string> = {
   "Modul nou Notificări: alegi fiecare tip în parte, de la ordine vândute sau cumpărate (și parțial), ordine expirate, outbid și alerte de preț, până la skill-uri, mail nou, industrie, PI și contracte, cu un istoric al tuturor notificărilor.": "New Notifications module: pick each type on its own, from orders sold or bought (also partially), expired orders, outbids and price alerts, to skills, new mail, industry, PI and contracts, with a history of every notification.",
   "Kill-uri PvP în sistemul tău și în cele la un salt, doar cele făcute după ce ai ajuns acolo, plus notificările din joc: structuri atacate, războaie, corporație, kill-uri și asigurări.": "PvP kills in your system and the ones a jump away, only those made after you got there, plus in-game notifications: structures under attack, wars, corporation, kills and insurance.",
   "Alerte": "Alerts",
+  "Setări": "Settings",
+  "Notificările sunt oprite. Pornește-le din Setări.": "Notifications are off. Turn them on in Settings.",
 };

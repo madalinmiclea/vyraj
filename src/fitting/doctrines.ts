@@ -1,7 +1,8 @@
 import type { Sde } from '../data/sde';
 import { cloneFit, newFitId, type Fit } from '../engine/fit';
 import { loadJson, saveJson } from '../storage';
-import { appUrl, compactFit, decodeCode, encodeCode, expandFit } from '../io/shareLink';
+import { compactFit, decodeCode, encodeCode, expandFit } from '../io/shareLink';
+import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
 import { exportEft, parseEft } from '../io/eft';
 import { tx } from '../i18n';
 
@@ -36,7 +37,6 @@ export interface Doctrine {
 }
 
 const KEY = 'eve-fit:doctrines';
-const PREFIX = '#doctrine=';
 const MAX_FITS = 40;
 
 export const loadDoctrines = (): Doctrine[] => loadJson<Doctrine[]>(KEY, []);
@@ -147,15 +147,15 @@ export function doctrineText(sde: Sde, d: Doctrine): string {
 
 export async function doctrineUrl(d: Doctrine): Promise<string> {
   const raw = { v: 1, n: d.name, o: d.notes, f: d.fits.map((f) => [f.role, f.qty, f.alt ? 1 : 0, compactFit(f.fit)]) };
-  return appUrl(PREFIX + await encodeCode(raw, 600_000));
+  return shareLinkUrl('doctrine', await encodeCode(raw, 600_000));
 }
 
-export const hasSharedDoctrine = () => location.hash.startsWith(PREFIX);
+export const hasSharedDoctrine = () => sharedCode('doctrine') !== null;
 
 export async function readSharedDoctrine(sde: Sde): Promise<Doctrine | null> {
-  if (!hasSharedDoctrine()) return null;
-  const code = location.hash.slice(PREFIX.length);
-  history.replaceState(null, '', location.pathname + location.search);
+  const code = sharedCode('doctrine');
+  if (!code) return null;
+  clearShared('doctrine');
   const raw = await decodeCode(code, 120_000, 600_000) as { n?: unknown; o?: unknown; f?: unknown };
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.f)) throw new Error('invalid');
   const d = newDoctrine(typeof raw.n === 'string' && raw.n.trim() ? raw.n.slice(0, 80) : tx('Doctrină importată'));

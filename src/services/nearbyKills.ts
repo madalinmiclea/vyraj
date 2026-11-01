@@ -7,6 +7,7 @@ import { typeName, resolveTypeNames } from './typeNames';
 import { compactISK } from '../ui/components';
 import { tx } from '../i18n';
 import { deliver, kindOn, NOTICE_EVENT } from './notices';
+import { viewHref } from '../app/route';
 
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 const ONLINE_SCOPE = 'esi-location.read_online.v1';
@@ -92,7 +93,7 @@ async function flush() {
     const value = s.kills.reduce((a, k) => a + k.value, 0);
     const title = s.kills.length === 1 ? tx('Kill PvP în {system}', { system }) : tx('{n} kill-uri PvP în {system}', { n: s.kills.length, system });
     const ships = s.kills.slice(0, 4).map((k) => typeName(k.victimShip)).join(', ') + (s.kills.length > 4 ? '…' : '');
-    deliver('nearby', { title, body: `${ships} · ${compactISK(value)} ISK · ${where}`, url: '#/recon', tag: `vyraj-nearby-${systemId}` });
+    deliver('nearby', { title, body: `${ships} · ${compactISK(value)} ISK · ${where}`, url: viewHref('recon'), tag: `vyraj-nearby-${systemId}` });
   }
 }
 

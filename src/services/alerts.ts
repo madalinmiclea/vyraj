@@ -4,6 +4,7 @@ import { repeatAfter } from './esiClient';
 import { compactISK } from '../ui/components';
 import { tx } from '../i18n';
 import { deliver, askBrowser } from './notices';
+import { viewHref } from '../app/route';
 
 export interface PriceAlert {
   id: string;
@@ -52,7 +53,7 @@ async function runCheck() {
   saveAlerts(list);
   for (const a of fired) {
     const text = `${a.name}: ${a.side} ${compactISK(a.current ?? 0)} ISK (${a.op === 'below' ? '≤' : '≥'} ${compactISK(a.price)})`;
-    deliver('alerts', { title: tx('Alertă preț Jita'), body: text, short: text, tag: `vyraj-alert-${a.id}`, url: '#/orders' });
+    deliver('alerts', { title: tx('Alertă preț Jita'), body: text, short: text, tag: `vyraj-alert-${a.id}`, url: viewHref('orders') });
   }
 }
 

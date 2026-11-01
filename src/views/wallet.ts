@@ -15,6 +15,7 @@ import { characterOrders, expiresAt, typeName, ORDERS_SCOPE, type CharacterOrder
 import { hasScope } from '../character/sso';
 import { permissionGate } from '../character/permissions';
 import { tx, locale } from '../i18n';
+import { viewHref } from '../app/route';
 
 const PERIOD_KEY = 'eve-tools:wallet-period';
 const JOURNAL_LIMIT = 300;
@@ -231,7 +232,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
           <div class="small"><span class="dim">${tx('Trag cu')}</span> ${dmg(f.shoot)}</div>
           <div class="small"><span class="dim">${tx('Slabi la')}</span> ${dmg(f.weak)}</div>
         </div>`).join('')}</div>
-        <p class="dim small">${tx('Rezistențele tale ar trebui să acopere ce trag ei, iar muniția și dronele să lovească unde sunt slabi.')} <a href="#/missions">${tx('Deschide ghidul de misiuni')}</a></p>`,
+        <p class="dim small">${tx('Rezistențele tale ar trebui să acopere ce trag ei, iar muniția și dronele să lovească unde sunt slabi.')} <a href="${viewHref('missions')}">${tx('Deschide ghidul de misiuni')}</a></p>`,
     }) : ''}`;
   }
 
@@ -280,7 +281,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     el.innerHTML = panel({
       title,
       count: buys.length ? tx('{n} ordine de cumpărare', { n: formatInt(buys.length) }) : '',
-      actions: `<a class="btn ghost sm" href="#/orders">${tx('Deschide ordinele')}</a>`,
+      actions: `<a class="btn ghost sm" href="${viewHref('orders')}">${tx('Deschide ordinele')}</a>`,
       body: `<div class="history-kpis">
           <div title="${tx('Suma care se întoarce în portofel dacă toate ordinele de cumpărare expiră sau le anulezi acum')}"><span class="label">${tx('În escrow acum')}</span><span class="value">${compactISK(held)}</span></div>
           <div title="${tx('Soldul din portofel plus ISK-ul din escrow')}"><span class="label">${tx('Sold cu escrow')}</span><span class="value">${compactISK(balance + held)}</span></div>

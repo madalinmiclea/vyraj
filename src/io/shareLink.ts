@@ -2,8 +2,8 @@ import type { Sde } from '../data/sde';
 import type { ModuleState } from '../engine/dogma';
 import { SHIP_BONUSES } from '../engine/fleet';
 import { canLoadCharge, defaultState, emptyFit, SLOT_KINDS, type Fit, type FitModule } from '../engine/fit';
+import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
 
-const PREFIX = '#fit=';
 const MAX_CODE = 16000;
 const MAX_JSON = 200_000;
 const STATES: ModuleState[] = ['offline', 'online', 'active', 'overheated'];
@@ -122,20 +122,18 @@ export async function decodeCode(code: string, maxCode = MAX_CODE, limit = MAX_J
   return JSON.parse(new TextDecoder().decode(await readLimited(stream, limit)));
 }
 
-export const appUrl = (hash: string) => `${location.origin}${import.meta.env.BASE_URL}${hash}`;
-
 export async function shareUrl(fit: Fit): Promise<string> {
-  return appUrl(PREFIX + await encodeCode(compactFit(fit)));
+  return shareLinkUrl('fit', await encodeCode(compactFit(fit)));
 }
 
 export function hasSharedFit(): boolean {
-  return location.hash.startsWith(PREFIX);
+  return sharedCode('fit') !== null;
 }
 
 export async function readSharedFit(sde: Sde): Promise<Fit | null> {
-  if (!hasSharedFit()) return null;
-  const code = location.hash.slice(PREFIX.length);
-  history.replaceState(null, '', location.pathname + location.search);
+  const code = sharedCode('fit');
+  if (!code) return null;
+  clearShared('fit');
   const fit = expandFit(sde, await decodeCode(code));
   if (!fit) throw new Error('invalid');
   return fit;

@@ -5,7 +5,7 @@
   "description": "Fitting, Jita market, skill plans, fleet doctrines, route intel and industry for EVE Online.",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "./#/home",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": [
@@ -49,7 +49,7 @@
   "shortcuts": [
     {
       "name": "Fitting",
-      "url": "./#/fitting",
+      "url": "./fitting",
       "icons": [
         {
           "src": "icon-192.png",
@@ -59,7 +59,7 @@
     },
     {
       "name": "Market",
-      "url": "./#/market",
+      "url": "./market",
       "icons": [
         {
           "src": "icon-192.png",
@@ -69,7 +69,7 @@
     },
     {
       "name": "Character",
-      "url": "./#/character",
+      "url": "./character",
       "icons": [
         {
           "src": "icon-192.png",
@@ -79,7 +79,7 @@
     },
     {
       "name": "Mail",
-      "url": "./#/mail",
+      "url": "./mail",
       "icons": [
         {
           "src": "icon-192.png",

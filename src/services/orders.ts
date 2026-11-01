@@ -6,6 +6,7 @@ import { typeName, resolveTypeNames } from './typeNames';
 import { compactISK, formatISK, formatInt } from '../ui/components';
 import { tx } from '../i18n';
 import { deliver, kindOn, setKind } from './notices';
+import { viewHref } from '../app/route';
 
 export const ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 export const ORDERS_EVENT = 'vyraj-orders-updated';
@@ -241,7 +242,7 @@ async function detectFills(orders: TrackedOrder[], read: Set<number>) {
   if (fills.length <= 3) {
     for (const f of fills) deliver('filled', {
       title: f.o.b ? tx('Ordin de cumpărare umplut · {name}', { name: f.o.n }) : tx('Ți s-a vândut din ordin · {name}', { name: f.o.n }),
-      body: fillLine(f), url: '#/orders', charId: f.o.c,
+      body: fillLine(f), url: viewHref('orders'), charId: f.o.c,
     });
   } else {
     const sold = fills.filter((f) => !f.o.b).reduce((a, f) => a + f.qty * f.o.p, 0);
@@ -249,13 +250,13 @@ async function detectFills(orders: TrackedOrder[], read: Set<number>) {
     deliver('filled', {
       title: tx('{n} ordine executate', { n: fills.length }),
       body: [sold ? tx('Vândut: {isk} ISK', { isk: compactISK(sold) }) : '', bought ? tx('Cumpărat: {isk} ISK', { isk: compactISK(bought) }) : '', ...fills.slice(0, 5).map(fillLine)].filter(Boolean).join('\n'),
-      url: '#/orders',
+      url: viewHref('orders'),
     });
   }
   for (const o of expired.slice(0, 5)) deliver('expired', {
     title: tx('Ordin expirat · {name}', { name: o.n }),
     body: `${typeName(o.t)} (${o.b ? 'buy' : 'sell'}) · ${tx('rămase {n} la {price}', { n: formatInt(o.r), price: formatISK(o.p) })}`,
-    url: '#/orders', charId: o.c,
+    url: viewHref('orders'), charId: o.c,
   });
 }
 
@@ -279,7 +280,7 @@ function notifyChanges(scan: OrdersScan) {
     ? (fired[0].is_buy_order ? tx('Ți-a dat cineva outbid') : tx('Ți-a dat cineva undercut'))
     : tx('{n} ordine depășite', { n: fired.length });
   const body = fired.slice(0, 5).map(line).join('\n') + (fired.length > 5 ? '\n…' : '');
-  deliver('outbid', { title, body, short: `${title}: ${fired.map((o) => typeName(o.type_id)).slice(0, 3).join(', ')}`, tag: 'vyraj-orders', url: '#/orders', charId: fired.length === 1 ? fired[0].characterId : undefined });
+  deliver('outbid', { title, body, short: `${title}: ${fired.map((o) => typeName(o.type_id)).slice(0, 3).join(', ')}`, tag: 'vyraj-orders', url: viewHref('orders'), charId: fired.length === 1 ? fired[0].characterId : undefined });
 }
 
 export function startOrderWatcher() {

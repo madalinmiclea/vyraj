@@ -62,7 +62,7 @@ export async function logoutCharacter(id: string): Promise<boolean> {
     saveJson('eve-fit:ui:view', 'home');
   }
   try { sessionStorage.setItem(FLASH_KEY, esi ? tx('{name} a fost delogat', { name: c.name }) : tx('{name} a fost șters', { name: c.name })); } catch { void 0; }
-  if (wasActive) history.replaceState(null, '', `${location.pathname}${location.search}#/home`);
+  if (wasActive) history.replaceState(null, '', import.meta.env.BASE_URL);
   location.reload();
   return true;
 }

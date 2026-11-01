@@ -37,6 +37,7 @@ import { startNotifyWatcher } from './services/notify';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
+import { hasSharedLink, linkView, migrateLegacyHash, pathSegment, sharedCode, viewHref } from './app/route';
 import { handleCallback, hasTokens, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
 import { loadStoredCharacters, upsertStoredCharacter, getActiveCharacterId, storedActiveCharacter } from './character/characters';
 import { importCharacter, portraitUrl } from './character/esi';
@@ -261,17 +262,18 @@ function runLazy(id: ViewId) {
   fn();
 }
 
-const SHARE_HASH = /^#(fit|doctrine|build)=/;
 const VIEW_ALIAS: Record<string, ViewId> = { tools: 'wallet' };
-const hashView = (): ViewId | null => {
-  const raw = location.hash.match(/^#\/([a-z]+)/)?.[1];
+const asView = (raw: string | null): ViewId | null => {
   const id = raw ? VIEW_ALIAS[raw] ?? raw : raw;
   return id && VIEWS.some((v) => v.id === id) ? id as ViewId : null;
 };
+migrateLegacyHash();
+const pathView = (): ViewId | null => asView(pathSegment());
 
 function switchView(id: ViewId, push = true) {
   activeView = id;
-  if (!SHARE_HASH.test(location.hash) && location.hash !== `#/${id}`) history[push ? 'pushState' : 'replaceState'](null, '', `${location.pathname}${location.search}#/${id}`);
+  const target = viewHref(id);
+  if (!hasSharedLink() && (location.pathname !== target || location.search || location.hash)) history[push ? 'pushState' : 'replaceState'](null, '', target);
   saveJson(VIEW_KEY, id);
   const v = VIEWS.find((x) => x.id === id)!;
   document.querySelectorAll('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + id));
@@ -286,7 +288,7 @@ function switchView(id: ViewId, push = true) {
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   runLazy(id);
   if (id === 'missions') missions?.show();
-  if (id === 'notifications') notifications?.show();
+  if (id === 'notifications') notifications?.show('history');
   setSide(false);
   syncSubnav();
 }
@@ -329,13 +331,25 @@ async function hardRefresh() {
     fetch(`${base}index.html`, { cache: 'reload' }),
     fetch(`${base}data/manifest.json`, { cache: 'reload' }),
   ]);
-  history.replaceState(null, '', `${location.pathname}${location.search}#/home`);
+  saveJson(VIEW_KEY, 'home');
+  history.replaceState(null, '', viewHref('home'));
   location.reload();
 }
 document.getElementById('brandHome')!.addEventListener('click', () => { hardRefresh(); });
 window.addEventListener('popstate', () => {
-  const id = hashView();
+  if (migrateLegacyHash() && hasSharedLink()) return;
+  const id = location.pathname === viewHref('home') ? 'home' : pathView();
   if (id && id !== activeView) switchView(id, false);
+});
+
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
+  if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+  const id = asView(linkView(a.getAttribute('href')!));
+  if (!id) return;
+  e.preventDefault();
+  if (id !== activeView) switchView(id);
 });
 
 document.addEventListener('click', (e) => {
@@ -352,12 +366,13 @@ document.addEventListener('click', (e) => {
   if (t.closest('[data-demo-start]') && !demoBusy) {
     demoBusy = true;
     toast(tx('Pregătesc pilotul demo...'));
-    startDemo().then(() => { location.hash = '#/home'; location.reload(); }).catch((err) => { demoBusy = false; toast((err as Error).message); });
+    startDemo().then(() => { saveJson(VIEW_KEY, 'home'); history.replaceState(null, '', viewHref('home')); location.reload(); }).catch((err) => { demoBusy = false; toast((err as Error).message); });
     return;
   }
   if (t.closest('[data-demo-exit]')) {
     exitDemo();
-    location.hash = '#/home';
+    saveJson(VIEW_KEY, 'home');
+    history.replaceState(null, '', viewHref('home'));
     location.reload();
     return;
   }
@@ -467,7 +482,7 @@ async function start() {
   const stored = loadJson<string>(VIEW_KEY, 'home');
   const saved = (VIEW_ALIAS[stored] ?? stored) as ViewId;
   const back = login?.returnTo && VIEWS.some((v) => v.id === login?.returnTo) ? login.returnTo as ViewId : null;
-  switchView(back ?? (login || loginError ? 'character' : hashView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
+  switchView(back ?? (login || loginError ? 'character' : pathView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
 
   let sde: Sde;
   try {
@@ -582,11 +597,11 @@ async function start() {
       return doctrines.importShared(d);
     }).catch(() => toast(tx('Linkul de doctrină nu e valid sau e incomplet.')));
   };
-  const openBuild = () => { if (location.hash.startsWith('#build=') && activeView !== 'industry') switchView('industry'); };
+  const openBuild = () => { if (sharedCode('build') && activeView !== 'industry') switchView('industry'); };
   openShared();
   openDoctrine();
   openBuild();
-  window.addEventListener('hashchange', () => { openShared(); openDoctrine(); openBuild(); });
+  window.addEventListener('hashchange', () => { migrateLegacyHash(); openShared(); openDoctrine(); openBuild(); });
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);

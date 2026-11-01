@@ -4,6 +4,7 @@ import { ESI, esiFetch } from './esiClient';
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 import { deliver, kindOn, type NoticeKind } from './notices';
+import { viewHref } from '../app/route';
 
 export const GAME_SCOPE = 'esi-characters.read_notifications.v1';
 const SEEN_KEY = 'eve-notify:game-seen';
@@ -107,7 +108,7 @@ export async function pollGame(): Promise<void> {
     seen[id] = Math.max(last ?? 0, max);
     if (last == null) continue;
     const fresh = list.filter((n) => n.notification_id > last && !n.is_read).slice(0, 8).reverse();
-    for (const n of fresh) deliver(gameKind(n.type), { title: `${gameTitle(n.type)} · ${c.name}`, body: humanType(n.type), url: '#/notifications', charId: id, tag: `vyraj-game-${n.notification_id}`, at: Date.parse(n.timestamp) || Date.now() });
+    for (const n of fresh) deliver(gameKind(n.type), { title: `${gameTitle(n.type)} · ${c.name}`, body: humanType(n.type), url: viewHref('notifications'), charId: id, tag: `vyraj-game-${n.notification_id}`, at: Date.parse(n.timestamp) || Date.now() });
   }
   saveJson(SEEN_KEY, seen);
 }
