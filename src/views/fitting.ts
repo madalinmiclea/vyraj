@@ -340,13 +340,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       const total = Math.max(counts[g.key], list.length);
       const used = list.filter(Boolean).length;
       const rows: string[] = [];
-      let free = 0;
       for (let i = 0; i < total; i++) {
         const m = list[i];
         if (m) rows.push(moduleRow(g.key, i, m, i >= counts[g.key]));
-        else if (i < counts[g.key]) free++;
+        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
       }
-      if (free) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${free === 1 ? tx('1 slot liber') : tx('{n} sloturi libere', { n: free })}</span></div>`);
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
         <div class="slot-group-head"><div class="window-title">${g.label}<span class="count">${used}/${counts[g.key]}</span></div>${g.key === 'high' ? `<span class="hardpoints">${hardpoint(tx('Turele'), r.turrets)}${hardpoint(tx('Lansatoare'), r.launchers)}</span>` : ''}<span class="pips">${pips}</span></div>

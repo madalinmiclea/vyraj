@@ -10,6 +10,7 @@ import { itemDescription } from '../services/descriptions';
 import { itemSummaryHtml } from './itemSummary';
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
 import type { DogmaItem } from '../engine/dogma';
+import { slotOf, type SlotKind } from '../engine/fit';
 import { attributeSections } from './attributes';
 import { openModal, badge, badgeHtml, button, esc, formatInt, formatNum, compactISK, copyText, toast, loader } from './components';
 import { icon } from './icons';
@@ -18,6 +19,8 @@ import { tx } from '../i18n';
 
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'];
 const META_GROUPS: Record<number, string> = { 1: 'Tech I', 2: 'Tech II', 3: 'Storyline', 4: tx('Facțiune'), 5: tx('Ofițer'), 6: 'Deadspace', 14: 'Tech III', 15: tx('Abisal'), 17: 'Premium', 19: tx('Ediție limitată') };
+
+const SLOT_NAMES: Record<SlotKind, string> = { high: tx('Slot high'), mid: tx('Slot mediu'), low: tx('Slot low'), rig: tx('Slot rig'), subsystem: tx('Slot subsistem') };
 
 const RACES: Record<number, string> = { 1: 'Caldari', 2: 'Minmatar', 4: 'Amarr', 8: 'Gallente', 16: 'Jove', 32: 'Pirate', 64: 'Sleepers', 128: 'ORE', 134: 'Rogue Drones', 135: 'Triglavian', 168: 'Upwell' };
 const FACTIONS: Record<number, string> = {
@@ -131,10 +134,13 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
   const meta = t.metaGroupId ? META_GROUPS[t.metaGroupId] ?? `Meta ${t.metaGroupId}` : 'Tech I';
   const race = t.raceId ? RACES[t.raceId] : undefined;
   const faction = t.factionId ? FACTIONS[t.factionId] : undefined;
+  const slot = slotOf(sde, typeId);
+  const slotBadge = slot ? `<span class="badge slot-badge ${slot}" title="${tx('Se montează într-un {slot}', { slot: SLOT_NAMES[slot].toLowerCase() })}"><span class="dot"></span>${esc(SLOT_NAMES[slot])}</span>` : '';
   const identity = `<div class="info-identity">
       <div class="info-kind">${techTag(t.metaGroupId) || '<span class="tech-tag t1">I</span>'}<span>${esc([race, t.groupName].filter(Boolean).join(' '))}</span></div>
       <table class="table compact attrs"><tbody>
         <tr><td>${tx('Clasă')}</td><td class="r">${esc(t.groupName)}</td></tr>
+        ${slot ? `<tr><td>${tx('Slot')}</td><td class="r">${esc(SLOT_NAMES[slot])}</td></tr>` : ''}
         ${race ? `<tr><td>${tx('Rasă')}</td><td class="r">${esc(race)}</td></tr>` : ''}
         ${faction ? `<tr><td>${tx('Facțiune')}</td><td class="r">${esc(faction)}</td></tr>` : ''}
         <tr><td>${tx('Nivel tehnologic')}</td><td class="r">${esc(meta)}</td></tr>
@@ -164,6 +170,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       ${comparing ? `<div class="info-head-actions">${button(tx('Înlocuiește în fit'), { iconName: 'swap', attrs: `data-swap="${typeId}"` })}</div>` : ''}
     </div>
     <div class="info-status">
+      ${slotBadge}
       ${plan.canFly ? badge(tx('{name} poate folosi itemul', { name: ctx.character.name }), 'ok', true) : badgeHtml(tx('{name}: lipsesc <span class="unit">{n}</span> skill-uri · {time}', { name: esc(ctx.character.name), n: plan.missing.length, time: durationHtml(plan.totalSeconds) }), 'accent', true)}
       ${alpha.length ? badge('Alpha: ' + alpha.join(', '), 'accent') : badge('Omega', 'gold')}
     </div>

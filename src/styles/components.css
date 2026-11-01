@@ -159,6 +159,11 @@
 .badge.ok { color: var(--ok); }
 .badge.warn { color: var(--warn); }
 .badge.danger { color: var(--danger); }
+.badge.slot-badge.high { color: var(--slot-high); }
+.badge.slot-badge.mid { color: var(--slot-mid); }
+.badge.slot-badge.low { color: var(--slot-low); }
+.badge.slot-badge.rig { color: var(--slot-rig); }
+.badge.slot-badge.subsystem { color: var(--slot-sub); }
 .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--gap); }
