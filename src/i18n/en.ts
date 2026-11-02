@@ -3063,4 +3063,5 @@ export const EN: Record<string, string> = {
   "Rămân {lp} LP.": "{lp} LP left.",
   "Suggest se oprește când următoarea ofertă ar aduce sub acest procent din cel mai bun ISK/LP. LP-ul rămas îl folosești altă dată, când piața arată mai bine.": "Suggest stops when the next offer would earn under this percent of the best ISK/LP. Use the remaining LP another day, when the market looks better.",
   "Prag calitate %": "Quality threshold %",
+  "Următorul schimb ar fi fost {item} la {per} ISK/LP, sub pragul de {floor} ISK/LP ({pct}% din cel mai bun).": "The next exchange would have been {item} at {per} ISK/LP, under the {floor} ISK/LP threshold ({pct}% of the best).",
 };

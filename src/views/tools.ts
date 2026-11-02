@@ -724,6 +724,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
       };
       let left = points;
       let top = 0;
+      let stop: { name: string; per: number } | null = null;
       for (let guard = 0; guard < 5000; guard++) {
         let best: { s: typeof state[number]; m: ReturnType<typeof next>; per: number } | null = null;
         for (const s of state) {
@@ -735,7 +736,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
         }
         if (!best) break;
         top = Math.max(top, best.per);
-        if (best.per < top * (lpFloor / 100)) break;
+        if (best.per < top * (lpFloor / 100)) { stop = { name: typeName(best.s.r.o.type_id), per: best.per }; break; }
         take(best.s, best.m);
         left -= best.s.r.o.lp_cost;
       }
@@ -752,7 +753,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
             ${picks.map((s) => `<tr data-lp-pick="${s.r.o.offer_id}" data-n="${s.n}"><td><img class="row-icon" src="${typeIconUrl(s.r.o.type_id, 32)}" alt="" />${esc(typeName(s.r.o.type_id))}</td><td class="r num">${formatInt(s.n)}</td><td class="r num">${formatInt(s.n * s.r.o.lp_cost)}</td><td class="r">${isk(s.cost)}</td><td class="r">${isk(s.rev)}</td><td class="r num up">${compactISK(s.rev - s.cost)}</td><td class="r num lp-key">${formatInt((s.rev - s.cost) / (s.n * s.r.o.lp_cost))}</td></tr>`).join('')}
             <tr class="lp-total"><td>${tx('Total')}</td><td></td><td class="r num">${formatInt(tot.lp)}</td><td class="r">${isk(tot.cost)}</td><td class="r">${isk(tot.rev)}</td><td class="r num up">${compactISK(tot.rev - tot.cost)}</td><td class="r num lp-key">${formatInt(tot.lp ? (tot.rev - tot.cost) / tot.lp : 0)}</td></tr>
           </tbody></table>
-          <p class="dim small lp-note">${tx('Prețurile vin din buy orders-urile din Jita, ordin cu ordin, iar itemele cerute din sell orders, la fel. Nu includ taxa de vânzare. Îți trebuie {isk} ISK pentru cumpărături.', { isk: compactISK(tot.cost) })} ${points - tot.lp > 0 ? tx('Rămân {lp} LP.', { lp: formatInt(points - tot.lp) }) : ''}</p>`
+          <p class="dim small lp-note">${tx('Prețurile vin din buy orders-urile din Jita, ordin cu ordin, iar itemele cerute din sell orders, la fel. Nu includ taxa de vânzare. Îți trebuie {isk} ISK pentru cumpărături.', { isk: compactISK(tot.cost) })} ${points - tot.lp > 0 ? tx('Rămân {lp} LP.', { lp: formatInt(points - tot.lp) }) : ''}${stop ? ` ${tx('Următorul schimb ar fi fost {item} la {per} ISK/LP, sub pragul de {floor} ISK/LP ({pct}% din cel mai bun).', { item: stop.name, per: formatInt(stop.per), floor: formatInt(top * lpFloor / 100), pct: lpFloor })}` : ''}</p>`
           : emptyState({ title: tx('Nicio ofertă nu aduce câștig la vânzare instant acum'), vy: 'No Profit Woven' }),
       });
     } catch (err) {
