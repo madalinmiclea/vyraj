@@ -34,9 +34,8 @@ const LP_HISTORY_MAX = 120;
 const LP_COL_KEY = 'eve-tools:lp-col';
 const LP_FILTER_KEY = 'eve-tools:lp-filter';
 const LP_SHOW_MAX = 100;
-const LP_SUGGEST_FLOOR = 0.6;
+const LP_FLOOR_KEY = 'eve-tools:lp-floor';
 const LP_SUGGEST_MIN_SHARE = 0.03;
-const LP_SUGGEST_SPARE = 0.2;
 type LpCol = 'name' | 'lp' | 'cost' | 'sellP' | 'buyP' | 'profit' | 'spread' | 'demand' | 'daily' | 'real' | 'buy' | 'sell';
 interface LpFilter { q: string; hideTraps: boolean; minDaily: number; minIskLp: number; afford: boolean }
 
@@ -126,6 +125,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   let lpFilter: LpFilter = { q: '', hideTraps: false, minDaily: 0, minIskLp: 0, afford: false, ...loadJson<Partial<LpFilter>>(LP_FILTER_KEY, {}) };
   let lpData: { corp: { id: number; name: string }; points: number; rows: LpRow[]; pending: boolean; books: Record<string, Book>; prices: Map<number, Aggregates> } | null = null;
   let lpOwnSrc = loadJson<OwnSource>(LP_OWN_KEY, 'none');
+  let lpFloor = loadJson<number>(LP_FLOOR_KEY, 80);
   let lpOwned: { key: string; at: number; label: string; counts: Map<number, number> } | null = null;
   const lpPoints = new Map<number, { mine: { corporation_id: number; loyalty_points: number }[]; corpNames: Map<number, string> }>();
 
@@ -358,12 +358,14 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     let corpNames = new Map<number, string>();
     if (typeof c !== 'string') {
       let known = lpPoints.get(c.id);
-      if (!known) {
-        const list = await loyaltyPoints(c.id).catch(() => null);
-        const names = list ? await universeNames(list.map((m) => m.corporation_id)).catch(() => new Map<number, string>()) : new Map<number, string>();
-        known = { mine: list ?? [], corpNames: names };
-        if (list) lpPoints.set(c.id, known);
+      const list = await loyaltyPoints(c.id).catch(() => null);
+      if (list) {
+        const missing = list.map((m) => m.corporation_id).filter((id) => !known?.corpNames.has(id));
+        const names = missing.length ? await universeNames(missing).catch(() => new Map<number, string>()) : new Map<number, string>();
+        known = { mine: list, corpNames: new Map([...(known?.corpNames ?? []), ...names]) };
+        lpPoints.set(c.id, known);
       }
+      known ??= { mine: [], corpNames: new Map<number, string>() };
       mine = [...known.mine];
       corpNames = known.corpNames;
     }
@@ -377,6 +379,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
               <option value="jita" ${lpOwnSrc === 'jita' ? 'selected' : ''}>${tx('Jita 4-4 (hangar și cargo)')}</option>
               <option value="here" ${lpOwnSrc === 'here' ? 'selected' : ''}>${tx('Unde sunt acum (stație și cargo)')}</option>
             </select></label>
+            <label title="${tx('Suggest se oprește când următoarea ofertă ar aduce sub acest procent din cel mai bun ISK/LP. LP-ul rămas îl folosești altă dată, când piața arată mai bine.')}">${tx('Prag calitate %')} <input class="input sm num lp-floor" id="lpFloor" type="number" min="10" max="100" step="5" value="${lpFloor}" /></label>
             <button class="btn sm lp-suggest-btn" data-lp-suggest title="${tx('Împarte LP-ul tău între oferte pentru cel mai mare câștig la vânzare instant, după buy orders și itemele cerute disponibile în Jita.')}">${icon('refresh')}${tx('Suggest')}</button>
           </div>
           ${c === 'scope' ? permissionGate('loyalty', ctx.character.characterId!, ctx.character.name) : ''}`,
@@ -496,7 +499,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   }
 
   const lpFilterBar = (points: number) => `<div class="form-grid lp-filters">
-      <label class="lp-search">${tx('Caută')} <span class="lp-search-box"><input class="input sm" data-lp-f="q" data-list="lpNames" value="${esc(lpFilter.q)}" placeholder="${tx('ex: zainou snapshot')}" autocomplete="off" spellcheck="false" />${lpFilter.q ? `<button class="icon-btn" data-lp-clear title="${tx('Golește căutarea')}">✕</button>` : ''}</span></label>
+      <label class="lp-search">${tx('Caută')} <span class="lp-search-box"><input class="input sm" data-lp-f="q" data-list="lpNames" value="${esc(lpFilter.q)}" placeholder="${tx('Nume item, unul sau mai multe cuvinte')}" autocomplete="off" spellcheck="false" />${lpFilter.q ? `<button class="icon-btn" data-lp-clear title="${tx('Golește căutarea')}">✕</button>` : ''}</span></label>
       <datalist id="lpNames">${[...new Map((lpData?.rows ?? []).map((r) => [r.o.type_id, r])).values()].sort((a, b) => typeName(a.o.type_id).localeCompare(typeName(b.o.type_id))).map((r) => `<option value="${esc(typeName(r.o.type_id))}">${formatInt(r.o.lp_cost)} LP</option>`).join('')}</datalist>
       <label title="${tx('Se aplică pe valoarea aleasă: realist, instant sau sell order.')}">${tx('ISK/LP minim')} <input class="input sm num" type="number" min="0" step="100" data-lp-f="minIskLp" value="${lpFilter.minIskLp || ''}" placeholder="0" /></label>
       <label>${tx('Vândute/zi minim')} <input class="input sm num" type="number" min="0" step="1" data-lp-f="minDaily" value="${lpFilter.minDaily || ''}" placeholder="0" /></label>
@@ -732,18 +735,12 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
         }
         if (!best) break;
         top = Math.max(top, best.per);
-        if (best.per < top * LP_SUGGEST_FLOOR && left <= points * LP_SUGGEST_SPARE) break;
+        if (best.per < top * (lpFloor / 100)) break;
         take(best.s, best.m);
         left -= best.s.r.o.lp_cost;
       }
       const gainAll = state.reduce((a, s) => a + s.rev - s.cost, 0);
-      let used = state.reduce((a, s) => a + s.n * s.r.o.lp_cost, 0);
-      for (const s of state.filter((x) => x.n > 0).sort((a, b) => (a.rev - a.cost) - (b.rev - b.cost))) {
-        const lp = s.n * s.r.o.lp_cost;
-        if (s.rev - s.cost >= gainAll * LP_SUGGEST_MIN_SHARE || used - lp < points * (1 - LP_SUGGEST_SPARE)) continue;
-        used -= lp;
-        s.n = 0;
-      }
+      for (const s of state) if (s.n > 0 && s.rev - s.cost < gainAll * LP_SUGGEST_MIN_SHARE) s.n = 0;
       const picks = state.filter((s) => s.n > 0).sort((a, b) => (b.rev - b.cost) - (a.rev - a.cost));
       if (lpData?.corp.id !== corp.id) return;
       const tot = picks.reduce((a, s) => ({ lp: a.lp + s.n * s.r.o.lp_cost, cost: a.cost + s.cost, rev: a.rev + s.rev }), { lp: 0, cost: 0, rev: 0 });
@@ -755,7 +752,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
             ${picks.map((s) => `<tr data-lp-pick="${s.r.o.offer_id}" data-n="${s.n}"><td><img class="row-icon" src="${typeIconUrl(s.r.o.type_id, 32)}" alt="" />${esc(typeName(s.r.o.type_id))}</td><td class="r num">${formatInt(s.n)}</td><td class="r num">${formatInt(s.n * s.r.o.lp_cost)}</td><td class="r">${isk(s.cost)}</td><td class="r">${isk(s.rev)}</td><td class="r num up">${compactISK(s.rev - s.cost)}</td><td class="r num lp-key">${formatInt((s.rev - s.cost) / (s.n * s.r.o.lp_cost))}</td></tr>`).join('')}
             <tr class="lp-total"><td>${tx('Total')}</td><td></td><td class="r num">${formatInt(tot.lp)}</td><td class="r">${isk(tot.cost)}</td><td class="r">${isk(tot.rev)}</td><td class="r num up">${compactISK(tot.rev - tot.cost)}</td><td class="r num lp-key">${formatInt(tot.lp ? (tot.rev - tot.cost) / tot.lp : 0)}</td></tr>
           </tbody></table>
-          <p class="dim small lp-note">${tx('Prețurile vin din buy orders-urile din Jita, ordin cu ordin, iar itemele cerute din sell orders, la fel. Nu includ taxa de vânzare. Îți trebuie {isk} ISK pentru cumpărături.', { isk: compactISK(tot.cost) })} ${points - tot.lp > 0 ? tx('Rămân {lp} LP. Folosesc cel puțin 80% din LP, iar restul îl las dacă următoarea ofertă ar aduce sub 60% din cel mai bun ISK/LP.', { lp: formatInt(points - tot.lp) }) : ''}</p>`
+          <p class="dim small lp-note">${tx('Prețurile vin din buy orders-urile din Jita, ordin cu ordin, iar itemele cerute din sell orders, la fel. Nu includ taxa de vânzare. Îți trebuie {isk} ISK pentru cumpărături.', { isk: compactISK(tot.cost) })} ${points - tot.lp > 0 ? tx('Rămân {lp} LP.', { lp: formatInt(points - tot.lp) }) : ''}</p>`
           : emptyState({ title: tx('Nicio ofertă nu aduce câștig la vânzare instant acum'), vy: 'No Profit Woven' }),
       });
     } catch (err) {
@@ -921,6 +918,12 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   body.addEventListener('change', (e) => {
     const t = e.target as HTMLElement;
     if (t.dataset.lpF) { lpFilterInput(t); return; }
+    if (t.id === 'lpFloor') {
+      lpFloor = Math.min(100, Math.max(10, Math.round(Number((t as HTMLInputElement).value) || 80)));
+      (t as HTMLInputElement).value = String(lpFloor);
+      saveJson(LP_FLOOR_KEY, lpFloor);
+      return;
+    }
     if (t.id === 'lpOwn') {
       lpOwnSrc = (t as HTMLSelectElement).value as OwnSource;
       saveJson(LP_OWN_KEY, lpOwnSrc);
