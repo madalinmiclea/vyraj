@@ -79,3 +79,7 @@
 .lp-table th.lp-sorted { color: var(--text-bright); }
 .lp-search-box { display: inline-flex; align-items: center; gap: 4px; }
 .lp-search-box .input { min-width: 240px; }
+.lp-table td.lp-qty, .lp-table th.lp-qty { width: 64px; padding-right: 6px; }
+.lp-table td.lp-qty .input { width: 58px; text-align: right; }
+.lp-suggest-btn { align-self: flex-end; }
+.lp-table tr.lp-total td { font-weight: 700; border-top: 1px solid var(--line-strong); }

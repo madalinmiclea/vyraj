@@ -172,6 +172,16 @@ export async function esiAggregates(regionId: number, typeId: number, locationId
   };
 }
 
+export async function fetchJitaSellBook(typeId: number): Promise<[number, number][]> {
+  const orders = await esiPages<EsiOrder>((page) => `${ESI}/markets/${JITA_REGION}/orders/?order_type=sell&type_id=${typeId}&page=${page}`);
+  return orders.filter((o) => o.location_id === JITA_STATION).sort((a, b) => a.price - b.price).map((o) => [o.price, o.volume_remain]);
+}
+
+export async function fetchJitaBuyBook(typeId: number): Promise<[number, number][]> {
+  const orders = await esiPages<EsiOrder>((page) => `${ESI}/markets/${JITA_REGION}/orders/?order_type=buy&type_id=${typeId}&page=${page}`);
+  return orders.filter((o) => o.location_id === JITA_STATION).sort((a, b) => b.price - a.price).map((o) => [o.price, o.volume_remain]);
+}
+
 export const typeIconUrl = (typeId: number, size = 64) => `https://images.evetech.net/types/${typeId}/icon?size=${size}`;
 export const typeRenderUrl = (typeId: number, size = 256) => `https://images.evetech.net/types/${typeId}/render?size=${size}`;
 
