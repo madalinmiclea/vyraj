@@ -12,12 +12,34 @@ function allFive(sde: Sde): Map<number, number> {
   return skills;
 }
 
+const isDrone = (sde: Sde, typeId: number) => sde.types.get(typeId)?.categoryId === Category.Drone;
+
 export function projectedSource(sde: Sde, list: ProjectedInput[]): Dogma {
   return new Dogma(sde, {
     shipId: 0,
     skills: allFive(sde),
-    modules: list.map((p, i) => ({ typeId: p.typeId, state: 'active', chargeId: p.chargeId, slotKey: `proj${i}` })),
+    modules: list.flatMap((p, i) => (isDrone(sde, p.typeId) ? [] : [{ typeId: p.typeId, state: 'active' as const, chargeId: p.chargeId, slotKey: `proj${i}` }])),
+    drones: list.filter((p) => isDrone(sde, p.typeId)).map((p) => ({ typeId: p.typeId, count: 1 })),
   });
+}
+
+function cycleSeconds(item: DogmaItem): number {
+  for (const id of item.type.effects) {
+    const e = item.dogma.sde.effects.get(id);
+    if (e?.category === 2 && e.durationAttributeId) return item.attr(e.durationAttributeId) / 1000;
+  }
+  return item.get('duration') / 1000;
+}
+
+const NEUT_EFFECTS = ['energyNeutralizerFalloff', 'entityEnergyNeutralizerFalloff'];
+
+function neutPerCycle(d: Dogma, item: DogmaItem): number {
+  for (const name of NEUT_EFFECTS) {
+    if (!d.sde.hasEffect(item.typeId, name)) continue;
+    const e = d.sde.effects.get(d.sde.effectId(name)!)!;
+    return item.get('energyNeutralizerAmount') * resistance(d, item, e);
+  }
+  return 0;
 }
 
 type Handler = (target: Dogma, source: DogmaItem, effect: EffectInfo, count: number) => void;
@@ -52,14 +74,18 @@ const turretBoost = (offensive: boolean): Handler => (target, source, effect, co
 
 const HANDLERS: Record<string, Handler> = {
   remoteWebifierFalloff: shipBoost([['speedFactor', 'maxVelocity']], true),
+  remoteWebifierEntity: shipBoost([['speedFactor', 'maxVelocity']], true),
   remoteTargetPaintFalloff: shipBoost([['signatureRadiusBonus', 'signatureRadius']], true),
+  remoteTargetPaintEntity: shipBoost([['signatureRadiusBonus', 'signatureRadius']], true),
   remoteSensorDampFalloff: shipBoost([['maxTargetRangeBonus', 'maxTargetRange'], ['scanResolutionBonus', 'scanResolution']], true),
+  remoteSensorDampEntity: shipBoost([['maxTargetRangeBonus', 'maxTargetRange'], ['scanResolutionBonus', 'scanResolution']], true),
   remoteSensorBoostFalloff: shipBoost([
     ['maxTargetRangeBonus', 'maxTargetRange'], ['scanResolutionBonus', 'scanResolution'],
     ['scanGravimetricStrengthPercent', 'scanGravimetricStrength'], ['scanMagnetometricStrengthPercent', 'scanMagnetometricStrength'],
     ['scanRadarStrengthPercent', 'scanRadarStrength'], ['scanLadarStrengthPercent', 'scanLadarStrength'],
   ], false),
   shipModuleTrackingDisruptor: turretBoost(true),
+  npcEntityWeaponDisruptor: turretBoost(true),
   shipModuleRemoteTrackingComputer: turretBoost(false),
   shipModuleGuidanceDisruptor: (target, source, effect, count) => {
     const res = resistance(target, source, effect);
@@ -75,8 +101,9 @@ const HANDLERS: Record<string, Handler> = {
 
 export function applyProjected(target: Dogma, list: ProjectedInput[]) {
   const source = projectedSource(target.sde, list);
+  let drone = 0;
   list.forEach((p, i) => {
-    const item = source.modules.find((m) => m.slotKey === `proj${i}`);
+    const item = isDrone(target.sde, p.typeId) ? source.drones[drone++]?.item : source.modules.find((m) => m.slotKey === `proj${i}`);
     if (!item || p.count <= 0) return;
     target.projected.push({ item, count: p.count });
   });
@@ -100,17 +127,14 @@ export function projectedFlow(d: Dogma): ProjectedFlow {
   const out: ProjectedFlow = { shield: 0, armor: 0, hull: 0, capIn: 0, capOut: 0 };
   const has = (item: DogmaItem, name: string) => item.dogma.sde.hasEffect(item.typeId, name);
   for (const { item, count } of d.projected) {
-    const seconds = item.get('duration') / 1000;
+    const seconds = cycleSeconds(item);
     if (seconds <= 0) continue;
     const per = (attr: string) => (item.get(attr) * count) / seconds;
-    if (has(item, 'shipModuleRemoteShieldBooster') || has(item, 'shipModuleAncillaryRemoteShieldBooster')) out.shield += per('shieldBonus');
-    if (has(item, 'shipModuleRemoteArmorRepairer') || has(item, 'shipModuleAncillaryRemoteArmorRepairer') || has(item, 'ShipModuleRemoteArmorMutadaptiveRepairer')) out.armor += per('armorDamageAmount');
-    if (has(item, 'shipModuleRemoteHullRepairer')) out.hull += per('structureDamageAmount');
+    if (has(item, 'shipModuleRemoteShieldBooster') || has(item, 'shipModuleAncillaryRemoteShieldBooster') || has(item, 'npcEntityRemoteShieldBooster')) out.shield += per('shieldBonus');
+    if (has(item, 'shipModuleRemoteArmorRepairer') || has(item, 'shipModuleAncillaryRemoteArmorRepairer') || has(item, 'ShipModuleRemoteArmorMutadaptiveRepairer') || has(item, 'npcEntityRemoteArmorRepairer')) out.armor += per('armorDamageAmount');
+    if (has(item, 'shipModuleRemoteHullRepairer') || has(item, 'npcEntityRemoteHullRepairer')) out.hull += per('structureDamageAmount');
     if (has(item, 'shipModuleRemoteCapacitorTransmitter')) out.capIn += per('powerTransferAmount');
-    if (has(item, 'energyNeutralizerFalloff')) {
-      const e = d.sde.effects.get(d.sde.effectId('energyNeutralizerFalloff')!)!;
-      out.capOut += per('energyNeutralizerAmount') * resistance(d, item, e);
-    }
+    out.capOut += (neutPerCycle(d, item) * count) / seconds;
     if (has(item, 'energyNosferatuFalloff')) out.capOut += per('powerTransferAmount');
   }
   return out;
@@ -122,14 +146,12 @@ export function projectedCapCycles(d: Dogma): ProjectedCap[] {
   const out: ProjectedCap[] = [];
   const has = (item: DogmaItem, name: string) => d.sde.hasEffect(item.typeId, name);
   for (const { item, count } of d.projected) {
-    const duration = item.get('duration') / 1000;
+    const duration = cycleSeconds(item);
     if (duration <= 0) continue;
     const name = count > 1 ? `${item.type.name} ×${count}` : item.type.name;
     if (has(item, 'shipModuleRemoteCapacitorTransmitter')) out.push({ name, need: -item.get('powerTransferAmount') * count, duration });
-    if (has(item, 'energyNeutralizerFalloff')) {
-      const e = d.sde.effects.get(d.sde.effectId('energyNeutralizerFalloff')!)!;
-      out.push({ name, need: item.get('energyNeutralizerAmount') * resistance(d, item, e) * count, duration });
-    }
+    const neut = neutPerCycle(d, item);
+    if (neut) out.push({ name, need: neut * count, duration });
     if (has(item, 'energyNosferatuFalloff')) out.push({ name, need: item.get('powerTransferAmount') * count, duration });
   }
   return out;
@@ -137,7 +159,7 @@ export function projectedCapCycles(d: Dogma): ProjectedCap[] {
 
 export function isProjectable(sde: Sde, typeId: number): boolean {
   const t = sde.types.get(typeId);
-  if (!t || t.categoryId !== Category.Module) return false;
+  if (!t || (t.categoryId !== Category.Module && t.categoryId !== Category.Drone)) return false;
   return t.effects.some((id) => {
     const n = sde.effects.get(id)?.name ?? '';
     return n in HANDLERS || /RemoteShieldBooster|RemoteArmor|RemoteHullRepairer|RemoteCapacitorTransmitter|energyNeutralizerFalloff|energyNosferatuFalloff/i.test(n);

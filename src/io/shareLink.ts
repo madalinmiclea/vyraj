@@ -1,4 +1,4 @@
-import type { Sde } from '../data/sde';
+import { Category, MODE_GROUP, type Sde } from '../data/sde';
 import type { ModuleState } from '../engine/dogma';
 import { SHIP_BONUSES } from '../engine/fleet';
 import { canLoadCharge, defaultState, emptyFit, SLOT_KINDS, type Fit, type FitModule } from '../engine/fit';
@@ -64,14 +64,15 @@ export function compactFit(fit: Fit): Raw {
 export function expandFit(sde: Sde, input: unknown): Fit | null {
   const raw = obj(input);
   const known = (v: unknown) => { const id = int(v, 0, 2 ** 31, 0); return id && sde.types.has(id) ? id : 0; };
-  const shipId = known(raw.s);
+  const knownOf = (v: unknown, ...categories: number[]) => { const id = known(v); return id && categories.includes(sde.types.get(id)!.categoryId) ? id : 0; };
+  const shipId = knownOf(raw.s, Category.Ship);
   if (!shipId) return null;
   const fit = emptyFit(shipId, text(raw.n, 100).trim() || sde.types.get(shipId)!.name);
   const slots = obj(raw.sl);
   for (const k of SLOT_KINDS) {
     fit.slots[k] = list(slots[k], 16).map((entry): FitModule | null => {
       const e = list(entry, 4);
-      const typeId = known(e[0]);
+      const typeId = knownOf(e[0], Category.Module, Category.Subsystem);
       if (!typeId) return null;
       const m: FitModule = { typeId, state: STATES[int(e[1], -1, 3, -1)] ?? defaultState(sde, typeId) };
       const charge = known(e[2]);
@@ -88,7 +89,7 @@ export function expandFit(sde: Sde, input: unknown): Fit | null {
   }
   for (const entry of list(raw.d, 32)) {
     const e = list(entry, 3);
-    const typeId = known(e[0]);
+    const typeId = knownOf(e[0], Category.Drone, Category.Fighter);
     const count = int(e[1], 1, 500, 1);
     if (typeId) fit.drones.push({ typeId, count, active: int(e[2], 0, count, 0) });
   }
@@ -97,12 +98,12 @@ export function expandFit(sde: Sde, input: unknown): Fit | null {
     const typeId = known(e[0]);
     if (typeId) fit.cargo.push({ typeId, count: int(e[1], 1, 10_000_000, 1) });
   }
-  fit.implants = list(raw.i, 20).map(known).filter(Boolean);
+  fit.implants = list(raw.i, 20).map((v) => knownOf(v, Category.Implant)).filter(Boolean);
   const sides: Record<string, string[]> = {};
   for (const [key, v] of Object.entries(obj(raw.b))) if (sde.types.has(Number(key))) sides[key] = list(v, 8).filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 100));
   if (Object.keys(sides).length) fit.boosterSides = sides;
   const mode = known(raw.m);
-  if (mode) fit.mode = mode;
+  if (mode && sde.types.get(mode)!.groupId === MODE_GROUP && sde.modesFor(shipId).some((m) => m.id === mode)) fit.mode = mode;
   const fleet = list(raw.f, 4);
   if (fleet.length) fit.fleet = { charges: list(fleet[0], 12).map(known).filter(Boolean), t2: fleet[1] === 1, shipBonus: SHIP_BONUSES.includes(fleet[2] as number) ? (fleet[2] as number) : 0, mindlink: fleet[3] === 1 };
   const projected = list(raw.p, 32).map((entry) => list(entry, 2)).map((e) => ({ typeId: known(e[0]), count: int(e[1], 1, 50, 1) })).filter((p) => p.typeId);

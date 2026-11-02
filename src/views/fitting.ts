@@ -448,7 +448,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           + (boosters.length ? '' : hint(tx('Apasă pe un booster din browser ca să-l adaugi.')));
         break;
       case 'projected':
-        body = support.projectedBody(f, d) + hint(tx('Cât timp tab-ul e deschis, modulele proiectabile apăsate în browser se adaugă aici.'));
+        body = support.projectedBody(f, d) + hint(tx('Cât timp tab-ul e deschis, modulele și dronele proiectabile apăsate în browser se adaugă aici.'));
         break;
       case 'command':
         body = support.fleetBody(f) + hint(tx('Cât timp tab-ul e deschis, încărcăturile de burst apăsate în browser se adaugă aici.'));

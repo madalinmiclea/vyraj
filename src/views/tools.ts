@@ -3,7 +3,7 @@ import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyTex
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { parseItems, type AppraisalLine } from '../services/appraisal';
-import { fetchPrices, forgetPrices, pricesAt, fetchLpOffers, resolveIds, typeIconUrl, type Aggregates, type LpOffer } from '../services/market';
+import { fetchPrices, forgetPrices, pricesAt, fetchLpOffers, fetchHistory, lastDays, resolveIds, typeIconUrl, type Aggregates, type LpOffer } from '../services/market';
 import { loadAlerts, saveAlerts, addAlert, checkAlerts, hit, ALERTS_EVENT } from '../services/alerts';
 import { TIERS, WEATHERS, loadRuns, saveRuns, filamentTypeId, profitOf, summarize, iskPerHour, type AbyssalRun } from '../services/abyssal';
 import { loyaltyPoints, listAssets, universeNames, type EsiAsset } from '../character/esi';
@@ -25,7 +25,23 @@ const LP_OFFERS_KEY = 'eve-tools:lp-offers';
 
 interface AssetLine { typeId: number; qty: number; value: number }
 interface AssetSnapshot { at: number; items: number; rows: [number, number, number][]; names: [number, string][] }
-type OfferStore = Record<string, { at: number; offers: LpOffer[] }>;
+type OfferStore = Record<string, { at: number; offers: LpOffer[]; daily?: Record<string, [number, number]> }>;
+type LpSort = 'real' | 'buy' | 'sell';
+const LP_SORT_KEY = 'eve-tools:lp-sort';
+const LP_HISTORY_MAX = 120;
+
+interface LpRow {
+  o: LpOffer;
+  p: Aggregates | undefined;
+  req: number;
+  cost: number;
+  sell: number;
+  buy: number;
+  real: number;
+  spread: number;
+  daily: number | null;
+  bpc: boolean;
+}
 
 type Basis = 'sell' | 'buy';
 
@@ -63,6 +79,8 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   }
 
   let apIds: number[] = [];
+  let lpSort = loadJson<LpSort>(LP_SORT_KEY, 'real');
+  let lpShown: { corp: { id: number; name: string }; points: number } | null = null;
   const lpPoints = new Map<number, { mine: { corporation_id: number; loyalty_points: number }[]; corpNames: Map<number, string> }>();
 
   async function priceTable(lines: AppraisalLine[]) {
@@ -305,7 +323,6 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     }
     body.innerHTML = `${panel({
         title: tx('Magazin LP'),
-        actions: basisChips(),
         body: `<div class="form-grid">
             ${mine.length ? `<label>${tx('LP-ul meu')} <select class="input sm" id="lpMine"><option value="">—</option>${mine.sort((a, b) => b.loyalty_points - a.loyalty_points).map((m) => `<option value="${m.corporation_id}" ${saved?.id === m.corporation_id ? 'selected' : ''}>${esc(corpNames.get(m.corporation_id) ?? String(m.corporation_id))} · ${formatInt(m.loyalty_points)} LP</option>`).join('')}</select></label>` : ''}
             <label>${tx('Corporație')} <input class="input sm" id="lpCorp" placeholder="Caldari Navy" value="${esc(saved?.name ?? '')}" title="${tx('Scrie numele corporației și apasă Enter')}" /></label>
@@ -316,10 +333,74 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     if (saved) loadOffers(saved, mine.find((m) => m.corporation_id === saved.id)?.loyalty_points ?? 0);
   }
 
-  async function loadOffers(corp: { id: number; name: string }, points: number) {
+  const lpPerLp = (r: LpRow, mode: LpSort) => (r[mode] - r.cost) / r.o.lp_cost;
+
+  const lpSortChips = () => `<div class="advice-sort">
+    <button class="chip-btn ${lpSort === 'real' ? 'active' : ''}" data-lp-sort="real" title="${tx('Prețul mediu la care s-a vândut efectiv în Jita în ultimele 30 de zile, cel mult prețul de sell. Fără vânzări, valoarea din buy orders.')}">${tx('Realist')}</button>
+    <button class="chip-btn ${lpSort === 'buy' ? 'active' : ''}" data-lp-sort="buy" title="${tx('Vinzi acum în cel mai bun buy order din Jita.')}">${tx('Vânzare instant')}</button>
+    <button class="chip-btn ${lpSort === 'sell' ? 'active' : ''}" data-lp-sort="sell" title="${tx('Listezi la cel mai mic sell din Jita și aștepți un cumpărător.')}">${tx('Sell order')}</button>
+  </div>`;
+
+  function lpFlags(r: LpRow, points: number) {
+    const out: string[] = [];
+    const pct = Math.round(r.spread * 100);
+    if (r.bpc) out.push(`<span class="badge warn" title="${tx('Magazinul dă copii (BPC), piața arată prețul originalului (BPO). Valoarea nu e reală.')}">BPC</span>`);
+    if (!r.p?.buyMax) out.push(`<span class="badge danger" title="${tx('Nimeni nu cumpără acest item în Jita acum.')}">${tx('Fără buy orders')}</span>`);
+    else if (r.spread >= 0.5) out.push(`<span class="badge danger" title="${tx('Sell {sell}, cel mai bun buy {buy}. Prețul de sell nu e ce primești.', { sell: compactISK(r.p.sellMin), buy: compactISK(r.p.buyMax) })}">${tx('Capcană · spread {n}%', { n: pct })}</span>`);
+    else if (r.spread >= 0.2) out.push(`<span class="badge warn" title="${tx('Diferență mare între sell și buy.')}">${tx('Spread {n}%', { n: pct })}</span>`);
+    if (r.daily != null && r.daily < 1) out.push(`<span class="badge warn" title="${tx('Sub o bucată vândută pe zi, în medie, în ultimele 30 de zile.')}">${tx('Se vinde rar')}</span>`);
+    const units = points ? Math.floor(points / r.o.lp_cost) * r.o.quantity : 0;
+    if (units && r.p?.buyMax && units > r.p.buyVolume) out.push(`<span class="badge warn" title="${tx('Ai LP pentru {n} buc., buy orders din Jita cer doar {m}.', { n: formatInt(units), m: formatInt(r.p.buyVolume) })}">${tx('Buy orders insuficiente')}</span>`);
+    return out.length ? `<span class="lp-flags">${out.join('')}</span>` : '';
+  }
+
+  function lpRows(offers: LpOffer[], prices: Map<number, Aggregates>, daily: Record<string, [number, number]>): LpRow[] {
+    return offers.filter((o) => o.lp_cost > 0).map((o) => {
+      const p = prices.get(o.type_id);
+      const req = o.required_items.reduce((a, r) => a + priceOf(prices.get(r.type_id), 'sell') * r.quantity, 0);
+      const sellU = p?.sellMin ?? 0;
+      const buyU = p?.buyMax ?? 0;
+      const h = daily[o.type_id];
+      const realU = h && h[0] >= 1 && h[1] > 0 ? Math.max(buyU, sellU ? Math.min(sellU, h[1]) : h[1]) : buyU;
+      return {
+        o, p, req,
+        cost: o.isk_cost + req,
+        sell: sellU * o.quantity,
+        buy: buyU * o.quantity,
+        real: realU * o.quantity,
+        spread: sellU > 0 ? (buyU > 0 ? Math.max(0, (sellU - buyU) / sellU) : 1) : 0,
+        daily: h ? h[0] : null,
+        bpc: / Blueprint$/.test(typeName(o.type_id)),
+      };
+    }).filter((r) => r.sell > 0 || r.buy > 0);
+  }
+
+  const lpFetching = new Set<number>();
+
+  async function lpDaily(corpId: number, rows: LpRow[]) {
+    const daily: Record<string, [number, number]> = {};
+    const best = (r: LpRow) => Math.max(lpPerLp(r, 'sell'), lpPerLp(r, 'buy'));
+    const want = [...new Set([...rows].filter((r) => !r.bpc).sort((a, b) => best(b) - best(a)).map((r) => r.o.type_id))].slice(0, LP_HISTORY_MAX);
+    let i = 0;
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      while (i < want.length) {
+        const id = want[i++];
+        const days = lastDays(await fetchHistory(id).catch(() => []), 30);
+        const vol = days.reduce((a, d) => a + d.volume, 0);
+        daily[id] = [vol / 30, vol ? days.reduce((a, d) => a + d.average * d.volume, 0) / vol : 0];
+      }
+    }));
+    const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});
+    if (!store[corpId]) return;
+    store[corpId].daily = daily;
+    saveJson(LP_OFFERS_KEY, store);
+  }
+
+  async function loadOffers(corp: { id: number; name: string }, points: number, quiet = false) {
     const out = body.querySelector<HTMLElement>('#lpResult');
     if (!out) return;
-    out.innerHTML = panel({ body: loader(tx('Oferte {name}', { name: corp.name })) });
+    lpShown = { corp, points };
+    if (!quiet) out.innerHTML = panel({ body: loader(tx('Oferte {name}', { name: corp.name })) });
     try {
       const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});
       let entry = store[corp.id];
@@ -332,26 +413,38 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
       const ids = offers.flatMap((o) => [o.type_id, ...o.required_items.map((r) => r.type_id)]);
       const prices = await fetchPrices(ids);
       const at = Math.min(entry.at, pricesAt(ids) || entry.at);
-      const rows = offers.filter((o) => o.lp_cost > 0).map((o) => {
-        const p = prices.get(o.type_id);
-        const value = priceOf(p, basis) * o.quantity;
-        const req = o.required_items.reduce((a, r) => a + priceOf(prices.get(r.type_id), 'sell') * r.quantity, 0);
-        const profit = value - o.isk_cost - req;
-        return { o, value, req, profit, perLp: profit / o.lp_cost, volume: p?.sellVolume ?? 0 };
-      }).filter((r) => r.value > 0).sort((a, b) => b.perLp - a.perLp);
-      if (tab !== 'lp') return;
+      const all = lpRows(offers, prices, entry.daily ?? {});
+      const rows = [...all].sort((a, b) => lpPerLp(b, lpSort) - lpPerLp(a, lpSort));
+      const pending = !entry.daily;
+      if (tab !== 'lp' || lpShown?.corp.id !== corp.id) return;
+      const traps = rows.slice(0, 80).filter((r) => r.p?.buyMax ? r.spread >= 0.5 : r.sell > 0).length;
+      const perLpCell = (r: LpRow, mode: LpSort) => {
+        const v = lpPerLp(r, mode);
+        return `<td class="r num ${v >= 0 ? 'up' : 'down'} ${mode === lpSort ? 'lp-key' : 'dim'}">${formatInt(v)}</td>`;
+      };
       out.innerHTML = panel({
         title: corp.name,
         count: tx('{n} oferte cu preț', { n: rows.length }),
-        actions: dataStamp(at, `data-lp-refresh="${corp.id}"`, { label: tx('Date din {time}'), title: tx('Ofertele LP și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }),
-        body: `<table class="table compact"><thead><tr><th>Item</th><th class="r">LP</th><th class="r">ISK</th><th class="r">${tx('Iteme cerute')}</th><th class="r">${tx('Valoare')}</th><th class="r">ISK/LP</th><th class="r">${tx('Pe piață')}</th>${points ? `<th class="r">${tx('Cu LP-ul tău')}</th>` : ''}</tr></thead><tbody>
-          ${rows.slice(0, 80).map((r) => `<tr><td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${r.o.quantity > 1 ? `${formatInt(r.o.quantity)}× ` : ''}${esc(typeName(r.o.type_id))}</td>
-            <td class="r num">${formatInt(r.o.lp_cost)}</td><td class="r">${isk(r.o.isk_cost)}</td>
-            <td class="r" title="${esc(r.o.required_items.map((x) => `${x.quantity}× ${typeName(x.type_id)}`).join(', '))}">${r.req ? isk(r.req) : ''}</td>
-            <td class="r">${isk(r.value)}</td><td class="r num ${r.perLp >= 0 ? 'up' : 'down'}">${formatInt(r.perLp)}</td><td class="r num dim">${formatInt(r.volume)}</td>
-            ${points ? `<td class="r">${isk(Math.floor(points / r.o.lp_cost) * r.profit)}</td>` : ''}</tr>`).join('')}
+        actions: lpSortChips() + dataStamp(at, `data-lp-refresh="${corp.id}"`, { label: tx('Date din {time}'), title: tx('Ofertele LP și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }),
+        body: `<p class="dim small lp-note">${tx('ISK/LP pe trei valori: realist (prețul mediu vândut efectiv în 30 de zile), instant (cel mai bun buy order) și sell order (cel mai mic sell). Costul include ISK-ul cerut și itemele cerute la Jita sell.')}${pending ? ` <span class="warn-text">${tx('Citesc volumele zilnice…')}</span>` : ''}${traps ? ` <span class="warn-text">${tx('{n} oferte din listă au spread de peste 50% sau niciun buy order: valoarea lor de sell e înșelătoare.', { n: traps })}</span>` : ''}</p>
+          <table class="table compact lp-table"><thead><tr><th>Item</th><th class="r">LP</th><th class="r">${tx('Cost ISK')}</th><th class="r">${tx('Sell Jita')}</th><th class="r">${tx('Buy Jita')}</th><th class="r">${tx('Spread')}</th><th class="r" title="${tx('Cantitatea totală cerută de buy orders în Jita și numărul de ordere.')}">${tx('Cerere buy')}</th><th class="r" title="${tx('Bucăți vândute pe zi în The Forge, media pe 30 de zile.')}">${tx('Vândute/zi')}</th><th class="r">${tx('ISK/LP realist')}</th><th class="r">${tx('ISK/LP instant')}</th><th class="r">${tx('ISK/LP sell')}</th>${points ? `<th class="r">${tx('Cu LP-ul tău')}</th>` : ''}</tr></thead><tbody>
+          ${rows.slice(0, 80).map((r) => `<tr class="${r.p?.buyMax ? (r.spread >= 0.5 ? 'lp-trap' : '') : 'lp-trap'}"><td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${r.o.quantity > 1 ? `${formatInt(r.o.quantity)}× ` : ''}${esc(typeName(r.o.type_id))}${lpFlags(r, points)}</td>
+            <td class="r num">${formatInt(r.o.lp_cost)}</td>
+            <td class="r" title="${esc([`ISK ${compactISK(r.o.isk_cost)}`, ...r.o.required_items.map((x) => `${x.quantity}× ${typeName(x.type_id)}`)].join(', '))}">${isk(r.cost)}</td>
+            <td class="r">${r.p?.sellMin ? isk(r.p.sellMin) : '—'}</td>
+            <td class="r">${r.p?.buyMax ? isk(r.p.buyMax) : '—'}</td>
+            <td class="r num ${r.spread >= 0.5 ? 'down' : r.spread >= 0.2 ? 'warn-text' : 'dim'}">${r.p?.sellMin && r.p?.buyMax ? `${Math.round(r.spread * 100)}%` : '—'}</td>
+            <td class="r num dim">${r.p?.buyMax ? `${formatInt(r.p.buyVolume)} <span class="small">· ${formatInt(r.p.buyOrders)}</span>` : '0'}</td>
+            <td class="r num dim">${r.daily == null ? (pending && !r.bpc ? '…' : '—') : r.daily >= 10 ? formatInt(r.daily) : formatNum(r.daily, 1)}</td>
+            ${perLpCell(r, 'real')}${perLpCell(r, 'buy')}${perLpCell(r, 'sell')}
+            ${points ? `<td class="r">${isk(Math.floor(points / r.o.lp_cost) * (r[lpSort] - r.cost))}</td>` : ''}</tr>`).join('')}
           </tbody></table>`,
       });
+      if (pending && !lpFetching.has(corp.id)) {
+        lpFetching.add(corp.id);
+        await lpDaily(corp.id, all).finally(() => lpFetching.delete(corp.id));
+        if (tab === 'lp' && lpShown?.corp.id === corp.id) loadOffers(corp, points, true);
+      }
     } catch (err) {
       out.innerHTML = panel({ body: alertBox((err as Error).message) });
     }
@@ -427,6 +520,13 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     if (info) { showItemInfo(ctx, Number(info.dataset.assetInfo)); return; }
     const loc = at('[data-asset-loc]');
     if (loc) { toggleLocation(loc); return; }
+    const ls = at('[data-lp-sort]');
+    if (ls) {
+      lpSort = ls.dataset.lpSort as LpSort;
+      saveJson(LP_SORT_KEY, lpSort);
+      if (lpShown) loadOffers(lpShown.corp, lpShown.points, true);
+      return;
+    }
     const lpr = at('[data-lp-refresh]');
     if (lpr) {
       const store = loadJson<OfferStore>(LP_OFFERS_KEY, {});

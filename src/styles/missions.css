@@ -70,3 +70,7 @@
 }
 
 :root[data-theme='light'] .mis-dmg.kinetic { --dmg: #5d6b78; }
+.lp-note { margin: 0 0 10px; line-height: 1.5; }
+.lp-flags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.lp-table td.lp-key { font-weight: 700; }
+.lp-table tr.lp-trap td:first-child { box-shadow: inset 2px 0 0 var(--danger); }

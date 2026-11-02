@@ -1,4 +1,4 @@
-import { Category, type Sde, type EffectInfo, type RawModifier } from '../data/sde';
+import { Category, MODE_GROUP, type Sde, type EffectInfo, type RawModifier } from '../data/sde';
 import { applyOverrides } from './overrides';
 import { applyProjected } from './projected';
 import { fleetBuffs, type FleetBoost } from './fleet';
@@ -27,8 +27,10 @@ const STATE_LEVEL: Record<ModuleState, number> = { offline: 0, online: 1, active
 export type ItemKind = 'ship' | 'character' | 'skill' | 'implant' | 'module' | 'charge' | 'drone' | 'mode' | 'buff' | 'projected';
 
 const PENALTY_DENOM = 2.67 ** 2;
+const PENALTY_MAX_STACK = 8;
 
 export function stackingFactor(index: number): number {
+  if (index >= PENALTY_MAX_STACK) return 0;
   return Math.exp(-(index * index) / PENALTY_DENOM);
 }
 
@@ -223,20 +225,21 @@ export class Dogma {
     this.character = new DogmaItem(this, 0, 'character');
     this.character.baseOverrides.set(sde.attrId('maxLockedTargets'), 2);
 
+    const isA = (id: number, ...categories: number[]) => categories.includes(sde.types.get(id)?.categoryId ?? -1);
     for (const [skillId, level] of input.skills) {
-      if (!sde.types.has(skillId)) continue;
+      if (!isA(skillId, Category.Skill)) continue;
       const skill = new DogmaItem(this, skillId, 'skill');
       skill.baseOverrides.set(sde.attrId('skillLevel'), level);
       this.skills.push(skill);
     }
-    for (const id of input.implants ?? []) if (sde.types.has(id)) this.implants.push(new DogmaItem(this, id, 'implant'));
+    for (const id of input.implants ?? []) if (isA(id, Category.Implant)) this.implants.push(new DogmaItem(this, id, 'implant'));
 
     for (const m of input.modules) {
-      if (!sde.types.has(m.typeId)) continue;
+      if (!isA(m.typeId, Category.Module, Category.Subsystem)) continue;
       const mod = new DogmaItem(this, m.typeId, 'module', m.state, m.slotKey);
       for (const [attr, v] of Object.entries(m.overrides ?? {})) mod.baseOverrides.set(Number(attr), v);
       this.modules.push(mod);
-      if (m.chargeId && sde.types.has(m.chargeId)) {
+      if (m.chargeId && isA(m.chargeId, Category.Charge)) {
         const charge = new DogmaItem(this, m.chargeId, 'charge', m.state, m.slotKey);
         charge.other = mod;
         mod.other = charge;
@@ -244,11 +247,11 @@ export class Dogma {
       }
     }
     for (const d of input.drones ?? []) {
-      if (!sde.types.has(d.typeId) || d.count <= 0) continue;
+      if (!isA(d.typeId, Category.Drone, Category.Fighter) || d.count <= 0) continue;
       this.drones.push({ item: new DogmaItem(this, d.typeId, 'drone', 'active'), count: d.count });
     }
 
-    if (input.mode && sde.types.has(input.mode)) this.mode = new DogmaItem(this, input.mode, 'mode');
+    if (input.mode && sde.types.get(input.mode)?.groupId === MODE_GROUP) this.mode = new DogmaItem(this, input.mode, 'mode');
 
     this.applyAll();
     this.applyBuffs([...(input.buffs ?? []), ...fleetBuffs(sde, input.fleet), ...this.ownBuffs()]);

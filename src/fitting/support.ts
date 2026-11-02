@@ -16,7 +16,7 @@ const emptyBoost = (): FleetBoost => ({ charges: [], t2: true, shipBonus: 0, min
 export function createSupportPanels(env: FitEnv) {
   const { sde } = env;
   let projectable: TypeInfo[] | null = null;
-  const projectableList = () => projectable ??= sde.typesInCategory(Category.Module).filter((t) => t.marketGroupId && isProjectable(sde, t.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const projectableList = () => projectable ??= [...sde.typesInCategory(Category.Module), ...sde.typesInCategory(Category.Drone)].filter((t) => t.marketGroupId && isProjectable(sde, t.id)).sort((a, b) => a.name.localeCompare(b.name));
   const bursts = burstCharges(sde);
 
   function modeSelect(f: Fit) {
@@ -68,7 +68,7 @@ export function createSupportPanels(env: FitEnv) {
       flow.capOut ? `<span>${tx('Capacitor')} <b class="num neg">−${formatNum(flow.capOut, 1)}</b> GJ/s</span>` : '',
     ].join('');
     return `<div class="proj-add">
-        <input class="input plain sm" id="projName" data-list="projList" placeholder="${tx('Modul proiectat pe navă')}" />
+        <input class="input plain sm" id="projName" data-list="projList" placeholder="${tx('Modul sau dronă proiectată pe navă')}" />
         <datalist id="projList">${projectableList().map((t) => `<option value="${esc(t.name)}"></option>`).join('')}</datalist>
         ${button(tx('Adaugă'), { iconName: 'plus', cls: 'ghost sm', attrs: 'data-proj-add="1"' })}
       </div>
@@ -135,7 +135,7 @@ export function createSupportPanels(env: FitEnv) {
     if (at('[data-proj-add]')) {
       const input = document.querySelector<HTMLInputElement>('#projName');
       const t = input?.value.trim() ? sde.findType(input.value.trim()) : undefined;
-      if (!t || !isProjectable(sde, t.id)) { toast(tx('Alege un modul din listă')); return true; }
+      if (!t || !isProjectable(sde, t.id)) { toast(tx('Alege un modul sau o dronă din listă')); return true; }
       addProjected(t.id);
       return true;
     }
