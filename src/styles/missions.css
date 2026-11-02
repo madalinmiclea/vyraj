@@ -74,3 +74,8 @@
 .lp-flags { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
 .lp-table td.lp-key { font-weight: 700; }
 .lp-table tr.lp-trap td:first-child { box-shadow: inset 2px 0 0 var(--danger); }
+.lp-filters { align-items: flex-end; margin-bottom: 8px; }
+.lp-filters label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
+.lp-table th.lp-sorted { color: var(--text-bright); }
+.lp-search-box { display: inline-flex; align-items: center; gap: 4px; }
+.lp-search-box .input { min-width: 240px; }

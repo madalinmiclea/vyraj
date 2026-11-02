@@ -1,6 +1,7 @@
 import type { AppContext } from '../app/context';
 import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, copyText, toast, emptyState, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
+import { fold } from '../ui/fold';
 import { loadJson, saveJson } from '../storage';
 import { parseItems, type AppraisalLine } from '../services/appraisal';
 import { fetchPrices, forgetPrices, pricesAt, fetchLpOffers, fetchHistory, lastDays, resolveIds, typeIconUrl, type Aggregates, type LpOffer } from '../services/market';
@@ -29,6 +30,11 @@ type OfferStore = Record<string, { at: number; offers: LpOffer[]; daily?: Record
 type LpSort = 'real' | 'buy' | 'sell';
 const LP_SORT_KEY = 'eve-tools:lp-sort';
 const LP_HISTORY_MAX = 120;
+const LP_COL_KEY = 'eve-tools:lp-col';
+const LP_FILTER_KEY = 'eve-tools:lp-filter';
+const LP_SHOW_MAX = 100;
+type LpCol = 'name' | 'lp' | 'cost' | 'sellP' | 'buyP' | 'spread' | 'demand' | 'daily' | 'real' | 'buy' | 'sell' | 'mine';
+interface LpFilter { q: string; hideTraps: boolean; minDaily: number; minIskLp: number; afford: boolean }
 
 interface LpRow {
   o: LpOffer;
@@ -81,6 +87,9 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   let apIds: number[] = [];
   let lpSort = loadJson<LpSort>(LP_SORT_KEY, 'real');
   let lpShown: { corp: { id: number; name: string }; points: number } | null = null;
+  let lpCol = loadJson<{ key: LpCol; desc: boolean }>(LP_COL_KEY, { key: lpSort, desc: true });
+  let lpFilter: LpFilter = { q: '', hideTraps: false, minDaily: 0, minIskLp: 0, afford: false, ...loadJson<Partial<LpFilter>>(LP_FILTER_KEY, {}) };
+  let lpData: { corp: { id: number; name: string }; points: number; rows: LpRow[]; pending: boolean } | null = null;
   const lpPoints = new Map<number, { mine: { corporation_id: number; loyalty_points: number }[]; corpNames: Map<number, string> }>();
 
   async function priceTable(lines: AppraisalLine[]) {
@@ -341,6 +350,81 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     <button class="chip-btn ${lpSort === 'sell' ? 'active' : ''}" data-lp-sort="sell" title="${tx('Listezi la cel mai mic sell din Jita și aștepți un cumpărător.')}">${tx('Sell order')}</button>
   </div>`;
 
+  const lpIsTrap = (r: LpRow) => (r.p?.buyMax ? r.spread >= 0.5 : r.sell > 0);
+  const lpMine = (r: LpRow, points: number) => Math.floor(points / r.o.lp_cost) * (r[lpSort] - r.cost);
+
+  function lpColValue(r: LpRow, key: LpCol, points: number): number | string {
+    switch (key) {
+      case 'name': return typeName(r.o.type_id).toLowerCase();
+      case 'lp': return r.o.lp_cost;
+      case 'cost': return r.cost;
+      case 'sellP': return r.p?.sellMin ?? 0;
+      case 'buyP': return r.p?.buyMax ?? 0;
+      case 'spread': return r.p?.sellMin && r.p?.buyMax ? r.spread : 2;
+      case 'demand': return r.p?.buyVolume ?? 0;
+      case 'daily': return r.daily ?? -1;
+      case 'mine': return lpMine(r, points);
+      default: return lpPerLp(r, key);
+    }
+  }
+
+  function lpTh(key: LpCol, label: string, title = '', left = false) {
+    const mark = lpCol.key === key ? (lpCol.desc ? ' ▾' : ' ▴') : '';
+    return `<th class="${left ? '' : 'r '}sortable ${lpCol.key === key ? 'lp-sorted' : ''}" data-lp-col="${key}" ${title ? `title="${esc(title)}"` : ''}>${label}${mark}</th>`;
+  }
+
+  function lpVisible() {
+    if (!lpData) return [];
+    const { rows, points } = lpData;
+    const words = fold(lpFilter.q.trim()).split(/\s+/).filter(Boolean);
+    const list = rows.filter((r) => (!words.length || ((n) => words.every((w) => n.includes(w)))(fold(typeName(r.o.type_id))))
+      && (!lpFilter.hideTraps || (!lpIsTrap(r) && !r.bpc))
+      && (!lpFilter.minDaily || (r.daily ?? 0) >= lpFilter.minDaily)
+      && (!lpFilter.minIskLp || lpPerLp(r, lpSort) >= lpFilter.minIskLp)
+      && (!lpFilter.afford || !points || points >= r.o.lp_cost));
+    const dir = lpCol.desc ? -1 : 1;
+    return list.sort((a, b) => {
+      const x = lpColValue(a, lpCol.key, points);
+      const y = lpColValue(b, lpCol.key, points);
+      return (typeof x === 'string' ? x.localeCompare(String(y)) : x - (y as number)) * dir;
+    });
+  }
+
+  function renderLpTable() {
+    const box = body.querySelector<HTMLElement>('#lpTable');
+    if (!box || !lpData) return;
+    const { points, pending } = lpData;
+    const list = lpVisible();
+    const shown = list.slice(0, LP_SHOW_MAX);
+    const perLpCell = (r: LpRow, mode: LpSort) => {
+      const v = lpPerLp(r, mode);
+      return `<td class="r num ${v >= 0 ? 'up' : 'down'} ${mode === lpSort ? 'lp-key' : 'dim'}">${formatInt(v)}</td>`;
+    };
+    box.innerHTML = `<p class="dim small lp-note">${list.length > shown.length ? tx('Arăt primele {n} din {m} oferte filtrate.', { n: shown.length, m: list.length }) : tx('{n} oferte după filtre.', { n: list.length })}${pending ? ` <span class="warn-text">${tx('Citesc volumele zilnice…')}</span>` : ''}</p>
+      ${shown.length ? `<table class="table compact lp-table"><thead><tr>${lpTh('name', 'Item', '', true)}${lpTh('lp', 'LP')}${lpTh('cost', tx('Cost ISK'))}${lpTh('sellP', tx('Sell Jita'))}${lpTh('buyP', tx('Buy Jita'))}${lpTh('spread', tx('Spread'))}${lpTh('demand', tx('Cerere buy'), tx('Cantitatea totală cerută de buy orders în Jita și numărul de ordere.'))}${lpTh('daily', tx('Vândute/zi'), tx('Bucăți vândute pe zi în The Forge, media pe 30 de zile.'))}${lpTh('real', tx('ISK/LP realist'))}${lpTh('buy', tx('ISK/LP instant'))}${lpTh('sell', tx('ISK/LP sell'))}${points ? lpTh('mine', tx('Cu LP-ul tău')) : ''}</tr></thead><tbody>
+      ${shown.map((r) => `<tr class="${lpIsTrap(r) ? 'lp-trap' : ''}"><td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${r.o.quantity > 1 ? `${formatInt(r.o.quantity)}× ` : ''}${esc(typeName(r.o.type_id))}${lpFlags(r, points)}</td>
+        <td class="r num">${formatInt(r.o.lp_cost)}</td>
+        <td class="r" title="${esc([`ISK ${compactISK(r.o.isk_cost)}`, ...r.o.required_items.map((x) => `${x.quantity}× ${typeName(x.type_id)}`)].join(', '))}">${isk(r.cost)}</td>
+        <td class="r">${r.p?.sellMin ? isk(r.p.sellMin) : '—'}</td>
+        <td class="r">${r.p?.buyMax ? isk(r.p.buyMax) : '—'}</td>
+        <td class="r num ${r.spread >= 0.5 ? 'down' : r.spread >= 0.2 ? 'warn-text' : 'dim'}">${r.p?.sellMin && r.p?.buyMax ? `${Math.round(r.spread * 100)}%` : '—'}</td>
+        <td class="r num dim">${r.p?.buyMax ? `${formatInt(r.p.buyVolume)} <span class="small">· ${formatInt(r.p.buyOrders)}</span>` : '0'}</td>
+        <td class="r num dim">${r.daily == null ? (pending && !r.bpc ? '…' : '—') : r.daily >= 10 ? formatInt(r.daily) : formatNum(r.daily, 1)}</td>
+        ${perLpCell(r, 'real')}${perLpCell(r, 'buy')}${perLpCell(r, 'sell')}
+        ${points ? `<td class="r">${isk(lpMine(r, points))}</td>` : ''}</tr>`).join('')}
+      </tbody></table>` : emptyState({ title: tx('Nicio ofertă nu trece de filtre'), vy: 'No Offers Woven' })}`;
+    body.querySelectorAll<HTMLElement>('[data-lp-sort]').forEach((el) => el.classList.toggle('active', el.dataset.lpSort === lpSort));
+  }
+
+  const lpFilterBar = (points: number) => `<div class="form-grid lp-filters">
+      <label class="lp-search">${tx('Caută')} <span class="lp-search-box"><input class="input sm" data-lp-f="q" data-list="lpNames" value="${esc(lpFilter.q)}" placeholder="${tx('ex: zainou snapshot')}" autocomplete="off" spellcheck="false" />${lpFilter.q ? `<button class="icon-btn" data-lp-clear title="${tx('Golește căutarea')}">✕</button>` : ''}</span></label>
+      <datalist id="lpNames">${[...new Map((lpData?.rows ?? []).map((r) => [r.o.type_id, r])).values()].sort((a, b) => typeName(a.o.type_id).localeCompare(typeName(b.o.type_id))).map((r) => `<option value="${esc(typeName(r.o.type_id))}">${formatInt(r.o.lp_cost)} LP</option>`).join('')}</datalist>
+      <label title="${tx('Se aplică pe valoarea aleasă: realist, instant sau sell order.')}">${tx('ISK/LP minim')} <input class="input sm num" type="number" min="0" step="100" data-lp-f="minIskLp" value="${lpFilter.minIskLp || ''}" placeholder="0" /></label>
+      <label>${tx('Vândute/zi minim')} <input class="input sm num" type="number" min="0" step="1" data-lp-f="minDaily" value="${lpFilter.minDaily || ''}" placeholder="0" /></label>
+      <label class="check"><input type="checkbox" data-lp-f="hideTraps" ${lpFilter.hideTraps ? 'checked' : ''} /> ${tx('Ascunde capcanele și BPC-urile')}</label>
+      ${points ? `<label class="check"><input type="checkbox" data-lp-f="afford" ${lpFilter.afford ? 'checked' : ''} /> ${tx('Doar ce îmi permit cu LP-ul meu')}</label>` : ''}
+    </div>`;
+
   function lpFlags(r: LpRow, points: number) {
     const out: string[] = [];
     const pct = Math.round(r.spread * 100);
@@ -414,32 +498,16 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
       const prices = await fetchPrices(ids);
       const at = Math.min(entry.at, pricesAt(ids) || entry.at);
       const all = lpRows(offers, prices, entry.daily ?? {});
-      const rows = [...all].sort((a, b) => lpPerLp(b, lpSort) - lpPerLp(a, lpSort));
       const pending = !entry.daily;
       if (tab !== 'lp' || lpShown?.corp.id !== corp.id) return;
-      const traps = rows.slice(0, 80).filter((r) => r.p?.buyMax ? r.spread >= 0.5 : r.sell > 0).length;
-      const perLpCell = (r: LpRow, mode: LpSort) => {
-        const v = lpPerLp(r, mode);
-        return `<td class="r num ${v >= 0 ? 'up' : 'down'} ${mode === lpSort ? 'lp-key' : 'dim'}">${formatInt(v)}</td>`;
-      };
+      lpData = { corp, points, rows: all, pending };
       out.innerHTML = panel({
         title: corp.name,
-        count: tx('{n} oferte cu preț', { n: rows.length }),
+        count: tx('{n} oferte cu preț', { n: all.length }),
         actions: lpSortChips() + dataStamp(at, `data-lp-refresh="${corp.id}"`, { label: tx('Date din {time}'), title: tx('Ofertele LP și prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }),
-        body: `<p class="dim small lp-note">${tx('ISK/LP pe trei valori: realist (prețul mediu vândut efectiv în 30 de zile), instant (cel mai bun buy order) și sell order (cel mai mic sell). Costul include ISK-ul cerut și itemele cerute la Jita sell.')}${pending ? ` <span class="warn-text">${tx('Citesc volumele zilnice…')}</span>` : ''}${traps ? ` <span class="warn-text">${tx('{n} oferte din listă au spread de peste 50% sau niciun buy order: valoarea lor de sell e înșelătoare.', { n: traps })}</span>` : ''}</p>
-          <table class="table compact lp-table"><thead><tr><th>Item</th><th class="r">LP</th><th class="r">${tx('Cost ISK')}</th><th class="r">${tx('Sell Jita')}</th><th class="r">${tx('Buy Jita')}</th><th class="r">${tx('Spread')}</th><th class="r" title="${tx('Cantitatea totală cerută de buy orders în Jita și numărul de ordere.')}">${tx('Cerere buy')}</th><th class="r" title="${tx('Bucăți vândute pe zi în The Forge, media pe 30 de zile.')}">${tx('Vândute/zi')}</th><th class="r">${tx('ISK/LP realist')}</th><th class="r">${tx('ISK/LP instant')}</th><th class="r">${tx('ISK/LP sell')}</th>${points ? `<th class="r">${tx('Cu LP-ul tău')}</th>` : ''}</tr></thead><tbody>
-          ${rows.slice(0, 80).map((r) => `<tr class="${r.p?.buyMax ? (r.spread >= 0.5 ? 'lp-trap' : '') : 'lp-trap'}"><td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${r.o.quantity > 1 ? `${formatInt(r.o.quantity)}× ` : ''}${esc(typeName(r.o.type_id))}${lpFlags(r, points)}</td>
-            <td class="r num">${formatInt(r.o.lp_cost)}</td>
-            <td class="r" title="${esc([`ISK ${compactISK(r.o.isk_cost)}`, ...r.o.required_items.map((x) => `${x.quantity}× ${typeName(x.type_id)}`)].join(', '))}">${isk(r.cost)}</td>
-            <td class="r">${r.p?.sellMin ? isk(r.p.sellMin) : '—'}</td>
-            <td class="r">${r.p?.buyMax ? isk(r.p.buyMax) : '—'}</td>
-            <td class="r num ${r.spread >= 0.5 ? 'down' : r.spread >= 0.2 ? 'warn-text' : 'dim'}">${r.p?.sellMin && r.p?.buyMax ? `${Math.round(r.spread * 100)}%` : '—'}</td>
-            <td class="r num dim">${r.p?.buyMax ? `${formatInt(r.p.buyVolume)} <span class="small">· ${formatInt(r.p.buyOrders)}</span>` : '0'}</td>
-            <td class="r num dim">${r.daily == null ? (pending && !r.bpc ? '…' : '—') : r.daily >= 10 ? formatInt(r.daily) : formatNum(r.daily, 1)}</td>
-            ${perLpCell(r, 'real')}${perLpCell(r, 'buy')}${perLpCell(r, 'sell')}
-            ${points ? `<td class="r">${isk(Math.floor(points / r.o.lp_cost) * (r[lpSort] - r.cost))}</td>` : ''}</tr>`).join('')}
-          </tbody></table>`,
+        body: `${lpFilterBar(points)}<div id="lpTable"></div>`,
       });
+      renderLpTable();
       if (pending && !lpFetching.has(corp.id)) {
         lpFetching.add(corp.id);
         await lpDaily(corp.id, all).finally(() => lpFetching.delete(corp.id));
@@ -523,8 +591,28 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     const ls = at('[data-lp-sort]');
     if (ls) {
       lpSort = ls.dataset.lpSort as LpSort;
+      lpCol = { key: lpSort, desc: true };
       saveJson(LP_SORT_KEY, lpSort);
-      if (lpShown) loadOffers(lpShown.corp, lpShown.points, true);
+      saveJson(LP_COL_KEY, lpCol);
+      renderLpTable();
+      return;
+    }
+    if (at('[data-lp-clear]')) {
+      lpFilter = { ...lpFilter, q: '' };
+      saveJson(LP_FILTER_KEY, lpFilter);
+      const inp = body.querySelector<HTMLInputElement>('[data-lp-f="q"]');
+      if (inp) { inp.value = ''; inp.focus(); }
+      at('[data-lp-clear]')!.remove();
+      renderLpTable();
+      return;
+    }
+    const lc = at('[data-lp-col]');
+    if (lc) {
+      const key = lc.dataset.lpCol as LpCol;
+      lpCol = lpCol.key === key ? { key, desc: !lpCol.desc } : { key, desc: key !== 'name' };
+      if (key === 'real' || key === 'buy' || key === 'sell') { lpSort = key; saveJson(LP_SORT_KEY, lpSort); }
+      saveJson(LP_COL_KEY, lpCol);
+      renderLpTable();
       return;
     }
     const lpr = at('[data-lp-refresh]');
@@ -550,8 +638,27 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
     if (ad) saveAlerts(loadAlerts().filter((a) => a.id !== ad.dataset.alDel));
   });
 
+  const lpFilterInput = (t: HTMLElement) => {
+    const f = t.dataset.lpF as keyof LpFilter | undefined;
+    if (!f) return false;
+    const el = t as HTMLInputElement;
+    lpFilter = { ...lpFilter, [f]: el.type === 'checkbox' ? el.checked : f === 'q' ? el.value : Math.max(0, Number(el.value) || 0) };
+    saveJson(LP_FILTER_KEY, lpFilter);
+    if (f === 'q') {
+      const box = t.closest('.lp-search-box');
+      const btn = box?.querySelector('[data-lp-clear]');
+      if (el.value && box && !btn) box.insertAdjacentHTML('beforeend', `<button class="icon-btn" data-lp-clear title="${tx('Golește căutarea')}">✕</button>`);
+      else if (!el.value) btn?.remove();
+    }
+    renderLpTable();
+    return true;
+  };
+
+  body.addEventListener('input', (e) => { lpFilterInput(e.target as HTMLElement); });
+
   body.addEventListener('change', (e) => {
     const t = e.target as HTMLElement;
+    if (t.dataset.lpF) { lpFilterInput(t); return; }
     if (t.id === 'lpMine') {
       const sel = t as HTMLSelectElement;
       body.querySelector<HTMLInputElement>('#lpCorp')!.value = sel.value ? sel.selectedOptions[0].text.split(' · ')[0] : '';
