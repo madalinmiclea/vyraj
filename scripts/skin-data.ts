@@ -7,6 +7,7 @@ import { publishData, RAW_DIR } from './publish-data.ts';
 import { writeMining } from './mining-data.ts';
 import { buildIndustry } from './industry-data.ts';
 import { ACTIVITY_FILES, buildActivities } from './activity-data.ts';
+import { AGENT_FILES, buildAgents } from './agent-data.ts';
 
 type Row = Record<string, any>;
 
@@ -17,8 +18,9 @@ const INDUSTRY_OUT = path.join(RAW_DIR, 'industry.json');
 const PI_OUT = path.join(RAW_DIR, 'pi.json');
 const PLANETS_OUT = path.join(RAW_DIR, 'planets.json');
 const ACTIVITIES_OUT = path.join(RAW_DIR, 'activities.json');
+const AGENTS_OUT = path.join(RAW_DIR, 'agents.json');
 const ZIP_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
-const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'mapPlanets', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES];
+const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'mapPlanets', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES, ...AGENT_FILES];
 const SHIP_CATEGORY = 6;
 
 const en = (v: any): string => (typeof v === 'string' ? v : v?.en ?? v?.['en-us'] ?? '');
@@ -267,6 +269,7 @@ export async function generateSkins() {
         fs.writeFileSync(INDUSTRY_OUT, JSON.stringify(buildIndustry((name) => readJsonl(dir, name))));
         fs.writeFileSync(PI_OUT, JSON.stringify(buildPi(dir)));
         fs.writeFileSync(PLANETS_OUT, JSON.stringify(buildPlanets(dir)));
+        fs.writeFileSync(AGENTS_OUT, JSON.stringify(buildAgents(dir)));
         return data;
     } finally {
         fs.rmSync(dir, { recursive: true, force: true });

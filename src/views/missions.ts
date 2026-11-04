@@ -3,6 +3,12 @@ import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, search
 import { loadJson, saveJson } from '../storage';
 import { createToolPanel } from './tools';
 import { createPveActivityPanel } from './pveActivity';
+import { createIncursionsPanel } from './incursions';
+import { createRattingPanel } from './pveRatting';
+import { createAnomaliesPanel } from './pveAnomalies';
+import { createAgentsPanel } from './pveAgents';
+import { createEscalationsPanel } from './pveEscalations';
+import { createAbyssGuidePanel } from './pveAbyss';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -16,13 +22,22 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'activity' | 'lp' | 'abyssal';
+type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
+type OwnTool = Exclude<MisTool, 'abyssal' | 'lp'>;
 
 const MIS_TOOLS: { id: MisTool; label: string }[] = [
   { id: 'activity', label: tx('Activitate PvE') },
-  { id: 'lp', label: tx('Magazin LP') },
+  { id: 'incursions', label: tx('Incursiuni') },
+  { id: 'ratting', label: tx('Unde faci ratting') },
+  { id: 'anomalies', label: tx('Ghid de anomalii') },
+  { id: 'agents', label: tx('Agenți') },
+  { id: 'escalations', label: tx('Escaladări') },
+  { id: 'abyss', label: tx('Ghid abisal') },
   { id: 'abyssal', label: tx('Jurnal abisal') },
+  { id: 'lp', label: tx('Magazin LP') },
 ];
+
+interface Tool { show(): void; hide(): void }
 
 interface State { section: Section | 'all'; tool?: MisTool | ''; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
 
@@ -35,7 +50,7 @@ const chips = (list: Dmg[]) => (list.length ? list.map(chip).join(' ') : `<span 
 
 export interface MissionsView { show(): void }
 
-export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void }): MissionsView {
+export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean }): MissionsView {
   const sde = ctx.sde;
   const state: State = { section: 'all', q: '', level: '', empire: '', enemy: '', blitz: false, hideEmpire: false, ...loadJson<Partial<State>>(STATE_KEY, {}) };
   let missions: Mission[] = [];
@@ -45,28 +60,75 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   const ammoCache = new Map<string, string[]>();
   let fit: Fit | null = null;
 
-  el.innerHTML = `${pageHead(tx('Misiuni și complexe DED'), tx('Ce faci în fiecare cameră, contra cui tragi și ce tank îți trebuie, pentru misiunile L1–L5 și complexele DED'), 'Lov')}
+  el.innerHTML = `${pageHead('PvE', tx('Ghid pentru misiunile L1–L5 și complexele DED, activitatea ta PvE din portofel și unelte pentru LP și abisal'), 'Lov')}
     <div id="misHelp"></div>
     <div id="misBar"></div>
     <div id="misList">${loader(tx('Încărcăm misiunile'))}</div>
     <div id="misTool" hidden></div>
-    <div id="misActivity" hidden></div>`;
+    <div id="misOwn" hidden></div>`;
   const help = el.querySelector<HTMLElement>('#misHelp')!;
   const bar = el.querySelector<HTMLElement>('#misBar')!;
   const list = el.querySelector<HTMLElement>('#misList')!;
   const toolBox = el.querySelector<HTMLElement>('#misTool')!;
   const tools = createToolPanel(toolBox, ctx);
-  const activityBox = el.querySelector<HTMLElement>('#misActivity')!;
-  const activity = createPveActivityPanel(activityBox, ctx);
+  const ownBox = el.querySelector<HTMLElement>('#misOwn')!;
+  const boxes = new Map<OwnTool, HTMLElement>();
+  const box = (id: OwnTool) => {
+    const b = document.createElement('div');
+    b.hidden = true;
+    ownBox.append(b);
+    boxes.set(id, b);
+    return b;
+  };
+  const incursionBox = box('incursions');
+  const incursions = createIncursionsPanel(incursionBox, ctx, { openDoctrine: opts.openDoctrine });
+  const own: Record<OwnTool, Tool> = {
+    activity: createPveActivityPanel(box('activity'), ctx),
+    incursions: { show: () => incursions.show(), hide: () => {} },
+    ratting: createRattingPanel(box('ratting'), ctx),
+    anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
+    agents: createAgentsPanel(box('agents'), ctx),
+    escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => missions.filter((m) => sectionOf(m) === 'ded').map((m) => m.name), openMission }),
+    abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
+  };
+  ctx.onCharacterChange(() => incursions.reset());
+  const isOwn = (t: MisTool | null): t is OwnTool => !!t && t in own;
   if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
 
   function showTool() {
     const tool = state.tool || null;
     for (const x of [help, bar, list]) x.hidden = !!tool;
-    toolBox.hidden = !tool || tool === 'activity';
-    activityBox.hidden = tool !== 'activity';
-    if (tool && tool !== 'activity') tools.show(tool); else tools.hide();
-    if (tool === 'activity') activity.show(); else activity.hide();
+    toolBox.hidden = !tool || isOwn(tool);
+    ownBox.hidden = !isOwn(tool);
+    if (tool && !isOwn(tool)) tools.show(tool); else tools.hide();
+    for (const [id, b] of boxes) {
+      const on = id === tool;
+      if (b.hidden === !on && !on) continue;
+      b.hidden = !on;
+      if (on) own[id].show(); else own[id].hide();
+    }
+  }
+
+  function openTool(id: MisTool) {
+    if (!MIS_TOOLS.some((t) => t.id === id)) return;
+    state.tool = id;
+    save();
+    renderSide();
+    showTool();
+    el.closest('.main')?.scrollTo({ top: 0 });
+  }
+
+  function openMission(name: string) {
+    state.tool = '';
+    state.section = 'ded';
+    state.q = name;
+    state.level = '';
+    state.enemy = '';
+    save();
+    renderSide();
+    showTool();
+    if (missions.length) { renderBar(); apply(); }
+    el.closest('.main')?.scrollTo({ top: 0 });
   }
 
   const save = () => saveJson(STATE_KEY, state);
@@ -106,8 +168,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       const s = sectionOf(m);
       counts.set(s, (counts.get(s) ?? 0) + 1);
     }
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Misiuni'))}</div>
-      <div class="side-nav">${SECTIONS.map((s) => `<button class="side-link ${!state.tool && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
+    side.innerHTML = `<div class="sidebar-head">${windowTitle('PvE')}</div>
+      <div class="side-nav"><div class="ord-side-label">${tx('Misiuni și complexe DED')}</div>${SECTIONS.map((s) => `<button class="side-link ${!state.tool && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
         <div class="ord-side-label">${tx('Unelte PvE')}</div>
         ${MIS_TOOLS.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${t.label}</button>`).join('')}</div>`;
   }

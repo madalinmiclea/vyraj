@@ -38,7 +38,7 @@ const ABOUT: Record<string, string> = {
   character: tx('Skill-uri, coada de antrenament, plan de skill-uri și toate caracterele.'),
   notifications: tx('Alegi ce te anunță: ordine vândute, outbid, skill-uri, industrie, kill-uri PvP lângă tine și notificările din joc.'),
   mail: tx('Mailurile din joc: etichete, liste de mail, citire, răspuns și trimitere.'),
-  missions: tx('Misiuni L1–L5 și complexe DED, magazin LP și jurnal abisal.'),
+  missions: tx('Misiuni și complexe DED, incursiuni, unde faci ratting, anomalii, agenți, escaladări, Abyss, activitatea ta PvE și magazin LP.'),
   operations: tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri de jefuit, citite direct din ESI.'),
   industry: tx('Cost de fabricație și invenție față de prețul din Jita.'),
   pi: tx('Colonii, timere de extractoare și profitul fiecărui lanț.'),

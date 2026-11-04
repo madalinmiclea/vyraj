@@ -11,6 +11,9 @@ import { saveLog } from '../services/incursions';
 import { demoIncursionLog } from './incursionLog';
 import { demoNoticeLog } from './notices';
 import { saveLog as saveNoticeLog } from '../services/notices';
+import { saveEscalations } from '../services/escalations';
+import { loadMissions, sectionOf } from '../services/missions';
+import { DEMO_ID } from './identity';
 
 const DAY = 86_400_000;
 
@@ -139,4 +142,6 @@ export async function seedDemo(): Promise<void> {
   saveAlerts(alerts.map((a, i) => ({ ...a, id: `demo-alert-${i}` })));
   saveLog(await demoIncursionLog(now));
   saveNoticeLog(demoNoticeLog(now, tx('Pilot demo')));
+  const ded = (await loadMissions().catch(() => null))?.missions.filter((m) => sectionOf(m) === 'ded' && (m.rating ?? 0) >= 4 && (m.rating ?? 0) <= 6) ?? [];
+  saveEscalations(ded.slice(0, 3).map((m, i) => ({ id: `demo-esc-${i}`, char: DEMO_ID, name: m.name, system: [30001262, 30001264, 30001261][i], at: now - [3, 17, 30][i] * 3_600_000, hours: 24, note: '', done: i === 2 })));
 }

@@ -4,6 +4,17 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-11-04',
+    title: tx('Vânătoare într-un singur loc'),
+    lead: tx('Misiunile au devenit PvE, cu tot ce ține de vânătoare la un click distanță.'),
+    items: [
+      tx('Activitate PvE din portofel: bounty, ESS, misiuni, incursiuni și ISK pe oră, plus câte NPC-uri subcapitale, capitale, supercarriere, titani și officers ai distrus.'),
+      tx('Unde faci ratting: sistemele din jurul tău cu cele mai multe NPC-uri distruse în ultima oră și riscul PvP din fiecare.'),
+      tx('Ghid de anomalii pe facțiuni, cu securitatea, nava potrivită și escaladarea DED a fiecăreia, și o listă de escaladări care îți arată cât timp mai ai.'),
+      tx('Agenți de misiuni L1–L5 lângă tine, cu standing-ul necesar și LP-ul tău la corporația lor, plus un ghid de filamente abisale și incursiunile mutate aici din Operațiuni.'),
+    ],
+  },
+  {
     date: '2026-10-31',
     title: tx('Glasul fiecărui sistem'),
     lead: tx('Vyraj îți spune singur ce s-a întâmplat, iar tu alegi ce vrei să auzi.'),
