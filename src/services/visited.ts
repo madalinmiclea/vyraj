@@ -27,6 +27,7 @@ export interface ExplorePlan {
   jumps: number;
   risky: number[];
   total?: number;
+  bonus?: number[];
 }
 
 const KEY = 'eve-nav:visited';
@@ -515,6 +516,7 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     waypoints.push(id);
     cur = t;
   }
+  const bonus = new Set<number>();
   if (!fixed) {
     const onPath = new Set(path);
     const pocket = (from: number, j: number): Set<number> | null => {
@@ -550,13 +552,12 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
         };
         go(j);
         walk.push(a);
-        const last = i === path.length - 1;
-        if (last) {
+        if (i === path.length - 1) {
           walk.pop();
           while (walk.length > 1 && walk.indexOf(walk[walk.length - 1]) < walk.length - 1) walk.pop();
         }
         path.splice(i + 1, 0, ...walk);
-        for (const x of p) onPath.add(x);
+        for (const x of p) { onPath.add(x); if (!visited.has(x)) bonus.add(x); }
       }
     }
     const first = new Set<number>([start]);
@@ -568,7 +569,7 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     }
   }
   const risky = path.filter((id, i) => i > 0 && (isRiskyStop(level, opts.activity?.get(id)) || !allowedFor(level, map.systems.get(id)!)));
-  return { path, fresh, waypoints, jumps: path.length - 1, risky };
+  return { path, fresh, waypoints, jumps: path.length - 1, risky, bonus: fresh.filter((id) => bonus.has(id)) };
 }
 
 export function demoHistory(route: [number, number][], who: string, end = Date.now() - 3 * 3_600_000): VisitEntry[] {

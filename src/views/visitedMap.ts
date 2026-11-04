@@ -43,7 +43,7 @@ const PLAN_KEY = 'eve-nav:visited-plan';
 const DEFAULTS: Settings = { who: '', days: 0, trail: true, dim: true, tab: 'progress', level: 'safe', region: 0, count: 10, from: '', scope: 'all' };
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 const PERIODS: [number, string][] = [[0, tx('Tot')], [30, tx('30 zile')], [7, tx('7 zile')], [1, '24 h']];
-const COUNTS = [5, 10, 20, 40];
+const COUNTS = [5, 10, 20, 40, 70, 100];
 const JUMP_GAP = 2 * 3_600_000;
 
 const LEVELS: { id: RiskLevel; label: string; text: string }[] = [
@@ -362,6 +362,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         <div class="vis-route-actions">${button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: 'data-vis-track' })}${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}</div>`;
       const names = steps.map((id) => map!.systems.get(id)!.name);
       const risky = plan.risky.filter((id) => planSet.has(id));
+      const bonusLeft = (plan.bonus ?? []).filter((id) => freshSet.has(id)).length;
       const rows = steps.map((id, i) => {
         const s = map!.systems.get(id)!;
         const a = activity?.get(id);
@@ -369,11 +370,11 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         const fresh = freshSet.has(id) && steps.indexOf(id) === i;
         return `<div class="vis-step ${fresh ? 'new' : ''}" data-sys="${id}">
           <span class="num dim">${i || '·'}</span>${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
-          ${fresh ? badge(tx('nou'), 'gold') : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
+          ${fresh ? (plan!.bonus?.includes(id) ? badge(tx('bonus fundătură'), 'gold') : badge(tx('nou'), 'gold')) : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
         </div>`;
       }).join('');
       return `<div class="history-kpis vis-kpis">
-          <div><span class="label">${tx('Mai sunt')}</span><span class="value accent">${freshSet.size}<span class="dim small"> / ${plan.total ?? plan.fresh.length}</span></span></div>
+          <div><span class="label">${tx('Mai sunt')}</span><span class="value accent">${freshSet.size}<span class="dim small"> / ${plan.total ?? plan.fresh.length}</span></span>${bonusLeft ? `<span class="dim small">${tx('din care {n} bonus fundătură', { n: bonusLeft })}</span>` : ''}</div>
           <div><span class="label">${tx('Salturi')}</span><span class="value">${steps.length - 1}</span></div>
           <div><span class="label">${tx('Sisteme riscante')}</span><span class="value ${risky.length ? 'warn-text' : ''}">${risky.length}</span></div>
         </div>
