@@ -26,7 +26,6 @@ type SideTab = 'progress' | 'route' | 'import';
 interface Settings {
   who: string;
   days: number;
-  trail: boolean;
   dim: boolean;
   tab: SideTab;
   level: RiskLevel;
@@ -36,15 +35,13 @@ interface Settings {
   scope: 'all' | 'hi';
 }
 
-interface Segment { a: NavSystem; b: NavSystem; gate: boolean; n: number; last: number; color: string }
 
 const KEY = 'eve-nav:visited-ui';
 const PLAN_KEY = 'eve-nav:visited-plan';
-const DEFAULTS: Settings = { who: '', days: 0, trail: true, dim: true, tab: 'progress', level: 'safe', region: 0, count: 10, from: '', scope: 'all' };
+const DEFAULTS: Settings = { who: '', days: 0, dim: true, tab: 'progress', level: 'safe', region: 0, count: 10, from: '', scope: 'all' };
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 const PERIODS: [number, string][] = [[0, tx('Tot')], [30, tx('30 zile')], [7, tx('7 zile')], [1, '24 h']];
 const COUNTS = [5, 10, 20, 40, 70, 100];
-const JUMP_GAP = 2 * 3_600_000;
 
 const LEVELS: { id: RiskLevel; label: string; text: string }[] = [
   { id: 'safe', label: 'Safe', text: tx('Doar highsec. Kill-urile din ultima oră apar lângă fiecare sistem.') },
@@ -66,7 +63,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   let started = false;
   let visited = new Map<number, number>();
   let counts = new Map<number, number>();
-  let segments: Segment[] = [];
+  let hops: [NavSystem, NavSystem][] = [];
   let positions: { who: string; systemId: number; time: number; color: string }[] = [];
   let plan: ExplorePlan | null = loadJson<ExplorePlan | null>(PLAN_KEY, null);
   let steps: number[] = [];
@@ -99,22 +96,19 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     pickWho();
     visited = visitedSet(whoFilter(), since());
     counts = visitCounts(whoFilter());
-    const by = new Map<string, Segment>();
-    const after = since();
-    for (const { visits } of pathFor(whoFilter(), after)) {
-      const color = '';
+    const seenHop = new Set<string>();
+    hops = [];
+    for (const { visits } of pathFor(whoFilter(), since())) {
       for (let i = 1; i < visits.length; i++) {
         const a = map.systems.get(visits[i - 1].systemId);
         const b = map.systems.get(visits[i].systemId);
-        if (!a || !b || a.id === b.id) continue;
-        const gate = (map.gates.get(a.id) ?? []).includes(b.id);
-        if (!gate && visits[i].time - visits[i - 1].time > JUMP_GAP) continue;
-        const k = `${Math.min(a.id, b.id)}:${Math.max(a.id, b.id)}:${color}`;
-        const seg = by.get(k);
-        if (seg) { seg.n++; seg.last = Math.max(seg.last, visits[i].time); } else by.set(k, { a, b, gate, n: 1, last: visits[i].time, color });
+        if (!a || !b || a.regionId === b.regionId || !(map.gates.get(a.id) ?? []).includes(b.id)) continue;
+        const k = `${Math.min(a.id, b.id)}:${Math.max(a.id, b.id)}`;
+        if (seenHop.has(k)) continue;
+        seenHop.add(k);
+        hops.push([a, b]);
       }
     }
-    segments = [...by.values()].sort((x, y) => x.last - y.last);
     positions = [];
     for (const who of settings.who ? [settings.who] : visitors()) {
       const p = lastPosition(who);
@@ -156,39 +150,24 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   }
 
   function under(p: MapPainter) {
-    if (!settings.trail || !segments.length) return;
+    if (!hops.length) return;
     const g = p.ctx;
-    const accent = p.css('--accent');
-    const w = Math.max(2.4, Math.min(7, p.spacing * 0.14));
-    const now = Date.now();
+    g.save();
+    g.strokeStyle = p.css('--accent');
+    g.globalAlpha = 0.4;
+    g.lineWidth = 1.2;
     g.lineCap = 'round';
-    g.lineJoin = 'round';
-    for (const pass of [0, 1]) {
-      for (const s of segments) {
-        const A = p.at(s.a.id), B = p.at(s.b.id);
-        if (!A || !B) continue;
-        if (Math.max(A[0], B[0]) < -20 || Math.min(A[0], B[0]) > p.width + 20 || Math.max(A[1], B[1]) < -20 || Math.min(A[1], B[1]) > p.height + 20) continue;
-        const width = s.gate ? w + Math.min(3, Math.log2(s.n)) : Math.max(1.4, w * 0.45);
-        const age = (now - s.last) / 86_400_000;
-        g.setLineDash(s.gate ? [] : [6, 5]);
-        if (pass === 0) {
-          if (!s.gate) continue;
-          g.globalAlpha = 0.75;
-          g.strokeStyle = p.css('--bg-void');
-          g.lineWidth = width + 3;
-        } else {
-          g.globalAlpha = age < 1 ? 1 : age < 7 ? 0.85 : 0.6;
-          g.strokeStyle = s.color || accent;
-          g.lineWidth = width;
-        }
-        g.beginPath();
-        g.moveTo(A[0], A[1]);
-        g.lineTo(B[0], B[1]);
-        g.stroke();
-      }
+    g.setLineDash([2, 6]);
+    for (const [a, b] of hops) {
+      const A = p.at(a.id), B = p.at(b.id);
+      if (!A || !B) continue;
+      if (Math.max(A[0], B[0]) < -20 || Math.min(A[0], B[0]) > p.width + 20 || Math.max(A[1], B[1]) < -20 || Math.min(A[1], B[1]) > p.height + 20) continue;
+      g.beginPath();
+      g.moveTo(A[0], A[1]);
+      g.lineTo(B[0], B[1]);
+      g.stroke();
     }
-    g.setLineDash([]);
-    g.globalAlpha = 1;
+    g.restore();
   }
 
   function over(p: MapPainter) {
@@ -371,7 +350,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         const pvp = a ? a.ship + a.pod : 0;
         const fresh = freshSet.has(id) && steps.indexOf(id) === i;
         return `<div class="vis-step ${fresh ? 'new' : ''}" data-sys="${id}">
-          <span class="num dim">${i || '·'}</span>${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
+          ${i ? `<span class="num dim">${i}</span>` : '<span class="vis-step-start"><i></i></span>'}${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
           ${i === hereAt ? badge(tx('Ești aici'), 'accent') : ''}${fresh ? (plan!.bonus?.includes(id) ? badge(tx('bonus fundătură'), 'gold') : badge(tx('nou'), 'gold')) : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
         </div>`;
       }).join('');
@@ -610,7 +589,6 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         <input class="input live-jump" id="visFind" data-list="visSystems" placeholder="${esc(tx('Caută sistem sau regiune'))}" autocomplete="off" spellcheck="false" />
         <label class="live-field">${tx('Caracter')}<select class="input" id="visWho"></select></label>
         <div class="live-seg" role="group">${PERIODS.map(([d, l]) => `<button class="chip-btn ${settings.days === d ? 'active' : ''}" data-vis-days="${d}">${l}</button>`).join('')}</div>
-        <label class="check"><input type="checkbox" data-vis-opt="trail" ${settings.trail ? 'checked' : ''} /> ${tx('Traseu')}</label>
         <label class="check" title="${esc(tx('Estompează sistemele prin care nu ai trecut, ca să iasă în evidență cele vizitate.'))}"><input type="checkbox" data-vis-opt="dim" ${settings.dim ? 'checked' : ''} /> ${tx('Estompează nevizitate')}</label>
         <span class="live-status small dim" id="visStamp"></span>
       </div>
@@ -623,7 +601,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
             <button class="icon-btn" data-zoom="fit" aria-label="${esc(tx('Toată harta'))}">${icon('refresh')}</button>
           </div>
           <div class="live-legend small">
-            <span><i class="vis-lg vis-lg-trail"></i>${tx('drum pe porți')}</span><span><i class="vis-lg vis-lg-jump"></i>${tx('salt fără poartă')}</span><span><i class="vis-lg vis-lg-seen"></i>${tx('vizitat')}</span><span><i class="vis-lg vis-lg-route"></i>${tx('rută sugerată')}</span>
+            <span><i class="vis-lg vis-lg-jump"></i>${tx('poartă între regiuni')}</span><span><i class="vis-lg vis-lg-seen"></i>${tx('vizitat')}</span><span><i class="vis-lg vis-lg-route"></i>${tx('rută sugerată')}</span>
           </div>
         </div>
         <aside class="live-side">
@@ -688,7 +666,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     el.addEventListener('change', (e) => {
       const t = e.target as HTMLInputElement;
       if (t.dataset.visOpt) {
-        const k = t.dataset.visOpt as 'trail' | 'dim';
+        const k = t.dataset.visOpt as 'dim';
         settings[k] = t.checked;
         save();
         star?.redraw();

@@ -2420,6 +2420,7 @@ export const EN: Record<string, string> = {
   "Doar highsec": "Highsec only",
   "Tot k-space": "All k-space",
   "Mai sunt": "Remaining",
+  "poartă între regiuni": "gate between regions",
   "bonus fundătură": "dead-end bonus",
   "din care {n} bonus fundătură": "incl. {n} dead-end bonus",
   "Ai vizitat toate cele {n} sisteme din rută.": "You visited all {n} systems on the route.",

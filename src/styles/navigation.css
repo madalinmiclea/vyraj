@@ -40,9 +40,11 @@
 .vis-fits td { vertical-align: middle; }
 .vis-fits tr.vis-best td { background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .vis-lg { display: inline-block; width: 16px; height: 4px; background: var(--accent); }
-.vis-lg-jump { height: 0; background: none; border-top: 2px dashed var(--accent); }
 .vis-lg-seen { width: 10px; height: 10px; border-radius: 50%; background: none; border: 2px solid var(--accent); }
 .vis-lg-route { height: 0; background: none; border-top: 2px dashed var(--gold); }
 @media (max-width: 900px) { .vis-map .live-body { height: auto; } }
 .vis-kpis.vis-kpis-one { grid-template-columns: minmax(0, 1fr); }
 .vis-kpis.vis-kpis-one .value { font-size: 20px; }
+.vis-step-start { width: 22px; display: flex; justify-content: flex-end; flex: none; }
+.vis-step-start i { display: block; width: 3px; height: 15px; border-radius: 2px; background: var(--accent); }
+.vis-lg-jump { height: 0; background: none; border-top: 2px dotted var(--accent); opacity: 0.6; }
