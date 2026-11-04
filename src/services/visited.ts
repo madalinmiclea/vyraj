@@ -320,7 +320,6 @@ export function allowedFor(level: RiskLevel, s: NavSystem): boolean {
 
 function systemCost(level: RiskLevel, s: NavSystem, a?: SystemActivity): number {
   const pvp = a ? a.ship + a.pod : 0;
-  if (level === 'safe') return 1 + (pvp >= 1 ? 25 : 0);
   if (level === 'risky') return 1 + (s.sec < 0.45 ? 1 : 0) + (pvp >= 5 || (a?.pod ?? 0) >= 3 ? 20 : pvp >= 1 ? 4 : 0);
   return 1;
 }
@@ -328,7 +327,7 @@ function systemCost(level: RiskLevel, s: NavSystem, a?: SystemActivity): number 
 export function isRiskyStop(level: RiskLevel, a?: SystemActivity): boolean {
   if (!a) return false;
   const pvp = a.ship + a.pod;
-  return level === 'safe' ? pvp >= 1 : pvp >= 5 || a.pod >= 3;
+  return level === 'safe' ? pvp >= 5 || a.pod >= 2 : pvp >= 5 || a.pod >= 3;
 }
 
 class Heap {
@@ -369,7 +368,7 @@ class Heap {
 export function planExplore(map: NavMap, start: number, visited: Set<number>, level: RiskLevel, count: number, opts: { region?: number; activity?: Map<number, SystemActivity>; targets?: number[] } = {}): ExplorePlan {
   const ok = (s: NavSystem) => isKspace(s) && s.id !== ZARZAKH;
   const inScope = (s: NavSystem) => allowedFor(level, s) && (!opts.region || s.regionId === opts.region);
-  const isTarget = (s: NavSystem) => inScope(s) && !visited.has(s.id) && s.id !== start && (level === 'yolo' || !isRiskyStop(level, opts.activity?.get(s.id)));
+  const isTarget = (s: NavSystem) => inScope(s) && !visited.has(s.id) && s.id !== start && (level !== 'risky' || !isRiskyStop(level, opts.activity?.get(s.id)));
   const step = (n: number) => {
     const ns = map.systems.get(n);
     if (!ns || !ok(ns)) return Infinity;

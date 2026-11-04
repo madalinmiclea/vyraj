@@ -2337,7 +2337,7 @@ export const EN: Record<string, string> = {
   "Ești în warp, ieși din luptă": "You are in warp, out of the fight",
   "Sisteme vizitate": "Visited systems",
   "Planificator de salturi pentru capitale, sistemele prin care ai trecut, urmărire Pochven, conexiuni Thera / Turnur și harta de suveranitate": "Capital jump planner, the systems you have been through, Pochven tracker, Thera / Turnur connections and the sovereignty map",
-  "Doar highsec. Ocolește sistemele cu nave sau capsule distruse în ultima oră.": "Highsec only. Avoids systems with ships or pods destroyed in the last hour.",
+  "Doar highsec. Kill-urile din ultima oră apar lângă fiecare sistem.": "Highsec only. Kills in the last hour are shown next to each system.",
   "Highsec și lowsec. Ocolește gate camp-urile și sistemele cu multe kill-uri în ultima oră.": "Highsec and lowsec. Avoids gate camps and systems with many kills in the last hour.",
   "Oriunde în k-space, inclusiv nullsec și Pochven, pe drumul cel mai scurt.": "Anywhere in k-space, including nullsec and Pochven, on the shortest path.",
   "Încarc harta sistemelor vizitate": "Loading the visited systems map",
