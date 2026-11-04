@@ -20,13 +20,13 @@ const PLANETS_OUT = path.join(RAW_DIR, 'planets.json');
 const ACTIVITIES_OUT = path.join(RAW_DIR, 'activities.json');
 const AGENTS_OUT = path.join(RAW_DIR, 'agents.json');
 const ZIP_URL = 'https://developers.eveonline.com/static-data/eve-online-static-data-latest-jsonl.zip';
-const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'mapPlanets', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES, ...AGENT_FILES];
+const FILES = ['skins', 'skinMaterials', 'skinLicenses', 'graphicMaterialSets', 'types', 'groups', 'masteries', 'certificates', 'mapRegions', 'mapConstellations', 'mapSolarSystems', 'mapStargates', 'mapPlanets', 'planetSchematics', 'typeDogma', 'blueprints', 'categories', 'typeMaterials', ...ACTIVITY_FILES, ...AGENT_FILES, 'marketGroups', 'dogmaAttributes', 'dogmaEffects', 'cloneGrades', 'dogmaUnits', 'dynamicItemAttributes', 'dbuffCollections', 'typeBonus', '_sde'];
 const SHIP_CATEGORY = 6;
 
 const en = (v: any): string => (typeof v === 'string' ? v : v?.en ?? v?.['en-us'] ?? '');
 const hex = (c: Row | undefined): string | null => (c ? '#' + [c.r, c.g, c.b].map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('') : null);
 
-function readJsonl(dir: string, name: string): Map<number, Row> {
+export function readJsonl(dir: string, name: string): Map<number, Row> {
     const file = fs.readdirSync(dir).find((f) => f.toLowerCase() === `${name.toLowerCase()}.jsonl`);
     if (!file) throw new Error(`Lipsește ${name}.jsonl din SDE`);
     const map = new Map<number, Row>();
@@ -38,7 +38,7 @@ function readJsonl(dir: string, name: string): Map<number, Row> {
     return map;
 }
 
-async function download(dir: string) {
+export async function downloadSde(dir: string) {
     const zip = path.join(dir, 'sde.zip');
     const res = await fetch(ZIP_URL);
     if (!res.ok) throw new Error(`SDE: ${res.status}`);
@@ -255,10 +255,10 @@ export function buildPlanets(dir: string) {
     return { generated: new Date().toISOString(), source: 'sde', kinds, names, systems: outSystems, wh, regions: whRegions };
 }
 
-export async function generateSkins() {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-sde-'));
+export async function generateSkins(shared?: string) {
+    const dir = shared ?? fs.mkdtempSync(path.join(os.tmpdir(), 'eve-sde-'));
     try {
-        await download(dir);
+        if (!shared) await downloadSde(dir);
         const data = buildSkins(dir);
         fs.mkdirSync(path.dirname(OUT), { recursive: true });
         fs.writeFileSync(OUT, JSON.stringify(data));
@@ -272,7 +272,7 @@ export async function generateSkins() {
         fs.writeFileSync(AGENTS_OUT, JSON.stringify(buildAgents(dir)));
         return data;
     } finally {
-        fs.rmSync(dir, { recursive: true, force: true });
+        if (!shared) fs.rmSync(dir, { recursive: true, force: true });
     }
 }
 

@@ -71,8 +71,7 @@ export function createEscalationsPanel(el: HTMLElement, ctx: AppContext, opts: {
       ${panel({
         title: tx('Escaladări DED'),
         count: all.length ? tx('{n} active', { n: all.filter((e) => !e.done && expiresAt(e) > Date.now()).length }) : '',
-        body: `${me ? '' : `<p class="dim small wallet-note">${tx('Escaladările se salvează pe caracter. Fără caracter logat le ții într-o listă comună.')}</p>`}
-          <form class="pve-esc-form" id="escForm">
+        body: `          <form class="pve-esc-form" id="escForm">
             <label>${tx('Complex DED')} <input class="input sm" name="name" list="escNames" required autocomplete="off" placeholder="${esc(tx('Numele din Journal'))}" /></label>
             <datalist id="escNames">${names.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>
             <label>${tx('Sistem')} <input class="input sm" name="system" list="escSystems" autocomplete="off" /></label>
@@ -82,8 +81,8 @@ export function createEscalationsPanel(el: HTMLElement, ctx: AppContext, opts: {
             <label>${tx('Notă')} <input class="input sm" name="note" autocomplete="off" /></label>
             ${button(tx('Adaugă'), { cls: 'sm', attrs: 'type="submit"' })}
           </form>
-          <p class="dim small wallet-note">${tx('Timpul exact până expiră îl vezi în joc, în Journal, la Expeditions. Dacă diferă, alege durata potrivită sau corectează ora primirii.')}</p>
-          ${list.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Complex')}</th><th>${tx('Sistem')}</th><th class="r">${tx('Salturi')}</th><th>${tx('Primită')}</th><th>${tx('Rămas')}</th><th></th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>` : `<p class="dim">${tx('Nicio escaladare salvată. Când primești una dintr-o anomalie, adaug-o aici ca să nu-ți expire.')}</p>`}
+          <p class="dim small wallet-note">${tx('Timpul exact e în Journal > Expeditions.')}</p>
+          ${list.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Complex')}</th><th>${tx('Sistem')}</th><th class="r">${tx('Salturi')}</th><th>${tx('Primită')}</th><th>${tx('Rămas')}</th><th></th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>` : `<p class="dim">${tx('Nicio escaladare salvată.')}</p>`}
           ${all.some((e) => e.done) ? `<label class="check small"><input type="checkbox" id="escShowDone" ${showDone ? 'checked' : ''} /> ${tx('Arată și escaladările făcute')}</label>` : ''}`,
       })}
     </div>`;

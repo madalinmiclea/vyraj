@@ -44,8 +44,7 @@ export function createAnomaliesPanel(el: HTMLElement, opts: { onTank: (site: str
                 <td>${e ? `<span class="badge accent">DED ${e}/10</span>` : '<span class="dim">—</span>'}</td>
                 <td class="r">${t.tank ? button(tx('Verifică tank-ul'), { cls: 'sm ghost', attrs: `data-an-tank="${t.tank}"` }) : ''}</td></tr>`;
             }).join('')}
-          </tbody></table></div>
-          <p class="dim small wallet-note">${tx('Anomaliile de luptă apar direct în Probe Scanner, fără probe. Cu cât securitatea reală a sistemului e mai mică, cu atât apar anomalii mai grele și mai bine plătite. Nava potrivită e o recomandare de start: cu skill-uri și fit bun poți face mai mult.')}</p>`,
+          </tbody></table></div>`,
       })}
       ${panel({
         title: tx('Variante și escaladări'),

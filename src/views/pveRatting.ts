@@ -10,7 +10,7 @@ const STATE_KEY = 'eve-pve:ratting';
 const LIMIT = 60;
 
 type Space = 'all' | 'high' | 'low' | 'null';
-interface State { range: number; space: Space; quiet: boolean; minNpc: number }
+interface State { range: number; space: Space; quiet: boolean }
 
 const RANGES = [5, 10, 15, 25];
 const SPACES: { id: Space; label: string }[] = [
@@ -30,7 +30,7 @@ function risk(s: SystemStat) {
 }
 
 export function createRattingPanel(el: HTMLElement, ctx: AppContext) {
-  const state: State = { range: 10, space: 'all', quiet: false, minNpc: 1, ...loadJson<Partial<State>>(STATE_KEY, {}) };
+  const state: State = { range: 10, space: 'all', quiet: false, ...loadJson<Partial<State>>(STATE_KEY, {}) };
   let visible = false;
   let seq = 0;
   let map: NavMap | null = null;
@@ -56,7 +56,7 @@ export function createRattingPanel(el: HTMLElement, ctx: AppContext) {
     const dist = origin.system ? map.gateDistances(origin.system.id, state.range) : null;
     const rows = [...stats].filter(([id, s]) => {
       const sys = map!.systems.get(id);
-      if (!sys || s.npc < state.minNpc) return false;
+      if (!sys || s.npc < 1) return false;
       if (dist && !dist.has(id)) return false;
       if (state.space !== 'all' && spaceOf(sys.sec) !== state.space) return false;
       if (state.quiet && s.ship + s.pod > 0) return false;
@@ -74,12 +74,10 @@ export function createRattingPanel(el: HTMLElement, ctx: AppContext) {
           <div class="pve-filters">
             <label>${tx('Distanță')} <select class="input sm" id="ratRange" ${origin.system ? '' : 'disabled'}>${RANGES.map((r) => `<option value="${r}" ${r === state.range ? 'selected' : ''}>${tx('{n} salturi', { n: r })}</option>`).join('')}</select></label>
             <div class="chip-row">${SPACES.map((s) => `<button class="chip-btn ${s.id === state.space ? 'active' : ''}" data-rat-space="${s.id}">${s.label}</button>`).join('')}</div>
-            <label>${tx('Minim NPC/oră')} <input class="input sm num" type="number" min="1" step="10" id="ratMin" value="${state.minNpc}" /></label>
             <label class="check"><input type="checkbox" id="ratQuiet" ${state.quiet ? 'checked' : ''} /> ${tx('Doar fără kill-uri PvP')}</label>
           </div>
-          <p class="dim small wallet-note">${tx('Numărul de NPC-uri distruse în ultima oră arată unde se face ratting acum. Un număr mare înseamnă anomalii bune, dar și concurență: un sistem cu activitate medie și fără kill-uri PvP e de obicei alegerea sigură. ESI nu dă starea ESS-ului, pe aceea o vezi în joc.')}</p>
           ${rows.length ? `<p class="dim small">${tx('{n} sisteme · {k} NPC-uri distruse în ultima oră', { n: formatInt(rows.length), k: formatInt(total) })}</p>
-          <div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Sistem')}</th><th>${tx('Regiune')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}<th class="r">${tx('NPC/oră')}</th><th class="r">${tx('Nave/oră')}</th><th class="r">${tx('Pod-uri/oră')}</th><th class="r">${tx('Trafic/oră')}</th><th>${tx('Risc')}</th></tr></thead><tbody>
+          <div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Sistem')}</th><th>${tx('Regiune')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}<th class="r">${tx('NPC-uri ucise')}</th><th class="r">${tx('Nave ucise')}</th><th class="r">${tx('Pod-uri ucise')}</th><th class="r">${tx('Trafic/oră')}</th><th>${tx('Risc')}</th></tr></thead><tbody>
             ${rows.slice(0, LIMIT).map((r) => `<tr><td><a class="ext-link" href="${dotlan(r.sys.name)}" target="_blank" rel="noopener noreferrer">${esc(r.sys.name)}</a> <span class="sec ${secClass(r.sys.sec)}">${displaySec(r.sys.sec).toFixed(1)}</span></td><td class="dim">${esc(map!.region(r.sys))}</td>${dist ? `<td class="r num">${r.jumps}</td>` : ''}<td class="r num">${formatInt(r.s.npc)}</td><td class="r num ${r.s.ship ? 'down' : 'dim'}">${formatInt(r.s.ship)}</td><td class="r num ${r.s.pod ? 'down' : 'dim'}">${formatInt(r.s.pod)}</td><td class="r num dim">${formatInt(r.s.jumps)}</td><td>${risk(r.s)}</td></tr>`).join('')}
           </tbody></table></div>` : `<p class="dim">${tx('Niciun sistem nu se potrivește cu filtrele alese.')}</p>`}`,
       })}
@@ -99,7 +97,6 @@ export function createRattingPanel(el: HTMLElement, ctx: AppContext) {
     const t = e.target as HTMLInputElement;
     if (t.id === 'ratRange') state.range = Number(t.value);
     else if (t.id === 'ratQuiet') state.quiet = t.checked;
-    else if (t.id === 'ratMin') state.minNpc = Math.max(1, Number(t.value) || 1);
     else return;
     save();
     load();

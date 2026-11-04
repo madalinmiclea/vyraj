@@ -105,7 +105,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
           <label class="check"><input type="checkbox" id="agSpecial" ${state.special ? 'checked' : ''} /> ${tx('Și agenți speciali')}</label>
           <label class="field"><input class="input sm" id="agSearch" placeholder="${esc(tx('Caută agent, corporație sau sistem'))}" value="${esc(state.q)}" /></label>
         </div>
-        <p class="dim small wallet-note">${state.level ? tx('Pentru agenții L{l} ai nevoie de standing efectiv cel puțin {s} la corporația sau facțiunea agentului.', { l: state.level, s: formatNum(STANDING_NEEDED[state.level], 1) }) : tx('Standing necesar: L2 1.0, L3 3.0, L4 5.0, L5 7.0 la corporația sau facțiunea agentului.')} ${tx('Agenții de securitate dau misiuni de luptă, cei de distribuție curierat, cei de minerit misiuni de minerit.')}</p>
+        <p class="dim small wallet-note">${state.level ? tx('Pentru agenții L{l} ai nevoie de standing efectiv cel puțin {s} la corporația sau facțiunea agentului.', { l: state.level, s: formatNum(STANDING_NEEDED[state.level], 1) }) : tx('Standing necesar: L2 1.0, L3 3.0, L4 5.0, L5 7.0 la corporația sau facțiunea agentului.')}</p>
         ${rows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th>${tx('Diviziune')}</th><th>${tx('Sistem')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}${points ? `<th class="r">${tx('LP-ul tău')}</th>` : ''}</tr></thead><tbody>
           ${rows.slice(0, LIMIT).map(({ a, sys, jumps }) => {
             const corp = d.corps.get(a.corp);
