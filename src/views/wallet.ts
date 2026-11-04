@@ -2,8 +2,8 @@ import type { AppContext } from '../app/context';
 import { panel, loader, esc, formatInt, formatNum, formatISK, compactISK, button, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
-import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
-import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, entryLabel, entryDescription, pveSessions, archiveJournal, archiveTrades, bountyDetailMissing, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
+import type { WalletEntry } from '../character/esi';
+import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, entryLabel, entryDescription, pveSessions, syncWallet, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
 import { npcInfo, type NpcInfo } from '../services/npcKills';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { heatmap } from '../ui/heatmap';
@@ -22,8 +22,6 @@ const JOURNAL_LIMIT = 300;
 const TICK_LIMIT = 60;
 const DMG_NAME: Record<Dmg, string> = { em: 'EM', th: tx('Termic'), kin: tx('Cinetic'), exp: tx('Exploziv') };
 const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', exp: 'explosive' };
-const FETCHED_KEY = 'eve-tools:wallet-fetched';
-const ARCHIVE_GAP_MS = 7 * 86400000;
 
 type Direction = 'all' | 'in' | 'out';
 
@@ -54,25 +52,8 @@ const remaining = (ms: number) => {
 const describe = (e: WalletEntry) => entryDescription(e);
 
 export async function renderWallet(body: HTMLElement, ctx: AppContext, characterId: number, alive: () => boolean, view: WalletState, force = false) {
-  const fetchedAll = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {});
-  let fetched = fetchedAll[characterId];
-  let fresh: WalletEntry[] = [];
-  let freshTrades: WalletTransaction[] = [];
-  if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS || bountyDetailMissing(characterId)) {
-    body.innerHTML = panel({ body: loader(tx('Citesc jurnalul portofelului')) });
-    let balance: number;
-    [fresh, balance, freshTrades] = await Promise.all([
-      walletJournal(characterId),
-      walletBalance(characterId),
-      walletTransactions(characterId).catch(() => [] as WalletTransaction[]),
-    ]);
-    fetched = { at: Date.now(), balance };
-    saveJson(FETCHED_KEY, { ...loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {}), [characterId]: fetched });
-  }
+  const { entries, trades, at: fetchedAt, balance } = await syncWallet(characterId, force, () => { body.innerHTML = panel({ body: loader(tx('Citesc jurnalul portofelului')) }); });
   if (!alive()) return;
-  const { balance, at: fetchedAt } = fetched;
-  const entries = archiveJournal(characterId, fresh);
-  const trades = archiveTrades(characterId, freshTrades);
   const oldest = entries.length ? Date.parse(entries[entries.length - 1].date) : Date.now();
   let names: Map<number, string> | null = null;
   const itemName = (id: number) => {

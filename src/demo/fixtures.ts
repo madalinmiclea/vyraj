@@ -31,6 +31,7 @@ const NPCS = {
   cr: [[11928, 78_750], [11930, 67_500], [11931, 90_000]],
   sm: [[23314, 18_000], [23315, 22_500], [2385, 15_000], [10266, 11_250]],
   rare: [[13586, 1_875_000], [23349, 3_250_000]],
+  big: [[37465, 60_000_000], [13584, 21_679_688], [84953, 10_000_000]],
 } as const;
 
 const FORCED_V = [
@@ -244,7 +245,9 @@ function ledger(w: World, now: number, name: string, px: Jita) {
           add(NPCS.cr, 1, 3);
           add(NPCS.sm, 0, 3);
           if (r() < 0.04) add(NPCS.rare, 1, 1);
-          const bounty = Object.fromEntries([...NPCS.bs, ...NPCS.bc, ...NPCS.cr, ...NPCS.sm, ...NPCS.rare]) as Record<number, number>;
+          const x = rng(d * 104_729 + s * 977 + k * 31)();
+          if (x < 0.03) kills.set(NPCS.big[0][0], 1); else if (x < 0.045) kills.set(NPCS.big[1][0], 1); else if (x < 0.055) kills.set(NPCS.big[2][0], 1);
+          const bounty = Object.fromEntries([...NPCS.bs, ...NPCS.bc, ...NPCS.cr, ...NPCS.sm, ...NPCS.rare, ...NPCS.big]) as Record<number, number>;
           const amount = [...kills].reduce((a, [id, n]) => a + bounty[id] * n, 0);
           session += amount;
           entry(t, 1, { ref_type: 'bounty_prizes', amount, description: `${name} got bounty prizes for killing pirates in ${sysName}`, reason: [...kills].map(([id, n]) => `${id}: ${n}`).join(','), context_id: system, context_id_type: 'system_id', first_party_id: CONCORD, second_party_id: DEMO_ID });
@@ -285,6 +288,15 @@ function ledger(w: World, now: number, name: string, px: Jita) {
     if (d % 6 === 2) {
       const sites = 9 + (d % 5);
       for (let k = 0; k < sites; k++) entry(day + 19 * HOUR + k * (8 * MIN + (k % 3) * MIN), 3, { ref_type: 'corporate_reward_payout', amount: 10_395_000, description: `CONCORD rewarded ${name} for completing an incursion site`, first_party_id: CONCORD, second_party_id: DEMO_ID });
+    }
+    if (d % 5 === 3) {
+      const m = rng(d * 6151);
+      const runs = 3 + Math.floor(m() * 4);
+      for (let k = 0; k < runs; k++) {
+        const t = day + 10 * HOUR + k * 37 * MIN;
+        entry(t, 0, { ref_type: 'agent_mission_reward', amount: Math.round(1_600_000 + m() * 900_000), description: `${name} received a reward for completing a mission`, first_party_id: CONCORD, second_party_id: DEMO_ID });
+        if (m() < 0.8) entry(t + 1000, 0, { ref_type: 'agent_mission_time_bonus_reward', amount: Math.round(1_100_000 + m() * 700_000), description: `${name} received a time bonus for completing a mission`, first_party_id: CONCORD, second_party_id: DEMO_ID });
+      }
     }
     if (d % 9 === 4) entry(day + 20 * HOUR, 0, { ref_type: 'skill_purchase', amount: -Math.round(18_000_000 + r() * 30_000_000), description: 'Skill purchase', first_party_id: DEMO_ID, second_party_id: CONCORD });
   }

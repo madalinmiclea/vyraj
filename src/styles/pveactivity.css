@@ -1,0 +1,24 @@
+.pva-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 8px 0 4px; }
+.pva-tiles.lp { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.pva-tile { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.pva-tile.on { border-color: rgba(var(--accent-rgb), 0.55); }
+.pva-tile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pva-tile .label { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pva-tile .value { font-family: var(--font-mono); font-size: 17px; color: var(--text-dim); }
+.pva-tile.on .value { color: var(--accent-bright); }
+.pva-sub { white-space: nowrap; }
+.pva-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--bg-raised); color: var(--text-dim); }
+.pva-tile.on .pva-icon { border-color: var(--accent); color: var(--accent-bright); }
+.pva-shape { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.pva-logo { flex: none; width: 34px; height: 34px; border-radius: 3px; }
+.pva-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.pva-group .pva-tiles { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.pva-group-head { margin-top: 6px; font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-bright); }
+.pva-share { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; max-width: 560px; }
+.pva-share-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) 48px; align-items: center; gap: 10px; font-size: 12.5px; }
+.pva-bar { height: 8px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+.pva-bar i { display: block; height: 100%; background: var(--accent); }
+.pva-share-row .num { text-align: right; }
+@media (max-width: 760px) {
+  .pva-share-row { grid-template-columns: 110px minmax(0, 1fr) 44px; }
+}

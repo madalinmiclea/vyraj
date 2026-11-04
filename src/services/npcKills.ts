@@ -38,3 +38,13 @@ export async function npcInfo(ids: number[]): Promise<Map<number, NpcInfo>> {
   }
   return new Map(ids.map((id) => [id, cache[id] ? unpack(id, cache[id]) : { id, name: `#${id}`, group: '' }]));
 }
+
+export type NpcClass = 'sub' | 'cap' | 'super' | 'titan' | 'offBs' | 'offCr' | 'offFr';
+
+export function npcClass(group: string): NpcClass {
+  if (/officer/i.test(group)) return /frigate/i.test(group) ? 'offFr' : /cruiser/i.test(group) ? 'offCr' : 'offBs';
+  if (/titan/i.test(group)) return 'titan';
+  if (/super ?carrier|mothership/i.test(group)) return 'super';
+  if (/dreadnought|carrier|force auxiliary|capital/i.test(group)) return 'cap';
+  return 'sub';
+}

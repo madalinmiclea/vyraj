@@ -1,4 +1,4 @@
-import type { WalletEntry, WalletTransaction } from '../character/esi';
+import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
 import { loadJson, saveJson, removeKey, storageKey } from '../storage';
 import { tx } from '../i18n';
 
@@ -148,6 +148,28 @@ export function archiveJournal(characterId: number, fresh: WalletEntry[]): Walle
   return all;
 }
 
+export const WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
+const FETCHED_KEY = 'eve-tools:wallet-fetched';
+const ARCHIVE_GAP_MS = 7 * DAY;
+
+export async function syncWallet(characterId: number, force = false, onFetch?: () => void) {
+  let fetched = loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {})[characterId];
+  let fresh: WalletEntry[] = [];
+  let freshTrades: WalletTransaction[] = [];
+  if (force || !fetched || Date.now() - fetched.at > ARCHIVE_GAP_MS || bountyDetailMissing(characterId)) {
+    onFetch?.();
+    let balance: number;
+    [fresh, balance, freshTrades] = await Promise.all([
+      walletJournal(characterId),
+      walletBalance(characterId),
+      walletTransactions(characterId).catch(() => [] as WalletTransaction[]),
+    ]);
+    fetched = { at: Date.now(), balance };
+    saveJson(FETCHED_KEY, { ...loadJson<Record<string, { at: number; balance: number }>>(FETCHED_KEY, {}), [characterId]: fetched });
+  }
+  return { entries: archiveJournal(characterId, fresh), trades: archiveTrades(characterId, freshTrades), at: fetched.at, balance: fetched.balance };
+}
+
 export function bountyDetailMissing(characterId: number, now = Date.now()): boolean {
   const cutoff = Math.round(now / 1000) - 30 * 86400;
   return loadJson<PackedEntry[]>(`eve-fit:wallet:${characterId}`, []).some((r) => BOUNTY_REFS.has(r[2]) && r[1] > cutoff && r.length < 7);
@@ -223,9 +245,9 @@ export function forgetWallet(characterId: number) {
   removeKey(`eve-fit:wallet:${characterId}`);
   removeKey(`eve-fit:wallet-trades:${characterId}`);
   removeKey(`eve-tools:assets:${characterId}`);
-  const fetched = loadJson<Record<string, unknown>>('eve-tools:wallet-fetched', {});
+  const fetched = loadJson<Record<string, unknown>>(FETCHED_KEY, {});
   delete fetched[characterId];
-  saveJson('eve-tools:wallet-fetched', fetched);
+  saveJson(FETCHED_KEY, fetched);
 }
 
 export interface BountyTick {

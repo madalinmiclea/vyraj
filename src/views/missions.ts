@@ -2,6 +2,7 @@ import type { AppContext } from '../app/context';
 import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, searchField, button } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
 import { createToolPanel } from './tools';
+import { createPveActivityPanel } from './pveActivity';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -15,9 +16,10 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'lp' | 'abyssal';
+type MisTool = 'activity' | 'lp' | 'abyssal';
 
 const MIS_TOOLS: { id: MisTool; label: string }[] = [
+  { id: 'activity', label: tx('Activitate PvE') },
   { id: 'lp', label: tx('Magazin LP') },
   { id: 'abyssal', label: tx('Jurnal abisal') },
 ];
@@ -47,19 +49,24 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     <div id="misHelp"></div>
     <div id="misBar"></div>
     <div id="misList">${loader(tx('Încărcăm misiunile'))}</div>
-    <div id="misTool" hidden></div>`;
+    <div id="misTool" hidden></div>
+    <div id="misActivity" hidden></div>`;
   const help = el.querySelector<HTMLElement>('#misHelp')!;
   const bar = el.querySelector<HTMLElement>('#misBar')!;
   const list = el.querySelector<HTMLElement>('#misList')!;
   const toolBox = el.querySelector<HTMLElement>('#misTool')!;
   const tools = createToolPanel(toolBox, ctx);
+  const activityBox = el.querySelector<HTMLElement>('#misActivity')!;
+  const activity = createPveActivityPanel(activityBox, ctx);
   if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
 
   function showTool() {
     const tool = state.tool || null;
     for (const x of [help, bar, list]) x.hidden = !!tool;
-    toolBox.hidden = !tool;
-    if (tool) tools.show(tool); else tools.hide();
+    toolBox.hidden = !tool || tool === 'activity';
+    activityBox.hidden = tool !== 'activity';
+    if (tool && tool !== 'activity') tools.show(tool); else tools.hide();
+    if (tool === 'activity') activity.show(); else activity.hide();
   }
 
   const save = () => saveJson(STATE_KEY, state);
