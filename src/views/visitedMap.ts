@@ -60,7 +60,7 @@ export interface VisitedMapView { show(): void }
 
 export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openFit: (fit: Fit) => void }): VisitedMapView {
   const stored = loadJson<Partial<Settings>>(KEY, {});
-  const settings: Settings = { ...DEFAULTS, ...stored };
+  const settings: Settings = { ...DEFAULTS, ...stored, from: '' };
   let map: NavMap | null = null;
   let star: StarMap | null = null;
   let started = false;
@@ -320,6 +320,17 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   function startSystem(): NavSystem | null {
     if (!map) return null;
     if (settings.from) { const s = map.find(settings.from); if (s) return s; }
+    return hereSystem();
+  }
+
+  function pickedFrom(value: string): string {
+    const v = value.trim();
+    const here = hereSystem();
+    return here && map?.find(v)?.id === here.id ? '' : v;
+  }
+
+  function hereSystem(): NavSystem | null {
+    if (!map) return null;
     for (const who of settings.who ? [settings.who] : visitors()) {
       const p = lastPosition(who);
       if (p) return map.systems.get(p.systemId) ?? null;
@@ -672,7 +683,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (t.closest('#visRoute')) {
         if (t.name === 'region') settings.region = Number(t.value) || 0;
         if (t.name === 'count') settings.count = Number(t.value) || 10;
-        if (t.name === 'from') settings.from = t.value.trim();
+        if (t.name === 'from') settings.from = pickedFrom(t.value);
         save();
       }
     });
@@ -681,7 +692,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (!form) return;
       e.preventDefault();
       const fd = new FormData(form);
-      settings.from = String(fd.get('from') ?? '').trim();
+      settings.from = pickedFrom(String(fd.get('from') ?? ''));
       settings.region = Number(fd.get('region')) || 0;
       settings.count = Number(fd.get('count')) || 10;
       save();
@@ -736,6 +747,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       const imp = t.closest<HTMLElement>('[data-vis-import]');
       if (imp) { pickFiles(imp.dataset.visImport === 'dir'); return; }
       if (t.closest('[data-vis-track]')) {
+        settings.from = '';
         const r = await trackNow();
         toast(r.failed && !r.ok ? tx('EVE nu a răspuns cu locația. Încearcă din nou sau refă login-ul.') : tx('Locația a fost verificată'), r.failed && !r.ok ? 3500 : 1800);
         return;

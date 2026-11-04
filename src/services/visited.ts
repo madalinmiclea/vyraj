@@ -366,44 +366,108 @@ class Heap {
 }
 
 export function planExplore(map: NavMap, start: number, visited: Set<number>, level: RiskLevel, count: number, opts: { region?: number; activity?: Map<number, SystemActivity> } = {}): ExplorePlan {
-  const seen = new Set(visited);
-  seen.add(start);
   const ok = (s: NavSystem) => isKspace(s) && s.id !== ZARZAKH;
-  const isTarget = (s: NavSystem) => allowedFor(level, s) && !seen.has(s.id) && (!opts.region || s.regionId === opts.region) && (level === 'yolo' || !isRiskyStop(level, opts.activity?.get(s.id)));
-  const path: number[] = [start];
-  const fresh: number[] = [];
-  const waypoints: number[] = [];
-  let cur = start;
-  while (fresh.length < count) {
-    const dist = new Map<number, number>([[cur, 0]]);
+  const inScope = (s: NavSystem) => allowedFor(level, s) && (!opts.region || s.regionId === opts.region);
+  const isTarget = (s: NavSystem) => inScope(s) && !visited.has(s.id) && s.id !== start && (level === 'yolo' || !isRiskyStop(level, opts.activity?.get(s.id)));
+  const step = (n: number) => {
+    const ns = map.systems.get(n);
+    if (!ns || !ok(ns)) return Infinity;
+    return systemCost(level, ns, opts.activity?.get(n)) + (allowedFor(level, ns) ? 0 : 40);
+  };
+  const search = (from: number, want: Set<number> | null, limit: number) => {
+    const dist = new Map<number, number>([[from, 0]]);
     const prev = new Map<number, number>();
+    const order: number[] = [];
     const heap = new Heap();
-    heap.push(0, cur);
-    let found: number | null = null;
+    heap.push(0, from);
+    let left = want ? want.size - (want.has(from) ? 1 : 0) : 0;
     while (heap.size) {
       const [d, id] = heap.pop();
       if (d > (dist.get(id) ?? Infinity)) continue;
-      const s = map.systems.get(id);
-      if (id !== cur && s && isTarget(s)) { found = id; break; }
+      if (id !== from) {
+        if (want) { if (want.has(id) && --left <= 0) break; }
+        else {
+          const s = map.systems.get(id);
+          if (s && isTarget(s)) { order.push(id); if (order.length >= limit) break; }
+        }
+      }
       for (const n of map.gates.get(id) ?? []) {
-        const ns = map.systems.get(n);
-        if (!ns || !ok(ns)) continue;
-        const nd = d + systemCost(level, ns, opts.activity?.get(n)) + (allowedFor(level, ns) ? 0 : 40);
+        const c = step(n);
+        if (c === Infinity) continue;
+        const nd = d + c;
         if (nd < (dist.get(n) ?? Infinity)) { dist.set(n, nd); prev.set(n, id); heap.push(nd, n); }
       }
     }
-    if (found == null) break;
-    const leg: number[] = [];
-    for (let x: number | undefined = found; x != null && x !== cur; x = prev.get(x)) leg.push(x);
-    leg.reverse();
-    for (const id of leg) {
-      path.push(id);
-      const s = map.systems.get(id)!;
-      if (!seen.has(id) && allowedFor(level, s) && (!opts.region || s.regionId === opts.region)) { seen.add(id); fresh.push(id); }
-      else seen.add(id);
+    return { dist, prev, order };
+  };
+  const targets = search(start, null, count).order;
+  const nodes = [start, ...targets];
+  const want = new Set(nodes);
+  const runs = nodes.map((id) => search(id, want, 0));
+  const n = nodes.length;
+  const D = nodes.map((_, i) => nodes.map((b, j) => (i === j ? 0 : runs[i].dist.get(b) ?? 1e6)));
+  const cost = (i: number, j: number) => (D[i][j] + D[j][i]) / 2;
+  const tour: number[] = [0];
+  const free = new Set(nodes.map((_, i) => i).slice(1));
+  while (free.size) {
+    const last = tour[tour.length - 1];
+    let best = -1;
+    for (const j of free) if (best < 0 || cost(last, j) < cost(last, best)) best = j;
+    tour.push(best);
+    free.delete(best);
+  }
+  const len = (t: number[]) => { let x = 0; for (let i = 1; i < t.length; i++) x += cost(t[i - 1], t[i]); return x; };
+  for (let improved = true, guard = 0; improved && guard < 200; guard++) {
+    improved = false;
+    for (let i = 1; i < n - 1; i++) {
+      for (let k = i + 1; k < n; k++) {
+        const before = cost(tour[i - 1], tour[i]) + (k + 1 < n ? cost(tour[k], tour[k + 1]) : 0);
+        const after = cost(tour[i - 1], tour[k]) + (k + 1 < n ? cost(tour[i], tour[k + 1]) : 0);
+        if (after + 1e-9 < before) {
+          tour.splice(i, k - i + 1, ...tour.slice(i, k + 1).reverse());
+          improved = true;
+        }
+      }
     }
-    waypoints.push(found);
-    cur = found;
+    for (let i = 1; i < n; i++) {
+      for (let seg = 1; seg <= 3 && i + seg <= n; seg++) {
+        const moved = tour.slice(i, i + seg);
+        const rest = [...tour.slice(0, i), ...tour.slice(i + seg)];
+        const base = len(tour);
+        for (let p = 1; p <= rest.length; p++) {
+          if (p === i) continue;
+          for (const m of [moved, [...moved].reverse()]) {
+            const cand = [...rest.slice(0, p), ...m, ...rest.slice(p)];
+            if (len(cand) + 1e-9 < base) { tour.splice(0, n, ...cand); improved = true; break; }
+          }
+          if (improved) break;
+        }
+        if (improved) break;
+      }
+      if (improved) break;
+    }
+  }
+  const path: number[] = [start];
+  const fresh: number[] = [];
+  const waypoints: number[] = [];
+  const seen = new Set(visited);
+  seen.add(start);
+  let cur = 0;
+  for (const t of tour.slice(1)) {
+    const id = nodes[t];
+    if (seen.has(id)) continue;
+    const leg: number[] = [];
+    const prev = runs[cur].prev;
+    for (let x: number | undefined = id; x != null && x !== nodes[cur]; x = prev.get(x)) leg.push(x);
+    leg.reverse();
+    for (const sys of leg) {
+      path.push(sys);
+      const s = map.systems.get(sys)!;
+      if (!seen.has(sys) && inScope(s)) fresh.push(sys);
+      seen.add(sys);
+    }
+    waypoints.push(id);
+    cur = t;
   }
   const risky = path.filter((id, i) => i > 0 && (isRiskyStop(level, opts.activity?.get(id)) || !allowedFor(level, map.systems.get(id)!)));
   return { path, fresh, waypoints, jumps: path.length - 1, risky };
