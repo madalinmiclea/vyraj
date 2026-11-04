@@ -363,6 +363,8 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       const names = steps.map((id) => map!.systems.get(id)!.name);
       const risky = plan.risky.filter((id) => planSet.has(id));
       const bonusLeft = (plan.bonus ?? []).filter((id) => freshSet.has(id)).length;
+      const hereId = hereSystem()?.id;
+      const hereAt = hereId != null ? steps.indexOf(hereId) : -1;
       const rows = steps.map((id, i) => {
         const s = map!.systems.get(id)!;
         const a = activity?.get(id);
@@ -370,7 +372,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         const fresh = freshSet.has(id) && steps.indexOf(id) === i;
         return `<div class="vis-step ${fresh ? 'new' : ''}" data-sys="${id}">
           <span class="num dim">${i || '·'}</span>${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
-          ${fresh ? (plan!.bonus?.includes(id) ? badge(tx('bonus fundătură'), 'gold') : badge(tx('nou'), 'gold')) : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
+          ${i === hereAt ? badge(tx('Ești aici'), 'accent') : ''}${fresh ? (plan!.bonus?.includes(id) ? badge(tx('bonus fundătură'), 'gold') : badge(tx('nou'), 'gold')) : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
         </div>`;
       }).join('');
       return `<div class="history-kpis vis-kpis">

@@ -15,7 +15,7 @@ const LIMIT = 80;
 
 type Div = Division | -1;
 type Space = 'all' | 'high' | 'low' | 'null';
-interface State { level: number; division: Div; faction: number; range: number; space: Space; special: boolean; locator: boolean; q: string }
+interface State { level: number; division: Div; faction: number; corp: number; range: number; space: Space; special: boolean; locator: boolean; q: string }
 
 const DIVISIONS: { id: Div; label: string }[] = [
   { id: 2, label: tx('Securitate') },
@@ -28,7 +28,7 @@ const KIND_NAME: Record<number, string> = { 1: 'Storyline', 2: 'Faction Warfare'
 const RANGES = [10, 20, 40, 0];
 
 export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
-  const state: State = { level: 4, division: 2, faction: 0, range: 20, space: 'all', special: false, locator: false, q: '', ...loadJson<Partial<State>>(STATE_KEY, {}) };
+  const state: State = { level: 4, division: 2, faction: 0, corp: 0, range: 20, space: 'all', special: false, locator: false, q: '', ...loadJson<Partial<State>>(STATE_KEY, {}) };
   let visible = false;
   let seq = 0;
   let data: AgentData | null = null;
@@ -72,6 +72,8 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
     const dist = origin.system ? m.gateDistances(origin.system.id, state.range || 200) : null;
     const terms = fold(state.q).split(/\s+/).filter(Boolean);
     const factions = [...new Set(d.agents.map((a) => d.corps.get(a.corp)?.faction ?? 0))].filter((f) => f && d.factions.has(f)).sort((a, b) => d.factions.get(a)!.localeCompare(d.factions.get(b)!));
+    const corpIds = [...new Set(d.agents.map((a) => a.corp))].filter((c) => d.corps.has(c) && (!state.faction || d.corps.get(c)!.faction === state.faction)).sort((a, b) => d.corps.get(a)!.name.localeCompare(d.corps.get(b)!.name));
+    if (state.corp && !corpIds.includes(state.corp)) state.corp = 0;
     const rows = d.agents.filter((a) => {
       if (state.level && a.level !== state.level) return false;
       if (state.division !== -1 && a.division !== state.division) return false;
@@ -79,6 +81,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
       if (state.locator && !a.locator) return false;
       const corp = d.corps.get(a.corp);
       if (state.faction && corp?.faction !== state.faction) return false;
+      if (state.corp && a.corp !== state.corp) return false;
       const sys = m.systems.get(a.system);
       if (!sys) return false;
       if (state.space !== 'all' && (sys.sec >= 0.45 ? 'high' : sys.sec > 0 ? 'low' : 'null') !== state.space) return false;
@@ -99,6 +102,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
           <div class="chip-row">${[1, 2, 3, 4, 5, 0].map((l) => `<button class="chip-btn ${l === state.level ? 'active' : ''}" data-ag-level="${l}">${l ? `L${l}` : tx('Toate')}</button>`).join('')}</div>
           <div class="chip-row">${DIVISIONS.map((x) => `<button class="chip-btn ${x.id === state.division ? 'active' : ''}" data-ag-div="${x.id}">${x.label}</button>`).join('')}</div>
           <label>${tx('Facțiune')} <select class="input sm" id="agFaction"><option value="0">${tx('Oricare')}</option>${factions.map((f) => `<option value="${f}" ${f === state.faction ? 'selected' : ''}>${esc(d.factions.get(f)!)}</option>`).join('')}</select></label>
+          <label>${tx('Corporație')} <select class="input sm" id="agCorp"><option value="0">${tx('Oricare')}</option>${corpIds.map((c) => `<option value="${c}" ${c === state.corp ? 'selected' : ''}>${esc(d.corps.get(c)!.name)}</option>`).join('')}</select></label>
           <label>${tx('Spațiu')} <select class="input sm" id="agSpace">${(['all', 'high', 'low', 'null'] as Space[]).map((s) => `<option value="${s}" ${s === state.space ? 'selected' : ''}>${s === 'all' ? tx('Oricare') : s === 'high' ? 'Highsec' : s === 'low' ? 'Lowsec' : 'Nullsec'}</option>`).join('')}</select></label>
           <label>${tx('Distanță')} <select class="input sm" id="agRange" ${origin.system ? '' : 'disabled'}>${RANGES.map((r) => `<option value="${r}" ${r === state.range ? 'selected' : ''}>${r ? tx('{n} salturi', { n: r }) : tx('Oricât')}</option>`).join('')}</select></label>
           <label class="check"><input type="checkbox" id="agLocator" ${state.locator ? 'checked' : ''} /> ${tx('Doar locatori')}</label>
@@ -147,7 +151,8 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
   });
   el.addEventListener('change', (e) => {
     const t = e.target as HTMLInputElement;
-    if (t.id === 'agFaction') state.faction = Number(t.value);
+    if (t.id === 'agFaction') { state.faction = Number(t.value); state.corp = 0; }
+    else if (t.id === 'agCorp') state.corp = Number(t.value);
     else if (t.id === 'agSpace') state.space = t.value as Space;
     else if (t.id === 'agRange') state.range = Number(t.value);
     else if (t.id === 'agLocator') state.locator = t.checked;
