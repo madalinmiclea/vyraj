@@ -13,6 +13,7 @@ interface VisitStore {
   who: string[];
   path: Visit[];
   seen: Record<string, Record<string, number>>;
+  here?: Record<string, [number, number]>;
 }
 
 export interface VisitEntry { who: string; systemId: number; time: number }
@@ -30,6 +31,7 @@ export interface ExplorePlan {
 const KEY = 'eve-nav:visited';
 const MAX_PATH = 20_000;
 const POLL_MS = 30_000;
+const HERE_NOTIFY_MS = 300_000;
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 export const MANUAL = '';
 export const WH_REGION = 11_000_000;
@@ -138,6 +140,8 @@ export function lastPosition(who: string): { systemId: number; time: number } | 
   if (w < 0) return null;
   let best: Visit | null = null;
   for (const p of s.path) if (p[2] === w && (!best || p[1] >= best[1])) best = p;
+  const here = s.here?.[w];
+  if (here && (!best || here[1] >= best[1])) return { systemId: here[0], time: here[1] * 1000 };
   return best ? { systemId: best[0], time: best[1] * 1000 } : null;
 }
 
@@ -148,7 +152,13 @@ export function recordVisit(who: string, systemId: number, time = Date.now()): b
   const sec = Math.floor(time / 1000);
   let last: Visit | null = null;
   for (let i = s.path.length - 1; i >= 0; i--) if (s.path[i][2] === w) { last = s.path[i]; break; }
-  if (last && last[0] === systemId) return false;
+  const prev = s.here?.[w];
+  (s.here ??= {})[w] = [systemId, sec];
+  if (last && last[0] === systemId) {
+    if (!prev || prev[0] !== systemId || (sec - prev[1]) * 1000 > HERE_NOTIFY_MS) persist();
+    else saveJson(KEY, s);
+    return false;
+  }
   s.path.push([systemId, sec, w]);
   markSeen(s, w, systemId, sec);
   persist();
@@ -206,6 +216,7 @@ export function clearVisits(who?: string) {
   if (w < 0) return;
   s.path = s.path.filter((p) => p[2] !== w);
   delete s.seen[w];
+  if (s.here) delete s.here[w];
   persist();
 }
 
@@ -214,18 +225,21 @@ export function visitStats(): { entries: number; bytes: number } {
   return { entries: s.path.length, bytes: JSON.stringify(s).length };
 }
 
-async function pollLocations() {
+async function pollLocations(): Promise<{ ok: number; failed: number }> {
   clearTimeout(timer);
   const chars = loadStoredCharacters().filter((c) => c.characterId && hasScope(c.characterId, LOCATION_SCOPE));
+  let ok = 0;
+  let failed = 0;
   await Promise.all(chars.map(async (c) => {
     try {
       const loc = await characterLocation(c.characterId!);
-      if (loc?.solar_system_id) recordVisit(c.name, loc.solar_system_id);
+      if (loc?.solar_system_id) { recordVisit(c.name, loc.solar_system_id); ok++; } else failed++;
     } catch {
-      return;
+      failed++;
     }
   }));
   timer = window.setTimeout(pollLocations, POLL_MS);
+  return { ok, failed };
 }
 
 export function startVisitTracker() {
@@ -233,8 +247,10 @@ export function startVisitTracker() {
   timer = window.setTimeout(pollLocations, 3000);
 }
 
-export function trackNow() {
-  return pollLocations();
+export async function trackNow() {
+  const r = await pollLocations();
+  listeners.forEach((fn) => fn());
+  return r;
 }
 
 const LINE = /^\s*\[\s*(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})\s*\]\s*(.*)$/;

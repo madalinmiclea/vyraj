@@ -44,3 +44,5 @@
 .vis-lg-seen { width: 10px; height: 10px; border-radius: 50%; background: none; border: 2px solid var(--accent); }
 .vis-lg-route { height: 0; background: none; border-top: 2px dashed var(--gold); }
 @media (max-width: 900px) { .vis-map .live-body { height: auto; } }
+.vis-kpis.vis-kpis-one { grid-template-columns: minmax(0, 1fr); }
+.vis-kpis.vis-kpis-one .value { font-size: 20px; }

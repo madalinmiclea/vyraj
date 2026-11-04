@@ -33,12 +33,14 @@ interface Settings {
   region: number;
   count: number;
   from: string;
+  scope: 'all' | 'hi';
 }
 
 interface Segment { a: NavSystem; b: NavSystem; gate: boolean; n: number; last: number; color: string }
 
 const KEY = 'eve-nav:visited-ui';
-const DEFAULTS: Settings = { who: '', days: 0, trail: true, dim: true, tab: 'progress', level: 'safe', region: 0, count: 10, from: '' };
+const PLAN_KEY = 'eve-nav:visited-plan';
+const DEFAULTS: Settings = { who: '', days: 0, trail: true, dim: true, tab: 'progress', level: 'safe', region: 0, count: 10, from: '', scope: 'all' };
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
 const PERIODS: [number, string][] = [[0, tx('Tot')], [30, tx('30 zile')], [7, tx('7 zile')], [1, '24 h']];
 const COUNTS = [5, 10, 20, 40];
@@ -66,7 +68,8 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
   let counts = new Map<number, number>();
   let segments: Segment[] = [];
   let positions: { who: string; systemId: number; time: number; color: string }[] = [];
-  let plan: ExplorePlan | null = null;
+  let plan: ExplorePlan | null = loadJson<ExplorePlan | null>(PLAN_KEY, null);
+  let steps: number[] = [];
   let planSet = new Set<number>();
   let freshSet = new Set<number>();
   let activity: Map<number, SystemActivity> | null = null;
@@ -117,7 +120,28 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       const p = lastPosition(who);
       if (p && Date.now() - p.time < 6 * 3_600_000) positions.push({ who, ...p, color: '' });
     }
+    syncPlan();
     star?.redraw();
+  }
+
+  function syncPlan() {
+    if (!plan || !map || plan.path.some((id) => !map!.systems.has(id))) {
+      steps = []; planSet = new Set(); freshSet = new Set();
+      return;
+    }
+    const all = new Set(plan.fresh);
+    freshSet = new Set(plan.fresh.filter((id) => !visited.has(id)));
+    const first = plan.path.findIndex((id) => freshSet.has(id));
+    let cut = 0;
+    if (first > 0) for (let i = first - 1; i >= 0; i--) if (all.has(plan.path[i])) { cut = i; break; }
+    steps = first < 0 ? [] : plan.path.slice(cut);
+    planSet = new Set(steps);
+  }
+
+  function setPlan(next: ExplorePlan | null) {
+    plan = next;
+    saveJson(PLAN_KEY, next);
+    syncPlan();
   }
 
   function under(p: MapPainter) {
@@ -161,12 +185,12 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     const accent = p.css('--accent');
     const gold = p.css('--gold');
     const r = Math.max(2.5, Math.min(6, p.spacing * 0.2));
-    if (plan && plan.path.length > 1) {
+    if (steps.length > 1) {
       g.strokeStyle = gold;
       g.lineWidth = Math.max(2, Math.min(4, p.spacing * 0.09));
       g.setLineDash([7, 6]);
       g.beginPath();
-      plan.path.forEach((id, i) => {
+      steps.forEach((id, i) => {
         const pt = p.at(id);
         if (!pt) return;
         if (i) g.lineTo(pt[0], pt[1]); else g.moveTo(pt[0], pt[1]);
@@ -231,9 +255,12 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       ${pvp ? `<span class="tip-row warn-text">${tx('{n} nave și capsule distruse în ultima oră', { n: pvp })}</span>` : ''}`;
   }
 
+  const isHi = (s: NavSystem) => s.sec >= 0.45 && s.regionId !== POCHVEN_REGION;
+
   function regionStats() {
     const by = new Map<number, { id: number; name: string; total: number; seen: number; hi: number }>();
     for (const s of kspace()) {
+      if (settings.scope === 'hi' && !isHi(s)) continue;
       const r = by.get(s.regionId) ?? { id: s.regionId, name: map!.regions.get(s.regionId) ?? '', total: 0, seen: 0, hi: 0 };
       r.total++;
       if (visited.has(s.id)) r.seen++;
@@ -250,11 +277,13 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       return { seen: list.filter((s) => visited.has(s.id)).length, total: list.length };
     };
     const tot = band(() => true);
-    const hi = band((s) => s.sec >= 0.45 && s.regionId !== POCHVEN_REGION);
+    const hi = band(isHi);
     const lo = band((s) => s.sec > 0 && s.sec < 0.45);
     const nul = band((s) => s.sec <= 0 && s.regionId !== POCHVEN_REGION);
     const po = band((s) => s.regionId === POCHVEN_REGION);
-    const kpi = (label: string, b: { seen: number; total: number }, cls = '') => `<div><span class="label">${label}</span><span class="value ${cls}">${formatInt(b.seen)}<span class="dim small"> / ${formatInt(b.total)}</span></span><span class="vis-bar"><i style="width:${b.total ? (b.seen / b.total) * 100 : 0}%"></i></span></div>`;
+    const pct = (b: { seen: number; total: number }) => (b.total ? (b.seen / b.total) * 100 : 0);
+    const kpi = (label: string, b: { seen: number; total: number }, cls = '') => `<div><span class="label">${label}</span><span class="value ${cls}">${formatInt(b.seen)}<span class="dim small"> / ${formatInt(b.total)} · ${formatNum(pct(b), 1)}%</span></span><span class="vis-bar"><i style="width:${pct(b)}%"></i></span></div>`;
+    const scopeSeg = `<div class="live-seg vis-levels" role="group">${([['all', tx('Tot k-space')], ['hi', tx('Doar highsec')]] as const).map(([id, l]) => `<button type="button" class="chip-btn ${settings.scope === id ? 'active' : ''}" data-vis-scope="${id}">${l}</button>`).join('')}</div>`;
     const sel = selected ? map!.systems.get(selected) : null;
     const selBox = sel ? (() => {
       const first = visited.get(sel.id);
@@ -269,13 +298,17 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       </div>`;
     })() : `<p class="dim small">${tx('Click pe un sistem ca să-l marchezi manual ca vizitat sau să pornești o rută de acolo.')}</p>`;
     const regions = regionStats();
-    return `${selBox}
-      <div class="history-kpis vis-kpis">
-        ${kpi(tx('Total k-space'), tot, 'accent')}
+    const kpis = settings.scope === 'hi'
+      ? `${kpi(tx('Highsec vizitat'), hi, 'accent')}`
+      : `${kpi(tx('Total k-space'), tot, 'accent')}
         ${kpi('Highsec', hi)}
         ${kpi('Lowsec', lo)}
         ${kpi('Nullsec', nul)}
-        ${kpi('Pochven', po)}
+        ${kpi('Pochven', po)}`;
+    return `${selBox}
+      ${scopeSeg}
+      <div class="history-kpis vis-kpis ${settings.scope === 'hi' ? 'vis-kpis-one' : ''}">
+        ${kpis}
       </div>
       <div class="label">${tx('Regiuni ({n} începute)', { n: regions.filter((r) => r.seen).length })}</div>
       <div class="vis-regions">${regions.map((r) => `<button class="vis-region ${settings.region === r.id ? 'active' : ''}" data-vis-region="${r.id}" title="${esc(tx('{seen} din {total} sisteme', { seen: r.seen, total: r.total }))}">
@@ -303,29 +336,32 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (routeBusy) return loader(tx('Calculez ruta'));
       if (!plan) return '';
       if (!plan.fresh.length) return alertBox(tx('Nu am găsit sisteme nevizitate accesibile cu nivelul ales. Schimbă regiunea sau nivelul.'), 'warn');
-      const names = plan.path.map((id) => map!.systems.get(id)!.name);
-      const rows = plan.path.map((id, i) => {
+      if (!freshSet.size) return `${alertBox(tx('Ai vizitat toate cele {n} sisteme din rută.', { n: plan.fresh.length }), 'ok')}
+        <div class="vis-route-actions">${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}</div>`;
+      const names = steps.map((id) => map!.systems.get(id)!.name);
+      const risky = plan.risky.filter((id) => planSet.has(id));
+      const rows = steps.map((id, i) => {
         const s = map!.systems.get(id)!;
         const a = activity?.get(id);
         const pvp = a ? a.ship + a.pod : 0;
-        const fresh = freshSet.has(id) && plan!.path.indexOf(id) === i;
+        const fresh = freshSet.has(id) && steps.indexOf(id) === i;
         return `<div class="vis-step ${fresh ? 'new' : ''}" data-sys="${id}">
           <span class="num dim">${i || '·'}</span>${secSpan(s.sec)}<span class="vis-step-name">${esc(s.name)}</span>
-          ${fresh ? badge(tx('nou'), 'gold') : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), plan!.risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
+          ${fresh ? badge(tx('nou'), 'gold') : ''}${pvp ? badge(tx('{n} kill-uri / h', { n: pvp }), risky.includes(id) ? 'danger' : 'warn') : ''}${i && !allowedFor(settings.level, s) ? badge(tx('peste nivel'), 'danger') : ''}
         </div>`;
       }).join('');
       return `<div class="history-kpis vis-kpis">
-          <div><span class="label">${tx('Sisteme noi')}</span><span class="value accent">${plan.fresh.length}</span></div>
-          <div><span class="label">${tx('Salturi')}</span><span class="value">${plan.jumps}</span></div>
-          <div><span class="label">${tx('Sisteme riscante')}</span><span class="value ${plan.risky.length ? 'warn-text' : ''}">${plan.risky.length}</span></div>
+          <div><span class="label">${tx('Mai sunt')}</span><span class="value accent">${freshSet.size}<span class="dim small"> / ${plan.fresh.length}</span></span></div>
+          <div><span class="label">${tx('Salturi')}</span><span class="value">${steps.length - 1}</span></div>
+          <div><span class="label">${tx('Sisteme riscante')}</span><span class="value ${risky.length ? 'warn-text' : ''}">${risky.length}</span></div>
         </div>
         <div class="vis-route-actions">
-          <a class="btn ghost sm" href="${dotlanRoute(names.length > 60 ? [names[0], ...plan.waypoints.map((id) => map!.systems.get(id)!.name)] : names)}" target="_blank" rel="noopener noreferrer">${icon('external')}${tx('Deschide în Dotlan')}</a>
+          <a class="btn ghost sm" href="${dotlanRoute(names.length > 60 ? [names[0], ...plan.waypoints.filter((id) => freshSet.has(id)).map((id) => map!.systems.get(id)!.name)] : names)}" target="_blank" rel="noopener noreferrer">${icon('external')}${tx('Deschide în Dotlan')}</a>
           ${button(tx('Copiază sistemele'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-vis-copy' })}
           ${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}
         </div>
         <div class="vis-steps">${rows}</div>
-        ${plan.path.some((id, i) => i && !allowedFor(settings.level, map!.systems.get(id)!)) ? `<p class="small warn-text">${tx('Pornirea nu e legată de zona nivelului ales, așa că ruta trece și prin sisteme marcate „peste nivel”.')}</p>` : ''}
+        ${steps.some((id, i) => i && !allowedFor(settings.level, map!.systems.get(id)!)) ? `<p class="small warn-text">${tx('Pornirea nu e legată de zona nivelului ales, așa că ruta trece și prin sisteme marcate „peste nivel”.')}</p>` : ''}
         ${activityAt ? `<p class="dim small">${tx('Kill-uri din ESI pe ultima oră, actualizate la {time}.', { time: new Date(activityAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })}</p>` : ''}`;
     })();
     return `<form class="vis-form" id="visRoute">
@@ -481,11 +517,9 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     renderSide();
     await loadActivity();
     routeBusy = false;
-    plan = planExplore(map, start.id, new Set(visited.keys()), settings.level, settings.count, { region: settings.region || undefined, activity: activity ?? undefined });
-    planSet = new Set(plan.path);
-    freshSet = new Set(plan.fresh);
+    setPlan(planExplore(map, start.id, new Set(visited.keys()), settings.level, settings.count, { region: settings.region || undefined, activity: activity ?? undefined }));
     renderSide();
-    if (plan.path.length > 1) star?.fitSystems(plan.path);
+    if (steps.length > 1) star?.fitSystems(steps);
     star?.redraw();
   }
 
@@ -670,7 +704,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (lvl) {
         settings.level = lvl.dataset.visLevel as RiskLevel;
         if (settings.region && map && !kspace().some((s) => s.regionId === settings.region && allowedFor(settings.level, s))) settings.region = 0;
-        plan = null; planSet = new Set(); freshSet = new Set();
+        setPlan(null);
         save();
         renderSide();
         renderFits();
@@ -690,17 +724,28 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (mark) { setManual(Number(mark.dataset.id), mark.dataset.visMark === '1'); return; }
       const from = t.closest<HTMLElement>('[data-vis-from]');
       if (from && map) { settings.from = map.systems.get(Number(from.dataset.visFrom))?.name ?? ''; settings.tab = 'route'; save(); renderSide(); return; }
-      if (t.closest('[data-vis-clear-route]')) { plan = null; planSet = new Set(); freshSet = new Set(); renderSide(); star?.redraw(); return; }
+      if (t.closest('[data-vis-clear-route]')) { setPlan(null); renderSide(); star?.redraw(); return; }
       if (t.closest('[data-vis-copy]') && plan && map) {
-        const text = plan.path.map((id) => map!.systems.get(id)!.name).join('\n');
-        navigator.clipboard?.writeText(text).then(() => toast(tx('Am copiat {n} sisteme', { n: plan!.path.length }))).catch(() => toast(tx('Nu pot copia în clipboard')));
+        const text = steps.map((id) => map!.systems.get(id)!.name).join('\n');
+        navigator.clipboard?.writeText(text).then(() => toast(tx('Am copiat {n} sisteme', { n: steps.length }))).catch(() => toast(tx('Nu pot copia în clipboard')));
         return;
       }
       const step = t.closest<HTMLElement>('.vis-step[data-sys]');
       if (step) { const id = Number(step.dataset.sys); star?.select(id); star?.focus(id, false); return; }
       const imp = t.closest<HTMLElement>('[data-vis-import]');
       if (imp) { pickFiles(imp.dataset.visImport === 'dir'); return; }
-      if (t.closest('[data-vis-track]')) { await trackNow(); toast(tx('Locația a fost verificată')); return; }
+      if (t.closest('[data-vis-track]')) {
+        const r = await trackNow();
+        toast(r.failed && !r.ok ? tx('EVE nu a răspuns cu locația. Încearcă din nou sau refă login-ul.') : tx('Locația a fost verificată'), r.failed && !r.ok ? 3500 : 1800);
+        return;
+      }
+      const scope = t.closest<HTMLElement>('[data-vis-scope]');
+      if (scope) {
+        settings.scope = scope.dataset.visScope === 'hi' ? 'hi' : 'all';
+        save();
+        renderSide();
+        return;
+      }
       const wipe = t.closest<HTMLElement>('[data-vis-wipe]');
       if (wipe) {
         const all = wipe.dataset.visWipe === 'all';
