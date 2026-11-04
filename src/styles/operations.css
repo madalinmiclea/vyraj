@@ -23,3 +23,17 @@
 .esi-health.warn .dot { background: var(--warn); }
 .esi-health.down .dot { background: var(--danger); }
 .ops-table .nowrap { white-space: nowrap; }
+
+.fw-zone { margin: 12px 0; }
+.fw-zone-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.fw-zone-head > span { display: inline-flex; align-items: center; gap: 6px; }
+.fw-tug { height: 8px; margin-top: 6px; background: var(--danger); border: 1px solid var(--line); }
+.fw-tug i { display: block; height: 100%; background: var(--accent); }
+.fw-factions { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 12px 0 4px; }
+.fw-faction { padding: 10px 12px; background: var(--bg-inset); border: 1px solid var(--line); }
+.fw-faction-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fw-faction-grid { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin-bottom: 4px; }
+.fw-faction-grid .num { text-align: right; }
+.fw-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fw-q { max-width: 220px; margin-left: auto; }
+@media (max-width: 700px) { .fw-boards { grid-template-columns: 1fr; } .fw-q { max-width: none; margin-left: 0; } }

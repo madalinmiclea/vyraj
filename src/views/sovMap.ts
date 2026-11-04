@@ -4,6 +4,9 @@ import { tx, locale } from '../i18n';
 import { fold } from '../ui/fold';
 import { StarMap, type MapPainter } from '../ui/starMap';
 import { loadMap, JOVE_REGIONS, type NavMap, type NavSystem } from '../services/navigation';
+import { loadStandings, canReadStandings, type Standings } from '../services/standings';
+import { permissionGate } from '../character/permissions';
+import { loadJson, saveJson } from '../storage';
 import { sovereignty, sovCampaigns, resolveNames, cachedName, displaySec, secClass, type SovClaim, type SovCampaign } from '../services/recon';
 
 type SideTab = 'alliances' | 'campaigns';
@@ -29,7 +32,13 @@ const whenText = (start: number) => {
 
 export interface SovMapView { show(): void }
 
-export function createSovMap(el: HTMLElement): SovMapView {
+const STANDINGS_KEY = 'eve-nav:sov-standings';
+
+const standingTone = (v: number | undefined, own: boolean) => (own ? 'own' : v == null || v === 0 ? 'neutral' : v >= 5 ? 'excellent' : v > 0 ? 'good' : v <= -5 ? 'terrible' : 'bad');
+const STANDING_COLOR: Record<string, string> = { own: 'hsl(280, 70%, 62%)', excellent: 'hsl(215, 90%, 52%)', good: 'hsl(200, 80%, 66%)', neutral: 'hsl(220, 8%, 46%)', bad: 'hsl(28, 92%, 56%)', terrible: 'hsl(0, 84%, 54%)' };
+const STANDING_LABEL = (): Record<string, string> => ({ own: tx('Alianța ta'), excellent: tx('Excelent (+5 și peste)'), good: tx('Bun (peste 0)'), neutral: tx('Neutru'), bad: tx('Rău (sub 0)'), terrible: tx('Groaznic (−5 și sub)') });
+
+export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: number; name: string } = () => ({ name: '' })): SovMapView {
   let map: NavMap | null = null;
   let star: StarMap | null = null;
   let started = false;
@@ -43,6 +52,10 @@ export function createSovMap(el: HTMLElement): SovMapView {
   let tab: SideTab = 'alliances';
   let loadedAt = 0;
   let labels: { name: string; x: number; y: number; n: number }[] = [];
+  let standingsOn = loadJson<boolean>(STANDINGS_KEY, false);
+  let standings: Standings | null = null;
+  let standingsFor = 0;
+  let standingsError = '';
 
   el.innerHTML = loader(tx('Încarc harta de suveranitate'));
 
@@ -73,6 +86,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
     factions = all.filter((h) => h.kind === 'faction');
     holders.forEach((h, i) => { h.color = `hsl(${Math.round((i * 137.508) % 360)}, 70%, 55%)`; });
     factions.forEach((h, i) => { h.color = `hsl(${Math.round((i * 97 + 20) % 360)}, 14%, 52%)`; });
+    if (standingsOn && standings) for (const h of holders) h.color = STANDING_COLOR[standingTone(standings.byId.get(h.id), h.id === standings.allianceId)];
     territory = new Map();
     for (const h of [...factions, ...holders]) if (!focus || focus === h.id) for (const s of h.systems) territory.set(s, h.color);
     contested = new Map();
@@ -146,8 +160,39 @@ export function createSovMap(el: HTMLElement): SovMapView {
 
   const row = (h: Holder) => `<button class="sov-row ${focus === h.id ? 'active' : ''}" data-sov="${h.id}"><i style="background:${h.color}"></i><span>${esc(cachedName(h.id) || `#${h.id}`)}</span><span class="num dim">${h.n}</span></button>`;
 
+  function standingsHtml() {
+    if (!standingsOn) return '';
+    const who = activeCharacter();
+    if (!who.id) return `<p class="dim small">${tx('Alege un caracter logat ca să vezi standings-urile.')}</p>`;
+    if (!canReadStandings(who.id)) return permissionGate('contacts', who.id, who.name);
+    if (standingsError) return alertBox(standingsError);
+    if (!standings) return loader(tx('Citim standings-urile'));
+    const counts = new Map<string, number>();
+    for (const h of holders) { const t = standingTone(standings.byId.get(h.id), h.id === standings.allianceId); counts.set(t, (counts.get(t) ?? 0) + h.n); }
+    return `<div class="sov-legend">${Object.entries(STANDING_LABEL()).filter(([k]) => counts.has(k)).map(([k, l]) => `<span><i style="background:${STANDING_COLOR[k]}"></i>${esc(l)} <span class="dim num">${formatInt(counts.get(k)!)}</span></span>`).join('')}</div>`;
+  }
+
+  async function refreshStandings() {
+    const who = activeCharacter();
+    if (!standingsOn || !who.id || !canReadStandings(who.id)) { renderSide(); return; }
+    if (standings && standingsFor === who.id) { build(); star?.invalidateTerritory(); renderSide(); return; }
+    standings = null;
+    standingsError = '';
+    renderSide();
+    try {
+      standings = await loadStandings(who.id);
+      standingsFor = who.id;
+    } catch (e) {
+      standingsError = (e as Error).message;
+    }
+    build();
+    star?.invalidateTerritory();
+    renderSide();
+  }
+
   function sideHtml() {
     if (tab === 'alliances') {
+      if (standingsOn) return `${standingsHtml()}<div class="sov-list">${holders.map(row).join('')}</div>`;
       return `<div class="label">${tx('{n} alianțe dețin {s} sisteme', { n: holders.length, s: formatInt(holders.reduce((n, h) => n + h.n, 0)) })}</div>
         ${focus ? `<button class="btn ghost sm" data-sov-clear>${icon('close')}${tx('Arată toate alianțele')}</button>` : ''}
         <div class="sov-list">${holders.map(row).join('')}</div>
@@ -222,6 +267,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
         <input class="input live-jump" id="sovFind" data-list="sovNames" placeholder="${esc(tx('Caută alianță, sistem sau regiune'))}" autocomplete="off" spellcheck="false" />
         <span class="small dim">${tx('★ capitală · cerc punctat = campanie de suveranitate · gri = null-sec NPC')}</span>
         <span class="live-status small dim" id="sovStamp"></span>
+        <button class="btn ghost sm sov-standings-btn ${standingsOn ? 'active' : ''}" data-sov-standings aria-pressed="${standingsOn}">${icon('character')}Standings</button>
         <button class="btn ghost sm" data-sov-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
       </div>
       <div class="live-body">
@@ -287,12 +333,25 @@ export function createSovMap(el: HTMLElement): SovMapView {
       const row = t.closest<HTMLElement>('[data-sov]');
       if (row) { const id = Number(row.dataset.sov); setFocus(focus === id ? null : id); return; }
       if (t.closest('[data-sov-clear]')) { setFocus(null); star?.fitAll(); return; }
+      const sb = t.closest<HTMLElement>('[data-sov-standings]');
+      if (sb) {
+        standingsOn = !standingsOn;
+        saveJson(STANDINGS_KEY, standingsOn);
+        sb.classList.toggle('active', standingsOn);
+        sb.setAttribute('aria-pressed', String(standingsOn));
+        tab = 'alliances';
+        build();
+        star?.invalidateTerritory();
+        refreshStandings();
+        return;
+      }
       if (t.closest('[data-sov-reload]')) { load().catch((err) => toast((err as Error).message)); return; }
       const sys = t.closest<HTMLElement>('[data-sys]');
       if (sys) { const id = Number(sys.dataset.sys); star?.select(id); star?.focus(id); }
     });
     try {
       await load();
+      if (standingsOn) refreshStandings();
     } catch (err) {
       const box = el.querySelector<HTMLElement>('#sovSide');
       if (box) box.innerHTML = alertBox((err as Error).message);
@@ -301,7 +360,7 @@ export function createSovMap(el: HTMLElement): SovMapView {
 
   return {
     show() {
-      if (started) return;
+      if (started) { if (standingsOn && standingsFor !== activeCharacter().id) refreshStandings(); return; }
       started = true;
       init();
     },

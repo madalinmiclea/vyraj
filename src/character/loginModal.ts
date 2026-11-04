@@ -9,8 +9,8 @@ interface PermGroup { id: string; icon: string; title: string; text: string; per
 export const PERM_GROUPS: PermGroup[] = [
   { id: 'ships', icon: 'fitting', title: tx('Nave și fituri'), text: tx('Fiturile din joc, bunurile și navele tale, unde ești și ce zbori, colecția de SKIN-uri.'), perms: ['fittings', 'assets', 'location', 'skinr'] },
   { id: 'trade', icon: 'market', title: tx('ISK și comerț'), text: tx('Portofelul, ordinele de piață, contractele și punctele de loialitate.'), perms: ['wallet', 'orders', 'contracts', 'loyalty'] },
-  { id: 'industry', icon: 'industry', title: tx('Industrie și activități'), text: tx('Blueprint-uri și joburi, colonii planetare, joburi freelance, campanii și Mercenary Dens.'), perms: ['industry', 'planets', 'freelance', 'campaigns', 'mercenary'] },
-  { id: 'social', icon: 'mail', title: tx('Mail și corporație'), text: tx('Mailurile EVE, notificările din joc, rolurile tale în corporație, contractele și walleturile corporației.'), perms: ['mail', 'notifications', 'corporation'] },
+  { id: 'industry', icon: 'industry', title: tx('Industrie și activități'), text: tx('Blueprint-uri și joburi, colonii planetare, minerit și extracții lunare, joburi freelance, campanii și Mercenary Dens.'), perms: ['industry', 'planets', 'mining', 'moons', 'freelance', 'campaigns', 'mercenary'] },
+  { id: 'social', icon: 'mail', title: tx('Mail și corporație'), text: tx('Mailurile EVE, notificările din joc, rolurile tale în corporație, contractele și walleturile corporației, contactele și standings-urile.'), perms: ['mail', 'notifications', 'corporation', 'contacts'] },
 ];
 
 export function openPermissionsModal(characterId?: number | null, returnTo?: string) {

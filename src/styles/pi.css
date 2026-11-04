@@ -96,3 +96,5 @@
   .pi-colonies td:nth-child(1), .pi-colonies td:nth-child(2), .pi-colonies td:nth-child(3) { grid-column: 1 / -1; }
   .pi-colonies td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 12px; color: var(--text-faint); font-family: var(--font-body); font-weight: 500; }
 }
+
+.pi-slots { margin-bottom: 12px; }

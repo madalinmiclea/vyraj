@@ -3,7 +3,7 @@ import { panel, loader, esc, formatInt, formatNum, formatISK, compactISK, button
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import type { WalletEntry } from '../character/esi';
-import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, entryLabel, entryDescription, pveSessions, syncWallet, tradeSummary, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
+import { PERIODS, periodStart, since, flow, flowBuckets, byRef, refLabel, entryLabel, entryDescription, pveSessions, syncWallet, tradeSummary, realisedProfit, bountyTicks, tickSummary, pveActivity, type Period, type BountyTick } from '../services/wallet';
 import { npcInfo, type NpcInfo } from '../services/npcKills';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { heatmap } from '../ui/heatmap';
@@ -371,6 +371,37 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
         </tbody></table>` : `<p class="dim">${tx('Nicio tranzacție de piață în perioada aleasă.')}</p>`,
       });
     };
+    const profitPanel = () => {
+      const list = realisedProfit(trades, from).slice(0, 300);
+      if (!list.length) return '';
+      const gross = list.reduce((a, r) => a + r.profit, 0);
+      const fees = -rows.filter((e) => e.ref_type === 'transaction_tax' || e.ref_type === 'brokers_fee').reduce((a, e) => a + (e.amount ?? 0), 0);
+      const unmatched = list.reduce((a, r) => a + r.unmatchedIsk, 0);
+      const net = gross - fees;
+      return panel({
+        title: tx('Profit realizat pe item'),
+        count: tx('{n} iteme', { n: formatInt(list.length) }),
+        body: `<div class="history-kpis compact">
+            <div><span class="label">${tx('Profit brut')}</span><span class="value ${gross >= 0 ? 'up' : 'down'}">${signed(gross)}</span></div>
+            <div><span class="label">${tx('Taxe și comision broker')}</span><span class="value down">${compactISK(fees)}</span></div>
+            <div><span class="label">${tx('Profit net')}</span><span class="value ${net >= 0 ? 'up' : 'down'}">${signed(net)}</span></div>
+            <div title="${tx('Vândut fără o cumpărare înainte în istoricul salvat (loot, minat, fabricat)')}"><span class="label">${tx('Vândut fără cost')}</span><span class="value">${compactISK(unmatched)}</span></div>
+          </div>
+          <div class="wallet-scroll"><table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Vândut')}</th><th class="r">${tx('Cost mediu')}</th><th class="r">${tx('Preț mediu')}</th><th class="r">${tx('Profit')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('Rămas în stoc')}</th></tr></thead><tbody>
+          ${list.map((r) => {
+            const margin = r.revenue > 0 ? (r.profit / r.revenue) * 100 : 0;
+            return `<tr><td><span class="recon-ship"><img class="row-icon" src="${typeIconUrl(r.typeId, 32)}" alt="" loading="lazy" /><span>${esc(itemName(r.typeId))}</span></span></td>
+              <td class="r num">${formatInt(r.soldQty)}${r.matchedQty < r.soldQty ? `<div class="dim small">${tx('{n} fără cost', { n: formatInt(r.soldQty - r.matchedQty) })}</div>` : ''}</td>
+              <td class="r">${r.matchedQty ? isk(r.cost / r.matchedQty) : '<span class="dim">—</span>'}</td>
+              <td class="r">${r.matchedQty ? isk(r.revenue / r.matchedQty) : '<span class="dim">—</span>'}</td>
+              <td class="r">${r.matchedQty ? signed(r.profit) : '<span class="dim">—</span>'}</td>
+              <td class="r num ${margin >= 0 ? 'up' : 'down'}">${r.matchedQty ? `${formatNum(margin, 1)}%` : ''}</td>
+              <td class="r num">${r.heldQty ? `${formatInt(r.heldQty)}<div class="dim small">${compactISK(r.heldCost)}</div>` : ''}</td></tr>`;
+          }).join('')}
+          </tbody></table></div>
+          <p class="dim small">${tx('Cost mediu ponderat din cumpărările salvate, taxele din jurnalul perioadei.')}</p>`,
+      });
+    };
     const sessionsPanel = () => panel({
           title: tx('Sesiuni PvE'),
           count: sessions.length ? `${sessions.length} · ${formatNum(hours, 1)} h` : '',
@@ -381,7 +412,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
     const content: Record<WalletSection, () => string> = {
       overview,
       journal,
-      trades: tradesPanel,
+      trades: () => profitPanel() + tradesPanel(),
       bounty: () => `<div id="walletTicks" class="stack"></div>${sessionsPanel()}`,
       ratting: () => '<div id="walletTicks" class="stack"></div>',
     };

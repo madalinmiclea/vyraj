@@ -12,6 +12,8 @@ import { fold } from '../ui/fold';
 import { tx, locale, lang } from '../i18n';
 import { optimalRemap, ATTRIBUTE_KEYS } from '../character/remap';
 import type { Attributes } from '../character/training';
+import { renderImplantPlanner } from './implantPlanner';
+import { exportMultibuy } from '../io/eft';
 import { addItemToPlan, addToPlan, loadPlan, movePlan, planRows, planText, removeFromPlan, savePlan, type PlanEntry } from '../character/skillPlan';
 
 const SKILL_GROUP_RO: Record<string, string> = {
@@ -62,8 +64,11 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     renderPlan();
   }
 
+  const missingBooks = (rows: { skillId: number }[]) => (ctx.character.kind === 'esi' ? [...new Set(rows.map((r) => r.skillId))].filter((id) => !ctx.character.skills.has(id)) : []);
+
   function renderPlan() {
     const rows = planRows(sde, currentPlan(), ctx.character);
+    const books = missingBooks(rows);
     const total = rows.reduce((a, r) => a + r.seconds, 0);
     const sp = rows.reduce((a, r) => a + r.sp, 0);
     const when = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -76,9 +81,11 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
               <td class="r num">${formatDuration(r.seconds)}</td><td class="r num dim">${when(r.finishes)}</td>
               <td class="r plan-actions"><button class="icon-btn" data-plan-move="${i}:-1" title="${tx('Sus')}">↑</button><button class="icon-btn" data-plan-move="${i}:1" title="${tx('Jos')}">↓</button><button class="icon-btn" data-plan-remove="${i}" title="${tx('Scoate')}">${icon('close')}</button></td></tr>`).join('')}
           </tbody></table>
-          <div class="row-actions"><button class="btn ghost sm" data-plan-copy>${tx('Copiază pentru EVE')}</button><button class="btn ghost sm" data-plan-clear>${tx('Golește')}</button></div>`
+          <div class="row-actions"><button class="btn ghost sm" data-plan-copy>${tx('Copiază pentru EVE')}</button>${books.length ? `<button class="btn ghost sm" data-plan-books>${icon('copy')}${tx('Skillbook-uri lipsă ({n})', { n: books.length })}</button>` : ''}<button class="btn ghost sm" data-plan-clear>${tx('Golește')}</button></div>`
         : `<p class="dim small">${tx('Planul e gol. Adaugă skill-uri din lista de cerințe, din grupurile de skill-uri sau din „Skill-uri de îmbunătățire” din Fitting.')}</p>`,
-    }) + remapHtml(rows);
+    }) + remapHtml(rows) + '<div id="implPlanner"></div>';
+    const box = planEl.querySelector<HTMLElement>('#implPlanner');
+    if (box && rows.length) renderImplantPlanner(box, sde, ctx.character, currentPlan());
   }
 
   const ATTR_LABEL: Record<keyof Attributes, string> = {
@@ -244,6 +251,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     }
     if (at('[data-plan-copy]')) { copyText(planText(planRows(sde, currentPlan(), ctx.character)), tx('Plan copiat (lipește-l în Skill Plans din joc)')); return; }
     if (at('[data-plan-clear]')) { setPlan([]); return; }
+    if (at('[data-plan-books]')) { copyText(exportMultibuy(sde, new Map(missingBooks(planRows(sde, currentPlan(), ctx.character)).map((id) => [id, 1]))), tx('Lista Multibuy copiată')); return; }
     if (at('[data-copy-plan]') && selectedItem) {
       copyText(skillPlanText(requirementsFor(sde, [selectedItem], ctx.character).missing), tx('Plan copiat (lipește-l în Skill Plans din joc)'));
     }

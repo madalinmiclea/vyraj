@@ -1,6 +1,7 @@
 import { loadSde, Category, type Sde } from '../data/sde';
 import { loadItems, allEveItems } from '../data/items';
 import { spPerMinute, type Attributes } from '../character/training';
+import { demoExtras } from './extras';
 import { DEMO_ID, isDemoAuth, demoSystem } from './identity';
 import { tx } from '../i18n';
 import { ESI, esiFetch } from '../services/esiClient';
@@ -264,6 +265,13 @@ function ledger(w: World, now: number, name: string, px: Jita) {
       if (typeId) {
         const quantity = 3 + Math.floor(r() * 12);
         const unit = Math.round(price * (0.94 + r() * 0.1));
+        if (d % 6 === 0) {
+          const bt = t - 26 * HOUR;
+          const bq = quantity + 2;
+          const bu = Math.round(price * 0.82);
+          const bref = entry(bt, 1, { ref_type: 'market_transaction', amount: -bq * bu, description: `Market: ${name} bought stuff in Jita`, first_party_id: DEMO_ID, second_party_id: 2_112_000_003 });
+          if (bref) trades.push({ transaction_id: 6_100_000_000 + d * 10 + 3, type_id: typeId, is_buy: true, date: iso(bt), quantity: bq, unit_price: bu, client_id: 2_112_000_003, location_id: JITA, journal_ref_id: bref, is_personal: true });
+        }
         const ref = entry(t, 4, { ref_type: 'market_transaction', amount: quantity * unit, description: `Market: ${name} sold stuff in Jita`, first_party_id: 2_112_000_001, second_party_id: DEMO_ID });
         if (ref) {
           trades.push({ transaction_id: 6_100_000_000 + d * 10 + 1, type_id: typeId, is_buy: false, date: iso(t), quantity, unit_price: unit, client_id: 2_112_000_001, location_id: JITA, journal_ref_id: ref, is_personal: true });
@@ -478,6 +486,8 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
   const now = Date.now();
   const business = demoBusiness(path.replace(/\/$/, ''), now);
   if (business !== undefined) return json(business);
+  const extra = await demoExtras(path.replace(/\/$/, ''), now);
+  if (extra !== undefined) return json(extra);
   const structure = path.match(/^\/universe\/structures\/(\d+)\/?$/);
   if (structure) return Number(structure[1]) === CITADEL ? json({ name: 'Y-W1Q3 - Astrahus', solar_system_id: CITADEL_SYSTEM, type_id: 35832, owner_id: 1 }) : json({ error: 'Forbidden' }, 403);
   const m = path.match(/^\/characters\/(\d+)\/(.*?)\/?$/);

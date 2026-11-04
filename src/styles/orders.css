@@ -65,3 +65,6 @@ a.nt-row:hover { background: var(--bg-hover); }
   .nt-row { grid-template-columns: 22px 1fr; }
   .nt-meta { grid-column: 2; justify-items: start; text-align: left; display: flex; gap: 8px; }
 }
+
+.co-form { grid-template-columns: minmax(0, 1fr) 110px; margin-bottom: 10px; }
+.co-form:last-child { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-top: 10px; }

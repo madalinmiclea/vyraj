@@ -4,7 +4,7 @@ import { button, esc } from '../ui/components';
 import { icon } from '../ui/icons';
 import { tx } from '../i18n';
 
-export type PermId = 'fittings' | 'assets' | 'location' | 'wallet' | 'loyalty' | 'orders' | 'planets' | 'industry' | 'freelance' | 'campaigns' | 'mercenary' | 'skinr' | 'mail' | 'contracts' | 'corporation' | 'notifications';
+export type PermId = 'fittings' | 'assets' | 'location' | 'wallet' | 'loyalty' | 'orders' | 'planets' | 'industry' | 'freelance' | 'campaigns' | 'mercenary' | 'skinr' | 'mail' | 'contracts' | 'corporation' | 'notifications' | 'mining' | 'moons' | 'contacts';
 
 export interface Permission { id: PermId; label: string; why: string; scopes: string[] }
 
@@ -24,6 +24,9 @@ export const PERMISSIONS: Permission[] = [
   { id: 'mail', label: tx('Mail EVE'), why: tx('Citește mailurile, etichetele și listele de mail, le marchează citite, le mută sau le șterge și trimite mailuri doar când apeși Trimite.'), scopes: ['esi-mail.read_mail.v1', 'esi-mail.organize_mail.v1', 'esi-mail.send_mail.v1'] },
   { id: 'contracts', label: tx('Contracte'), why: tx('Citește contractele tale (schimb de iteme, licitații, curier), itemele și ofertele din ele, ca să le evaluezi la prețurile Jita și să știi când expiră.'), scopes: ['esi-contracts.read_character_contracts.v1', 'esi-universe.read_structures.v1'] },
   { id: 'notifications', label: tx('Notificări din joc'), why: tx('Citește notificările din joc (structuri atacate, războaie, corporație, kill-uri și asigurări), ca Vyraj să te anunțe și să le vezi în modulul Notificări.'), scopes: ['esi-characters.read_notifications.v1'] },
+  { id: 'mining', label: tx('Registru de minerit'), why: tx('Citește ce a minat fiecare caracter în ultimele 30 de zile, pe zi, sistem și tip de minereu.'), scopes: ['esi-industry.read_character_mining.v1'] },
+  { id: 'moons', label: tx('Extracții lunare'), why: tx('Citește extracțiile de lună ale corporației (când sosește chunk-ul și când se sparge singur). Cere rol de Station Manager sau Director.'), scopes: ['esi-industry.read_corporation_mining.v1', 'esi-characters.read_corporation_roles.v1', 'esi-universe.read_structures.v1'] },
+  { id: 'contacts', label: tx('Contacte și standings'), why: tx('Citește standings-urile tale, ale corporației și ale alianței, ca harta de suveranitate să coloreze alianțele după relația cu tine.'), scopes: ['esi-characters.read_contacts.v1', 'esi-corporations.read_contacts.v1', 'esi-alliances.read_contacts.v1'] },
   { id: 'corporation', label: tx('Corporație'), why: tx('Citește rolurile tale în corporație, contractele corporației și, dacă ești Director sau Accountant, walleturile, diviziile și jurnalul corporației.'), scopes: ['esi-characters.read_corporation_roles.v1', 'esi-contracts.read_corporation_contracts.v1', 'esi-wallet.read_corporation_wallets.v1', 'esi-corporations.read_divisions.v1', 'esi-universe.read_structures.v1'] },
 ];
 
@@ -52,6 +55,11 @@ export const SCOPE_INFO: Record<string, { text: string; write?: boolean }> = {
   'esi-characters.read_corporation_roles.v1': { text: tx('Citește rolurile tale în corporație, ca să știm ce date de corporație poți vedea.') },
   'esi-wallet.read_corporation_wallets.v1': { text: tx('Citește soldurile și jurnalul walleturilor corporației (doar cu rol de Director sau Accountant).') },
   'esi-characters.read_notifications.v1': { text: tx('Citește notificările din joc ale caracterului.') },
+  'esi-industry.read_character_mining.v1': { text: tx('Citește registrul de minerit al caracterului.') },
+  'esi-industry.read_corporation_mining.v1': { text: tx('Citește extracțiile lunare și observatorii de minerit ai corporației.') },
+  'esi-characters.read_contacts.v1': { text: tx('Citește contactele și standings-urile caracterului.') },
+  'esi-corporations.read_contacts.v1': { text: tx('Citește contactele și standings-urile corporației.') },
+  'esi-alliances.read_contacts.v1': { text: tx('Citește contactele și standings-urile alianței.') },
   'esi-corporations.read_divisions.v1': { text: tx('Citește numele diviziilor de wallet ale corporației.') },
 };
 

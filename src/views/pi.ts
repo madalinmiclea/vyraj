@@ -2,6 +2,7 @@ import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactIS
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { rosterCharacters } from '../character/roster';
+import { fromStored } from '../character/characters';
 import { hasTokens, hasScope } from '../character/sso';
 import { permissionButtons } from '../character/permissions';
 import { formatDuration } from '../character/training';
@@ -47,6 +48,9 @@ const ago = (ms: number) => {
   if (m < 60 * 24 * 60) return tx('acum {n} zile', { n: Math.round(m / 1440) });
   return new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
+
+const INTERPLANETARY = 2495;
+const CC_UPGRADES = 2505;
 
 export function createPiView(el: HTMLElement, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'colonies');
@@ -254,6 +258,17 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
     const charsWith = new Set(rows.map((r) => r.charId)).size;
     const chip = (label: string, value: string | number, tone = '') => `<div class="roster-chip ${tone}"><span class="label">${label}</span><span class="value num">${value}</span></div>`;
     const updated = Object.values(colonies).reduce((m, e) => Math.max(m, e.fetched), 0);
+    const slotRows = chars.filter((ch) => hasTokens(ch.characterId!) && colonies[ch.characterId!] && !colonies[ch.characterId!].missingScope).map((ch) => {
+      const skills = fromStored(ch).skills;
+      const max = 1 + (skills.get(INTERPLANETARY) ?? 0);
+      const ccu = skills.get(CC_UPGRADES) ?? 0;
+      const list = colonies[ch.characterId!].colonies;
+      const low = list.filter((c) => c.level < ccu).length;
+      return { name: ch.name, used: list.length, max, ccu, low };
+    });
+    const slotsHtml = slotRows.length ? `<div class="table-scroll"><table class="table compact pi-slots"><thead><tr><th>${tx('Caracter')}</th><th class="r">${tx('Planete')}</th><th class="r">${tx('Libere')}</th><th class="r">Command Center Upgrades</th><th class="r">${tx('CC sub nivelul skill-ului')}</th></tr></thead><tbody>
+      ${slotRows.map((x) => `<tr><td>${esc(x.name)}</td><td class="r num">${x.used} / ${x.max}</td><td class="r">${x.max - x.used > 0 ? badge(String(x.max - x.used), 'accent', true) : '<span class="dim">0</span>'}</td><td class="r num">${x.ccu}</td><td class="r">${x.low ? badge(String(x.low), 'warn', true) : '<span class="dim">0</span>'}</td></tr>`).join('')}
+    </tbody></table></div>` : '';
     const sortSel = `<select class="input plain sm" data-pi-colony-sort>${([['expiry', tx('Următoarea expirare')], ['character', tx('Caracter')], ['system', tx('Sistem')]] as [ColonySort, string][]).map(([id, label]) => `<option value="${id}" ${id === colonySort ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
 
     pane.innerHTML = `<section class="panel">
@@ -270,6 +285,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
           ${chip(tx('Următoarea expirare'), next ? formatDuration((next - now) / 1000) : '—')}
           ${chip(tx('P0 extras / zi'), daily ? compactISK(daily) : '—')}
         </div>
+        ${slotsHtml}
         ${noScope.length ? permissionButtons('planets', noScope) : ''}
         ${errors.map((x) => alertBox(x)).join('')}
         ${rows.length ? `<div class="table-scroll"><table class="table compact pi-colonies">

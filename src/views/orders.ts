@@ -13,11 +13,12 @@ import {
 } from '../services/orders';
 import { createToolPanel } from './tools';
 import { createContractsPanel } from './contracts';
+import { createCheckoutPanel } from './checkout';
 import { tx, locale } from '../i18n';
 import { viewHref } from '../app/route';
 
 type ToolId = 'appraisal' | 'alerts' | 'assets';
-type Tab = 'active' | 'history' | 'contracts' | ToolId;
+type Tab = 'active' | 'history' | 'contracts' | 'checkout' | ToolId;
 
 const TOOL_TABS: { id: ToolId; label: string }[] = [
   { id: 'appraisal', label: tx('Evaluare') },
@@ -52,7 +53,7 @@ const plainPrice = (v: number) => v.toFixed(2);
 
 export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLElement, deps: { onOpen: (name: string, typeId: number) => void }) {
   const ui = loadJson<UiState>(UI_KEY, { tab: 'active', filter: 'all', character: 0 });
-  if (!['active', 'history', 'contracts', ...TOOL_TABS.map((t) => t.id)].includes(ui.tab)) ui.tab = 'active';
+  if (!['active', 'history', 'contracts', 'checkout', ...TOOL_TABS.map((t) => t.id)].includes(ui.tab)) ui.tab = 'active';
   const places = new Map<number, string>();
   const history = new Map<number, CharacterOrder[]>();
   let busy = false;
@@ -61,11 +62,15 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   el.innerHTML = `${pageHead(tx('Ordine de piață'), tx('Ordinele și contractele tuturor caracterelor, cu alertă la outbid, plus evaluare, alerte de preț și bunuri'), 'Torg')}
     <div id="ordBody"></div>
     <div id="ordContracts" hidden></div>
-    <div id="ordTool" hidden></div>`;
+    <div id="ordTool" hidden></div>
+    <div id="ordCheckout" hidden></div>`;
   const body = el.querySelector<HTMLElement>('#ordBody')!;
   const toolBox = el.querySelector<HTMLElement>('#ordTool')!;
   const tools = createToolPanel(toolBox, ctx);
   const contracts = createContractsPanel(el.querySelector<HTMLElement>('#ordContracts')!, ctx, deps);
+  const checkoutBox = el.querySelector<HTMLElement>('#ordCheckout')!;
+  const checkout = createCheckoutPanel(checkoutBox, ctx);
+  let checkoutShown = false;
   let contractsShown = false;
   let shownTool: ToolId | null = null;
   const toolOf = (tab: Tab) => TOOL_TABS.find((t) => t.id === tab)?.id ?? null;
@@ -82,7 +87,8 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
         <button class="side-link ${ui.tab === 'contracts' ? 'active' : ''}" data-ord-tab="contracts">${tx('Contracte')}</button>
         <div class="ord-side-label">${tx('Unelte')}</div>
         ${TOOL_TABS.map((t) => `<button class="side-link ${ui.tab === t.id ? 'active' : ''}" data-ord-tab="${t.id}">${t.label}</button>`).join('')}
-        ${chars.length > 1 && !toolOf(ui.tab) && ui.tab !== 'contracts' ? `<div class="ord-side-label">${tx('Caractere')}</div>
+        <button class="side-link ${ui.tab === 'checkout' ? 'active' : ''}" data-ord-tab="checkout">${tx('Ce lipsește')}</button>
+        ${chars.length > 1 && !toolOf(ui.tab) && ui.tab !== 'contracts' && ui.tab !== 'checkout' ? `<div class="ord-side-label">${tx('Caractere')}</div>
           <button class="side-link ${!ui.character ? 'active' : ''}" data-ord-char="0">${tx('Toate caracterele')}${scan ? `<span class="ord-count">${scan.orders.length}</span>` : ''}</button>
           ${chars.map((c) => `<button class="side-link ${ui.character === c.characterId ? 'active' : ''}" data-ord-char="${c.characterId}">${esc(c.name)}${scan ? `<span class="ord-count">${count(c.characterId!)}</span>` : ''}</button>`).join('')}` : ''}
       </div>`;
@@ -246,8 +252,17 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     renderSide(lastScan());
     const tool = toolOf(ui.tab);
     const isContracts = ui.tab === 'contracts';
-    body.hidden = !!tool || isContracts;
+    const isCheckout = ui.tab === 'checkout';
+    body.hidden = !!tool || isContracts || isCheckout;
     toolBox.hidden = !tool;
+    checkoutBox.hidden = !isCheckout;
+    if (isCheckout) {
+      if (shownTool) { shownTool = null; tools.hide(); }
+      if (contractsShown) { contractsShown = false; contracts.hide(); }
+      if (!checkoutShown) { checkoutShown = true; checkout.show(); }
+      return;
+    }
+    if (checkoutShown) { checkoutShown = false; checkout.hide(); }
     if (isContracts) {
       if (shownTool) { shownTool = null; tools.hide(); }
       if (!contractsShown) { contractsShown = true; contracts.show(); }

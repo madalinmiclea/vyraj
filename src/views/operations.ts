@@ -12,15 +12,17 @@ import { raidableSkyhooks, sovereignty, resolveNames, cachedName, displaySec, se
 import { loadMap, type NavMap } from '../services/navigation';
 import { planetNames } from '../services/pi';
 import { fold } from '../ui/fold';
+import { createFwPanel } from './factionWarfare';
 import { tx, locale } from '../i18n';
 
-type Tab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks';
+type Tab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks' | 'fw';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'jobs', label: tx('Joburi freelance') },
   { id: 'campaigns', label: tx('Campanii militare') },
   { id: 'dens', label: tx('Mercenary Dens') },
   { id: 'skyhooks', label: tx('Skyhook-uri raidabile') },
+  { id: 'fw', label: 'Faction Warfare' },
 ];
 
 const TAB_KEY = 'eve-ops:tab';
@@ -60,9 +62,10 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
   if (!TABS.some((t) => t.id === tab)) tab = 'jobs';
   let run = 0;
 
-  el.innerHTML = `${pageHead(tx('Operațiuni'), tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri raidabile, direct din ESI'), 'Pohod')}
+  el.innerHTML = `${pageHead(tx('Operațiuni'), tx('Joburi freelance, campanii militare, Mercenary Dens, skyhook-uri raidabile și Faction Warfare, direct din ESI'), 'Pohod')}
     <div id="opsBody"></div>`;
   const body = el.querySelector<HTMLElement>('#opsBody')!;
+  const fw = createFwPanel(body);
 
   function renderTabs() {
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Operațiuni'))}</div>
@@ -82,7 +85,8 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
   function render() {
     renderTabs();
     run++;
-    ({ jobs, campaigns, dens, skyhooks } as Record<Tab, () => void>)[tab]();
+    fw.stop();
+    ({ jobs, campaigns, dens, skyhooks, fw: () => fw.render() } as Record<Tab, () => void>)[tab]();
   }
 
   let jobList: FreelanceJob[] = [];

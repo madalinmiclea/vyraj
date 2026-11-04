@@ -317,3 +317,52 @@ export function pveActivity(entries: WalletEntry[], days = 91, now = Date.now())
   }
   return out;
 }
+
+export interface RealisedRow {
+  typeId: number;
+  soldQty: number;
+  matchedQty: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  unmatchedIsk: number;
+  heldQty: number;
+  heldCost: number;
+}
+
+export function realisedProfit(rows: WalletTransaction[], from: number): RealisedRow[] {
+  const sorted = [...rows].sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.transaction_id - b.transaction_id);
+  const stock = new Map<number, { qty: number; cost: number }>();
+  const out = new Map<number, RealisedRow>();
+  for (const r of sorted) {
+    const s = stock.get(r.type_id) ?? { qty: 0, cost: 0 };
+    const price = r.unit_price ?? 0;
+    if (r.is_buy) {
+      s.qty += r.quantity;
+      s.cost += r.quantity * price;
+      stock.set(r.type_id, s);
+      continue;
+    }
+    const matched = Math.min(s.qty, r.quantity);
+    const avg = s.qty > 0 ? s.cost / s.qty : 0;
+    if (Date.parse(r.date) >= from) {
+      const row = out.get(r.type_id) ?? { typeId: r.type_id, soldQty: 0, matchedQty: 0, revenue: 0, cost: 0, profit: 0, unmatchedIsk: 0, heldQty: 0, heldCost: 0 };
+      row.soldQty += r.quantity;
+      row.matchedQty += matched;
+      row.revenue += matched * price;
+      row.cost += matched * avg;
+      row.profit = row.revenue - row.cost;
+      row.unmatchedIsk += (r.quantity - matched) * price;
+      out.set(r.type_id, row);
+    }
+    s.qty -= matched;
+    s.cost -= matched * avg;
+    stock.set(r.type_id, s);
+  }
+  for (const row of out.values()) {
+    const s = stock.get(row.typeId);
+    row.heldQty = s?.qty ?? 0;
+    row.heldCost = s?.cost ?? 0;
+  }
+  return [...out.values()].sort((a, b) => b.profit - a.profit);
+}

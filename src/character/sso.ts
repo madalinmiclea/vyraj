@@ -32,6 +32,11 @@ export const SCOPES = [
   'esi-wallet.read_corporation_wallets.v1',
   'esi-corporations.read_divisions.v1',
   'esi-characters.read_notifications.v1',
+  'esi-industry.read_character_mining.v1',
+  'esi-industry.read_corporation_mining.v1',
+  'esi-characters.read_contacts.v1',
+  'esi-corporations.read_contacts.v1',
+  'esi-alliances.read_contacts.v1',
 ];
 
 export const BASE_SCOPES = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-clones.read_implants.v1'];

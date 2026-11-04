@@ -116,3 +116,8 @@
 .sov-score span { display: block; height: 100%; background: var(--accent); }
 .sov-map .live-body { height: calc(100vh - var(--topbar-h) - 180px); }
 .sov-sub { margin-top: 12px; }
+
+.sov-legend { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
+.sov-legend span { display: flex; align-items: center; gap: 8px; }
+.sov-legend i { width: 12px; height: 12px; border-radius: 2px; }
+.sov-standings-btn.active { color: var(--text-bright); border-color: var(--accent); background: rgba(var(--accent-rgb), 0.28); }

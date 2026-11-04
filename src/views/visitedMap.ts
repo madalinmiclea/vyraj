@@ -143,7 +143,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     const start = hereSystem();
     if (!start) return;
     const total = plan.total ?? plan.fresh.length;
-    const next = planExplore(map, start.id, new Set(visited.keys()), settings.level, 0, { region: settings.region || undefined, targets: [...freshSet], activity: activity ?? undefined });
+    const next = planExplore(map, start.id, new Set(visited.keys()), settings.level, freshSet.size, { region: settings.region || undefined, activity: activity ?? undefined });
     setPlan({ ...next, total: total - freshSet.size + next.fresh.length });
     renderSide();
     star?.redraw();

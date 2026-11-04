@@ -5,6 +5,18 @@ export interface Release { date: string; title: string; lead: string; items: str
 export const CHANGELOG: Release[] = [
   {
     date: '2026-11-04',
+    title: tx('Catastiful flotei și al minei'),
+    lead: tx('Ce ai minat, ce lipsește din hangar și cât te costă fiecare salt, socotite pentru tine.'),
+    items: [
+      tx('Registru de minerit pe toate caracterele, valorat ca minereu sau ca minerale, plus timer-ele extracțiilor lunare ale corporației.'),
+      tx('Faction Warfare: cine ține fiecare zonă de război, sistemele contestate și clasamentul piloților și corporațiilor.'),
+      tx('Ce lipsește: compari o doctrină, un fit sau o listă cu ce ai într-o stație și copiezi Multibuy doar cu restul.'),
+      tx('Profit realizat pe item din tranzacțiile de piață, implanturile și acceleratoarele care îți scurtează planul de skill-uri, skillbook-urile lipsă, taxa Ansiblex față de capitala alianței și sloturile PI libere.'),
+      tx('Harta de suveranitate se poate colora după standings-urile tale, cu un singur buton.'),
+    ],
+  },
+  {
+    date: '2026-11-04',
     title: tx('Vânătoare într-un singur loc'),
     lead: tx('Misiunile au devenit PvE, cu tot ce ține de vânătoare la un click distanță.'),
     items: [

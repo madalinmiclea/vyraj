@@ -9,19 +9,22 @@ import { parseItems } from '../services/appraisal';
 import { bindBreakdownTips, breakdownHtml, single, type Breakdown } from '../ui/breakdown';
 import { roman } from '../ui/itemInfo';
 import {
-  loadMining, miners, fitRate, canMine, holdCapacity, refineYield, baseLabel, refine, oreValuePerM3, priceOf, implantFor,
+  loadMining, refinedUnitValue, miners, fitRate, canMine, holdCapacity, refineYield, baseLabel, refine, oreValuePerM3, priceOf, implantFor,
   ORE_KINDS, SECURITY_LABEL, DEFAULT_SETUP,
   type MiningData, type Ore, type OreKind, type Miner, type MinerKind, type RefineSetup, type Security, type OreValue,
 } from '../services/mining';
+import { createLedgerPanel, createMoonPanel } from './miningLedger';
 import { tx } from '../i18n';
 
-type Tab = 'yield' | 'refine' | 'ores';
+type Tab = 'yield' | 'refine' | 'ores' | 'ledger' | 'moons';
 type Basis = 'sell' | 'buy';
 
 const TABS = (): { id: Tab; label: string }[] => [
   { id: 'yield', label: tx('Randament și ISK/oră') },
   { id: 'refine', label: tx('Reprocesare') },
   { id: 'ores', label: tx('Valoare minereu') },
+  { id: 'ledger', label: tx('Registru de minerit') },
+  { id: 'moons', label: tx('Extracții lunare') },
 ];
 
 const TAB_KEY = 'eve-mining:tab';
@@ -52,11 +55,15 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   el.innerHTML = `${pageHead(tx('Minerit și reprocesare'), tx('ISK pe oră pe tip de minereu din fit-ul și skill-urile tale, plus valoarea reprocesată față de vânzarea brută, la prețuri Jita'), 'Rudnik', { hub: true })}
     <div id="mineYield"></div>
     <div id="mineRefine"></div>
-    <div id="mineOres"></div>`;
+    <div id="mineOres"></div>
+    <div id="mineLedger"></div>
+    <div id="mineMoons"></div>`;
   const panes: Record<Tab, HTMLElement> = {
     yield: el.querySelector<HTMLElement>('#mineYield')!,
     refine: el.querySelector<HTMLElement>('#mineRefine')!,
     ores: el.querySelector<HTMLElement>('#mineOres')!,
+    ledger: el.querySelector<HTMLElement>('#mineLedger')!,
+    moons: el.querySelector<HTMLElement>('#mineMoons')!,
   };
   const tips = new Map<string, string>();
   bindBreakdownTips(el, (k) => tips.get(k));
@@ -118,8 +125,12 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   ctx.onCharacterChange(() => render());
 
+  const ledger = createLedgerPanel(panes.ledger, () => ({ data: data!, price, refinedPerUnit: (ore, p) => refinedUnitValue(ore, yieldOf(ore).value, p, setup.tax) }));
+  const moons = createMoonPanel(panes.moons);
+
   async function render() {
     const pane = panes[tab];
+    if (tab === 'moons') { moons.render(); return; }
     if (!data) {
       pane.innerHTML = loader(tx('Încărcăm datele de minerit și prețurile Jita'));
       try { await ready; } catch (err) { pane.innerHTML = panel({ body: alertBox((err as Error).message) }); return; }
@@ -127,6 +138,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (tab === 'yield') renderYield();
     if (tab === 'refine') renderRefine();
     if (tab === 'ores') renderOres();
+    if (tab === 'ledger') ledger.render();
   }
 
   function fitChoices(): FitChoice[] {

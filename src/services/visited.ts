@@ -401,22 +401,30 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     return { dist, prev, order };
   };
   const fixed = opts.targets ? new Set(opts.targets.filter((id) => id !== start && !visited.has(id) && map.systems.has(id))) : null;
-  const targets = fixed ? [...fixed] : search(start, null, count).order;
+  const targets = fixed ? [...fixed] : search(start, null, Math.max(count * 3, count + 30)).order;
   const nodes = [start, ...targets];
   const want = new Set(nodes);
   const runs = nodes.map((id) => search(id, want, 0));
-  const n = nodes.length;
   const D = nodes.map((_, i) => nodes.map((b, j) => (i === j ? 0 : runs[i].dist.get(b) ?? 1e6)));
   const cost = (i: number, j: number) => (D[i][j] + D[j][i]) / 2;
   const tour: number[] = [0];
   const free = new Set(nodes.map((_, i) => i).slice(1));
-  while (free.size) {
-    const last = tour[tour.length - 1];
-    let best = -1;
-    for (const j of free) if (best < 0 || cost(last, j) < cost(last, best)) best = j;
-    tour.push(best);
+  const goal = fixed ? free.size : Math.min(count, free.size);
+  while (tour.length - 1 < goal) {
+    let best = -1, bestAt = 0, bestCost = Infinity;
+    for (const j of free) {
+      let at = tour.length, c = cost(tour[tour.length - 1], j);
+      for (let p = 1; p < tour.length; p++) {
+        const d = cost(tour[p - 1], j) + cost(j, tour[p]) - cost(tour[p - 1], tour[p]);
+        if (d < c) { c = d; at = p; }
+      }
+      if (c < bestCost - 1e-9 || (Math.abs(c - bestCost) < 1e-9 && cost(0, j) < cost(0, best))) { best = j; bestAt = at; bestCost = c; }
+    }
+    if (best < 0) break;
+    tour.splice(bestAt, 0, best);
     free.delete(best);
   }
+  const n = tour.length;
   const len = (t: number[]) => { let x = 0; for (let i = 1; i < t.length; i++) x += cost(t[i - 1], t[i]); return x; };
   const edge = (t: number[], a: number, b: number) => (b < t.length ? cost(t[a], t[b]) : 0);
   const polish = (t: number[]) => {

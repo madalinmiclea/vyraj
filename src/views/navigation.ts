@@ -12,11 +12,12 @@ import {
   ISOTOPES, POCHVEN_REGION, POCHVEN_FILAMENTS, KRAI_HOMES, KRAI_BORDERS,
   type NavMap, type NavSystem, type JumpShip, type JumpPlan, type PlanMode, type SystemStat, type WormholeLink,
 } from '../services/navigation';
+import { createAnsiblexPanel } from './ansiblex';
 import { tx } from '../i18n';
 import type { SovMapView } from './sovMap';
 import type { VisitedMapView } from './visitedMap';
 
-type Tab = 'jump' | 'visited' | 'pochven' | 'wormholes' | 'sov';
+type Tab = 'jump' | 'visited' | 'pochven' | 'wormholes' | 'sov' | 'ansiblex';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'jump', label: tx('Planificator de salturi') },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'pochven', label: 'Pochven' },
   { id: 'wormholes', label: 'Thera / Turnur' },
   { id: 'sov', label: tx('Suveranitate') },
+  { id: 'ansiblex', label: 'Ansiblex' },
 ];
 
 const TAB_KEY = 'eve-nav:tab';
@@ -58,6 +60,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     <div id="navPochven"></div>
     <div id="navWormholes"></div>
     <div id="navSov"></div>
+    <div id="navAnsiblex"></div>
     <datalist id="navSystems"></datalist>`;
   const panes: Record<Tab, HTMLElement> = {
     jump: el.querySelector<HTMLElement>('#navJump')!,
@@ -65,12 +68,14 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     pochven: el.querySelector<HTMLElement>('#navPochven')!,
     wormholes: el.querySelector<HTMLElement>('#navWormholes')!,
     sov: el.querySelector<HTMLElement>('#navSov')!,
+    ansiblex: el.querySelector<HTMLElement>('#navAnsiblex')!,
   };
+  const ansiblex = createAnsiblexPanel(panes.ansiblex);
   let sovMap: SovMapView | null = null;
   const showSov = () => {
     if (sovMap) { sovMap.show(); return; }
     panes.sov.innerHTML = loader(tx('Încarc harta de suveranitate'));
-    import('./sovMap').then((m) => { sovMap ??= m.createSovMap(panes.sov); sovMap.show(); }).catch((err) => failed(panes.sov, err));
+    import('./sovMap').then((m) => { sovMap ??= m.createSovMap(panes.sov, () => ({ id: ctx.character.characterId, name: ctx.character.name })); sovMap.show(); }).catch((err) => failed(panes.sov, err));
   };
   let visitedMap: VisitedMapView | null = null;
   const showVisited = () => {
@@ -91,6 +96,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     el.classList.toggle('view-map', tab === 'sov' || tab === 'visited');
     if (tab === 'sov') showSov();
     if (tab === 'visited') showVisited();
+    if (tab === 'ansiblex') ansiblex.show();
     if (!loaded.has(tab)) {
       loaded.add(tab);
       if (tab === 'jump') initJump();
