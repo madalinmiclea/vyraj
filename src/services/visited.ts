@@ -407,23 +407,29 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
   const runs = nodes.map((id) => search(id, want, 0));
   const D = nodes.map((_, i) => nodes.map((b, j) => (i === j ? 0 : runs[i].dist.get(b) ?? 1e6)));
   const cost = (i: number, j: number) => (D[i][j] + D[j][i]) / 2;
-  const tour: number[] = [0];
-  const free = new Set(nodes.map((_, i) => i).slice(1));
-  const goal = fixed ? free.size : Math.min(count, free.size);
-  while (tour.length - 1 < goal) {
-    let best = -1, bestAt = 0, bestCost = Infinity;
-    for (const j of free) {
-      let at = tour.length, c = cost(tour[tour.length - 1], j);
-      for (let p = 1; p < tour.length; p++) {
-        const d = cost(tour[p - 1], j) + cost(j, tour[p]) - cost(tour[p - 1], tour[p]);
-        if (d < c) { c = d; at = p; }
+  let seed = 1;
+  const rnd = (m: number) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % m; };
+  const fill = (t: number[], pool: Set<number>, goal: number, noise: boolean) => {
+    while (t.length - 1 < goal) {
+      let best = -1, bestAt = 0, bestCost = Infinity;
+      for (const j of pool) {
+        let at = t.length, c = cost(t[t.length - 1], j);
+        for (let p = 1; p < t.length; p++) {
+          const d = cost(t[p - 1], j) + cost(j, t[p]) - cost(t[p - 1], t[p]);
+          if (d < c) { c = d; at = p; }
+        }
+        if (noise) c += rnd(1000) / 1500;
+        if (c < bestCost - 1e-9 || (Math.abs(c - bestCost) < 1e-9 && cost(0, j) < cost(0, best))) { best = j; bestAt = at; bestCost = c; }
       }
-      if (c < bestCost - 1e-9 || (Math.abs(c - bestCost) < 1e-9 && cost(0, j) < cost(0, best))) { best = j; bestAt = at; bestCost = c; }
+      if (best < 0) break;
+      t.splice(bestAt, 0, best);
+      pool.delete(best);
     }
-    if (best < 0) break;
-    tour.splice(bestAt, 0, best);
-    free.delete(best);
-  }
+    return t;
+  };
+  const all = nodes.map((_, i) => i).slice(1);
+  const goal = fixed ? all.length : Math.min(count, all.length);
+  const tour = fill([0], new Set(all), goal, false);
   const n = tour.length;
   const len = (t: number[]) => { let x = 0; for (let i = 1; i < t.length; i++) x += cost(t[i - 1], t[i]); return x; };
   const edge = (t: number[], a: number, b: number) => (b < t.length ? cost(t[a], t[b]) : 0);
@@ -467,15 +473,21 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
   };
   let best = polish(tour);
   let bestLen = len(best);
-  let seed = 1;
-  const rnd = (m: number) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % m; };
-  for (let it = 0; it < 200 && n > 4; it++) {
-    const t = [...best];
-    for (let kick = 0; kick < 2; kick++) {
+  for (let it = 0; it < 600 && n > 2; it++) {
+    let t = [...best];
+    if (it % 2) {
+      for (let kick = 0; kick < 2; kick++) {
+        const i = 1 + rnd(n - 1);
+        const k = 1 + rnd(n - 1);
+        const [a, b] = i < k ? [i, k] : [k, i];
+        t.splice(a, b - a + 1, ...t.slice(a, b + 1).reverse());
+      }
+    } else {
       const i = 1 + rnd(n - 1);
-      const k = 1 + rnd(n - 1);
-      const [a, b] = i < k ? [i, k] : [k, i];
-      t.splice(a, b - a + 1, ...t.slice(a, b + 1).reverse());
+      t.splice(i, 1 + rnd(Math.min(8, n - i)));
+      const inTour = new Set(t);
+      t = fill(t, new Set(all.filter((j) => !inTour.has(j))), goal, true);
+      if (t.length !== n) continue;
     }
     polish(t);
     const l = len(t);
@@ -502,6 +514,58 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     }
     waypoints.push(id);
     cur = t;
+  }
+  if (!fixed) {
+    const onPath = new Set(path);
+    const pocket = (from: number, j: number): Set<number> | null => {
+      const inP = new Set([j]);
+      const stack = [j];
+      while (stack.length) {
+        const x = stack.pop()!;
+        for (const y of map.gates.get(x) ?? []) {
+          if (y === from || inP.has(y)) continue;
+          const ys = map.systems.get(y);
+          if (!ys || !ok(ys) || !inScope(ys)) continue;
+          if (onPath.has(y)) return null;
+          inP.add(y);
+          if (inP.size > 3) return null;
+          stack.push(y);
+        }
+      }
+      return inP;
+    };
+    for (let i = 0; i < path.length; i++) {
+      const a = path[i];
+      for (const j of map.gates.get(a) ?? []) {
+        const js = map.systems.get(j);
+        if (!js || onPath.has(j) || visited.has(j) || !ok(js) || !inScope(js)) continue;
+        const p = pocket(a, j);
+        if (!p) continue;
+        const walk: number[] = [];
+        const done = new Set<number>();
+        const go = (x: number) => {
+          done.add(x);
+          walk.push(x);
+          for (const y of map.gates.get(x) ?? []) if (p.has(y) && !done.has(y)) { go(y); walk.push(x); }
+        };
+        go(j);
+        walk.push(a);
+        const last = i === path.length - 1;
+        if (last) {
+          walk.pop();
+          while (walk.length > 1 && walk.indexOf(walk[walk.length - 1]) < walk.length - 1) walk.pop();
+        }
+        path.splice(i + 1, 0, ...walk);
+        for (const x of p) onPath.add(x);
+      }
+    }
+    const first = new Set<number>([start]);
+    fresh.length = 0;
+    for (const sys of path) {
+      if (first.has(sys)) continue;
+      first.add(sys);
+      if (!visited.has(sys) && inScope(map.systems.get(sys)!)) fresh.push(sys);
+    }
   }
   const risky = path.filter((id, i) => i > 0 && (isRiskyStop(level, opts.activity?.get(id)) || !allowedFor(level, map.systems.get(id)!)));
   return { path, fresh, waypoints, jumps: path.length - 1, risky };

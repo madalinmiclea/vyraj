@@ -5,25 +5,18 @@ export interface Release { date: string; title: string; lead: string; items: str
 export const CHANGELOG: Release[] = [
   {
     date: '2026-11-04',
-    title: tx('Catastiful flotei și al minei'),
-    lead: tx('Ce ai minat, ce lipsește din hangar și cât te costă fiecare salt, socotite pentru tine.'),
+    title: tx('Vânătoare, minereu și drumuri noi'),
+    lead: tx('Cel mai mare release de până acum: un modul PvE întreg, minerit pe toate caracterele și o hartă care știe pe unde ai fost.'),
     items: [
-      tx('Registru de minerit pe toate caracterele, valorat ca minereu sau ca minerale, plus timer-ele extracțiilor lunare ale corporației.'),
+      tx('Modulul PvE: venitul din bounty, ESS, misiuni și incursiuni cu ISK pe oră, sistemele din jur cu cele mai multe NPC-uri ucise în ultima oră, agenții L1–L5 de lângă tine, ghidul de anomalii și escaladările cu timpul rămas.'),
+      tx('Registru de minerit pe toate caracterele, valorat ca minereu sau ca minerale, cu timer-ele extracțiilor lunare ale corporației.'),
+      tx('Share pe fit: un link scurt trimis direct pe Discord, WhatsApp, Telegram, Messenger sau Reddit, care deschide fitul în Vyraj, gata de modificat.'),
+      tx('Sisteme vizitate: progresul tău prin highsec și k-space, rute spre sisteme noi pe nivel de risc și nava recomandată pentru drum, calculată din skill-urile tale.'),
       tx('Faction Warfare: cine ține fiecare zonă de război, sistemele contestate și clasamentul piloților și corporațiilor.'),
       tx('Ce lipsește: compari o doctrină, un fit sau o listă cu ce ai într-o stație și copiezi Multibuy doar cu restul.'),
-      tx('Profit realizat pe item din tranzacțiile de piață, implanturile și acceleratoarele care îți scurtează planul de skill-uri, skillbook-urile lipsă, taxa Ansiblex față de capitala alianței și sloturile PI libere.'),
-      tx('Harta de suveranitate se poate colora după standings-urile tale, cu un singur buton.'),
-    ],
-  },
-  {
-    date: '2026-11-04',
-    title: tx('Vânătoare într-un singur loc'),
-    lead: tx('Misiunile au devenit PvE, cu tot ce ține de vânătoare la un click distanță.'),
-    items: [
-      tx('Activitate PvE din portofel: bounty, ESS, misiuni, incursiuni și ISK pe oră, plus câte NPC-uri subcapitale, capitale, supercarriere, titani și officers ai distrus.'),
-      tx('Unde faci ratting: sistemele din jurul tău cu cele mai multe NPC-uri distruse în ultima oră și riscul PvP din fiecare.'),
-      tx('Ghid de anomalii pe facțiuni, cu securitatea, nava potrivită și escaladarea DED a fiecăreia, și o listă de escaladări care îți arată cât timp mai ai.'),
-      tx('Agenți de misiuni L1–L5 lângă tine, cu standing-ul necesar și LP-ul tău la corporația lor, plus un ghid de filamente abisale și incursiunile mutate aici din Operațiuni.'),
+      tx('Harta de suveranitate arată și spațiul nul al facțiunilor pirat, Pochven și regiunile Jove, și se colorează după standings-urile tale cu un singur buton.'),
+      tx('Profit realizat pe item, implanturile și acceleratoarele care îți scurtează skill plan-ul, taxa Ansiblex și sloturile PI libere.'),
+      tx('Toate datele vin acum direct din SDE-ul CCP, adresele nu mai au #, iar fiecare caracter se poate deloga complet, cu tot ce ține de el.'),
     ],
   },
   {
