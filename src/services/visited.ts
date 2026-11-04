@@ -26,6 +26,7 @@ export interface ExplorePlan {
   waypoints: number[];
   jumps: number;
   risky: number[];
+  total?: number;
 }
 
 const KEY = 'eve-nav:visited';
@@ -365,7 +366,7 @@ class Heap {
   }
 }
 
-export function planExplore(map: NavMap, start: number, visited: Set<number>, level: RiskLevel, count: number, opts: { region?: number; activity?: Map<number, SystemActivity> } = {}): ExplorePlan {
+export function planExplore(map: NavMap, start: number, visited: Set<number>, level: RiskLevel, count: number, opts: { region?: number; activity?: Map<number, SystemActivity>; targets?: number[] } = {}): ExplorePlan {
   const ok = (s: NavSystem) => isKspace(s) && s.id !== ZARZAKH;
   const inScope = (s: NavSystem) => allowedFor(level, s) && (!opts.region || s.regionId === opts.region);
   const isTarget = (s: NavSystem) => inScope(s) && !visited.has(s.id) && s.id !== start && (level === 'yolo' || !isRiskyStop(level, opts.activity?.get(s.id)));
@@ -400,7 +401,8 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     }
     return { dist, prev, order };
   };
-  const targets = search(start, null, count).order;
+  const fixed = opts.targets ? new Set(opts.targets.filter((id) => id !== start && !visited.has(id) && map.systems.has(id))) : null;
+  const targets = fixed ? [...fixed] : search(start, null, count).order;
   const nodes = [start, ...targets];
   const want = new Set(nodes);
   const runs = nodes.map((id) => search(id, want, 0));
@@ -417,35 +419,60 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
     free.delete(best);
   }
   const len = (t: number[]) => { let x = 0; for (let i = 1; i < t.length; i++) x += cost(t[i - 1], t[i]); return x; };
-  for (let improved = true, guard = 0; improved && guard < 200; guard++) {
-    improved = false;
-    for (let i = 1; i < n - 1; i++) {
-      for (let k = i + 1; k < n; k++) {
-        const before = cost(tour[i - 1], tour[i]) + (k + 1 < n ? cost(tour[k], tour[k + 1]) : 0);
-        const after = cost(tour[i - 1], tour[k]) + (k + 1 < n ? cost(tour[i], tour[k + 1]) : 0);
-        if (after + 1e-9 < before) {
-          tour.splice(i, k - i + 1, ...tour.slice(i, k + 1).reverse());
+  const edge = (t: number[], a: number, b: number) => (b < t.length ? cost(t[a], t[b]) : 0);
+  const polish = (t: number[]) => {
+    for (let improved = true; improved;) {
+      improved = false;
+      for (let i = 1; i < n - 1; i++) {
+        for (let k = i + 1; k < n; k++) {
+          const d = cost(t[i - 1], t[k]) + edge(t, i, k + 1) - cost(t[i - 1], t[i]) - edge(t, k, k + 1);
+          if (d < -1e-9) { t.splice(i, k - i + 1, ...t.slice(i, k + 1).reverse()); improved = true; }
+        }
+      }
+      for (let seg = 1; seg <= 3; seg++) {
+        for (let i = 1; i + seg <= n; i++) {
+          const j = i + seg - 1;
+          const removed = cost(t[i - 1], t[i]) + edge(t, j, j + 1) - edge(t, i - 1, j + 1);
+          let bestD = -1e-9, bestP = -1, bestRev = false;
+          for (let p = 1; p <= n; p++) {
+            if (p >= i && p <= j + 1) continue;
+            const a = t[p - 1];
+            const b = p < n ? t[p] : -1;
+            const ab = b < 0 ? 0 : cost(a, b);
+            for (const rev of [false, true]) {
+              const first = rev ? t[j] : t[i];
+              const last = rev ? t[i] : t[j];
+              const d = cost(a, first) + (b < 0 ? 0 : cost(last, b)) - ab - removed;
+              if (d < bestD) { bestD = d; bestP = p; bestRev = rev; }
+            }
+          }
+          if (bestP < 0) continue;
+          const moved = t.slice(i, j + 1);
+          if (bestRev) moved.reverse();
+          const rest = [...t.slice(0, i), ...t.slice(j + 1)];
+          const at = bestP > j ? bestP - seg : bestP;
+          t.splice(0, n, ...rest.slice(0, at), ...moved, ...rest.slice(at));
           improved = true;
         }
       }
     }
-    for (let i = 1; i < n; i++) {
-      for (let seg = 1; seg <= 3 && i + seg <= n; seg++) {
-        const moved = tour.slice(i, i + seg);
-        const rest = [...tour.slice(0, i), ...tour.slice(i + seg)];
-        const base = len(tour);
-        for (let p = 1; p <= rest.length; p++) {
-          if (p === i) continue;
-          for (const m of [moved, [...moved].reverse()]) {
-            const cand = [...rest.slice(0, p), ...m, ...rest.slice(p)];
-            if (len(cand) + 1e-9 < base) { tour.splice(0, n, ...cand); improved = true; break; }
-          }
-          if (improved) break;
-        }
-        if (improved) break;
-      }
-      if (improved) break;
+    return t;
+  };
+  let best = polish(tour);
+  let bestLen = len(best);
+  let seed = 1;
+  const rnd = (m: number) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % m; };
+  for (let it = 0; it < 200 && n > 4; it++) {
+    const t = [...best];
+    for (let kick = 0; kick < 2; kick++) {
+      const i = 1 + rnd(n - 1);
+      const k = 1 + rnd(n - 1);
+      const [a, b] = i < k ? [i, k] : [k, i];
+      t.splice(a, b - a + 1, ...t.slice(a, b + 1).reverse());
     }
+    polish(t);
+    const l = len(t);
+    if (l + 1e-9 < bestLen) { best = t; bestLen = l; }
   }
   const path: number[] = [start];
   const fresh: number[] = [];
@@ -453,7 +480,7 @@ export function planExplore(map: NavMap, start: number, visited: Set<number>, le
   const seen = new Set(visited);
   seen.add(start);
   let cur = 0;
-  for (const t of tour.slice(1)) {
+  for (const t of best.slice(1)) {
     const id = nodes[t];
     if (seen.has(id)) continue;
     const leg: number[] = [];

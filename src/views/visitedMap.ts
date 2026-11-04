@@ -138,6 +138,17 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     planSet = new Set(steps);
   }
 
+  function replan() {
+    if (!plan || !map || !freshSet.size) return;
+    const start = hereSystem();
+    if (!start) return;
+    const total = plan.total ?? plan.fresh.length;
+    const next = planExplore(map, start.id, new Set(visited.keys()), settings.level, 0, { region: settings.region || undefined, targets: [...freshSet], activity: activity ?? undefined });
+    setPlan({ ...next, total: total - freshSet.size + next.fresh.length });
+    renderSide();
+    star?.redraw();
+  }
+
   function setPlan(next: ExplorePlan | null) {
     plan = next;
     saveJson(PLAN_KEY, next);
@@ -347,7 +358,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (routeBusy) return loader(tx('Calculez ruta'));
       if (!plan) return '';
       if (!plan.fresh.length) return alertBox(tx('Nu am găsit sisteme nevizitate accesibile cu nivelul ales. Schimbă regiunea sau nivelul.'), 'warn');
-      if (!freshSet.size) return `${alertBox(tx('Ai vizitat toate cele {n} sisteme din rută.', { n: plan.fresh.length }), 'ok')}
+      if (!freshSet.size) return `${alertBox(tx('Ai vizitat toate cele {n} sisteme din rută.', { n: plan.total ?? plan.fresh.length }), 'ok')}
         <div class="vis-route-actions">${button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: 'data-vis-track' })}${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}</div>`;
       const names = steps.map((id) => map!.systems.get(id)!.name);
       const risky = plan.risky.filter((id) => planSet.has(id));
@@ -362,7 +373,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         </div>`;
       }).join('');
       return `<div class="history-kpis vis-kpis">
-          <div><span class="label">${tx('Mai sunt')}</span><span class="value accent">${freshSet.size}<span class="dim small"> / ${plan.fresh.length}</span></span></div>
+          <div><span class="label">${tx('Mai sunt')}</span><span class="value accent">${freshSet.size}<span class="dim small"> / ${plan.total ?? plan.fresh.length}</span></span></div>
           <div><span class="label">${tx('Salturi')}</span><span class="value">${steps.length - 1}</span></div>
           <div><span class="label">${tx('Sisteme riscante')}</span><span class="value ${risky.length ? 'warn-text' : ''}">${risky.length}</span></div>
         </div>
@@ -749,6 +760,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (t.closest('[data-vis-track]')) {
         settings.from = '';
         const r = await trackNow();
+        replan();
         toast(r.failed && !r.ok ? tx('EVE nu a răspuns cu locația. Încearcă din nou sau refă login-ul.') : tx('Locația a fost verificată'), r.failed && !r.ok ? 3500 : 1800);
         return;
       }
