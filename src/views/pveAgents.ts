@@ -6,6 +6,7 @@ import { loyaltyPoints } from '../character/esi';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { loadAgents, STANDING_NEEDED, type AgentData, type Division } from '../services/agents';
 import { pveOrigin, originBar, bindOrigin, type Origin } from '../services/pveOrigin';
+import { loadNpcStandings, canReadNpcStandings, socialSkills, corpAccess, type NpcStandings } from '../services/npcStandings';
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
 
@@ -35,6 +36,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
   let map: NavMap | null = null;
   let origin: Origin = { system: null, esi: false, needScope: false };
   const lp = new Map<number, Map<number, number>>();
+  let standings: NpcStandings | null = null;
 
   async function myLp(): Promise<Map<number, number> | null> {
     const c = ctx.character;
@@ -48,6 +50,12 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
     return m;
   }
 
+  async function myStandings(): Promise<NpcStandings | null> {
+    const c = ctx.character;
+    if (loginProblem(c) || !c.characterId || !canReadNpcStandings(c.characterId)) return null;
+    return loadNpcStandings(c.characterId).catch(() => null);
+  }
+
   async function load() {
     if (!visible) return;
     const mine = ++seq;
@@ -57,8 +65,9 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
       data = d;
       map = m;
       origin = await pveOrigin(ctx, m);
-      const points = await myLp();
+      const [points, st] = await Promise.all([myLp(), myStandings()]);
       if (mine !== seq || !visible) return;
+      standings = st;
       render(points);
     } catch (err) {
       if (mine === seq) el.innerHTML = panel({ body: alertBox((err as Error).message, 'danger') });
@@ -94,6 +103,12 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
     }).map((a) => ({ a, sys: m.systems.get(a.system)!, jumps: dist?.get(a.system) ?? null }))
       .sort((x, y) => (x.jumps ?? 0) - (y.jumps ?? 0) || y.a.level - x.a.level || x.a.name.localeCompare(y.a.name));
     const corpCount = new Set(rows.map((r) => r.a.corp)).size;
+    const skills = standings ? socialSkills(ctx.sde, ctx.character) : null;
+    const access = (corp: number, faction: number, id: number, level: number) => {
+      if (!standings || !skills) return '';
+      const acc = corpAccess(standings, skills, corp, faction, id);
+      return `<td class="r">${acc.level >= level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge ${acc.blocked ? 'danger' : 'warn'}">${tx('Nu')}</span>`}</td>`;
+    };
     el.innerHTML = panel({
       title: tx('Agenți de misiuni'),
       count: tx('{n} agenți · {c} corporații', { n: formatInt(rows.length), c: formatInt(corpCount) }),
@@ -110,7 +125,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
           <label class="field"><input class="input sm" id="agSearch" placeholder="${esc(tx('Caută agent, corporație sau sistem'))}" value="${esc(state.q)}" /></label>
         </div>
         <p class="dim small wallet-note">${state.level ? tx('Pentru agenții L{l} ai nevoie de standing efectiv cel puțin {s} la corporația sau facțiunea agentului.', { l: state.level, s: formatNum(STANDING_NEEDED[state.level], 1) }) : tx('Standing necesar: L2 1.0, L3 3.0, L4 5.0, L5 7.0 la corporația sau facțiunea agentului.')}</p>
-        ${rows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th>${tx('Diviziune')}</th><th>${tx('Sistem')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}${points ? `<th class="r">${tx('LP-ul tău')}</th>` : ''}</tr></thead><tbody>
+        ${rows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th>${tx('Diviziune')}</th><th>${tx('Sistem')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}${points ? `<th class="r">${tx('LP-ul tău')}</th>` : ''}${standings ? `<th class="r">${tx('Acces')}</th>` : ''}</tr></thead><tbody>
           ${rows.slice(0, LIMIT).map(({ a, sys, jumps }) => {
             const corp = d.corps.get(a.corp);
             const st = a.station ? d.stations.get(a.station) : null;
@@ -119,7 +134,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
               <td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/corporations/${a.corp}/logo?size=32" alt="" loading="lazy" /><span>${esc(corp?.name ?? '')}</span></span><div class="small dim">${esc(d.factions.get(corp?.faction ?? 0) ?? '')}</div></td>
               <td class="r num">L${a.level}</td><td class="dim">${DIV_NAME[a.division]}</td>
               <td>${esc(sys.name)} <span class="sec ${secClass(sys.sec)}">${displaySec(sys.sec).toFixed(1)}</span><div class="small dim">${esc(m.region(sys))}${st ? ` · ${esc(sys.name)} ${esc(st.where)}` : ` · ${tx('în spațiu')}`}</div></td>
-              ${dist ? `<td class="r num">${jumps}</td>` : ''}${points ? `<td class="r num ${points.get(a.corp) ? '' : 'dim'}">${points.get(a.corp) ? formatInt(points.get(a.corp)!) : '—'}</td>` : ''}</tr>`;
+              ${dist ? `<td class="r num">${jumps}</td>` : ''}${points ? `<td class="r num ${points.get(a.corp) ? '' : 'dim'}">${points.get(a.corp) ? formatInt(points.get(a.corp)!) : '—'}</td>` : ''}${access(a.corp, corp?.faction ?? 0, a.id, a.level)}</tr>`;
           }).join('')}
         </tbody></table></div>${rows.length > LIMIT ? `<p class="dim small">${tx('Se văd primii {n}, cei mai apropiați.', { n: LIMIT })}</p>` : ''}` : `<p class="dim">${tx('Niciun agent nu se potrivește cu filtrele alese.')}</p>`}`,
     });
@@ -165,6 +180,10 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
   ctx.onCharacterChange(() => { if (visible) load(); });
 
   return {
+    focus(corp: number, faction: number, level: number) {
+      Object.assign(state, { corp, faction, level, division: -1 as Div, range: 0, space: 'all' as Space, q: '', special: false, locator: false });
+      save();
+    },
     show() { visible = true; load(); },
     hide() { visible = false; seq++; },
   };

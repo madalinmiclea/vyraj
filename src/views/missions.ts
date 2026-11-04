@@ -7,6 +7,7 @@ import { createIncursionsPanel } from './incursions';
 import { createRattingPanel } from './pveRatting';
 import { createAnomaliesPanel } from './pveAnomalies';
 import { createAgentsPanel } from './pveAgents';
+import { createStandingsPanel } from './pveStandings';
 import { createEscalationsPanel } from './pveEscalations';
 import { createAbyssGuidePanel } from './pveAbyss';
 import { tx, lang } from '../i18n';
@@ -22,7 +23,7 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
+type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'standings' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
 type OwnTool = Exclude<MisTool, 'abyssal' | 'lp'>;
 
 const MIS_TOOLS: { id: MisTool; label: string }[] = [
@@ -31,6 +32,7 @@ const MIS_TOOLS: { id: MisTool; label: string }[] = [
   { id: 'ratting', label: tx('Unde faci ratting') },
   { id: 'anomalies', label: tx('Ghid de anomalii') },
   { id: 'agents', label: tx('Agenți') },
+  { id: 'standings', label: tx('Standing-uri NPC') },
   { id: 'escalations', label: tx('Escaladări') },
   { id: 'abyss', label: tx('Ghid abisal') },
   { id: 'abyssal', label: tx('Jurnal abisal') },
@@ -81,13 +83,15 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     return b;
   };
   const incursionBox = box('incursions');
+  const agents = createAgentsPanel(box('agents'), ctx);
   const incursions = createIncursionsPanel(incursionBox, ctx, { openDoctrine: opts.openDoctrine });
   const own: Record<OwnTool, Tool> = {
     activity: createPveActivityPanel(box('activity'), ctx),
     incursions: { show: () => incursions.show(), hide: () => {} },
     ratting: createRattingPanel(box('ratting'), ctx),
     anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
-    agents: createAgentsPanel(box('agents'), ctx),
+    agents,
+    standings: createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } }),
     escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => missions.filter((m) => sectionOf(m) === 'ded').map((m) => m.name), openMission }),
     abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
   };

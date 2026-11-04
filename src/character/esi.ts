@@ -218,6 +218,10 @@ export function walletBalance(characterId: number): Promise<number> {
   return esi(characterId, `/characters/${characterId}/wallet/`);
 }
 
+export function npcStandings(characterId: number): Promise<{ from_id: number; from_type: 'agent' | 'npc_corp' | 'faction'; standing: number }[]> {
+  return esi(characterId, `/characters/${characterId}/standings/`);
+}
+
 export function loyaltyPoints(characterId: number): Promise<{ corporation_id: number; loyalty_points: number }[]> {
   return esi(characterId, `/characters/${characterId}/loyalty/points/`);
 }

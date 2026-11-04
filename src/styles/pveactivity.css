@@ -39,3 +39,15 @@
 .pve-weather-card { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: var(--bg-inset); border: 1px solid var(--line); }
 .pve-weather-head { display: flex; align-items: center; gap: 4px; }
 .pve-weather-head .row-icon { margin-right: 4px; }
+.std-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+.std-tile { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.std-tile.on { border-color: rgba(var(--accent-rgb), 0.55); }
+.std-tile .label { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.std-tile .value { font-family: var(--font-mono); font-size: 17px; color: var(--text-bright); }
+.std-val.ok { color: var(--ok); }
+.std-val.accent { color: var(--accent-bright); }
+.std-val.warn { color: var(--warn); }
+.std-val.danger { color: var(--danger); }
+.std-val.dim { color: var(--text-dim); }
+.std-group td { padding-top: 10px; font-family: var(--font-display); font-weight: 600; color: var(--text-bright); background: var(--bg-raised); }
+.std-group .row-icon { vertical-align: middle; margin-right: 6px; }
