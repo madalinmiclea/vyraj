@@ -337,7 +337,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       if (!plan) return '';
       if (!plan.fresh.length) return alertBox(tx('Nu am găsit sisteme nevizitate accesibile cu nivelul ales. Schimbă regiunea sau nivelul.'), 'warn');
       if (!freshSet.size) return `${alertBox(tx('Ai vizitat toate cele {n} sisteme din rută.', { n: plan.fresh.length }), 'ok')}
-        <div class="vis-route-actions">${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}</div>`;
+        <div class="vis-route-actions">${button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: 'data-vis-track' })}${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}</div>`;
       const names = steps.map((id) => map!.systems.get(id)!.name);
       const risky = plan.risky.filter((id) => planSet.has(id));
       const rows = steps.map((id, i) => {
@@ -356,6 +356,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
           <div><span class="label">${tx('Sisteme riscante')}</span><span class="value ${risky.length ? 'warn-text' : ''}">${risky.length}</span></div>
         </div>
         <div class="vis-route-actions">
+          ${button(tx('Actualizează'), { iconName: 'refresh', cls: 'sm', attrs: 'data-vis-track' })}
           <a class="btn ghost sm" href="${dotlanRoute(names.length > 60 ? [names[0], ...plan.waypoints.filter((id) => freshSet.has(id)).map((id) => map!.systems.get(id)!.name)] : names)}" target="_blank" rel="noopener noreferrer">${icon('external')}${tx('Deschide în Dotlan')}</a>
           ${button(tx('Copiază sistemele'), { iconName: 'copy', cls: 'ghost sm', attrs: 'data-vis-copy' })}
           ${button(tx('Șterge ruta'), { iconName: 'close', cls: 'ghost sm', attrs: 'data-vis-clear-route' })}
