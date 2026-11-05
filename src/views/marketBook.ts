@@ -1,10 +1,10 @@
-import { windowTitle, loader, alertBox, dataStamp, esc, formatISK, formatInt, compactISK } from '../ui/components';
+import { windowTitle, loader, alertBox, dataStamp, esc, formatISK, shortNum } from '../ui/components';
 import { tx } from '../i18n';
 import { loadJson, saveJson } from '../storage';
 import { JITA_STATION, GLOBAL_PLEX_REGION, isGlobalMarket } from '../services/market';
-import { allHubs } from '../services/intel';
+import { allHubs, fetchPackagedVolumes, type Fees } from '../services/intel';
 import { cachedBook, fetchOrderBook, resolveLocationNames, locationName, isStructure, type BookOrder, type OrderBook } from '../services/orderBook';
-import { loadMap, displaySec, secClass, JOVE_REGIONS, type NavMap, type NavSystem } from '../services/navigation';
+import { loadMap, displaySec, secClass, systemStats, JOVE_REGIONS, type NavMap, type NavSystem, type SystemStat } from '../services/navigation';
 import { storedActiveCharacter, loadStoredCharacters } from '../character/characters';
 import { hasScope } from '../character/sso';
 import { characterLocation } from '../character/esi';
@@ -57,9 +57,12 @@ const matcher = (q: string) => {
   }
 };
 
+interface Flip { from: number; to: number; fromSys: number; toSys: number; units: number; cost: number; profit: number; margin: number; dist: number }
+interface PathInfo { jumps: number; level: 'hi' | 'lo' | 'null'; extra: number; systems: number[] }
+
 const num = (v: string) => (v.trim() === '' ? null : Number(v));
 
-export function createOrderBookPanel(): OrderBookPanel {
+export function createOrderBookPanel(feesOf: () => Fees): OrderBookPanel {
   let host: HTMLElement = document.createElement('div');
   const bound = new WeakSet<HTMLElement>();
   let f: Filters = { ...DEFAULTS, ...loadJson<Partial<Filters>>(FILTER_KEY, {}) };
@@ -73,6 +76,10 @@ export function createOrderBookPanel(): OrderBookPanel {
   let jumps = new Map<number, number>();
   let mine: Set<number> | null = null;
   let mineError = '';
+  let kills: Map<number, SystemStat> | null = null;
+  let killsLoading = false;
+  const volumes = new Map<number, number>();
+  const paths = new Map<string, PathInfo | null>();
   const expanded = { sell: false, buy: false };
   let shown: number[] = [];
   const sort: Record<Side, { key: SortKey; dir: 1 | -1 }> = { sell: { key: 'price', dir: 1 }, buy: { key: 'price', dir: -1 } };
@@ -254,6 +261,179 @@ export function createOrderBookPanel(): OrderBookPanel {
     return sum / (cap - Math.max(0, left));
   }
 
+  function bfs(from: number, to: number, floor: number): number[] | null {
+    if (!map) return null;
+    if (from === to) return [from];
+    const ok = (id: number) => (map!.systems.get(id)?.sec ?? -1) >= floor;
+    if (!ok(from) || !ok(to)) return null;
+    const prev = new Map<number, number>([[from, from]]);
+    let frontier = [from];
+    while (frontier.length) {
+      const next: number[] = [];
+      for (const id of frontier) {
+        for (const n of map.gates.get(id) ?? []) {
+          if (prev.has(n) || !ok(n)) continue;
+          prev.set(n, id);
+          if (n === to) {
+            const path = [to];
+            for (let c = to; c !== from; c = prev.get(c)!) path.push(prev.get(c)!);
+            return path.reverse();
+          }
+          next.push(n);
+        }
+      }
+      frontier = next;
+    }
+    return null;
+  }
+
+  function pathInfo(a: number, b: number): PathInfo | null {
+    const key = `${a}-${b}`;
+    if (paths.has(key)) return paths.get(key)!;
+    const short = bfs(a, b, -10);
+    let info: PathInfo | null = null;
+    if (short) {
+      const hi = bfs(a, b, 0.45);
+      const lo = hi ? null : bfs(a, b, 0.05);
+      const best = hi ?? lo ?? short;
+      info = { jumps: best.length - 1, level: hi ? 'hi' : lo ? 'lo' : 'null', extra: best.length - short.length, systems: best };
+    }
+    paths.set(key, info);
+    return info;
+  }
+
+  const reach = new Map<number, Map<number, number>>();
+  const reachFrom = (sys: number) => reach.get(sys) ?? (reach.size > 400 && reach.clear(), reach.set(sys, map ? map.gateDistances(sys, 60) : new Map()).get(sys)!);
+
+  function covers(b: BookOrder, sys: number, loc: number) {
+    if (b.range === 'station') return b.locationId === loc;
+    if (b.range === 'solarsystem') return b.systemId === sys;
+    if (b.range === 'region') return (map?.systems.get(sys)?.regionId ?? 0) === b.regionId;
+    const d = reachFrom(b.systemId).get(sys);
+    return d != null && d <= Number(b.range);
+  }
+
+  let flipMemo: { key: string; rows: Flip[] } | null = null;
+
+  function flips(list: BookOrder[]): Flip[] {
+    const memo = `${book?.at}:${list.length}:${feesOf().salesTax}:${JSON.stringify(f)}:${typeId}`;
+    if (flipMemo?.key === memo) return flipMemo.rows;
+    const rows = computeFlips(list);
+    flipMemo = { key: memo, rows };
+    return rows;
+  }
+
+  function computeFlips(list: BookOrder[]): Flip[] {
+    const tax = feesOf().salesTax / 100;
+    const sells = new Map<number, BookOrder[]>();
+    const buyList = list.filter((o) => o.buy).sort((a, b) => b.price - a.price);
+    for (const o of list) if (!o.buy) (sells.get(o.locationId) ?? sells.set(o.locationId, []).get(o.locationId)!).push(o);
+    if (!sells.size || !buyList.length) return [];
+    const stationIn = new Map<number, number>();
+    for (const o of book?.orders ?? []) {
+      const cur = stationIn.get(o.systemId);
+      if (cur == null || (isStructure(cur) && !isStructure(o.locationId))) stationIn.set(o.systemId, o.locationId);
+    }
+    const out: Flip[] = [];
+    for (const [from, sl] of sells) {
+      sl.sort((a, b) => a.price - b.price);
+      const sa = sl[0].systemId;
+      const useful = buyList.filter((o) => o.price * (1 - tax) > sl[0].price);
+      if (!useful.length) continue;
+      const dist = reachFrom(sa);
+      const targets = new Map<number, number>([[sa, from]]);
+      for (const b of useful) {
+        targets.set(b.systemId, b.range === 'station' || !targets.has(b.systemId) ? b.locationId : targets.get(b.systemId)!);
+        if (b.range === 'station' || b.range === 'solarsystem') continue;
+        let best: number | null = null;
+        for (const [sys, loc] of stationIn) {
+          if (!covers(b, sys, loc)) continue;
+          const d = dist.get(sys);
+          if (d != null && (best == null || d < (dist.get(best) ?? 1e9))) best = sys;
+        }
+        if (best != null && !targets.has(best)) targets.set(best, stationIn.get(best)!);
+      }
+      for (const [sys, loc] of targets) {
+        const bl = useful.filter((b) => covers(b, sys, loc));
+        if (!bl.length) continue;
+        const sRem = sl.map((o) => o.remain);
+        const bRem = bl.map((o) => o.remain);
+        let i = 0, j = 0, units = 0, cost = 0, revenue = 0;
+        while (i < sl.length && j < bl.length) {
+          const net = bl[j].price * (1 - tax);
+          if (net <= sl[i].price) break;
+          const q = Math.min(sRem[i], bRem[j]);
+          if (q < bl[j].minVolume) { j++; continue; }
+          units += q;
+          cost += q * sl[i].price;
+          revenue += q * net;
+          sRem[i] -= q;
+          bRem[j] -= q;
+          if (!sRem[i]) i++;
+          if (!bRem[j]) j++;
+        }
+        if (units && revenue > cost) out.push({ from, to: loc, fromSys: sa, toSys: sys, units, cost, profit: revenue - cost, margin: ((revenue - cost) / cost) * 100, dist: dist.get(sys) ?? 999 });
+      }
+    }
+    out.sort((a, b) => b.profit - a.profit || a.dist - b.dist);
+    const seen = new Set<string>();
+    return out.filter((r) => {
+      const key = `${r.from}:${r.units}:${Math.round(r.profit)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 50);
+  }
+
+  function flipTable(list: BookOrder[]) {
+    if (global()) return '';
+    const rows = flips(list);
+    const tax = feesOf().salesTax;
+    const head = `<h4 class="sub-head book-side flip">${tx('Cumpără instant → vinde instant')} <span class="dim">· ${tx('după taxa de vânzare de {tax}%', { tax: tax.toFixed(2) })}</span></h4>`;
+    if (!rows.length) return `${head}<p class="dim small">${tx('Nicio diferență de preț care să aducă profit acum.')}</p>`;
+    if (!kills && !killsLoading) {
+      killsLoading = true;
+      systemStats().then((s) => { kills = s.map; renderMain(); }).catch(() => {});
+    }
+    const vol = volumes.get(typeId);
+    if (vol == null && !volumes.has(-typeId)) {
+      volumes.set(-typeId, 0);
+      fetchPackagedVolumes([typeId]).then((m) => { const v = m.get(typeId); if (v != null) { volumes.set(typeId, v); renderMain(); } }).catch(() => {});
+    }
+    const place = (loc: number, sysId: number) => {
+      const sys = map?.systems.get(sysId);
+      const name = locationName(loc) || (isStructure(loc) ? `${sys?.name ?? ''} · ${tx('structură')}` : sys?.name ?? '—');
+      shown.push(loc);
+      return `<td class="book-loc" title="${esc(name)}">${sys ? `<span class="num ${secClass(sys.sec)}">${displaySec(sys.sec).toFixed(1)}</span> ` : ''}${esc(name)}</td>`;
+    };
+    const body = rows.map((r) => {
+      const p = pathInfo(r.fromSys, r.toSys);
+      const start = origin ? jumps.get(r.fromSys) : undefined;
+      let road = '<span class="dim">—</span>';
+      if (p) {
+        const k = kills ? p.systems.reduce((a, id) => a + (kills!.get(id)?.ship ?? 0) + (kills!.get(id)?.pod ?? 0), 0) : null;
+        const label = p.level === 'hi' ? tx('Highsec') : p.level === 'lo' ? 'Low sec' : 'Null sec';
+        const sec = `<span class="${p.level === 'hi' ? 'sec-hi' : p.level === 'lo' ? 'sec-lo' : 'sec-null'}">${label}${p.extra > 0 ? ` +${p.extra}` : ''}</span>`;
+        road = `${sec}${k == null ? '' : ` <span class="${k ? 'neg-text' : 'dim'}">· ${tx('{n} kill-uri/h', { n: k })}</span>`}`;
+      }
+      const jumpsCell = p ? `${p.jumps}${start != null ? ` <span class="dim">(+${start})</span>` : ''}` : '—';
+      return `<tr>
+        ${place(r.from, r.fromSys)}
+        ${place(r.to, r.toSys)}
+        <td class="r num">${shortNum(r.units)}</td>
+        <td class="r num">${shortNum(r.cost, 2)}</td>
+        <td class="r num pos">${shortNum(r.profit, 2)}</td>
+        <td class="r num pos">+${r.margin.toFixed(1)}%</td>
+        <td class="r num" title="${esc(start != null ? tx('În paranteză: salturi de la tine până la start') : '')}">${jumpsCell}</td>
+        <td>${road}</td>
+        <td class="r num">${vol != null ? shortNum(Math.ceil(vol * r.units)) : '—'}</td>
+      </tr>`;
+    }).join('');
+    return `${head}<div class="book-scroll"><table class="table compact book-table"><thead><tr>
+      <th>${tx('Cumpără din')}</th><th>${tx('Vinde în')}</th><th class="r">${tx('Unități')}</th><th class="r">${tx('Investiție')}</th><th class="r">${tx('Profit')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('Salturi')}</th><th>${tx('Drum')}</th><th class="r">m³</th>
+    </tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
   function summary(allSell: BookOrder[], allBuy: BookOrder[]) {
     const s = topAverage([...allSell].sort((a, b) => a.price - b.price));
     const ref = s || Math.max(0, ...allBuy.map((o) => o.price));
@@ -263,17 +443,17 @@ export function createOrderBookPanel(): OrderBookPanel {
     const vol = (l: BookOrder[]) => l.reduce((a, o) => a + o.remain, 0);
     const cell = (label: string, value: string, cls = '') => `<div><span class="label">${label}</span><span class="value ${cls}">${value}</span></div>`;
     return `<div class="history-kpis book-kpis">
-      ${cell(tx('Vânzare medie (5%)'), s ? `${compactISK(s)} ISK` : '—', 'book-sell')}
-      ${cell(tx('Cumpărare medie (5%)'), b ? `${compactISK(b)} ISK` : '—', 'book-buy')}
-      ${cell(tx('Marjă medie'), s && b ? `${compactISK(s - b)} ISK` : '—')}
-      ${cell(tx('Volum vânzare'), formatInt(vol(sell)))}
-      ${cell(tx('Volum cumpărare'), formatInt(vol(buy)))}
+      ${cell(tx('Vânzare medie (5%)'), s ? `${shortNum(s, 2)} ISK` : '—', 'book-sell')}
+      ${cell(tx('Cumpărare medie (5%)'), b ? `${shortNum(b, 2)} ISK` : '—', 'book-buy')}
+      ${cell(tx('Marjă medie'), s && b ? `${shortNum(s - b, 2)} ISK` : '—')}
+      ${cell(tx('Volum vânzare'), shortNum(vol(sell)))}
+      ${cell(tx('Volum cumpărare'), shortNum(vol(buy)))}
     </div>`;
   }
 
   function sideTable(side: Side, orders: BookOrder[]) {
     const title = side === 'sell' ? tx('Vânzători') : tx('Cumpărători');
-    const head = `<h4 class="sub-head book-side ${side}">${title} <span class="dim">· ${tx('{n} ordine', { n: formatInt(orders.length) })}</span></h4>`;
+    const head = `<h4 class="sub-head book-side ${side}">${title} <span class="dim">· ${tx('{n} ordine', { n: shortNum(orders.length) })}</span></h4>`;
     if (!orders.length) return `${head}<p class="dim small">${side === 'sell' ? tx('Niciun ordin de vânzare.') : tx('Niciun ordin de cumpărare.')}</p>`;
     const all = sorted(side, orders);
     const list = expanded[side] ? all : all.slice(0, ROWS);
@@ -290,23 +470,23 @@ export function createOrderBookPanel(): OrderBookPanel {
       const name = locLabel(o);
       return `<tr class="${mine?.has(o.id) ? 'mine' : ''}">
         ${loc ? `<td class="book-region">${esc(regionName(o))}</td>` : ''}
-        <td class="r num">${f.entered ? `${formatInt(o.remain)}<span class="dim">/${formatInt(o.total)}</span>` : formatInt(o.remain)}</td>
-        <td class="r num ${buy ? 'book-buy' : 'book-sell'}">${formatISK(o.price)}</td>
+        <td class="r num">${f.entered ? `${shortNum(o.remain)}<span class="dim">/${shortNum(o.total)}</span>` : shortNum(o.remain)}</td>
+        <td class="r num ${buy ? 'book-buy' : 'book-sell'}" title="${formatISK(o.price)} ISK">${shortNum(o.price, 2)}</td>
         ${loc ? `<td class="book-loc" title="${esc(name)}">${sys ? `<span class="num ${secClass(sys.sec)}">${displaySec(sys.sec).toFixed(1)}</span> ` : ''}${esc(name || '—')}</td>` : ''}
         ${loc ? `<td class="r num">${j == null ? '<span class="dim">—</span>' : j}</td>` : ''}
-        ${buy && loc ? `<td>${rangeLabel(o.range)}</td><td class="r num">${formatInt(o.minVolume)}</td>` : ''}
+        ${buy && loc ? `<td>${rangeLabel(o.range)}</td><td class="r num">${shortNum(o.minVolume)}</td>` : ''}
         <td class="r num">${left(o)}</td>
         <td class="r num dim">${ago(o.issued)}</td>
       </tr>`;
     }).join('');
-    const more = all.length > ROWS ? `<div class="row-actions"><button class="chip-btn" data-book-more="${side}">${expanded[side] ? tx('Arată mai puține') : tx('Arată toate ({n})', { n: formatInt(all.length) })}</button></div>` : '';
+    const more = all.length > ROWS ? `<div class="row-actions"><button class="chip-btn" data-book-more="${side}">${expanded[side] ? tx('Arată mai puține') : tx('Arată toate ({n})', { n: shortNum(all.length) })}</button></div>` : '';
     return `${head}<div class="book-scroll"><table class="table compact book-table"><thead><tr>
       ${loc ? th('region', tx('Regiune')) : ''}
       ${th('qty', tx('Cantitate'), 'r')}
       ${th('price', tx('Preț'), 'r')}
       ${loc ? th('loc', tx('Locație')) : ''}
       ${loc ? th('jumps', tx('Salturi'), 'r') : ''}
-      ${buy && loc ? `${th('range', tx('Rază'))}${th('min', tx('Vol. min'), 'r')}` : ''}
+      ${buy && loc ? `${th('range', tx('Rază vânzare'))}${th('min', tx('Vol. min'), 'r')}` : ''}
       ${th('expires', tx('Expiră în'), 'r')}
       ${th('modified', tx('Ultima modificare'), 'r')}
     </tr></thead><tbody>${rows}</tbody></table></div>${more}`;
@@ -363,7 +543,7 @@ export function createOrderBookPanel(): OrderBookPanel {
       body = `${summary(sell, buy)}
         ${book.failed ? `<p class="dim small">${tx('{n} regiuni nu au răspuns.', { n: book.failed })}</p>` : ''}
         ${f.mineOnly && mineError ? `<p class="dim small">${esc(mineError)}</p>` : ''}
-        ${sideTable('sell', sell)}${sideTable('buy', buy)}`;
+        ${sideTable('sell', sell)}${sideTable('buy', buy)}${flipTable(list)}`;
     }
     el.innerHTML = `<div class="panel-head">${windowTitle(tx('Ordine de piață'), scope)}<div class="panel-actions">${stamp}</div></div><div class="panel-body">${body}</div>`;
     if (book && !progress) names();

@@ -143,6 +143,20 @@ export function compactISK(amount: number) {
   return amount.toFixed(2);
 }
 
+export function shortNum(n: number, small = 0) {
+  const a = Math.abs(n);
+  if (Number(a.toFixed(small)) < 1000) return small ? n.toFixed(small) : formatInt(n);
+  const units = ['k', 'm', 'b', 't'];
+  let v = a;
+  let i = -1;
+  while ((i < 0 || v >= 999.95) && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  const r = Math.round(v * 10) / 10;
+  return `${n < 0 ? '-' : ''}${Number.isInteger(r) ? r : r.toFixed(1)}${units[i]}`;
+}
+
 export function formatInt(n: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
 }

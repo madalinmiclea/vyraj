@@ -11,11 +11,21 @@ import { tx } from '../i18n';
 import { allEveItems } from '../data/items';
 import { fold } from '../ui/fold';
 
+const QUICK = ['PLEX', 'Large Skill Injector', 'Tritanium', 'Drake', 'Gila', 'Multispectrum Energized Membrane II', 'Compressed Veldspar', 'Nanite Repair Paste'];
+const RECENT_KEY = 'eve-market:recent';
 const RANGE_KEY = 'eve-market:history-range';
 const RANGES = [30, 90, 365];
 const HUB_KEY = 'eve-market:hub';
 const HISTORY_MARKET_KEY = 'eve-market:history-market';
 
+
+let nameIndex: Map<string, number> | null = null;
+const typeIdByName = () => nameIndex ?? (allEveItems.length ? (nameIndex = new Map(allEveItems.map((it) => [it.n.trim(), it.t]))) : new Map<string, number>());
+
+const loadRecent = () => loadJson<string[]>(RECENT_KEY, []);
+function saveRecent(name: string) {
+  saveJson(RECENT_KEY, [name, ...loadRecent().filter((n) => n !== name)].slice(0, 16));
+}
 
 export interface MarketView {
   show(itemName: string, knownTypeId?: number | null): Promise<void>;
@@ -49,7 +59,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   let historyMarket = loadJson<string>(HISTORY_MARKET_KEY, 'jita');
   let getFees: () => Fees = () => ({ salesTax: BASE_SALES_TAX, brokerFee: BASE_BROKER_FEE });
   let jitaPrices: Aggregates | null = null;
-  const orderBook = createOrderBookPanel();
+  const orderBook = createOrderBookPanel(() => getFees());
   const loadBook = (typeId: number) => { const el = state.querySelector<HTMLElement>('#bookPanel'); if (el) orderBook.load(el, typeId); };
   const hub = () => allHubs().find((h) => h.id === hubId)!;
   const historyName = () => (current && isGlobalMarket(current.typeId) ? tx('piața globală PLEX') : historyMarket === 'hub' ? hub().name : 'Jita');
@@ -85,9 +95,17 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   });
 
   function renderWelcome() {
+    const recent = loadRecent();
+    const tile = (n: string) => {
+      const t = typeIdByName().get(n);
+      return `<button class="item-tile" data-item="${esc(n)}" title="${esc(n)}">${t ? `<img src="${typeIconUrl(t, 32)}" alt="" loading="lazy" />` : '<span></span>'}<span>${esc(n)}</span></button>`;
+    };
+    const section = (title: string, names: string[]) => names.length ? `<section class="item-tiles-block"><h4 class="window-title">${title}</h4><div class="item-tiles mini">${names.map(tile).join('')}</div></section>` : '';
     state.innerHTML = `<div class="market-welcome">
       <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul de iteme sau caută-l mai sus. Ordinele vin live din toate regiunile.'), 'Pick an item from the item browser or search above. Orders flow live from every region.')}</p></div></div>
       ${alertsBlock()}
+      ${section(tx('Vizitate recent'), recent)}
+      ${section(tx('Populare'), QUICK.filter((n) => !recent.includes(n)))}
     </div>`;
   }
 
@@ -263,6 +281,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
       const p = await fetchJitaAggregates(typeId);
       if (id !== requestId) return;
 
+      saveRecent(name);
       if (p.sellMin === 0 && p.buyMax === 0) {
         state.innerHTML = `
           <section class="panel item-head unlisted">
