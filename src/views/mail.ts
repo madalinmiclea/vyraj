@@ -1,12 +1,13 @@
 import type { AppContext } from '../app/context';
 import { pageHead, panel, loader, alertBox, esc, emptyState, windowTitle, button, toast, openModal, closeModal, confirmDialog, stampTime } from '../ui/components';
 import { icon } from '../ui/icons';
-import { loadJson, saveJson } from '../storage';
+import { loadJson, saveJson, removeKey } from '../storage';
+import { loadMailMeta, saveMailMeta, loadMailBody, saveMailBody, dropMailBody, cachedMailIds } from '../services/mailCache';
 import { loginProblem } from '../character/sso';
 import { permissionGate, hasPermission } from '../character/permissions';
 import { portraitUrl } from '../character/esi';
 import {
-  listMail, readMail, updateMail, deleteMail, createLabel, deleteLabel, sendMail, lookupRecipients, cachedGet, mailPath, mailNames, cachedMailName,
+  listMail, readMail, mailBudgetLow, updateMail, deleteMail, createLabel, deleteLabel, sendMail, lookupRecipients, cachedGet, mailPath, mailNames, cachedMailName,
   mailHtml, mailText, bodyFromText, canRead, canOrganize, canSend,
   LABEL_INBOX, LABEL_SENT, LABEL_CORP, LABEL_ALLIANCE, LABEL_COLORS,
   type MailHeader, type MailBody, type MailLabel, type MailLabels, type MailingList, type MailRecipient, type Fresh,
@@ -35,10 +36,10 @@ interface Compose { to: string; list: number; subject: string; body: string }
 
 interface FolderCache { first?: Fresh<MailHeader[]>; older: MailHeader[]; more: boolean }
 
-interface Store { labels?: Fresh<MailLabels>; lists?: Fresh<MailingList[]>; folders: Record<string, FolderCache>; bodies: Record<string, MailBody> }
+interface Store { labels?: Fresh<MailLabels>; lists?: Fresh<MailingList[]>; folders: Record<string, FolderCache> }
 
-const CACHE_KEY = (id: number) => `eve-mail:cache:${id}`;
-const MAX_BODIES = 300;
+const LEGACY_KEY = (id: number) => `eve-mail:cache:${id}`;
+const PREFETCH_WORKERS = 2;
 
 const folderKey = (f: Folder) => (f.kind === 'label' ? `label:${f.id}` : 'all');
 
@@ -49,14 +50,12 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
   let lists: MailingList[] = [];
   let headers: MailHeader[] = [];
   let more = false;
-  let store: Store = { folders: {}, bodies: {} };
+  let store: Store = { folders: {} };
   let names = new Map<number, string>();
-  const bodies = {
-    get: (id: number): MailBody | undefined => store.bodies[id],
-    has: (id: number) => id in store.bodies,
-    set: (id: number, b: MailBody) => { store.bodies[id] = b; persist(); },
-    delete: (id: number) => { delete store.bodies[id]; },
-  };
+  let mem = new Map<number, MailBody>();
+  let known = new Set<number>();
+  const inflight = new Map<number, { p: Promise<MailBody>; urgent: boolean }>();
+  const bodies = { get: (id: number): MailBody | undefined => mem.get(id) };
   let selected: number | null = null;
   let loading = false;
   let error = '';
@@ -162,11 +161,38 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
 
   function persist() {
     if (!owner) return;
-    const ids = Object.keys(store.bodies).map(Number).sort((x, y) => y - x);
-    for (const id of ids.slice(MAX_BODIES)) delete store.bodies[id];
-    if (saveJson(CACHE_KEY(owner), store)) return;
-    for (const id of ids.slice(50)) delete store.bodies[id];
-    saveJson(CACHE_KEY(owner), store);
+    saveMailMeta(owner, { labels: store.labels, lists: store.lists, folders: store.folders });
+  }
+
+  function fetchBody(id: number, urgent: boolean): Promise<MailBody> {
+    const hit = mem.get(id);
+    if (hit) return Promise.resolve(hit);
+    const running = inflight.get(id);
+    if (running && (running.urgent || !urgent)) return running.p;
+    const who = owner;
+    const p = (async () => {
+      const stored = known.has(id) ? await loadMailBody<MailBody>(who, id) : undefined;
+      const b = stored ?? (await readMail(who, id, urgent));
+      if (who === owner) { mem.set(id, b); known.add(id); }
+      if (!stored) saveMailBody(who, id, b);
+      return b;
+    })().finally(() => { if (inflight.get(id)?.p === p) inflight.delete(id); });
+    inflight.set(id, { p, urgent });
+    return p;
+  }
+
+  async function prefetch() {
+    const t = token;
+    const who = owner;
+    if (!who) return;
+    const todo = headers.slice(0, PAGE).map((h) => h.mail_id).filter((id) => !known.has(id) && !mem.has(id) && !inflight.has(id));
+    const worker = async () => {
+      while (todo.length && t === token) {
+        if (await mailBudgetLow(who).catch(() => true)) return;
+        await fetchBody(todo.shift()!, false).catch(() => undefined);
+      }
+    };
+    await Promise.all(Array.from({ length: PREFETCH_WORKERS }, worker));
   }
 
   const folderCache = (f: Folder = ui.folder) => (store.folders[folderKey(f)] ??= { older: [], more: false });
@@ -192,8 +218,8 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
 
   function patch(id: number, change: Partial<MailHeader>) {
     for (const fc of Object.values(store.folders)) for (const h of [...(fc.first?.data ?? []), ...fc.older]) if (h.mail_id === id) Object.assign(h, change);
-    const b = store.bodies[id];
-    if (b && change.labels) b.labels = change.labels;
+    const b = mem.get(id);
+    if (b && change.labels) { b.labels = change.labels; saveMailBody(owner, id, b); }
     persist();
   }
 
@@ -202,7 +228,9 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
       if (fc.first) fc.first.data = fc.first.data.filter((h) => h.mail_id !== id);
       fc.older = fc.older.filter((h) => h.mail_id !== id);
     }
-    delete store.bodies[id];
+    mem.delete(id);
+    known.delete(id);
+    dropMailBody(owner, id);
     persist();
   }
 
@@ -248,7 +276,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     } catch (err) {
       if (t === token && !cached) error = (err as Error).message;
     } finally {
-      if (t === token) { loading = false; render(); fillNames(headers); }
+      if (t === token) { loading = false; render(); fillNames(headers); prefetch(); }
     }
   }
 
@@ -273,13 +301,38 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     }
   }
 
+  async function restore(t: number) {
+    const legacy = loadJson<(Store & { bodies?: Record<string, MailBody> }) | null>(LEGACY_KEY(owner), null);
+    const saved = await loadMailMeta<Store>(owner);
+    if (t !== token) return;
+    if (saved) store = saved;
+    else if (legacy) store = { labels: legacy.labels, lists: legacy.lists, folders: legacy.folders ?? {} };
+    store.folders ??= {};
+    if (legacy) {
+      for (const [k, b] of Object.entries(legacy.bodies ?? {})) {
+        const id = Number(k);
+        mem.set(id, b);
+        known.add(id);
+        saveMailBody(owner, id, b);
+      }
+      persist();
+      removeKey(LEGACY_KEY(owner));
+    }
+    const ids = await cachedMailIds(owner);
+    if (t !== token) return;
+    for (const id of ids) known.add(id);
+  }
+
   async function start() {
-    token++;
+    const t = ++token;
     const c = ctx.character;
     owner = c.kind === 'esi' && c.characterId && !loginProblem({ kind: c.kind, characterId: c.characterId, name: c.name }) && canRead(c.characterId) ? c.characterId : 0;
-    store = owner ? loadJson<Store>(CACHE_KEY(owner), { folders: {}, bodies: {} }) : { folders: {}, bodies: {} };
-    store.folders ??= {};
-    store.bodies ??= {};
+    store = { folders: {} };
+    mem = new Map();
+    known = new Set();
+    inflight.clear();
+    if (owner) await restore(t);
+    if (t !== token) return;
     names = new Map();
     selected = null;
     error = '';
@@ -302,11 +355,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     render();
     const h = headers.find((x) => x.mail_id === id);
     try {
-      if (!bodies.has(id)) {
-        const b = await readMail(owner, id);
-        bodies.set(id, b);
-        fillNames([b]);
-      }
+      if (!mem.has(id)) fillNames([await fetchBody(id, true)]);
       if (selected !== id) return;
       render();
       if (h && !h.is_read && canOrganize(owner)) {

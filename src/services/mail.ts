@@ -1,5 +1,5 @@
 import { accessToken, hasScope } from '../character/sso';
-import { ESI, esiFetch } from './esiClient';
+import { ESI, esiFetch, rateLow } from './esiClient';
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 
@@ -48,12 +48,12 @@ export const canRead = (characterId: number) => hasScope(characterId, MAIL_READ_
 export const canOrganize = (characterId: number) => hasScope(characterId, MAIL_ORGANIZE_SCOPE);
 export const canSend = (characterId: number) => hasScope(characterId, MAIL_SEND_SCOPE);
 
-async function call<T>(characterId: number, path: string, init: RequestInit = {}): Promise<T> {
+async function call<T>(characterId: number, path: string, init: RequestInit = {}, urgent = true): Promise<T> {
   const token = await accessToken(characterId);
   const res = await esiFetch(`${ESI}/characters/${characterId}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers ?? {}) },
-  });
+  }, { urgent });
   if (!res.ok) {
     const text = await res.text();
     if (res.status === 520 && /cspa/i.test(text)) throw new Error(tx('Destinatarul cere taxă CSPA pentru mailuri. Trimite-l din joc dacă vrei să plătești taxa.'));
@@ -74,7 +74,7 @@ export async function cachedGet<T>(characterId: number, path: string, prev?: Fre
   const token = await accessToken(characterId);
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
   if (prev?.etag) headers['If-None-Match'] = prev.etag;
-  const res = await esiFetch(`${ESI}/characters/${characterId}${path}`, { headers });
+  const res = await esiFetch(`${ESI}/characters/${characterId}${path}`, { headers }, { urgent: true });
   const expires = Date.parse(res.headers.get('expires') ?? '') || Date.now() + DEFAULT_TTL;
   if (res.status === 304 && prev) return { entry: { ...prev, expires }, changed: false };
   if (!res.ok) {
@@ -96,7 +96,12 @@ export function mailPath({ labels, lastMailId }: { labels?: number[]; lastMailId
 
 export const listMail = (characterId: number, opts: { labels?: number[]; lastMailId?: number } = {}) => call<MailHeader[]>(characterId, mailPath(opts));
 
-export const readMail = (characterId: number, mailId: number) => call<MailBody>(characterId, `/mail/${mailId}/`);
+export const readMail = (characterId: number, mailId: number, urgent = true) => call<MailBody>(characterId, `/mail/${mailId}/`, {}, urgent);
+
+export async function mailBudgetLow(characterId: number): Promise<boolean> {
+  const token = await accessToken(characterId);
+  return rateLow(`${ESI}/characters/${characterId}/mail/1/`, { headers: { Authorization: `Bearer ${token}` } });
+}
 
 export const updateMail = (characterId: number, mailId: number, change: { read?: boolean; labels?: number[] }) =>
   call<void>(characterId, `/mail/${mailId}/`, { method: 'PUT', body: JSON.stringify(change) });
@@ -131,7 +136,7 @@ const nameCache = new Map<number, string>(Object.entries(loadJson<Record<string,
 const nameMisses = new Set<number>();
 
 async function namesBatch(ids: number[]): Promise<void> {
-  const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) }).catch(() => null);
+  const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) }, { urgent: true }).catch(() => null);
   if (res?.ok) {
     for (const x of (await res.json()) as { id: number; name: string }[]) nameCache.set(x.id, x.name);
     return;

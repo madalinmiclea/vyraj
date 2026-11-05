@@ -22,13 +22,34 @@ const USER_AGENT = `Vyraj/${__APP_VERSION__} (+https://github.com/madalinmiclea/
 
 const routeKey = (url: URL) => `${url.pathname.replace(/\/\d+(?=\/|$)/g, '/#').replace(/\/$/, '')}`;
 
-async function acquire() {
+async function acquire(urgent = false) {
   if (active < MAX_CONCURRENT) {
     active++;
     return;
   }
-  await new Promise<void>((resolve) => queue.push(resolve));
+  await new Promise<void>((resolve) => (urgent ? queue.unshift(resolve) : queue.push(resolve)));
 }
+
+const subjects = new Map<string, string>();
+
+function subjectOf(init?: RequestInit): string {
+  const auth = new Headers(init?.headers).get('authorization');
+  if (!auth) return '';
+  let who = subjects.get(auth);
+  if (who == null) {
+    try {
+      const part = auth.replace(/^Bearer\s+/i, '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      who = String((JSON.parse(atob(part)) as { sub?: string }).sub ?? '');
+    } catch {
+      who = auth.slice(-16);
+    }
+    if (subjects.size > 50) subjects.clear();
+    subjects.set(auth, who);
+  }
+  return who;
+}
+
+const bucketKey = (group: string, who: string) => `${group}|${who}`;
 
 function release() {
   const next = queue.shift();
@@ -43,7 +64,7 @@ function parseWindow(limit: string): { tokens: number; ms: number } | null {
   return { tokens: Number(m[1]), ms: Number(m[2]) * unit };
 }
 
-function noteLimits(res: Response, key: string) {
+function noteLimits(res: Response, key: string, who: string) {
   const remain = Number(res.headers.get('x-esi-error-limit-remain'));
   const reset = Number(res.headers.get('x-esi-error-limit-reset'));
   if (res.headers.has('x-esi-error-limit-remain') && remain < ERROR_FLOOR && reset > 0) pausedUntil = Math.max(pausedUntil, Date.now() + reset * 1000);
@@ -51,13 +72,21 @@ function noteLimits(res: Response, key: string) {
   const window = parseWindow(res.headers.get('x-ratelimit-limit') ?? '');
   if (!group || !window) return;
   groupOf.set(key, group);
-  const previous = buckets.get(group);
-  buckets.set(group, { remaining: Number(res.headers.get('x-ratelimit-remaining')) || 0, limit: window.tokens, windowMs: window.ms, nextAt: previous?.nextAt ?? 0 });
+  const raw = res.headers.get('x-ratelimit-remaining');
+  const remaining = raw == null || raw === '' ? NaN : Number(raw);
+  if (!Number.isFinite(remaining)) return;
+  const id = bucketKey(group, who);
+  const previous = buckets.get(id);
+  buckets.set(id, { remaining, limit: window.tokens, windowMs: window.ms, nextAt: previous?.nextAt ?? 0 });
 }
 
-async function pace(key: string) {
+function bucketFor(key: string, who: string): Bucket | undefined {
   const group = groupOf.get(key);
-  const bucket = group ? buckets.get(group) : undefined;
+  return group ? buckets.get(bucketKey(group, who)) : undefined;
+}
+
+async function pace(key: string, who: string) {
+  const bucket = bucketFor(key, who);
   if (!bucket || bucket.remaining > bucket.limit * RATE_FLOOR) return;
   const step = bucket.windowMs / Math.max(1, bucket.limit / 2);
   const at = Math.max(Date.now(), bucket.nextAt);
@@ -81,18 +110,27 @@ function prepare(input: string, init?: RequestInit): [string, RequestInit | unde
   return [url.href, { ...init, headers }];
 }
 
-export async function esiFetch(input: string, init?: RequestInit): Promise<Response> {
+const keyOf = (target: string, options?: RequestInit) => (new URL(target).origin === ESI ? `${(options?.method ?? 'GET').toUpperCase()} ${routeKey(new URL(target))}` : '');
+
+export function rateLow(input: string, init?: RequestInit, fraction = 0.4): boolean {
+  const [target, options] = prepare(input, init);
+  const bucket = bucketFor(keyOf(target, options), subjectOf(options));
+  return !!bucket && bucket.remaining < bucket.limit * fraction;
+}
+
+export async function esiFetch(input: string, init?: RequestInit, { urgent = false }: { urgent?: boolean } = {}): Promise<Response> {
   if (isDemo()) {
     const demo = await (await import('../demo/fixtures')).demoResponse(input, init);
     if (demo) return demo;
   }
   const [target, options] = prepare(input, init);
-  const key = new URL(target).origin === ESI ? `${(options?.method ?? 'GET').toUpperCase()} ${routeKey(new URL(target))}` : '';
+  const key = keyOf(target, options);
+  const who = key ? subjectOf(options) : '';
   for (let attempt = 0; ; attempt++) {
     const wait = pausedUntil - Date.now();
     if (wait > 0) await sleep(wait);
-    if (key) await pace(key);
-    await acquire();
+    if (key) await pace(key, who);
+    await acquire(urgent);
     let res: Response | null = null;
     let failure: unknown = null;
     try {
@@ -102,7 +140,7 @@ export async function esiFetch(input: string, init?: RequestInit): Promise<Respo
     } finally {
       release();
     }
-    if (res && key) noteLimits(res, key);
+    if (res && key) noteLimits(res, key, who);
     const retryable = !res || res.status === 420 || res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
     if (!retryable || attempt >= MAX_RETRIES) {
       if (res) return res;

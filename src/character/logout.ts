@@ -11,10 +11,11 @@ import { loadColonies, saveColonies } from '../services/pi';
 import { clearVisits } from '../services/visited';
 import { forgetCharacterNotices } from '../services/notices';
 import { forgetEscalations } from '../services/escalations';
+import { forgetMail } from '../services/mailCache';
 
 const FLASH_KEY = 'vyraj:flash';
 
-function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
+async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   const before = loadJson<{ chars: Record<string, string>; omega: Record<string, string> }>('eve-fit:roster-accounts', { chars: {}, omega: {} });
   const account = before.chars[c.id] || c.id;
   forgetPlan(c.id);
@@ -24,6 +25,7 @@ function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   const id = c.characterId;
   forgetWallet(id);
   removeKey(`eve-mail:cache:${id}`);
+  await forgetMail(id);
   const colonies = loadColonies();
   if (colonies[id]) { delete colonies[id]; saveColonies(colonies); }
   clearVisits(c.name);
@@ -56,7 +58,7 @@ export async function logoutCharacter(id: string): Promise<boolean> {
   if (!ok) return false;
   const lastOfId = !stored.some((x) => x.id !== c.id && x.characterId === c.characterId);
   if (esi && lastOfId) { if (isDemo()) forgetTokens(c.characterId!); else await revokeTokens(c.characterId!); }
-  forgetCharacterData(c, lastOfId);
+  await forgetCharacterData(c, lastOfId);
   removeStoredCharacter(c.id);
   const wasActive = getActiveCharacterId() === c.id;
   if (wasActive) {
