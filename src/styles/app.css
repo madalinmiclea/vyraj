@@ -646,7 +646,7 @@ td thead th { top: 30px; z-index: 1; }
 .book-main .book-side.sell { color: var(--sell); }
 .book-main .book-side.buy { color: var(--buy); }
 .book-main .book-side .dim { font-weight: 400; }
-.book-scroll { max-height: 460px; overflow: auto; border: 1px solid var(--line); }
+.book-scroll { max-height: 232px; overflow: auto; border: 1px solid var(--line); }
 .book-scroll .table.compact { margin-top: 0; }
 .book-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .book-table th.sortable:hover, .book-table th.on { color: var(--text-bright); }

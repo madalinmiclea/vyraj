@@ -4,7 +4,7 @@ const LORE_RO: Record<string, string> = {
   'Weaving the Flow…': 'Se țese Curgerea…',
   'Every path of the Flow, woven into one': 'Toate cărările Curgerii, țesute într-una singură',
   'Choose What the Conduit Weighs': 'Alege ce va cântări Conduitul',
-  'Pick an item from the item browser or search above. Prices flow live from the Jita 4-4 orders.': 'Alege-ți lucrul din vistieria de iteme ori caută-l mai sus. Prețurile curg nestăvilite din tocmelile Jitei 4-4.',
+  'Pick an item from the item browser or search above. Orders flow live from every region.': 'Alege-ți lucrul din vistieria de iteme ori caută-l mai sus. Tocmelile curg nestăvilite din toate ținuturile.',
   'The Conduit Is Silent': 'Conduitul tace',
   'This item exists, but no order flows for it in Jita right now (common for officer modules and rare items). Return later; prices refresh with every search.': 'Lucrul acesta ființează, dar nicio tocmeală nu curge pentru el în Jita într-acest ceas (precum se întâmplă la modulele de ofițer și la cele rare). Întoarce-te mai apoi; prețurile se înnoiesc la fiecare căutare.',
   'Choose the Form to Master': 'Alege chipul ce se cuvine stăpânit',

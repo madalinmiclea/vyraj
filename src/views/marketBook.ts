@@ -13,7 +13,7 @@ import { characterOrders, ORDERS_SCOPE } from '../services/orders';
 const FILTER_KEY = 'eve-market:book-filters';
 const ORIGIN_KEY = 'eve-market:origin';
 const LOCATION_SCOPE = 'esi-location.read_location.v1';
-const ROWS = 200;
+const ROWS = 500;
 
 interface Filters {
   priceOn: boolean; priceMin: string; priceMax: string;
@@ -42,6 +42,7 @@ type SortKey = 'region' | 'qty' | 'price' | 'loc' | 'jumps' | 'range' | 'min' | 
 
 export interface OrderBookPanel {
   load(host: HTMLElement, typeId: number): void;
+  prefetch(typeId: number): void;
 }
 
 const matcher = (q: string) => {
@@ -77,7 +78,8 @@ export function createOrderBookPanel(): OrderBookPanel {
   const sort: Record<Side, { key: SortKey; dir: 1 | -1 }> = { sell: { key: 'price', dir: 1 }, buy: { key: 'price', dir: -1 } };
 
   const global = () => isGlobalMarket(typeId);
-  const regions = () => (global() || !map ? [GLOBAL_PLEX_REGION] : [...map.regions.keys()].filter((id) => id < 11000000 && !JOVE_REGIONS.has(id)));
+  const regionsFor = (t: number) => (isGlobalMarket(t) || !map ? [GLOBAL_PLEX_REGION] : [...map.regions.keys()].filter((id) => id < 11000000 && !JOVE_REGIONS.has(id)));
+  const regions = () => regionsFor(typeId);
   const hubStations = () => new Set([JITA_STATION, ...allHubs().map((h) => h.station)]);
   const saveFilters = () => saveJson(FILTER_KEY, f);
   const main = () => host.querySelector<HTMLElement>('.book-main');
@@ -349,11 +351,11 @@ export function createOrderBookPanel(): OrderBookPanel {
   function renderMain() {
     const el = main();
     if (!el) return;
-    const stamp = book && !progress ? dataStamp(book.at, 'data-book-refresh', { label: tx('Ordine din {time}'), title: tx('Click pentru a citi din nou ordinele.') }) : '';
+    const stamp = book && !progress ? dataStamp(book.at, 'data-book-refresh', { label: tx('Ordine din {time}'), title: tx('Click pentru a citi din nou ordinele.') }) : progress ? `<span class="dim small book-progress">${tx('{done}/{total} regiuni', { done: progress.done, total: progress.total })}</span>` : '';
     const scope = global() ? tx('Piața globală PLEX') : tx('Toate regiunile');
     let body = '';
     shown = [];
-    if (progress) body = loader(tx('Încarc ordinele {done}/{total} regiuni', { done: progress.done, total: progress.total }));
+    if (progress && !book) body = loader(tx('Încarc ordinele {done}/{total} regiuni', { done: progress.done, total: progress.total }));
     else if (error) body = alertBox(error);
     else if (book) {
       const list = filtered();
@@ -393,13 +395,22 @@ export function createOrderBookPanel(): OrderBookPanel {
     const hit = fresh ? null : cachedBook(typeId, list);
     if (hit) { book = hit; progress = null; renderMain(); return; }
     progress = { done: 0, total: list.length };
+    book = null;
     renderMain();
+    let last = 0;
     try {
-      const b = await fetchOrderBook(typeId, list, (done) => {
+      const b = await fetchOrderBook(typeId, list, (done, partial) => {
         if (id !== request || !progress) return;
         progress.done = done;
-        const p = host.querySelector('.book-main .scan p');
-        if (p) p.textContent = tx('Încarc ordinele {done}/{total} regiuni', { done, total: list.length });
+        const now = Date.now();
+        if (partial.orders.length && (!book || now - last > 400)) {
+          last = now;
+          book = partial;
+          renderMain();
+          return;
+        }
+        const p = host.querySelector('.book-main .scan p, .book-progress');
+        if (p) p.textContent = book ? tx('{done}/{total} regiuni', { done, total: list.length }) : tx('Încarc ordinele {done}/{total} regiuni', { done, total: list.length });
       });
       if (id !== request) return;
       book = b;
@@ -413,6 +424,11 @@ export function createOrderBookPanel(): OrderBookPanel {
   }
 
   return {
+    async prefetch(t: number) {
+      if (!map) map = await loadMap().catch(() => null);
+      if (!map && !isGlobalMarket(t)) return;
+      if (!cachedBook(t, regionsFor(t))) fetchOrderBook(t, regionsFor(t), () => {}).catch(() => {});
+    },
     async load(el: HTMLElement, t: number) {
       host = el;
       bind(el);

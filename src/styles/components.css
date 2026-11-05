@@ -222,34 +222,6 @@
 .item-head .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .item-head .actions { margin-left: auto; display: flex; gap: 8px; }
 
-.spread {
-  margin-top: var(--gap);
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 20px 22px;
-  background:
-    linear-gradient(100deg, rgba(217, 165, 74, 0.12), transparent 55%),
-    var(--bg-panel);
-  border-color: rgba(217, 165, 74, 0.35);
-}
-.spread .label { font-size: 13px; color: var(--gold); font-family: var(--font-body); font-weight: 600; }
-.spread .amount { margin-top: 6px; font-family: var(--font-mono); font-size: 29px; font-weight: 600; color: var(--text-bright); text-shadow: 0 0 18px var(--gold-glow); }
-.spread .pct {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 21px;
-  font-weight: 600;
-  padding: 10px 16px;
-  color: var(--gold);
-  border: 1px solid rgba(217, 165, 74, 0.4);
-  background: rgba(217, 165, 74, 0.08);
-}
-.spread .pct.neg { color: var(--buy); border-color: rgba(232, 100, 79, 0.4); background: rgba(232, 100, 79, 0.08); }
-.spread-gauge { flex: 1; max-width: 320px; }
-.spread-gauge .track { position: relative; height: 6px; background: var(--bg-inset); border: 1px solid var(--line); }
-.spread-gauge .fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--buy), var(--gold), var(--sell)); }
-.spread-gauge .ticks { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 .kv > div { padding: 12px 16px; border-right: 1px solid var(--line); }

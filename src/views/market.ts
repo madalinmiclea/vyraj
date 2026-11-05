@@ -3,7 +3,7 @@ import { pageHead, searchField, statCard, loader, alertBox, badge, button, esc, 
 import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
 import { openHubModal } from './hubModal';
 import { createOrderBookPanel } from './marketBook';
-import { allHubs, fetchHubPrices, orderFlip, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
+import { allHubs, fetchHubPrices, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { addAlert, loadAlerts, hit } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
@@ -27,7 +27,7 @@ export interface MarketView {
 
 export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: string) => void }): MarketView {
   el.innerHTML = `
-    ${pageHead(tx('Piață'), tx('Prețuri live, istoric și comparație între hub-uri pentru orice item'), 'Conduit', { hub: true })}
+    ${pageHead(tx('Piață'), tx('Ordine din toate regiunile, istoric și hub-uri pentru orice item'), 'Conduit')}
     <div style="margin-bottom: 22px">
       ${searchField({ id: 'searchInput', placeholder: tx('Caută'), large: true, hint: 'Enter' })}
     </div>
@@ -86,7 +86,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
 
   function renderWelcome() {
     state.innerHTML = `<div class="market-welcome">
-      <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul de iteme sau caută-l mai sus. Prețurile vin live din ordinele din Jita 4-4.'), 'Pick an item from the item browser or search above. Prices flow live from the Jita 4-4 orders.')}</p></div></div>
+      <div class="market-welcome-head">${icon('market')}<div><h3>${lore(tx('Selectează o țintă'), 'Choose What the Conduit Weighs')}</h3><p>${lore(tx('Alege un item din browserul de iteme sau caută-l mai sus. Ordinele vin live din toate regiunile.'), 'Pick an item from the item browser or search above. Orders flow live from every region.')}</p></div></div>
       ${alertsBlock()}
     </div>`;
   }
@@ -259,6 +259,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
 
     try {
       const { typeId, name } = knownTypeId ? { typeId: knownTypeId, name: itemName } : await resolveType(itemName);
+      orderBook.prefetch(typeId);
       const p = await fetchJitaAggregates(typeId);
       if (id !== requestId) return;
 
@@ -281,24 +282,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
         return;
       }
 
-      const fees = getFees();
-      const flip = orderFlip(p.buyMax, p.sellMin, fees);
-      const pct = flip.margin;
       lastPrices = { sell: p.sellMin > 0 ? p.sellMin.toFixed(2) : '', buy: p.buyMax > 0 ? p.buyMax.toFixed(2) : '', median: p.sellMedian > 0 ? p.sellMedian.toFixed(2) : '' };
-      const spreadHtml = flip.valid
-        ? `<section class="panel spread">
-          <div>
-            <div class="label">${tx('Profit cumpărare → vânzare după taxe (ordin de cumpărare, apoi ordin de vânzare)')}</div>
-            <div class="amount ${flip.unit < 0 ? 'neg-text' : ''}" id="spreadAmount">${formatISK(flip.unit)} <small class="dim" style="font-size:15px">ISK</small></div>
-            <div class="dim small">${tx('Cumpăr la cumpărarea maximă + broker {b}% → vând la vânzarea minimă − broker {b}% − taxă {t}%. Marja e raportată la costul de cumpărare.', { b: fees.brokerFee.toFixed(2), t: fees.salesTax.toFixed(2) })}</div>
-          </div>
-          <div class="spread-gauge">
-            <div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, pct * 2))}%"></div></div>
-            <div class="ticks"><span>0%</span><span>25%</span><span>50%+</span></div>
-          </div>
-          <div class="pct ${pct < 0 ? 'neg' : ''}" id="spreadPercent">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
-        </section>`
-        : `<section class="panel spread"><div><div class="label">${tx('Profit cumpărare → vânzare după taxe (ordin de cumpărare, apoi ordin de vânzare)')}</div><div class="dim">${p.sellMin > 0 ? tx('Nu există ordine de cumpărare în Jita, deci nu se poate calcula marja.') : tx('Nu există ordine de vânzare în Jita, deci nu se poate calcula marja.')}</div></div></section>`;
 
       state.innerHTML = `
         <section class="panel glow item-head">
@@ -325,7 +309,6 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           ${statCard({ label: tx('Preț median (vânzare)'), id: 'medianPrice', tone: 'median' })}
         </div>
 
-        ${spreadHtml}
         <div id="hubPanel" class="hub-panel"></div>
         <div id="historyPanel"></div>
       `;

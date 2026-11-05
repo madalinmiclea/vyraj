@@ -135,9 +135,6 @@
 @media (max-width: 760px) {
   .item-head { flex-wrap: wrap; }
   .item-head .actions { margin-left: 0; width: 100%; flex-wrap: wrap; }
-  .spread { flex-wrap: wrap; gap: 12px; }
-  .spread .pct { margin-left: 0; }
-  .spread-gauge { flex-basis: 100%; max-width: none; }
   .lang-switch button, .theme-switch button { min-width: 28px; min-height: 28px; display: inline-grid; place-items: center; }
 }
 

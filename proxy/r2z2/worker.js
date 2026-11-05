@@ -27,6 +27,13 @@ const LINK_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const TOUCH_MS = 24 * 60 * 60 * 1000;
 const SWEEP_MS = 24 * 60 * 60 * 1000;
 
+const ESI = 'https://esi.evetech.net';
+const ESI_DATE = '2026-08-18';
+const ESI_HEADERS = { 'user-agent': 'Vyraj order book proxy (+https://github.com/madalinmiclea/vyraj)', accept: 'application/json' };
+const BOOK_REGIONS = 25;
+const BOOK_SUBREQUESTS = 45;
+const BOOK_TTL = 300;
+
 function allowedOrigin(request, env) {
   const origin = request.headers.get('origin');
   const extra = (env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
@@ -250,13 +257,58 @@ async function links(request, env, url) {
   return reply(res.status, res.ok ? await res.text() : null, { ...json, 'cache-control': res.ok ? 'public, max-age=86400, immutable' : 'no-store' });
 }
 
+const validRegion = (id) => (id >= 10000001 && id <= 10999999) || id === 19000001;
+
+async function bookRegion(region, type, budget) {
+  const url = (page) => `${ESI}/markets/${region}/orders/?order_type=all&type_id=${type}&page=${page}&compatibility_date=${ESI_DATE}`;
+  budget.left--;
+  const first = await fetch(url(1), { headers: ESI_HEADERS });
+  if (!first.ok) throw new Error(String(first.status));
+  const pages = Number(first.headers.get('x-pages')) || 1;
+  const rows = await first.json();
+  for (let page = 2; page <= pages; page++) {
+    if (budget.left <= 0) throw new Error('budget');
+    budget.left--;
+    const res = await fetch(url(page), { headers: ESI_HEADERS });
+    if (!res.ok) throw new Error(String(res.status));
+    rows.push(...(await res.json()));
+  }
+  return rows.map((o) => [o.order_id, o.is_buy_order ? 1 : 0, o.price, o.volume_remain, o.volume_total, o.min_volume, o.location_id, o.system_id, region, o.range, o.issued, o.duration]);
+}
+
+async function book(request, ctx, url) {
+  const type = Number(url.searchParams.get('type'));
+  const regions = (url.searchParams.get('r') || '').split(',').map(Number);
+  if (!Number.isInteger(type) || type <= 0 || type > 1e9 || !regions.length || regions.length > BOOK_REGIONS || !regions.every((r) => Number.isInteger(r) && validRegion(r))) return reply(400, null, { 'cache-control': 'no-store' });
+  const key = new Request(`https://book.vyraj/${type}?r=${regions.join(',')}`);
+  const cache = caches.default;
+  const hit = await cache.match(key);
+  if (hit) return reply(200, await hit.text(), { 'content-type': 'application/json', 'cache-control': hit.headers.get('cache-control') || `public, max-age=${BOOK_TTL}` });
+  const budget = { left: BOOK_SUBREQUESTS };
+  const orders = [];
+  const failed = [];
+  await Promise.all(regions.map(async (region) => {
+    try {
+      orders.push(...(await bookRegion(region, type, budget)));
+    } catch {
+      failed.push(region);
+    }
+  }));
+  if (failed.length === regions.length) return reply(502, null, { 'cache-control': 'no-store' });
+  const body = JSON.stringify({ at: Date.now(), failed, orders });
+  const age = failed.length ? 30 : BOOK_TTL;
+  ctx.waitUntil(cache.put(key, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': `public, max-age=${age}` } })));
+  return reply(200, body, { 'content-type': 'application/json', 'cache-control': `public, max-age=${age}` });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') return reply(204);
     const url = new URL(request.url);
     if (url.pathname === '/s' && request.method === 'POST') return links(request, env, url);
     if (request.method !== 'GET' && request.method !== 'HEAD') return reply(405);
     if (url.pathname.startsWith('/s/')) return links(request, env, url);
+    if (url.pathname === '/book') return book(request, ctx, url);
     if (url.pathname === '/recent') {
       const since = Number(url.searchParams.get('since')) || 0;
       const feed = env.FEED.get(env.FEED.idFromName('main'));

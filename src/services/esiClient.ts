@@ -4,12 +4,15 @@ export const ESI = 'https://esi.evetech.net';
 export const COMPATIBILITY_DATE = '2026-08-18';
 
 const MAX_CONCURRENT = 6;
+const BULK_CONCURRENT = 20;
 const MAX_RETRIES = 3;
 const ERROR_FLOOR = 15;
 const RATE_FLOOR = 0.1;
 
 let active = 0;
 const queue: (() => void)[] = [];
+let bulkActive = 0;
+const bulkQueue: (() => void)[] = [];
 let pausedUntil = 0;
 
 interface Bucket { remaining: number; limit: number; windowMs: number; nextAt: number }
@@ -21,6 +24,20 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 const USER_AGENT = `Vyraj/${__APP_VERSION__} (+https://github.com/madalinmiclea/vyraj)`;
 
 const routeKey = (url: URL) => `${url.pathname.replace(/\/\d+(?=\/|$)/g, '/#').replace(/\/$/, '')}`;
+
+async function acquireBulk() {
+  if (bulkActive < BULK_CONCURRENT) {
+    bulkActive++;
+    return;
+  }
+  await new Promise<void>((resolve) => bulkQueue.push(resolve));
+}
+
+function releaseBulk() {
+  const next = bulkQueue.shift();
+  if (next) next();
+  else bulkActive--;
+}
 
 async function acquire(urgent = false) {
   if (active < MAX_CONCURRENT) {
@@ -118,7 +135,7 @@ export function rateLow(input: string, init?: RequestInit, fraction = 0.4): bool
   return !!bucket && bucket.remaining < bucket.limit * fraction;
 }
 
-export async function esiFetch(input: string, init?: RequestInit, { urgent = false }: { urgent?: boolean } = {}): Promise<Response> {
+export async function esiFetch(input: string, init?: RequestInit, { urgent = false, bulk = false }: { urgent?: boolean; bulk?: boolean } = {}): Promise<Response> {
   if (isDemo()) {
     const demo = await (await import('../demo/fixtures')).demoResponse(input, init);
     if (demo) return demo;
@@ -130,7 +147,8 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
     const wait = pausedUntil - Date.now();
     if (wait > 0) await sleep(wait);
     if (key) await pace(key, who);
-    await acquire(urgent);
+    if (bulk) await acquireBulk();
+    else await acquire(urgent);
     let res: Response | null = null;
     let failure: unknown = null;
     try {
@@ -138,7 +156,8 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
     } catch (e) {
       failure = e;
     } finally {
-      release();
+      if (bulk) releaseBulk();
+      else release();
     }
     if (res && key) noteLimits(res, key, who);
     const retryable = !res || res.status === 420 || res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
@@ -151,10 +170,10 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
   }
 }
 
-export async function esiPages<T>(url: (page: number) => string, init?: RequestInit, maxPages = Infinity): Promise<T[]> {
+export async function esiPages<T>(url: (page: number) => string, init?: RequestInit, maxPages = Infinity, { bulk = false }: { bulk?: boolean } = {}): Promise<T[]> {
   const label = new URL(url(1)).pathname;
   const get = async (page: number) => {
-    const res = await esiFetch(url(page), init);
+    const res = await esiFetch(url(page), init, { bulk });
     if (!res.ok) throw new Error(`ESI ${label}: ${res.status} ${await res.text()}`);
     return { stamp: res.headers.get('last-modified') ?? '', pages: Number(res.headers.get('x-pages')) || 1, rows: (await res.json()) as T[] };
   };
