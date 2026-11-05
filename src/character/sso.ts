@@ -114,6 +114,18 @@ export function decodeJwt(token: string): { characterId: number; characterName: 
   return { characterId, characterName: payload.name, scopes };
 }
 
+const ISSUERS = ['login.eveonline.com', 'https://login.eveonline.com'];
+
+function trustedToken(token: string, clientId: string): boolean {
+  try {
+    const p = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const aud: unknown[] = Array.isArray(p.aud) ? p.aud : [p.aud];
+    return ISSUERS.includes(p.iss) && aud.includes(clientId) && typeof p.exp === 'number' && p.exp * 1000 > Date.now() - 60_000 && /^CHARACTER:EVE:\d+$/.test(String(p.sub));
+  } catch {
+    return false;
+  }
+}
+
 export class SessionExpiredError extends Error {}
 
 export const SESSION_EXPIRED_EVENT = 'vyraj-session-expired';
@@ -131,6 +143,7 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
     throw new Error(tx('Login EVE eșuat ({status}): {text}', { status: res.status, text }));
   }
   const json = await res.json();
+  if (!trustedToken(json.access_token, body.client_id)) throw new Error(tx('Login EVE: tokenul primit nu vine de la EVE SSO pentru aplicația asta.'));
   const { characterId, characterName } = decodeJwt(json.access_token);
   return {
     characterId,

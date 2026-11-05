@@ -203,7 +203,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
         <span>${tx('Lansatoare')} <b class="num">${r.launchers.used}/${r.launchers.total}</b></span>
         ${r.droneBandwidth.total > 0 ? `<span>${tx('Lățime de bandă')} <b class="num">${formatNum(r.droneBandwidth.used, 0)}/${formatNum(r.droneBandwidth.total, 0)}</b></span>` : ''}
       </div>`;
-    const warnings = s.warnings.length ? `<div class="stack-sm">${s.warnings.map((w) => alertBox(w)).join('')}</div>` : '';
+    const warnings = s.warnings.length ? `<div class="stack-sm fit-warnings" id="fitWarnings">${s.warnings.map((w) => alertBox(w)).join('')}</div>` : '';
 
     const o = s.offense;
     const weapons = o.weapons.map((w) => `<tr><td>${esc(w.name)} <span class="dim">×${w.count}</span></td>

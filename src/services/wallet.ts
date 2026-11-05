@@ -1,5 +1,5 @@
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
-import { loadJson, saveJson, removeKey, storageKey } from '../storage';
+import { loadJson, saveJson, removeKey, storageKey, evictCaches } from '../storage';
 import { tx } from '../i18n';
 
 export const PVE_REFS = new Set([
@@ -118,11 +118,13 @@ export const since = <T extends { date: string }>(rows: T[], from: number) => (f
 
 function store(key: string, rows: unknown[]) {
   let list = rows;
+  let evicted = false;
   while (list.length) {
     try {
       localStorage.setItem(storageKey(key), JSON.stringify(list));
       return;
     } catch {
+      if (!evicted) { evicted = true; evictCaches(); continue; }
       list = list.slice(0, Math.floor(list.length / 2));
     }
   }

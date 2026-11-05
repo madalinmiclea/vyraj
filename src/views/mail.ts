@@ -426,7 +426,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
         ${lists.length ? `<label class="mail-field"><span>${tx('Listă de mail')}</span><select class="input" id="mailList"><option value="0">—</option>${lists.map((l) => `<option value="${l.mailing_list_id}" ${draft.list === l.mailing_list_id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>` : ''}
         <label class="mail-field"><span>${tx('Subiect')}</span><input class="input" id="mailSubject" maxlength="150" value="${esc(draft.subject)}" /></label>
         <label class="mail-field"><span>${tx('Mesaj')}</span><textarea class="input area mail-area" id="mailText" rows="12" maxlength="9000">${esc(draft.body)}</textarea></label>
-        <p class="small dim">${tx('Mailul pleacă din contul caracterului {name} și apare în joc. Destinatarii cu taxă CSPA nu pot primi mail de aici.', { name: ctx.character.name })}</p>
+        <p class="small dim">${tx('Mailul pleacă din contul caracterului {name} și apare în joc. Destinatarii cu taxă CSPA nu pot primi mail de aici.', { name: esc(ctx.character.name) })}</p>
         <div class="row-actions">${button(tx('Trimite'), { iconName: 'mail', attrs: 'data-mail-send' })}</div>
       </div>`, { wide: true });
     const to = modal.querySelector<HTMLInputElement>('#mailTo')!;

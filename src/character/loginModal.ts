@@ -43,9 +43,9 @@ export function openPermissionsModal(characterId?: number | null, returnTo?: str
     <div class="perm-groups">${groups}</div>
     <p class="dim small">${esc(tx('Te trimitem la pagina oficială EVE, unde alegi caracterul și aprobi. Vyraj nu vede parola ta și poți revoca oricând permisiunile din pagina EVE de aplicații.'))}</p>
     <div class="perm-modal-actions">
-      ${known ? button(tx('Anulează'), { cls: 'ghost', attrs: 'data-close' }) : button(tx('Doar login-ul'), { cls: 'ghost', attrs: 'data-perm-go="base"' })}
+      ${known ? button(tx('Anulează'), { cls: 'ghost', attrs: 'data-close' }) : button(tx('Acceptă toate'), { cls: 'ghost', attrs: 'data-perm-go="all"' })}
       ${button(tx('Continuă cu selecția'), { cls: 'ghost', attrs: 'data-perm-go="pick" disabled' })}
-      ${button(tx('Acceptă toate'), { iconName: 'login', attrs: 'data-perm-go="all"' })}
+      ${known ? button(tx('Acceptă toate'), { iconName: 'login', attrs: 'data-perm-go="all"' }) : button(tx('Doar login-ul'), { iconName: 'login', attrs: 'data-perm-go="base"' })}
     </div>
   </div>`, { wide: true });
   const pick = el.querySelector<HTMLButtonElement>('[data-perm-go="pick"]')!;

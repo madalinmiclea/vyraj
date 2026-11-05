@@ -32,7 +32,7 @@ const ABOUT: Record<string, string> = {
   intel: tx('Idei de trading, marje după taxe, tendințe și rute de transport.'),
   orders: tx('Ordinele tuturor caracterelor cu alertă la outbid, evaluare de iteme, alerte de preț și bunuri.'),
   wallet: tx('Sold, jurnal, ce ai cumpărat și vândut, tick-uri de bounty și unde ai vânat.'),
-  fitting: tx('Simulator cu formulele Pyfa: DPS aplicat, tank pe misiuni și cost în Jita.'),
+  fitting: tx('Simulator verificat față de Pyfa: DPS aplicat, tank pe misiuni și cost în Jita.'),
   doctrines: tx('Fituri de flotă pentru corporație: cine le poate zbura și cât costă tot.'),
   skins: tx('Colecția de SKIN-uri și cel mai ieftin drum spre o colecție completă.'),
   character: tx('Skill-uri, coada de antrenament, plan de skill-uri și toate caracterele.'),
@@ -77,7 +77,7 @@ export function createHomeView(el: HTMLElement, opts: { tiles: Tile[]; go: (id: 
       <div class="home-hero-text">
         <div class="home-kicker">o7, capsuleer</div>
         <h2>${lore(tx('Toate uneltele tale de EVE, într-un singur loc'), 'Every path of the Flow, woven into one')}</h2>
-        <p>${tx('Fitting cu formulele Pyfa, prețuri live din Jita, plan de skill-uri, intel pe rută, industrie și ghid de misiuni. Gratuit, fără cont și fără server: totul rulează în browserul tău.')}</p>
+        <p>${tx('Fitting verificat față de Pyfa, prețuri live din Jita, plan de skill-uri, intel pe rută, industrie și ghid de misiuni. Gratuit și fără cont: datele tale rămân în browser.')}</p>
         <div class="home-actions">
           ${button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-home-login' })}
           ${button(tx('Încearcă cu date demo'), { iconName: 'play', cls: 'ghost', attrs: 'data-demo-start' })}

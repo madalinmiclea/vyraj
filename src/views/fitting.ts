@@ -48,6 +48,7 @@ export const FITTING_CATEGORIES = ['Ships', 'Ship Equipment', 'Ship and Module M
 export interface FittingView {
   selectItem(name: string, typeId: number | null): void;
   load(fit: Fit): void;
+  loadIncoming(fit: Fit): Promise<boolean>;
   clearSlot(): void;
   setNpc(site: string, faction: string): void;
   current(): Fit | null;
@@ -87,6 +88,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     el.querySelectorAll<HTMLElement>('.slot-group').forEach((g) => g.classList.toggle('picked', g.dataset.group === kind));
     onSlot(kind ? { label: GROUPS.find((g) => g.key === kind)!.label, ids: idsForSlot(kind) } : null);
   }
+
+  el.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement;
+    if ((e.key === 'Enter' || e.key === ' ') && t.classList.contains('slot-empty')) { e.preventDefault(); t.click(); }
+  });
 
   el.innerHTML = `
     ${pageHead(tx('Fitting'), tx('Hangar · simulare pe skill-urile pilotului'), 'Proving')}
@@ -128,8 +134,8 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     ctx,
     getFit: () => fit,
     setFit: (next, clean) => {
-      if (!next) return;
-      void openFit(next).then((ok) => { if (ok && clean && fit) { pristine.set(fit.id, JSON.stringify(fit)); render(); } });
+      if (!next) return Promise.resolve(false);
+      return openFit(next).then((ok) => { if (ok && clean && fit) { pristine.set(fit.id, JSON.stringify(fit)); render(); } return ok; });
     },
     change: (fn) => change(fn),
     profileId: () => profileId,
@@ -201,8 +207,18 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
-  async function replaceCurrent(f: Fit): Promise<boolean> {
-    if (fit && fit.id !== f.id && isDirty(fit, savedJson()) && !(await confirmDialog(tx('„{name}” are modificări nesalvate. Le pierzi și încarci „{next}” în tab-ul ăsta?', { name: fit.name, next: f.name }), { ok: tx('Pierde modificările'), danger: true }))) return false;
+  async function replaceCurrent(f: Fit, incoming = false): Promise<boolean> {
+    if (incoming && fit && fit.id !== f.id && isDirty(fit, savedJson())) {
+      if (await confirmDialog(tx('„{name}” are modificări nesalvate. Îl salvez și deschid „{next}” din link?', { name: fit.name, next: f.name }), { ok: tx('Salvează și deschide'), cancel: tx('Rămân pe fitul curent') })) {
+        saveFit(fit);
+      } else {
+        saveFit(f);
+        renderTabs();
+        toast(tx('„{name}” din link a fost pus în Fituri salvate.', { name: f.name }));
+        return false;
+      }
+    }
+    if (!incoming && fit && fit.id !== f.id && isDirty(fit, savedJson()) && !(await confirmDialog(tx('„{name}” are modificări nesalvate. Le pierzi și încarci „{next}” în tab-ul ăsta?', { name: fit.name, next: f.name }), { ok: tx('Pierde modificările'), danger: true }))) return false;
     fit = f;
     tabs[active] = f;
     if (pickedSlot) pickSlot(null);
@@ -210,10 +226,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return true;
   }
 
-  async function openFit(next: Fit): Promise<boolean> {
+  async function openFit(next: Fit, incoming = false): Promise<boolean> {
     const f = limitDrones(next);
     const same = tabs.findIndex((x) => x?.id === f.id);
-    if (same < 0) return replaceCurrent(f);
+    if (same < 0) return replaceCurrent(f, incoming);
     tabs[active] = fit;
     active = same;
     fit = f;
@@ -256,6 +272,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     renderTabs();
     nameInput.value = fit?.name ?? '';
     nameInput.disabled = !fit;
+    el.querySelectorAll<HTMLButtonElement>('.fit-toolbar [data-action="save"], .fit-toolbar [data-action="export"], .fit-toolbar [data-action="share"], .fit-toolbar [data-action="save-as"], .fit-toolbar [data-action="compare"]').forEach((b) => { b.disabled = !fit; });
     if (!fit) {
       left.innerHTML = panel({
         body: emptyState({
@@ -295,7 +312,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       <div class="ship-render"><img src="${typeRenderUrl(f.shipId, 256)}" alt="" /></div>
       <div class="ship-info">
         <h2><button class="link" data-info="${f.shipId}">${esc(t.name)}</button></h2>
-        <div class="meta">${badge(t.groupName)}${support.modeSelect(f)}${s.warnings.length ? badge(tx('{n} probleme', { n: s.warnings.length }), 'danger', true) : ''}</div>
+        <div class="meta">${badge(t.groupName)}${support.modeSelect(f)}${s.warnings.length ? `<button type="button" class="badge danger badge-btn" data-action="show-problems" data-tip="${esc(s.warnings.join(' · '))}"><span class="dot"></span>${esc(s.warnings.length === 1 ? tx('1 problemă') : tx('{n} probleme', { n: s.warnings.length }))}</button>` : ''}</div>
         <div class="ship-dps">
           <div class="ship-stat"><b class="num">${formatNum(s.offense.totalDps, 0)}</b><span>DPS</span></div>
           <div class="ship-stat"><b class="num">${compactISK(s.defense.ehp)}</b><span>EHP</span></div>
@@ -343,7 +360,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       for (let i = 0; i < total; i++) {
         const m = list[i];
         if (m) rows.push(moduleRow(g.key, i, m, i >= counts[g.key]));
-        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
+        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}" role="button" tabindex="0" aria-label="${esc(`${tx('Slot liber')} · ${g.label}`)}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
       }
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
@@ -858,6 +875,15 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         render();
         toast(tx('Salvat ca fit nou: {name}', { name: fit.name }));
         break;
+      case 'show-problems': {
+        const box = el.querySelector<HTMLElement>('#fitWarnings');
+        if (!box) break;
+        box.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+        box.classList.remove('flash');
+        void box.offsetWidth;
+        box.classList.add('flash');
+        break;
+      }
       case 'saved':
         return openSavedFits();
       case 'import':
@@ -867,10 +893,11 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       case 'share': {
         if (!fit) return toast(tx('Nu ai niciun fit'));
         const shared = fit;
-        shareUrl(shared).then((url) => openShareModal(url, {
+        shareUrl(shared).then(({ long, shorten }) => openShareModal(long, {
           title: tx('Share fit'),
           text: tx('Fit {name} ({ship}) în Vyraj', { name: shared.name, ship: sde.types.get(shared.shipId)?.name ?? '' }),
-          hint: tx('Cine deschide linkul primește fit-ul în Vyraj, gata de modificat.'),
+          hint: shared.notes?.trim() ? tx('Linkul scurt se salvează pe serverul Vyraj, cu tot cu notițele fitului.') : tx('Linkul scurt se salvează pe serverul Vyraj.'),
+          shorten,
         })).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
         break;
       }
@@ -919,6 +946,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
   return {
     selectItem,
     load(f: Fit) { void openFit(cloneFit(f)); },
+    loadIncoming(f: Fit) { return openFit(cloneFit(f), true); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
     setNpc(site: string, faction: string) { npc.setScenario(site, faction); render(); },
     current() { return fit && fit.shipId ? cloneFit(fit) : null; },

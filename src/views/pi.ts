@@ -1,4 +1,4 @@
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, button, windowTitle, emptyState, lore, dataStamp } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, button, windowTitle, emptyState, lore, dataStamp, loginEmpty } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, forgetPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { rosterCharacters } from '../character/roster';
@@ -228,7 +228,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
     const now = Date.now();
     const chars = rosterCharacters();
     if (!chars.length) {
-      pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din meniul de caractere (dreapta sus) ca să vezi coloniile.') }) });
+      pane.innerHTML = loginEmpty(tx('Fă login cu EVE ca să vezi coloniile.'));
       return;
     }
     const rows: { charName: string; charId: number; c: Colony }[] = [];

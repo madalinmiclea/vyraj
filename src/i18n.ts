@@ -13,7 +13,7 @@ document.documentElement.lang = lang;
 
 if (lang === 'ro') {
   document.title = 'Vyraj · unelte pentru EVE Online';
-  document.querySelector('meta[name="description"]')?.setAttribute('content', 'Fitting cu formulele Pyfa, prețuri live din Jita, plan de skill-uri, doctrine de flotă, intel pe rută, industrie și ghid de misiuni. Gratuit, totul rulează în browser.');
+  document.querySelector('meta[name="description"]')?.setAttribute('content', 'Fitting verificat față de Pyfa, prețuri live din Jita, plan de skill-uri, doctrine de flotă, intel pe rută, industrie și ghid de misiuni. Gratuit, totul rulează în browser.');
 }
 
 export function setLang(next: Lang) {

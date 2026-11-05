@@ -358,7 +358,15 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     } catch (err) {
       if (id !== requestId) return;
       const msg = err instanceof TypeError ? tx('Nu am putut contacta serverul de prețuri (Fuzzwork). Verifică conexiunea și încearcă din nou.') : (err as Error).message;
-      state.innerHTML = alertBox(msg);
+      input.value = itemName;
+      state.innerHTML = `${alertBox(msg)}<div class="row-actions">${button(tx('Încearcă din nou'), { iconName: 'refresh', cls: 'sm', attrs: 'data-market-retry' })}</div>`;
+      const retry = () => {
+        window.removeEventListener('online', retry);
+        if (id === requestId) show(itemName, knownTypeId);
+      };
+      state.querySelector('[data-market-retry]')?.addEventListener('click', retry);
+      window.addEventListener('online', retry);
+      setTimeout(() => { if (id === requestId && state.querySelector('[data-market-retry]')) retry(); }, 30_000);
     }
   }
 

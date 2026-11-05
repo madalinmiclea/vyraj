@@ -592,3 +592,4 @@ summary::-webkit-details-marker { display: none; }
 .hub-chip svg { width: 14px; height: 14px; color: var(--accent); }
 .hub-chip b { font-family: var(--font-mono); font-weight: 500; color: var(--text-bright); }
 .nowrap { white-space: nowrap; }
+.empty-actions { justify-content: center; margin-top: 14px; }

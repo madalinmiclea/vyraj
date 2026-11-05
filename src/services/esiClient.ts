@@ -1,4 +1,3 @@
-import { version } from '../../package.json';
 import { isDemo } from '../storage';
 
 export const ESI = 'https://esi.evetech.net';
@@ -19,7 +18,7 @@ const groupOf = new Map<string, string>();
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const USER_AGENT = `Vyraj/${version} (+https://github.com/madalinmiclea/vyraj)`;
+const USER_AGENT = `Vyraj/${__APP_VERSION__} (+https://github.com/madalinmiclea/vyraj)`;
 
 const routeKey = (url: URL) => `${url.pathname.replace(/\/\d+(?=\/|$)/g, '/#').replace(/\/$/, '')}`;
 
@@ -130,10 +129,17 @@ export async function esiPages<T>(url: (page: number) => string, init?: RequestI
   }
 }
 
-export function repeatAfter(run: () => unknown, ms: number): void {
+export function repeatAfter(run: () => unknown, ms: number, { visibleOnly = false } = {}): void {
+  let stale = false;
   const next = () => setTimeout(async () => {
-    await Promise.resolve().then(run).catch(() => undefined);
+    if (visibleOnly && document.hidden) stale = true;
+    else await Promise.resolve().then(run).catch(() => undefined);
     next();
   }, ms + Math.random() * ms * 0.1);
+  if (visibleOnly) document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !stale) return;
+    stale = false;
+    Promise.resolve().then(run).catch(() => undefined);
+  });
   next();
 }

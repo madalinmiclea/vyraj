@@ -292,3 +292,4 @@
 .side-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background 0.15s var(--ease); }
 .side-resizer:hover::after, .shell.resizing .side-resizer::after { background: var(--accent); box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.5); }
 .shell.resizing { cursor: col-resize; user-select: none; }
+a.neocom-btn, a.sheet-btn { text-decoration: none; }

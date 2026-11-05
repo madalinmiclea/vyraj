@@ -53,8 +53,12 @@ export function createFitModals(env: FitEnv) {
       <textarea class="input area" id="eftInput" rows="14" spellcheck="false" placeholder="[Drake, PvE]&#10;Ballistic Control System II&#10;..."></textarea>
       <div id="eftError"></div>
       <div class="row-actions">${button(tx('Importă'), { iconName: 'upload', attrs: 'data-do-import' })}</div>`, { wide: true });
+    const area = modal.querySelector<HTMLTextAreaElement>('#eftInput')!;
+    const errorBox = modal.querySelector<HTMLElement>('#eftError')!;
+    area.addEventListener('input', () => { errorBox.innerHTML = ''; });
+    requestAnimationFrame(() => area.focus());
     modal.querySelector('[data-do-import]')!.addEventListener('click', async () => {
-      const text = modal.querySelector<HTMLTextAreaElement>('#eftInput')!.value;
+      const text = area.value;
       if (isKillLink(text)) {
         const btn = modal.querySelector<HTMLButtonElement>('[data-do-import]')!;
         btn.disabled = true;
@@ -71,9 +75,16 @@ export function createFitModals(env: FitEnv) {
       }
       try {
         const { fit: parsed, unknown } = parseEft(sde, text);
-        closeModal();
-        env.setFit(parsed);
-        toast(unknown.length ? tx('Importat; {n} linii necunoscute', { n: unknown.length }) : tx('Fit importat'));
+        if (!(await env.setFit(parsed))) return;
+        if (!unknown.length) {
+          closeModal();
+          toast(tx('Fit importat'));
+          return;
+        }
+        errorBox.innerHTML = `<div class="alert warn">${icon('alert')}<span>${esc(tx('Fit importat, dar {n} linii nu au fost recunoscute și au rămas pe dinafară:', { n: unknown.length }))}</span></div>
+          <ul class="eft-unknown small">${unknown.map((l) => `<li><code>${esc(l)}</code></li>`).join('')}</ul>`;
+        const btn = modal.querySelector<HTMLButtonElement>('[data-do-import]')!;
+        btn.outerHTML = button(tx('Închide'), { attrs: 'data-close' });
       } catch (err) {
         modal.querySelector('#eftError')!.innerHTML = alertBox((err as Error).message);
       }
@@ -99,7 +110,7 @@ export function createFitModals(env: FitEnv) {
       if (kind === 'eft') copyText(eft, tx('EFT copiat'));
       if (kind === 'dna') copyText(dna, tx('DNA copiat'));
       if (kind === 'multibuy' && fit) copyText(exportMultibuy(sde, fitContents(sde, fit)), tx('Multibuy copiat'));
-      if (kind === 'link') shareUrl(fit).then((url) => copyText(url, tx('Link copiat. Cine îl deschide primește fit-ul într-un tab nou.'))).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
+      if (kind === 'link') shareUrl(fit).then(({ long }) => copyText(long, tx('Link copiat. Cine îl deschide primește fit-ul în Vyraj.'))).catch(() => toast(tx('Browserul nu poate crea linkul de fit')));
     });
   }
 

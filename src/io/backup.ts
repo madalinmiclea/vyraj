@@ -14,6 +14,15 @@ const keep = (key: string) => key.startsWith('eve-') && !SKIP.some((re) => re.te
 
 interface Backup { app: 'vyraj'; version: 1; created: string; data: Record<string, string> }
 
+const ARRAY_KEYS = new Set(['eve-fit:saved-fits', 'eve-fit:characters', 'eve-fit:doctrines']);
+
+function validEntry(key: string, value: string): boolean {
+  let parsed: unknown;
+  try { parsed = JSON.parse(value); } catch { return false; }
+  if (!ARRAY_KEYS.has(key)) return true;
+  return Array.isArray(parsed) && parsed.every((x) => x && typeof x === 'object' && !Array.isArray(x));
+}
+
 function localKeys(): string[] {
   const out: string[] = [];
   try {
@@ -65,14 +74,24 @@ export function pickBackup() {
       toast(tx('Fișierul nu e un backup Vyraj valid.'));
       return;
     }
-    const entries = Object.entries(backup.data).filter(([k, v]) => keep(k) && typeof v === 'string');
+    const entries = Object.entries(backup.data).filter(([k, v]) => keep(k) && typeof v === 'string' && validEntry(k, v));
+    if (!entries.length) { toast(tx('Fișierul nu e un backup Vyraj valid.')); return; }
     const when = backup.created ? new Date(backup.created).toLocaleString() : '';
     const ok = await confirmDialog(tx('Restaurezi {n} seturi de date din backup-ul din {date}? Fiturile, doctrinele, setările și jurnalele de acum se înlocuiesc cu cele din fișier. Login-urile EVE rămân cum sunt.', { n: entries.length, date: when }), { title: tx('Restaurează backup'), ok: tx('Restaurează'), danger: true });
     if (!ok) return;
+    const before = new Map(localKeys().map((k) => [k, localStorage.getItem(k) ?? '']));
     try {
+      for (const k of before.keys()) localStorage.removeItem(k);
       for (const [k, v] of entries) localStorage.setItem(k, v);
     } catch {
-      toast(tx('Browserul nu are destul spațiu pentru tot backup-ul. O parte s-a restaurat.'));
+      try {
+        for (const [k] of entries) localStorage.removeItem(k);
+        for (const [k, v] of before) localStorage.setItem(k, v);
+      } catch {
+        toast(tx('Browserul nu are destul spațiu pentru backup.'));
+        return;
+      }
+      toast(tx('Browserul nu are destul spațiu pentru backup. Datele de acum au rămas neschimbate.'));
       return;
     }
     location.reload();
@@ -86,7 +105,7 @@ export function backupPanel(): string {
     <div class="panel-head"><div class="window-title">${tx('Backup date')}</div></div>
     <div class="panel-body">
       <p class="dim small">${tx('Totul stă doar în browserul ăsta: fituri, doctrine, planuri de skill-uri, caractere custom, jurnale și setări. Descarcă un fișier ca să le muți pe alt calculator sau să nu le pierzi dacă ștergi datele site-ului. Login-urile EVE nu intră în fișier.')}</p>
-      <p class="small"><span class="num">${s.keys}</span> ${tx('seturi de date')} · <span class="num">${Math.max(1, Math.round(s.bytes / 1024))} KB</span></p>
+      <p class="small">${s.keys === 1 ? tx('1 set de date') : tx('{n} seturi de date', { n: `<span class="num">${s.keys}</span>` })} · <span class="num">${Math.max(1, Math.round(s.bytes / 1024))} KB</span></p>
       <div class="row-actions">
         <button class="btn sm" data-backup-dl>${icon('download')}${tx('Descarcă backup')}</button>
         <button class="btn ghost sm" data-backup-up>${icon('upload')}${tx('Restaurează')}</button>

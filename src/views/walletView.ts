@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, alertBox, windowTitle } from '../ui/components';
+import { pageHead, panel, alertBox, windowTitle, loginEmpty } from '../ui/components';
 import { loadJson, saveJson } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
 import { permissionGate } from '../character/permissions';
@@ -36,7 +36,7 @@ export function createWalletView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     renderSide();
     const c = ctx.character;
     const problem = loginProblem(c);
-    if (problem || !c.characterId) { loadedFor = null; body.innerHTML = panel({ body: alertBox(problem ?? '') }); return; }
+    if (problem || !c.characterId) { loadedFor = null; body.innerHTML = c.kind !== 'esi' ? loginEmpty(tx('Fă login cu EVE ca să vezi portofelul.')) : panel({ body: alertBox(problem ?? '') }); return; }
     if (corp) {
       loadedFor = null;
       const mine = ++seq;

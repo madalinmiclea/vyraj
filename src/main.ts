@@ -1,7 +1,7 @@
 import './style.css';
 import { marketGroups, loadItems } from './data/items';
 import { icon, logo } from './ui/icons';
-import { windowTitle, searchField, formatInt, loader, alertBox, panel, esc, lore, toast, closeModal } from './ui/components';
+import { windowTitle, searchField, formatInt, loader, alertBox, panel, esc, lore, toast, closeModal, confirmDialog } from './ui/components';
 import { createItemBrowser } from './ui/sidebar';
 import { createMarketView } from './views/market';
 import { createFittingView, FITTING_CATEGORIES, type FittingView } from './views/fitting';
@@ -73,7 +73,7 @@ const LANG_NAME: Record<Lang, string> = { ro: 'Română', en: 'English' };
 const VIEWS: { id: ViewId; label: string; short: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
   { id: 'home', label: tx('Start'), short: tx('Start'), icon: 'home', categories: null, lore: 'Prag', clade: 'Rod', order: 0 },
   { id: 'market', label: tx('Piață'), short: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
-  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
+  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
   { id: 'recon', label: tx('Intel PvP'), short: 'PvP', icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 10 },
   { id: 'navigation', label: tx('Navigație'), short: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
   { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
@@ -83,7 +83,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'mining', label: tx('Minerit'), short: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 13 },
   { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
   { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 7 },
-  { id: 'skins', label: tx('SKIN-uri'), short: 'SKIN', icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
+  { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
   { id: 'missions', label: 'PvE', short: 'PvE', icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
   { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
@@ -98,7 +98,13 @@ const earlyId = getActiveCharacterId();
 const earlyName = earlyChar?.name ?? (earlyId === 'all0' ? tx('Toate la 0') : tx('Toate la V'));
 const earlyLabel = earlyChar ? tx('Caracter') : tx('Skill-uri');
 
+if (window.top !== window.self) {
+  document.body.innerHTML = `<p style="padding:24px"><a href="${esc(location.href)}" target="_top" rel="noopener">Vyraj</a></p>`;
+  throw new Error('framed');
+}
+
 document.querySelector('#app')!.innerHTML = `
+  <a class="skip-link" href="#mainContent" data-skip-main>${tx('Sari la conținut')}</a>
   <div class="shell">
     <header class="topbar">
       <button class="side-toggle" id="sideToggle" aria-label="${tx('Meniu')}">${icon('menu')}</button>
@@ -119,12 +125,12 @@ document.querySelector('#app')!.innerHTML = `
 
     <nav class="neocom">
       ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
-      ${VIEWS.map((v) => `<button class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></button>`).join('')}
+      ${VIEWS.map((v) => `<a class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" href="${viewHref(v.id)}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></a>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
       <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · AGPL-3.0">v${__APP_VERSION__}</div>
     </nav>
     <div class="neocom-sheet" id="neocomSheet" hidden>
-      ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<button class="sheet-btn" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></button>`).join('')}
+      ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<a class="sheet-btn" href="${viewHref(v.id)}" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></a>`).join('')}
       <button class="sheet-btn sheet-install" id="sheetInstall" hidden>${icon('download')}<span>${tx('Instalează aplicația')}</span></button>
     </div>
 
@@ -132,7 +138,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="side-pane active" id="pane-items">
         <div class="sidebar-head">
           ${windowTitle(tx('Browser iteme'))}
-          ${searchField({ id: 'treeFilter', placeholder: tx('Filtrează · click dreapta = Info') })}
+          ${searchField({ id: 'treeFilter', placeholder: matchMedia('(pointer: coarse)').matches ? tx('Filtrează') : tx('Filtrează · click dreapta = Info') })}
         </div>
         <div class="sidebar-body" id="treeView"></div>
       </div>
@@ -142,7 +148,7 @@ document.querySelector('#app')!.innerHTML = `
 
     <div class="side-scrim" id="sideScrim"></div>
 
-    <main class="main">
+    <main class="main" id="mainContent" tabindex="-1">
       ${isDemo() ? `<div class="demo-bar" role="status"><span class="demo-bar-ico">${icon('alert')}</span><span><b>${tx('Mod demo')}</b><span class="demo-bar-text"> · ${tx('Un pilot fictiv cu date inventate, ca să vezi tot ce face Vyraj fără login. Nimic nu ajunge în EVE.')}</span></span><button class="btn sm" data-demo-exit>${icon('close')}${tx('Ieși din demo')}</button></div>` : ''}
       <nav class="subnav" id="subnav" hidden></nav>
       ${VIEWS.map((v) => `<div class="view" id="view-${v.id}"></div>`).join('')}
@@ -285,6 +291,7 @@ function switchView(id: ViewId, push = true) {
   shell.classList.toggle('no-sidebar', id === 'about' || id === 'home');
   document.getElementById('neocomSheet')!.hidden = true;
   document.getElementById('topbarTitle')!.innerHTML = `${lore(tx('Modul activ'), `${v.clade} Clade`)} · <b>${lore(v.label, v.lore)}</b>`;
+  document.title = id === 'home' ? (lang === 'ro' ? 'Vyraj · unelte pentru EVE Online' : 'Vyraj · tools for EVE Online') : `${v.label} · Vyraj`;
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   runLazy(id);
@@ -371,10 +378,25 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (t.closest('[data-demo-exit]')) {
-    exitDemo();
-    saveJson(VIEW_KEY, 'home');
-    history.replaceState(null, '', viewHref('home'));
-    location.reload();
+    confirmDialog(tx('Ieși din demo? Fiturile și tot ce ai schimbat în demo se pierd.'), { ok: tx('Ieși din demo'), danger: true }).then((ok) => {
+      if (!ok) return;
+      exitDemo();
+      saveJson(VIEW_KEY, 'home');
+      history.replaceState(null, '', viewHref('home'));
+      location.reload();
+    });
+    return;
+  }
+  if (t.closest('[data-skip-main]')) {
+    e.preventDefault();
+    const target = document.querySelector<HTMLElement>('.view.active h1') ?? document.getElementById('mainContent');
+    if (target && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target?.focus();
+    return;
+  }
+  if (t.closest('[data-login-open]')) {
+    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+    openPermissionsModal(null, activeView);
     return;
   }
   if (t.closest('[data-backup-dl]')) downloadBackup();
@@ -387,8 +409,9 @@ document.getElementById('neocomMore')!.addEventListener('click', (e) => {
   sheet.hidden = !sheet.hidden;
 });
 document.getElementById('neocomSheet')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sheet-btn[data-view]');
-  if (btn) switchView(btn.dataset.view as ViewId);
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.sheet-btn[data-view]');
+  const me = e as MouseEvent;
+  if (btn && !(me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button !== 0)) { e.preventDefault(); switchView(btn.dataset.view as ViewId); }
   if ((e.target as HTMLElement).closest('#sheetInstall')) { e.stopPropagation(); document.getElementById('neocomSheet')!.hidden = true; installApp(); }
 });
 const syncInstall = () => { document.getElementById('sheetInstall')!.hidden = !canInstall(); };
@@ -399,9 +422,11 @@ document.addEventListener('click', (e) => {
   if (!sheet.hidden && !sheet.contains(e.target as Node)) sheet.hidden = true;
 });
 
-document.querySelector('.neocom')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.neocom-btn[data-view]');
-  if (btn && !btn.disabled) switchView(btn.dataset.view as ViewId);
+document.querySelector<HTMLElement>('.neocom')!.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('.neocom-btn[data-view]');
+  if (!btn || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  e.preventDefault();
+  switchView(btn.dataset.view as ViewId);
 });
 
 document.querySelector('.theme-switch')!.addEventListener('click', (e) => {
@@ -456,7 +481,7 @@ const pollStatus = async () => {
   }
 };
 pollStatus();
-repeatAfter(pollStatus, 60_000);
+repeatAfter(pollStatus, 60_000, { visibleOnly: true });
 
 const health = document.getElementById('esiHealth')!;
 const pollHealth = async () => {
@@ -474,7 +499,7 @@ const pollHealth = async () => {
   }
 };
 pollHealth();
-repeatAfter(pollHealth, 5 * 60_000);
+repeatAfter(pollHealth, 5 * 60_000, { visibleOnly: true });
 
 async function start() {
   let login: (TokenSet & { returnTo?: string; wanted?: number }) | null = null;
@@ -483,7 +508,9 @@ async function start() {
   const stored = loadJson<string>(VIEW_KEY, 'home');
   const saved = (VIEW_ALIAS[stored] ?? stored) as ViewId;
   const back = login?.returnTo && VIEWS.some((v) => v.id === login?.returnTo) ? login.returnTo as ViewId : null;
-  switchView(back ?? (login || loginError ? 'character' : pathView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
+  const seg = pathSegment();
+  const unknownRoute = !!seg && seg !== 'callback' && !pathView();
+  switchView(back ?? (login || loginError ? 'character' : unknownRoute ? 'home' : pathView() ?? (VIEWS.some((v) => v.id === saved) ? saved : 'home')), false);
 
   let sde: Sde;
   try {
@@ -511,8 +538,8 @@ async function start() {
     const active = ctx.character;
     const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
     charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
-        <span class="side-who"><span>${esc(c.name)}</span><small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}</small></span></button>`).join('')}
-      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span><small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
+        <span class="side-who"><span>${esc(c.name)}</span> <small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}</small></span></button>`).join('')}
+      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span> <small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
       <div class="char-menu-sep"></div>
       ${active.kind === 'esi' && !(isDemo() && active.characterId === DEMO_ID) ? `<button class="char-menu-item logout" data-char-logout="${esc(active.id)}">${icon('power')}<span>${tx('Delogare {name}', { name: esc(active.name) })}</span></button>` : ''}
       <button class="char-menu-item login" data-char-login>${icon('login')}<span>${isDemo() ? tx('Ieși din demo și fă login') : anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>
@@ -522,6 +549,7 @@ async function start() {
     topCharacter.textContent = ctx.character.name;
     avatar.innerHTML = portrait(ctx.character.characterId);
     document.getElementById('topCharacterLabel')!.textContent = ctx.character.kind === 'all5' || ctx.character.kind === 'all0' ? tx('Skill-uri') : tx('Caracter');
+    document.getElementById('ssoBtn')!.style.display = loadStoredCharacters().some((c) => c.characterId != null && hasTokens(c.characterId)) ? '' : 'none';
     renderCharMenu();
   };
   ctx.onCharacterChange(showCharacter);
@@ -587,8 +615,7 @@ async function start() {
   const openShared = () => readSharedFit(sde).then((f) => {
     if (!f || !fitting) return;
     switchView('fitting');
-    fitting.load(f);
-    toast(tx('Fit deschis din link: {name}', { name: f.name }));
+    return fitting.loadIncoming(f).then((ok) => { if (ok) toast(tx('Fit deschis din link: {name}', { name: f.name })); });
   }).catch(() => toast(tx('Linkul de fit nu e valid sau e incomplet.')));
   const openDoctrine = () => {
     if (!hasSharedDoctrine()) return;

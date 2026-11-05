@@ -1,4 +1,4 @@
-import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, badge } from '../ui/components';
+import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { seriesChart, bindSeriesChart } from '../ui/charts';
 import { loadJson, saveJson } from '../storage';
@@ -46,7 +46,7 @@ export function createLedgerPanel(pane: HTMLElement, deps: () => LedgerDeps) {
   async function render(force = false) {
     const logged = loggedChars();
     if (!logged.length) {
-      pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din meniul de caractere (dreapta sus) ca să vezi ce ai minat.') }) });
+      pane.innerHTML = loginEmpty(tx('Fă login cu EVE ca să vezi ce ai minat.'));
       return;
     }
     if (!ledgerCharacters().length) {
@@ -170,7 +170,7 @@ export function createMoonPanel(pane: HTMLElement) {
   async function render(force = false) {
     const logged = loggedChars();
     if (!logged.length) {
-      pane.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din meniul de caractere (dreapta sus) ca să vezi extracțiile corporației.') }) });
+      pane.innerHTML = loginEmpty(tx('Fă login cu EVE ca să vezi extracțiile corporației.'));
       return;
     }
     if (!moonCharacters().length) {

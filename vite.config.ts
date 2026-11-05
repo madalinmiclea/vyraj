@@ -23,7 +23,8 @@ function staticHost(): Plugin {
       outDir = resolve(config.root, config.build.outDir);
     },
     transformIndexHtml() {
-      const proxy = /^https:\/\//.test(process.env.VITE_R2Z2_URL || '') ? new URL(process.env.VITE_R2Z2_URL!).origin : '';
+      const proxyUrl = process.env.VITE_R2Z2_URL || 'https://vyraj-r2z2.vyraj.workers.dev';
+      const proxy = /^https:\/\//.test(proxyUrl) ? new URL(proxyUrl).origin : '';
       const csp = readFileSync('public/_headers', 'utf8')
         .match(/Content-Security-Policy:\s*(.+)/)?.[1]
         .replace(/;\s*frame-ancestors[^;]*/, '')

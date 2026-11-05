@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, esc, loader, alertBox, button, badge, windowTitle, confirmDialog, emptyState } from '../ui/components';
+import { pageHead, panel, esc, loader, alertBox, button, badge, windowTitle, confirmDialog, emptyState, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { tx, locale } from '../i18n';
 import { rosterCharacters } from '../character/roster';
@@ -151,7 +151,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
 
   function gameSection() {
     const c = ctx.character;
-    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) return panel({ body: alertBox(tx('Fă login cu un caracter EVE ca să vezi notificările din joc.')) });
+    if (c.kind !== 'esi' || !c.characterId || !hasTokens(c.characterId)) return loginEmpty(tx('Fă login cu EVE ca să vezi notificările din joc.'));
     if (!hasScope(c.characterId, GAME_SCOPE)) return panel({ body: permissionGate('notifications', c.characterId, c.name) });
     const actions = button(gameBusy ? tx('Se încarcă…') : tx('Reîncarcă'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-nt-game-refresh ${gameBusy ? 'disabled' : ''}` });
     if (gameError) return panel({ title: tx('Din joc'), actions, body: alertBox(gameError) });
@@ -168,7 +168,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
     return panel({
       title: tx('Din joc'), count: game.list.length, actions,
       body: `${game.list.length ? `<div class="nt-log">${rows}</div>` : `<p class="dim">${tx('Nicio notificare din joc în ultimele zile.')}</p>`}
-        <p class="small dim">${tx('Ultimele notificări din joc ale caracterului {name}, citite din ESI (EVE le ține doar câteva zile și le actualizează la 10 minute). Punctul verde arată categoriile pentru care primești notificare.', { name: c.name })}</p>`,
+        <p class="small dim">${tx('Ultimele notificări din joc ale caracterului {name}, citite din ESI (EVE le ține doar câteva zile și le actualizează la 10 minute). Punctul verde arată categoriile pentru care primești notificare.', { name: esc(c.name) })}</p>`,
     });
   }
 

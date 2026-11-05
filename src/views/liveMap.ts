@@ -566,7 +566,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       ${fight ? `<span class="tip-row neg-text">${tx('Bătălie')} · ${compactISK(fight.value)} ISK · ${tx('{n} kill-uri', { n: fight.kills })}</span>` : ''}
       ${st?.camp ? `<span class="tip-row neg-text">${st.smartbomb ? tx('Smartbomb camp') : tx('Posibil gatecamp')}</span>` : ''}
       ${a ? `<span class="tip-row dim">${tx('ESI ultima oră: {ships} nave, {pods} capsule, {jumps} sărituri', { ships: a.ship, pods: a.pod, jumps: formatInt(a.jumps) })}</span>` : ''}
-      ${d != null ? `<span class="tip-row accent-text">${d === 0 ? tx('Ești aici') : tx('{n} sărituri de {who}', { n: d, who: refLabel() })}</span>` : ''}`;
+      ${d != null ? `<span class="tip-row accent-text">${d === 0 ? tx('Ești aici') : tx('{n} sărituri de {who}', { n: d, who: esc(refLabel()) })}</span>` : ''}`;
   }
 
   function renderStatus() {
@@ -966,10 +966,11 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     renderSide();
     recomputeDistances();
     loadLinks();
-    setInterval(loadLinks, 10 * 60_000);
+    const onScreen = () => visible && !document.hidden;
+    setInterval(() => { if (onScreen()) loadLinks(); }, 10 * 60_000);
     loadContext().then(() => computeStats());
-    setInterval(() => loadContext().then(() => computeStats()), 5 * 60_000);
-    setInterval(() => { renderStatus(); computeStats(); }, 15_000);
+    setInterval(() => { if (onScreen()) loadContext().then(() => computeStats()); }, 5 * 60_000);
+    setInterval(() => { if (onScreen()) { renderStatus(); computeStats(); } }, 15_000);
     if (settings.follow) setFollow(settings.follow);
     if (isDemo()) startDemoIntel();
     else chat.restore().then(() => { if (settings.tab === 'chat') renderSide(); }).catch(() => undefined);
@@ -991,6 +992,8 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       visible = true;
       if (!started) { started = true; init(); return; }
       star?.redraw();
+      renderStatus();
+      computeStats();
       if (settings.follow) pollFollow();
     },
     hide() {

@@ -23,15 +23,16 @@ function open(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-export function openShareModal(url: string, { title, text, hint = '' }: { title: string; text: string; hint?: string }) {
-  const u = encodeURIComponent(url);
+export function openShareModal(initial: string, { title, text, hint = '', shorten }: { title: string; text: string; hint?: string; shorten?: () => Promise<string> }) {
   const t = encodeURIComponent(text);
+  let url = initial;
+  let pending: Promise<string> | null = null;
   const canNative = typeof navigator.share === 'function';
   const modal = openModal(title, `
     <div class="share-modal">
       <label class="share-label">${tx('Link')}</label>
       <div class="share-link">
-        <input class="input" type="text" readonly value="${esc(url)}" spellcheck="false" data-share-input>
+        <input class="input" type="text" readonly value="${esc(initial)}" spellcheck="false" data-share-input>
         ${button(tx('Copiază'), { iconName: 'copy', cls: 'sm', attrs: 'data-share="copy"' })}
       </div>
       ${hint ? `<p class="dim small">${esc(hint)}</p>` : ''}
@@ -44,9 +45,20 @@ export function openShareModal(url: string, { title, text, hint = '' }: { title:
     </div>`);
   const input = modal.querySelector<HTMLInputElement>('[data-share-input]');
   input?.addEventListener('focus', () => input.select());
-  modal.addEventListener('click', (e) => {
+  const finalUrl = (): Promise<string> => {
+    if (!shorten) return Promise.resolve(url);
+    pending ??= shorten().then((short) => {
+      url = short;
+      if (input) input.value = short;
+      return short;
+    }).catch(() => url);
+    return pending;
+  };
+  modal.addEventListener('click', async (e) => {
     const kind = (e.target as HTMLElement).closest<HTMLElement>('[data-share]')?.dataset.share;
     if (!kind) return;
+    const url = await finalUrl();
+    const u = encodeURIComponent(url);
     switch (kind) {
       case 'copy':
         input?.select();

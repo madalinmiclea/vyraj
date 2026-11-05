@@ -385,7 +385,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       ${(v.rooms ?? []).map(roomHtml).join('')}
       ${listBlock(tx('Sfaturi'), pickList(v.tips))}
       ${listBlock(tx('Loot'), v.lootList ?? [])}
-      ${!v.rooms?.length && !pickList(v.tips).length && !m.guide ? `<p class="dim">${tx('Sursa nu are încă detalii pentru misiunea asta. Vezi pagina completă.')}</p>` : ''}
+      ${!m.courier && !v.rooms?.length && !pickList(v.tips).length && !m.guide ? `<p class="dim">${tx('Sursa nu are încă detalii pentru misiunea asta. Vezi pagina completă.')}</p>` : ''}
       <div class="mis-links">${es}${eu}</div>`;
   }
 

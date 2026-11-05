@@ -19,6 +19,47 @@ const LINK_KEYS = ['fit', 'doctrine', 'build'];
 const LINK_CODE = /^[A-Za-z0-9_-]{1,16000}$/;
 const LINK_ID = /^[A-Za-z0-9]{6,12}$/;
 const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const ORIGINS = ['https://madalinmiclea.github.io', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+const MAX_JSON = 200_000;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_MAX = 30;
+const LINK_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const TOUCH_MS = 24 * 60 * 60 * 1000;
+const SWEEP_MS = 24 * 60 * 60 * 1000;
+
+function allowedOrigin(request, env) {
+  const origin = request.headers.get('origin');
+  const extra = (env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+  return !!origin && (ORIGINS.includes(origin) || extra.includes(origin));
+}
+
+async function decodeCode(code) {
+  const raw = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const parts = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > MAX_JSON) { await reader.cancel(); throw new Error('too large'); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return JSON.parse(new TextDecoder().decode(out));
+}
+
+async function validPayload(k, c) {
+  let data;
+  try { data = await decodeCode(c); } catch { return false; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  if (k !== 'fit') return true;
+  return data.v === 1 && Number.isInteger(data.s) && data.s > 0 && (data.n === undefined || typeof data.n === 'string') && !!data.sl && typeof data.sl === 'object';
+}
 
 async function linkId(text, size) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
@@ -128,23 +169,62 @@ export class Feed {
 export class Links {
   constructor(ctx) {
     this.ctx = ctx;
+    this.hits = new Map();
+  }
+
+  limited(ip) {
+    const now = Date.now();
+    const recent = (this.hits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+    if (recent.length >= RATE_MAX) {
+      this.hits.set(ip, recent);
+      return true;
+    }
+    recent.push(now);
+    this.hits.set(ip, recent);
+    if (this.hits.size > 5000) for (const [key, list] of this.hits) if (!list.some((t) => now - t < RATE_WINDOW_MS)) this.hits.delete(key);
+    return false;
   }
 
   async fetch(request) {
     const url = new URL(request.url);
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + SWEEP_MS);
     if (request.method === 'POST') {
+      if (this.limited(url.searchParams.get('ip') || '')) return new Response(null, { status: 429, headers: { 'retry-after': '600' } });
       const { k, c } = await request.json();
       for (let size = 8; size <= 12; size += 2) {
         const id = await linkId(`${k}=${c}`, size);
         const found = await this.ctx.storage.get(id);
         if (found && (found.k !== k || found.c !== c)) continue;
-        if (!found) await this.ctx.storage.put(id, { k, c, t: Date.now() });
+        if (!found) await this.ctx.storage.put(id, { k, c, t: Date.now(), a: Date.now() });
+        else if (Date.now() - (found.a ?? found.t) > TOUCH_MS) await this.ctx.storage.put(id, { ...found, a: Date.now() });
         return Response.json({ id });
       }
       return new Response(null, { status: 409 });
     }
-    const found = await this.ctx.storage.get(url.searchParams.get('id'));
-    return found ? Response.json({ k: found.k, c: found.c }) : new Response(null, { status: 404 });
+    const id = url.searchParams.get('id');
+    const found = await this.ctx.storage.get(id);
+    if (!found) return new Response(null, { status: 404 });
+    if (Date.now() - (found.a ?? found.t) > TOUCH_MS) await this.ctx.storage.put(id, { ...found, a: Date.now() });
+    return Response.json({ k: found.k, c: found.c });
+  }
+
+  async alarm() {
+    const cut = Date.now() - LINK_TTL_MS;
+    let start;
+    for (;;) {
+      const page = await this.ctx.storage.list({ start, limit: 500 });
+      if (!page.size) break;
+      const old = [];
+      let last;
+      for (const [key, value] of page) {
+        last = key;
+        if ((value?.a ?? value?.t ?? 0) < cut) old.push(key);
+      }
+      if (old.length) await this.ctx.storage.delete(old);
+      if (page.size < 500) break;
+      start = `${last}\u0000`;
+    }
+    await this.ctx.storage.setAlarm(Date.now() + SWEEP_MS);
   }
 }
 
@@ -152,13 +232,17 @@ async function links(request, env, url) {
   const store = env.LINKS.get(env.LINKS.idFromName('main'));
   const json = { 'content-type': 'application/json' };
   if (request.method === 'POST') {
+    if (!allowedOrigin(request, env)) return reply(403, null, { 'cache-control': 'no-store' });
     const body = await request.text();
     if (body.length > 16100) return reply(413, null, { 'cache-control': 'no-store' });
     let data;
     try { data = JSON.parse(body); } catch { return reply(400, null, { 'cache-control': 'no-store' }); }
     if (!LINK_KEYS.includes(data?.k) || typeof data.c !== 'string' || !LINK_CODE.test(data.c)) return reply(400, null, { 'cache-control': 'no-store' });
-    const res = await store.fetch('https://links/', { method: 'POST', body: JSON.stringify({ k: data.k, c: data.c }) });
-    return reply(res.status, res.ok ? await res.text() : null, { ...json, 'cache-control': 'no-store' });
+    if (!(await validPayload(data.k, data.c))) return reply(422, null, { 'cache-control': 'no-store' });
+    const ip = request.headers.get('cf-connecting-ip') || '';
+    const res = await store.fetch(`https://links/?ip=${encodeURIComponent(ip)}`, { method: 'POST', body: JSON.stringify({ k: data.k, c: data.c }) });
+    const extra = res.headers.get('retry-after') ? { 'retry-after': res.headers.get('retry-after') } : {};
+    return reply(res.status, res.ok ? await res.text() : null, { ...json, ...extra, 'cache-control': 'no-store' });
   }
   const id = url.pathname.slice(3);
   if (!LINK_ID.test(id)) return reply(404, null, { 'cache-control': 'no-store' });

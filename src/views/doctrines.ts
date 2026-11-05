@@ -130,7 +130,7 @@ export function createDoctrinesView(el: HTMLElement, ctx: AppContext, side: HTML
     const cell = (f: DoctrineFit, c: Character) => {
       const r = req.get(`${f.id}|${c.id}`)!;
       if (r.canFly) return `<td class="doc-cell ok">${icon('check')}${tx('Gata')}</td>`;
-      return `<td class="doc-cell"><button class="doc-train" data-plan="${esc(f.id)}" data-plan-char="${esc(c.id)}" data-tip="${tx('{n} skill-uri lipsă · click: adaugă-le în planul lui {name}', { n: r.missing.length, name: c.name })}">${formatDuration(r.totalSeconds)}</button></td>`;
+      return `<td class="doc-cell"><button class="doc-train" data-plan="${esc(f.id)}" data-plan-char="${esc(c.id)}" data-tip="${tx('{n} skill-uri lipsă · click: adaugă-le în planul lui {name}', { n: r.missing.length, name: esc(c.name) })}">${formatDuration(r.totalSeconds)}</button></td>`;
     };
     return `<section class="panel">
       <div class="panel-head">${windowTitle(tx('Cine poate zbura'))}</div>

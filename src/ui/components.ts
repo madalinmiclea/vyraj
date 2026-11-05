@@ -1,5 +1,6 @@
 import { icon, reticle } from './icons';
 import { tx, locale } from '../i18n';
+import { isDemo } from '../storage';
 import { loreText } from '../i18n/lore';
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -76,6 +77,11 @@ export function emptyState({ title, text = '', extra = '', vy = '', vyText = '' 
   return `<div class="empty">${reticle}<h3>${h}</h3>${text ? `<p>${p}</p>` : ''}${extra}</div>`;
 }
 
+export function loginEmpty(text: string, vyText = '') {
+  const demo = isDemo() ? '' : button(tx('Încearcă cu date demo'), { iconName: 'play', cls: 'ghost', attrs: 'data-demo-start' });
+  return panel({ body: emptyState({ title: tx('Niciun caracter logat'), text, vy: vyText ? 'No Capsuleer Bound' : '', vyText, extra: `<div class="row-actions empty-actions">${button(tx('Login cu EVE'), { iconName: 'login', attrs: 'data-login-open' })}${demo}</div>` }) });
+}
+
 export function loader(text: string) {
   return `<div class="scan"><div class="scan-bar"></div><p>${esc(text)}</p></div>`;
 }
@@ -85,15 +91,44 @@ export function alertBox(text: string, tone = '') {
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
-export function toast(text: string, ms = 1800) {
+export function toast(text: string, ms = Math.max(2200, Math.min(7000, text.length * 60))) {
   document.querySelector('.toast')?.remove();
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = text;
   document.body.appendChild(el);
+  let live = document.getElementById('toastLive');
+  if (!live) {
+    live = document.createElement('div');
+    live.id = 'toastLive';
+    live.className = 'sr-only';
+    live.setAttribute('role', 'status');
+    live.setAttribute('aria-live', 'polite');
+    document.body.appendChild(live);
+  }
+  live.textContent = '';
+  const region = live;
+  requestAnimationFrame(() => { region.textContent = text; });
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.remove(), ms);
 }
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function trapFocus(root: HTMLElement, e: KeyboardEvent) {
+  if (e.key !== 'Tab') return;
+  const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null);
+  if (!items.length) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (e.shiftKey && (document.activeElement === first || !root.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && (document.activeElement === last || !root.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+}
+
+const titled = (title: string, id: string) => windowTitle(title).replace('<div class="window-title"', `<div id="${id}" class="window-title"`);
+
+let modalSeq = 0;
+let modalReturn: HTMLElement | null = null;
 
 export function formatISK(amount: number, digits = 2) {
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount);
@@ -126,22 +161,36 @@ export function meter(label: string, used: number, total: number, unit = '', dig
 }
 
 export function openModal(title: string, body: string, { wide = false } = {}): HTMLElement {
-  closeModal();
+  const back = modalReturn ?? (document.activeElement as HTMLElement | null);
+  closeModal(false);
+  modalReturn = back;
+  const id = `modalTitle${++modalSeq}`;
   const el = document.createElement('div');
   el.className = 'modal-backdrop';
-  el.innerHTML = `<div class="panel modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
-    <div class="panel-head">${windowTitle(title)}<button class="btn ghost sm icon-only" data-close title="${tx('Închide')}">${icon('close')}</button></div>
+  el.innerHTML = `<div class="panel modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="${id}">
+    <div class="panel-head">${titled(title, id)}<button class="btn ghost sm icon-only" data-close title="${tx('Închide')}" aria-label="${tx('Închide')}">${icon('close')}</button></div>
     <div class="panel-body">${body}</div>
   </div>`;
   el.addEventListener('click', (e) => {
     if (e.target === el || (e.target as HTMLElement).closest('[data-close]')) closeModal();
   });
+  el.addEventListener('keydown', (e) => trapFocus(el, e));
   document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    if (el.contains(document.activeElement)) return;
+    const first = el.querySelector<HTMLElement>('.panel-body textarea:not([readonly]), .panel-body input:not([type="hidden"]):not([readonly]), .panel-body select') ?? el.querySelector<HTMLElement>('[data-close]');
+    first?.focus();
+  });
   return el;
 }
 
-export function closeModal() {
-  document.querySelectorAll('.modal-backdrop:not(.confirm-backdrop)').forEach((m) => m.remove());
+export function closeModal(restore = true) {
+  const open = document.querySelectorAll('.modal-backdrop:not(.confirm-backdrop)');
+  open.forEach((m) => m.remove());
+  if (!restore) return;
+  const back = modalReturn;
+  modalReturn = null;
+  if (open.length && back?.isConnected) back.focus?.();
 }
 
 export interface ConfirmOptions { title?: string; ok?: string; cancel?: string; danger?: boolean }
@@ -151,10 +200,11 @@ export function confirmDialog(message: string, { title = tx('Confirmare'), ok = 
     const back = document.activeElement as HTMLElement | null;
     const el = document.createElement('div');
     el.className = 'modal-backdrop confirm-backdrop';
-    el.innerHTML = `<div class="panel modal confirm-dialog ${danger ? 'danger' : ''}" role="alertdialog" aria-modal="true">
-      <div class="panel-head">${windowTitle(title)}</div>
+    const id = `confirmTitle${++modalSeq}`;
+    el.innerHTML = `<div class="panel modal confirm-dialog ${danger ? 'danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="${id}" aria-describedby="${id}m">
+      <div class="panel-head">${titled(title, id)}</div>
       <div class="panel-body">
-        <div class="confirm-message">${icon(danger ? 'alert' : 'info')}<p>${esc(message)}</p></div>
+        <div class="confirm-message">${icon(danger ? 'alert' : 'info')}<p id="${id}m">${esc(message)}</p></div>
         <div class="confirm-actions"><button class="btn ghost" data-answer="0">${esc(cancel)}</button><button class="btn ${danger ? 'danger' : ''}" data-answer="1">${esc(ok)}</button></div>
       </div>
     </div>`;
@@ -165,6 +215,7 @@ export function confirmDialog(message: string, { title = tx('Confirmare'), ok = 
       resolve(answer);
     };
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') return trapFocus(el, e);
       if (e.key !== 'Escape' && e.key !== 'Enter') return;
       e.preventDefault();
       e.stopPropagation();

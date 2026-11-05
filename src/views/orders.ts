@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatISK, compactISK, copyText, emptyState, windowTitle, badge, button } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatISK, compactISK, copyText, windowTitle, badge, button, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
@@ -168,7 +168,7 @@ export function createOrdersView(el: HTMLElement, ctx: AppContext, side: HTMLEle
       return;
     }
     if (!chars.length) {
-      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi ordinele de piață.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your market orders.' }) });
+      body.innerHTML = loginEmpty(tx('Fă login cu EVE ca să vezi ordinele de piață.'), 'Bind a capsuleer through EVE login to see your market orders.');
       return;
     }
     const noScope = logged.filter((c) => scan?.missingScope.includes(c.name));

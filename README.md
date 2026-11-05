@@ -8,7 +8,11 @@ Vyraj is a free web toolkit for EVE Online pilots: Jita market prices, a Pyfa-st
 
 **Found a bug or have an idea?** [Open an issue](https://github.com/madalinmiclea/vyraj/issues). The Start screen and the Credits page also link there, next to the changelog.
 
-It is a fully static site. Everything runs in your browser and there is no Vyraj server. Your characters, login tokens, fits, SKIN collection, journals and settings are stored only in your browser's local storage and are never sent anywhere except directly to CCP's own services.
+It is a static site and runs in your browser. Your characters, login tokens, fits, SKIN collection, journals and settings are stored only in your browser's local storage. Vyraj talks to these services:
+
+- **CCP** (ESI and EVE SSO): your character data, only with the permissions you give.
+- **Fuzzwork**: Jita prices. **zKillboard** and **EVE-Scout**: public kills and wormhole connections.
+- **The Vyraj worker** (a small Cloudflare Worker): relays the public zKillboard kill feed, and stores a fit only when you create a short share link. A short link keeps the fit, its name and its notes, and is removed after a year without use.
 
 ## User guide
 
@@ -16,7 +20,7 @@ It is a fully static site. Everything runs in your browser and there is no Vyraj
 
 - **Start**: the first screen. It explains what Vyraj does, lists every tool by group, shows your active pilot and saved fits once you log in, and the latest entries from the changelog.
 - **Left rail** (bottom bar on phones): switches between the main screens. Each icon has its name underneath.
-- **Links per screen**: every screen has its own address (for example `#/fitting` or `#/doctrines`), so you can bookmark or share it, and the browser back button works.
+- **Links per screen**: every screen has its own address (for example `/vyraj/fitting` or `/vyraj/doctrines`), so you can bookmark or share it, and the browser back button works.
 - **Install**: Vyraj can be installed as an app from the browser menu (Add to Home Screen on phones, Install on desktop).
 - **Backup**: the Start and Character screens can download all your local data (fits, doctrines, skill plans, custom characters, logs and settings) as one file and restore it on another computer. EVE logins are never written to the file.
 - **Left panel**: the item browser or the screen's own menu. On phones it opens from the ☰ button at the top left, and the screen's sections also show as tabs at the top.
@@ -70,7 +74,7 @@ A jump planner for capital ships with fatigue, the current state of Pochven, the
 
 ### Fitting
 
-A fitting simulator that follows Pyfa's formulas:
+A fitting simulator with its own engine built on the SDE modifiers, checked against Pyfa:
 
 - Open several fits at once in tabs, like in Pyfa. Under the fit, the Drones, Fighters, Cargo, Implants, Boosters, Projected, Command and Notes tabs hold everything that is not fitted in a slot.
 - Pick a ship, then click a slot. The browser narrows down to modules for that slot only.
@@ -126,6 +130,26 @@ Login asks only for the first three permissions below: skills, skill queue and i
 | `esi-planets.manage_planets.v1` | Reads your planetary colonies, extractor timers, storage and factories for the Planetary Interaction screen. Vyraj only reads them and never changes a colony. |
 | `esi-characters.read_blueprints.v1` | Reads your blueprints, so the Industry screen can list them and calculate with their real ME, TE and runs. |
 | `esi-industry.read_character_jobs.v1` | Shows your running industry jobs and when they finish. |
+| `esi-characters.read_freelance_jobs.v1` | Shows the freelance jobs you accepted, in Operations. |
+| `esi.activity.char:read` | Reads the military campaign objectives you take part in and your contribution, in Operations. |
+| `esi-structures.read_character.v1` | Reads your Mercenary Dens (development, anarchy, infomorphs), in Operations. |
+| `esi-activities.read_character.v1` | Reads the tactical operations available at your Mercenary Dens, in Operations. |
+| `esi.cosmetic.char:read` | Reads your SKINR licenses, components and Paragon Hub listings. |
+| `esi-mail.read_mail.v1` | Shows your EVE mail in the Mail screen. |
+| `esi-mail.organize_mail.v1` | Marks mail as read, moves or deletes it, only when you press the button. |
+| `esi-mail.send_mail.v1` | Sends a mail you wrote in Vyraj, only when you press Send. |
+| `esi-contracts.read_character_contracts.v1` | Shows your contracts in the Contracts screen. |
+| `esi-contracts.read_corporation_contracts.v1` | Shows your corporation's contracts, if your roles allow it. |
+| `esi-characters.read_corporation_roles.v1` | Checks your corporation roles, so corporation screens only ask for what you can see. |
+| `esi-wallet.read_corporation_wallets.v1` | Shows corporation wallet divisions and taxes, if your roles allow it. |
+| `esi-corporations.read_divisions.v1` | Shows the names of the corporation wallet divisions. |
+| `esi-characters.read_notifications.v1` | Shows your in-game notifications in the Notifications screen. |
+| `esi-industry.read_character_mining.v1` | Reads your mining ledger, for the Mining screen. |
+| `esi-industry.read_corporation_mining.v1` | Reads your corporation's moon extractions (chunk arrival and auto fracture). Needs Station Manager or Director. |
+| `esi-characters.read_contacts.v1` | Reads your contacts, so the sovereignty map and intel can show standings. |
+| `esi-corporations.read_contacts.v1` | Reads your corporation's contacts, for the same standings. |
+| `esi-alliances.read_contacts.v1` | Reads your alliance's contacts, for the same standings. |
+| `esi-characters.read_standings.v1` | Reads your NPC standings, for the Standings tab and agent access in PvE. |
 
 When a screen needs a permission you have not given yet, it shows what the permission is for and an Allow button. Pressing it sends you to the EVE login page, keeps the permissions you already gave and adds the new one.
 

@@ -1,7 +1,7 @@
 import type { AppContext } from '../app/context';
 import { pageHead, panel, loader, alertBox, emptyState, esc, badge, formatInt, compactISK, searchField, toast, openModal, closeModal, copyText, windowTitle, dataStamp } from '../ui/components';
 import { icon } from '../ui/icons';
-import { loadJson, saveJson } from '../storage';
+import { loadJson, saveJson, isDemo } from '../storage';
 import { typeIconUrl, fetchListedTypes, fetchPrices } from '../services/market';
 import { loadSkins, loadOwned, saveOwned, skinKey, applyExtras, applySync, lastSync, importList, migrateOwned, type SkinLine, type ShipRef } from '../services/skins';
 import { Category } from '../data/sde';
@@ -463,7 +463,7 @@ export function createSkinsView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       if (ctx.character.id !== id) return;
       const added = applySync(id, lines, owned, { assets, transactions });
       saveOwned(id, owned);
-      if (added.length) toast(tx('{n} SKIN-uri noi în colecție', { n: added.length }));
+      if (added.length && !isDemo() && el.closest('.view.active')) toast(tx('{n} SKIN-uri noi în colecție', { n: added.length }));
     } finally {
       syncing = false;
       if (el.querySelector('#skinHead')) { renderHead(); if (mode !== 'shop') renderGrid(); }

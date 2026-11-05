@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, emptyState, badge, openModal } from '../ui/components';
+import { panel, loader, alertBox, esc, formatInt, formatNum, formatISK, compactISK, badge, openModal, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, typeIconUrl } from '../services/market';
@@ -166,7 +166,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
     if (!visible) return;
     const logged = rosterCharacters().filter((c) => hasTokens(c.characterId!)).map((c) => ({ characterId: c.characterId!, name: c.name }));
     if (!logged.length) {
-      el.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să vezi contractele.'), vy: 'No Capsuleer Bound', vyText: 'Bind a capsuleer through EVE login on the Character screen to see your contracts.' }) });
+      el.innerHTML = loginEmpty(tx('Fă login cu EVE ca să vezi contractele.'), 'Bind a capsuleer through EVE login to see your contracts.');
       return;
     }
     const corpReaders = corpContractCharacters();

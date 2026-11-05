@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { panel, loader, alertBox, esc, formatInt, compactISK, emptyState, badge, copyText } from '../ui/components';
+import { panel, loader, alertBox, esc, formatInt, compactISK, badge, copyText, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { fetchPrices, typeIconUrl } from '../services/market';
@@ -106,7 +106,7 @@ export function createCheckoutPanel(el: HTMLElement, ctx: AppContext): CheckoutP
     if (!visible) return;
     const logged = rosterCharacters().filter((c) => hasTokens(c.characterId!)).map((c) => ({ characterId: c.characterId!, name: c.name }));
     if (!logged.length) {
-      el.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter logat'), text: tx('Fă login cu EVE din ecranul Caracter ca să compari lista cu bunurile tale.') }) });
+      el.innerHTML = loginEmpty(tx('Fă login cu EVE ca să compari lista cu bunurile tale.'));
       return;
     }
     if (!logged.some((c) => hasScope(c.characterId, ASSETS_SCOPE))) {

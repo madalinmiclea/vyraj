@@ -1,4 +1,5 @@
-const EVICTABLE = ['eve-market:listed-types', 'eve-intel:hub-prices', 'eve-market:prices', 'eve-intel:scan'];
+const EVICTABLE = ['eve-live:kills', 'eve-market:listed-types', 'eve-intel:hub-prices', 'eve-market:prices', 'eve-intel:scan'];
+const QUIET = /(names|prices|cache|kills)$/;
 
 const DEMO_FLAG = 'vyraj:demo';
 const DEMO_PREFIX = 'vyraj-demo:';
@@ -62,7 +63,7 @@ export function saveJson(key: string, value: unknown): boolean {
         continue;
       }
     }
-    errorListeners.forEach((fn) => fn(key));
+    if (!EVICTABLE.includes(key) && !QUIET.test(key)) errorListeners.forEach((fn) => fn(key));
     return false;
   }
 }
@@ -72,5 +73,15 @@ export function removeKey(key: string): void {
     localStorage.removeItem(storageKey(key));
   } catch {
     return;
+  }
+}
+
+export function evictCaches(): void {
+  for (const cache of EVICTABLE) {
+    try {
+      localStorage.removeItem(cache);
+    } catch {
+      continue;
+    }
   }
 }

@@ -6,7 +6,7 @@ const THEMES: Theme[] = ['dark', 'light', 'vyraj'];
 
 const THEME_KEY = 'eve-fit:ui:theme';
 
-const stored = loadJson<Theme>(THEME_KEY, 'dark');
+const stored = loadJson<Theme>(THEME_KEY, matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 
 export let theme: Theme = THEMES.includes(stored) ? stored : 'dark';
 
