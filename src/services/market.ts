@@ -49,7 +49,9 @@ function toAggregates(d: { sell?: FuzzworkSide; buy?: FuzzworkSide } = {}): Aggr
 }
 
 export async function fetchJitaAggregates(typeId: number): Promise<Aggregates> {
-  return (await fetchPrices([typeId], { fresh: true })).get(typeId) ?? toAggregates();
+  const value = (await fetchPrices([typeId], { fresh: true })).get(typeId) ?? toAggregates();
+  if (value.sellMin || value.buyMax) return value;
+  return (isGlobalMarket(typeId) ? esiAggregates(GLOBAL_PLEX_REGION, typeId) : esiAggregates(JITA_REGION, typeId, JITA_STATION)).catch(() => value);
 }
 
 const PRICES_KEY = 'eve-market:prices';
