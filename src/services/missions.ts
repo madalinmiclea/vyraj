@@ -36,6 +36,8 @@ export interface MVariant {
 
 export interface MGuide { obj?: string; rooms?: string; gates?: string; steps?: string[]; stepsNote?: string; notes?: string[]; blitz?: boolean; home?: boolean }
 
+export interface MBonus { k: 'room' | 'key'; t: MText; key?: MText; get?: MText; gives?: MText; opt?: boolean; used?: boolean }
+
 export interface Mission {
   key: string;
   name: string;
@@ -49,6 +51,7 @@ export interface Mission {
   escal?: string;
   eu?: string;
   guide?: MGuide;
+  bonus?: MBonus[];
   variants: MVariant[];
 }
 

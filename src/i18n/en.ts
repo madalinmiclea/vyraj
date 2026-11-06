@@ -3512,4 +3512,10 @@ export const EN: Record<string, string> = {
   "Cin.": "Kin",
   "Term.": "Th",
   "Statistici NPC": "NPC stats",
+  "Cheie": "Key",
+  "Unde o găsești": "Where to get it",
+  "Opțional": "Optional",
+  "Se consumă": "Consumed",
+  "Cameră bonus": "Bonus room",
+  "Cheie / acces": "Key / access",
 };

@@ -246,7 +246,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       <span class="mis-caret" aria-hidden="true"></span>
       <span class="mis-main">
         <span class="mis-name">${esc(m.name)}</span>
-        <span class="mis-tags">${levelTag(m)}<span class="badge mis-int ${lvl}">${esc(INTENSITY[lvl])}</span>${m.story ? `<span class="badge gold">${tx('Storyline')}</span>` : ''}${hasBlitz(m) || m.guide?.blitz ? `<span class="badge ok">Blitz</span>` : ''}${m.courier ? `<span class="badge">${tx('Transport')}</span>` : ''}${facs.map((f) => `<span class="badge">${esc(faction(f).name)}</span>`).join('')}${emp ? `<span class="badge warn">${tx('scade standing')}</span>` : some ? `<span class="badge">${tx('standing doar la unele variante')}</span>` : ''}${m.ship ? `<span class="badge">${esc(tx('Maxim: {s}', { s: pick(m.ship) }))}</span>` : ''}</span>
+        <span class="mis-tags">${levelTag(m)}<span class="badge mis-int ${lvl}">${esc(INTENSITY[lvl])}</span>${m.story ? `<span class="badge gold">${tx('Storyline')}</span>` : ''}${m.bonus?.some((b) => b.k === 'room') ? `<span class="badge gold">${tx('Cameră bonus')}</span>` : ''}${hasBlitz(m) || m.guide?.blitz ? `<span class="badge ok">Blitz</span>` : ''}${m.courier ? `<span class="badge">${tx('Transport')}</span>` : ''}${facs.map((f) => `<span class="badge">${esc(faction(f).name)}</span>`).join('')}${emp ? `<span class="badge warn">${tx('scade standing')}</span>` : some ? `<span class="badge">${tx('standing doar la unele variante')}</span>` : ''}${m.ship ? `<span class="badge">${esc(tx('Maxim: {s}', { s: pick(m.ship) }))}</span>` : ''}</span>
       </span>
       <span class="mis-weak">${weak.map(chip).join('')}</span>
     </summary>`;
@@ -380,6 +380,19 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     </div>`;
   }
 
+  function bonusHtml(m: Mission) {
+    if (!m.bonus?.length) return '';
+    return m.bonus.map((b) => {
+      const rows: [string, string][] = [];
+      if (b.key) rows.push([tx('Cheie'), pick(b.key)]);
+      if (b.get) rows.push([tx('Unde o găsești'), pick(b.get)]);
+      if (b.gives) rows.push([tx('Ce primești'), pick(b.gives)]);
+      if (b.opt !== undefined) rows.push([tx('Opțional'), b.opt ? tx('Da') : tx('Nu')]);
+      if (b.used !== undefined) rows.push([tx('Se consumă'), b.used ? tx('Da') : tx('Nu')]);
+      return `<div class="mis-bonus"><div class="mis-sec-head">${b.k === 'room' ? tx('Cameră bonus') : tx('Cheie / acces')}</div><p>${esc(pick(b.t))}</p>${rows.map(([k, val]) => `<div class="mis-line"><span class="label">${esc(k)}</span><span>${esc(val)}</span></div>`).join('')}</div>`;
+    }).join('');
+  }
+
   function listBlock(title: string, items: string[], ordered = false) {
     if (!items.length) return '';
     const tag = ordered ? 'ol' : 'ul';
@@ -398,6 +411,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const eu = euPath ? `<a class="ext-link" href="${EU_URL}${encodeURI(euPath)}" target="_blank" rel="noopener noreferrer">EVE University</a>` : `<a class="ext-link" href="${EU_URL}index.php?search=${encodeURIComponent(m.name)}" target="_blank" rel="noopener noreferrer">EVE University</a>`;
     return `${switcher}
       ${overview(m, v)}
+      ${bonusHtml(m)}
       ${v.fac.length ? combat(m, v) : ''}
       ${guide}
       ${listBlock('Blitz', pickList(v.blitz))}
