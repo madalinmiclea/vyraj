@@ -1,9 +1,9 @@
 import { icon } from '../ui/icons';
 import { pageHead, searchField, statCard, loader, alertBox, badge, button, esc, formatISK, formatInt, compactISK, copyText, toast, openModal, closeModal, panel, lore } from '../ui/components';
-import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay, type Aggregates } from '../services/market';
+import { resolveType, fetchJitaAggregates, fetchHistory, lastDays, typeIconUrl, isGlobalMarket, JITA_REGION, type HistoryDay } from '../services/market';
 import { openHubModal } from './hubModal';
 import { createOrderBookPanel } from './marketBook';
-import { allHubs, fetchHubPrices, instantFlip, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees, type HubPrice } from '../services/intel';
+import { allHubs, BASE_SALES_TAX, BASE_BROKER_FEE, type Fees } from '../services/intel';
 import { seriesChart, bindSeriesChart, type SeriesPoint } from '../ui/charts';
 import { addAlert, loadAlerts, hit } from '../services/alerts';
 import { loadJson, saveJson } from '../storage';
@@ -58,7 +58,6 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
   if (!allHubs().some((h) => h.id === hubId)) hubId = 'rens';
   let historyMarket = loadJson<string>(HISTORY_MARKET_KEY, 'jita');
   let getFees: () => Fees = () => ({ salesTax: BASE_SALES_TAX, brokerFee: BASE_BROKER_FEE });
-  let jitaPrices: Aggregates | null = null;
   const orderBook = createOrderBookPanel(() => getFees());
   const loadBook = (typeId: number) => { const el = state.querySelector<HTMLElement>('#bookPanel'); if (el) orderBook.load(el, typeId); };
   const hub = () => allHubs().find((h) => h.id === hubId)!;
@@ -81,12 +80,13 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
       openHubModal((id) => {
         if (id) { hubId = id; saveJson(HUB_KEY, hubId); }
         if (!allHubs().some((h) => h.id === hubId)) hubId = 'rens';
-        if (current) loadHub(current.typeId, requestId);
+        if (id) { historyMarket = 'hub'; saveJson(HISTORY_MARKET_KEY, historyMarket); }
+        if (current) loadHistory(current.typeId, requestId);
       });
       return;
     }
     const hb = target.closest<HTMLElement>('[data-hub]');
-    if (hb && current) { hubId = hb.dataset.hub!; saveJson(HUB_KEY, hubId); loadHub(current.typeId, requestId); if (historyMarket === 'hub') loadHistory(current.typeId, requestId); return; }
+    if (hb && current) { hubId = hb.dataset.hub!; saveJson(HUB_KEY, hubId); historyMarket = 'hub'; saveJson(HISTORY_MARKET_KEY, historyMarket); loadHistory(current.typeId, requestId); return; }
     const hm = target.closest<HTMLElement>('[data-history-market]');
     if (hm && current) { historyMarket = hm.dataset.historyMarket!; saveJson(HISTORY_MARKET_KEY, historyMarket); loadHistory(current.typeId, requestId); return; }
     if (target.closest('[data-alert]') && current) { openAlert(current); return; }
@@ -147,58 +147,9 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     if (current && isGlobalMarket(current.typeId)) return '';
     return `<div class="advice-sort">
       <button class="chip-btn ${historyMarket !== 'hub' ? 'active' : ''}" data-history-market="jita">Jita</button>
-      <button class="chip-btn ${historyMarket === 'hub' ? 'active' : ''}" data-history-market="hub">${hub().name}</button>
+      ${allHubs().map((x) => `<button class="chip-btn ${historyMarket === 'hub' && x.id === hubId ? 'active' : ''}" data-hub="${x.id}">${esc(x.name)}</button>`).join('')}
+      <button class="chip-btn" data-hub-add title="${esc(tx('Adaugă un hub propriu'))}">+</button>
     </div>`;
-  }
-
-  function hubTable(j: Aggregates, h: HubPrice) {
-    const name = hub().name;
-    const fees = getFees();
-    const tax = fees.salesTax;
-    const diff = (a: number, b: number) => {
-      if (!(a > 0 && b > 0)) return '<span class="dim">—</span>';
-      const d = (a / b - 1) * 100;
-      return `<span class="num ${d > 0.05 ? 'pos' : d < -0.05 ? 'neg-text' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}%</span>`;
-    };
-    const route = (from: string, to: string, buy: number, sell: number, depth: number) => {
-      if (!(buy > 0 && sell > 0)) return `<tr><td>${from} → ${to}</td><td class="r dim" colspan="5">${tx('fără ordine pe una din părți')}</td></tr>`;
-      const { unit, margin } = instantFlip(buy, sell, fees);
-      return `<tr><td>${from} → ${to}</td><td class="r num">${formatISK(buy)}</td><td class="r num">${formatISK(sell)}</td><td class="r num ${unit > 0 ? 'pos' : 'neg-text'}">${formatISK(unit)}</td><td class="r num ${unit > 0 ? 'pos' : 'neg-text'}">${margin > 0 ? '+' : ''}${margin.toFixed(1)}%</td><td class="r num">${formatInt(depth)}</td></tr>`;
-    };
-    const row = (label: string, p: { sellMin: number; buyMax: number; sellVolume: number; buyVolume: number; sellOrders: number; buyOrders: number }) => `<tr>
-      <td><b>${label}</b></td>
-      <td class="r num">${p.buyMax > 0 ? formatISK(p.buyMax) : '—'}</td>
-      <td class="r num">${p.sellMin > 0 ? formatISK(p.sellMin) : '—'}</td>
-      <td class="r num">${formatInt(p.buyVolume)} <span class="dim">/ ${formatInt(p.buyOrders)}</span></td>
-      <td class="r num">${formatInt(p.sellVolume)} <span class="dim">/ ${formatInt(p.sellOrders)}</span></td>
-    </tr>`;
-    const hp = { sellMin: h.sellMin, buyMax: h.buyMax, sellVolume: h.sellBook, buyVolume: h.buyBook, sellOrders: h.sellOrders, buyOrders: h.buyOrders };
-    return `<table class="table compact hub-table"><thead><tr><th>${tx('Piață')}</th><th class="r">${tx('Cumpărare max')}</th><th class="r">${tx('Vânzare min')}</th><th class="r">${tx('Volum cumpărare / ordine')}</th><th class="r">${tx('Volum vânzare / ordine')}</th></tr></thead><tbody>
-        ${row('Jita 4-4', j)}
-        ${row(name, hp)}
-        <tr class="hub-diff"><td class="dim">${tx('{name} față de Jita', { name })}</td><td class="r">${diff(h.buyMax, j.buyMax)}</td><td class="r">${diff(h.sellMin, j.sellMin)}</td><td></td><td></td></tr>
-      </tbody></table>
-      <h4 class="sub-head">${tx('Cumpăr instant → vând instant, după taxa de vânzare de {tax}%', { tax: tax.toFixed(2) })}</h4>
-      <table class="table compact hub-table"><thead><tr><th>${tx('Rută')}</th><th class="r">${tx('Cumpăr la')}</th><th class="r">${tx('Vând la')}</th><th class="r">${tx('Profit / buc')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('Cerere')}</th></tr></thead><tbody>
-        ${route('Jita', name, j.sellMin, h.buyMax, h.buyBook)}
-        ${route(name, 'Jita', h.sellMin, j.buyMax, Math.min(h.sellBook, j.buyVolume))}
-      </tbody></table>`;
-  }
-
-  async function loadHub(typeId: number, id: number) {
-    const el = state.querySelector<HTMLElement>('#hubPanel');
-    if (!el || !jitaPrices || isGlobalMarket(typeId)) return;
-    const h = hub();
-    const actions = `<div class="advice-sort">${allHubs().map((x) => `<button class="chip-btn ${x.id === h.id ? 'active' : ''}" data-hub="${x.id}">${esc(x.name)}</button>`).join('')}<button class="chip-btn" data-hub-add title="${esc(tx('Adaugă un hub propriu'))}">+</button></div>`;
-    el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: loader(tx('Prețuri {name}', { name: h.name })) });
-    try {
-      const prices = await fetchHubPrices(h, [typeId], { fresh: true });
-      if (id !== requestId || !jitaPrices) return;
-      const hp = prices.get(typeId) ?? { sellMin: 0, buyMax: 0, sellBook: 0, buyBook: 0, sellOrders: 0, buyOrders: 0 };
-      el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: hubTable(jitaPrices, hp) });
-    } catch (err) {
-      if (id === requestId) el.innerHTML = panel({ title: `Jita vs ${h.name}`, actions, body: alertBox((err as Error).message) });
-    }
   }
 
   function renderHistory() {
@@ -292,12 +243,9 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
             </div>
             <div class="actions">${infoButton(typeId)}<a class="btn ghost sm" href="https://everef.net/types/${typeId}" target="_blank" rel="noopener">${icon('external')}EVE Ref</a></div>
           </section>
-          <div id="bookPanel"></div>
-          <div id="hubPanel" class="hub-panel"></div>`;
+          <div id="bookPanel"></div>`;
         current = { typeId, name, sell: 0, buy: 0 };
-        jitaPrices = p;
         loadBook(typeId);
-        loadHub(typeId, id);
         return;
       }
 
@@ -328,13 +276,10 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
           ${statCard({ label: tx('Preț median (vânzare)'), id: 'medianPrice', tone: 'median' })}
         </div>
 
-        <div id="hubPanel" class="hub-panel"></div>
         <div id="historyPanel"></div>
       `;
       current = { typeId, name, sell: p.sellMin, buy: p.buyMax };
-      jitaPrices = p;
       loadBook(typeId);
-      loadHub(typeId, id);
       loadHistory(typeId, id);
 
       const setStat = (sid: string, value: number, meta: string) => {
