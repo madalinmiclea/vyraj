@@ -140,13 +140,44 @@ function corpJournal(division: number, now: number) {
   return done.map((e) => { const out = { ...e, balance }; balance -= e.amount; return out; });
 }
 
+const CORP_JOBS: [number, number, number, number, number, number, number, string][] = [
+  [VESNA, 1, 2186, 2185, 10, -6, 14, 'active'],
+  [VESNA, 1, 2447, 2446, 5, -20, 18, 'active'],
+  [BRAN, 1, 24699, 24698, 2, -30, 26, 'active'],
+  [BRAN, 8, 2184, 2186, 6, -9, 7, 'active'],
+  [MIRA, 1, 810, 209, 40, -12, 9, 'active'],
+  [MIRA, 4, 24703, 24703, 1, -10, 48, 'paused'],
+  [DAG, 1, 3842, 3841, 20, -14, 22, 'active'],
+  [DAG, 1, 2739, 28668, 50, -40, 20, 'active'],
+  [MEMBERS[4][0], 3, 687, 687, 1, -72, 96, 'active'],
+  [MEMBERS[5][0], 1, 1153, 238, 100, -50, 30, 'delivered'],
+  [MEMBERS[6][0], 1, 21038, 21037, 3, -80, 40, 'delivered'],
+  [VESNA, 8, 2445, 2447, 4, -100, 30, 'delivered'],
+];
+
+function corpJobs(now: number) {
+  const base = Math.floor(now / HOUR) * HOUR;
+  return CORP_JOBS.map(([installer, activity, bp, product, runs, startH, lengthH, status], i) => {
+    const start = base + startH * HOUR;
+    const end = start + lengthH * HOUR;
+    return {
+      job_id: 5_900_000 + i, installer_id: installer, activity_id: activity, blueprint_type_id: bp, product_type_id: product, runs, licensed_runs: runs,
+      cost: Math.round(180_000 + ((bp * 7919 + runs * 131) % 4_800_000)), status, start_date: iso(start), end_date: iso(end), duration: lengthH * 3600,
+      facility_id: HOME, location_id: HOME, blueprint_location_id: HOME, output_location_id: HOME, blueprint_id: 1_050_000_019_000 + i,
+      probability: activity === 8 ? 0.42 : undefined,
+      completed_date: status === 'delivered' ? iso(end + 2 * HOUR) : undefined, completed_character_id: status === 'delivered' ? installer : undefined,
+      successful_runs: status === 'delivered' ? (activity === 8 ? Math.max(1, Math.round(runs * 0.42)) : runs) : undefined,
+    };
+  });
+}
+
 const DIVISION_NAMES = () => [tx('Master Wallet'), tx('Fond de nave'), tx('Logistică'), tx('Industrie'), '', tx('Taxe PI'), tx('Rezervă')];
 
 export function demoBusiness(path: string, now: number): unknown | undefined {
   const all = seeds();
   const find = (id: number) => all.find((s) => s.id === id);
   if (path === `/characters/${DEMO_ID}/contracts`) return all.filter((s) => !s.corp).map((s) => contract(s, now));
-  if (path === `/characters/${DEMO_ID}/roles`) return { roles: ['Accountant', 'Station_Manager'] };
+  if (path === `/characters/${DEMO_ID}/roles`) return { roles: ['Accountant', 'Station_Manager', 'Factory_Manager'] };
   if (path === `/corporations/${DEMO_CORP}/contracts`) return all.filter((s) => s.corp).map((s) => contract(s, now));
   const items = path.match(/^\/(?:characters|corporations)\/\d+\/contracts\/(\d+)\/items$/);
   if (items) return (find(Number(items[1]))?.items ?? []).map(([type_id, quantity, is_included], i) => ({ record_id: i + 1, type_id, quantity, is_included, is_singleton: false }));
@@ -156,6 +187,7 @@ export function demoBusiness(path: string, now: number): unknown | undefined {
   if (path === `/corporations/${DEMO_CORP}/divisions`) { const names = DIVISION_NAMES(); return { wallet: DIVISIONS.map(([division]) => ({ division, name: names[division - 1] || undefined })), hangar: [] }; }
   const journal = path.match(new RegExp(`^/corporations/${DEMO_CORP}/wallets/(\\d+)/journal$`));
   if (journal) return corpJournal(Number(journal[1]), now);
+  if (path === `/corporations/${DEMO_CORP}/industry/jobs`) return corpJobs(now);
   if (path === `/corporations/${DEMO_CORP}`) return { name: 'Rodna Collective', ticker: 'RODNA', member_count: MEMBERS.length + 1 };
   return undefined;
 }

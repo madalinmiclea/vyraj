@@ -21,3 +21,7 @@
   .ind-form .ind-product { flex-basis: 100%; }
   .ind-sum { max-width: none; }
 }
+.corp-jobs-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-top: 12px; }
+.corp-jobs-filters .advice-sort { margin: 0; flex-wrap: wrap; }
+.corp-jobs-filters label { display: flex; flex-direction: column; gap: 4px; }
+.corp-jobs-filters .input { width: auto; min-width: 200px; }

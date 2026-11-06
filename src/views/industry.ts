@@ -16,13 +16,15 @@ import {
 } from '../services/industry';
 import { tx } from '../i18n';
 import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
+import { createCorpJobsPanel } from './industryCorp';
 
-type Tab = 'calc' | 'mine' | 'jobs';
+type Tab = 'calc' | 'mine' | 'jobs' | 'corp';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'calc', label: tx('Calculator') },
   { id: 'mine', label: tx('Blueprint-urile mele') },
   { id: 'jobs', label: tx('Joburi active') },
+  { id: 'corp', label: tx('Joburi corporație') },
 ];
 
 const TAB_KEY = 'eve-industry:tab';
@@ -78,6 +80,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     <div id="indCalc"></div>
     <div id="indMine"></div>
     <div id="indJobs"></div>
+    <div id="indCorp"></div>
     <datalist id="indProducts"></datalist>
     <datalist id="indSystems"></datalist>`;
   const settingsEl = el.querySelector<HTMLElement>('#indSettings')!;
@@ -85,6 +88,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     calc: el.querySelector<HTMLElement>('#indCalc')!,
     mine: el.querySelector<HTMLElement>('#indMine')!,
     jobs: el.querySelector<HTMLElement>('#indJobs')!,
+    corp: el.querySelector<HTMLElement>('#indCorp')!,
   };
   const productList = el.querySelector<HTMLDataListElement>('#indProducts')!;
   const systemList = el.querySelector<HTMLDataListElement>('#indSystems')!;
@@ -105,7 +109,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function renderStamp() {
     const box = side.querySelector<HTMLElement>('.side-stamp');
-    if (box) box.innerHTML = tab === 'jobs' ? '' : dataStamp(pricesAt(priceIds), 'data-ind-prices');
+    if (box) box.innerHTML = tab === 'corp' ? corpStamp : tab === 'jobs' ? '' : dataStamp(pricesAt(priceIds), 'data-ind-prices');
   }
   const ready = Promise.all([loadIndustry(), loadMap().catch(() => null)]).then(([d, m]) => { data = d; map = m; return d; });
 
@@ -184,10 +188,14 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       <div class="side-stamp"></div>`;
     renderStamp();
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
-    settingsEl.hidden = tab === 'jobs';
+    settingsEl.hidden = tab === 'jobs' || tab === 'corp';
   }
 
   side.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-corp-jobs]')) {
+      corp.refresh();
+      return;
+    }
     if ((e.target as HTMLElement).closest('[data-ind-prices]')) {
       forgetPrices(priceIds);
       refresh();
@@ -524,6 +532,9 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     if (inv) openProduct(inv.dataset.inv!, { source: 'invention', decryptor: 0, runs: 1 });
   });
 
+  let corpStamp = '';
+  const corp = createCorpJobsPanel(panes.corp, ctx, nameOf, (html) => { corpStamp = html; renderStamp(); });
+
   let jobsSeq = 0;
   async function renderJobs() {
     const pane = panes.jobs;
@@ -556,6 +567,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
   function refresh() {
     if (tab === 'calc') renderCalc();
     else if (tab === 'mine') renderMine();
+    else if (tab === 'corp') corp.render();
     else renderJobs();
   }
 

@@ -14,15 +14,17 @@ import {
   type MiningData, type Ore, type OreKind, type Miner, type MinerKind, type RefineSetup, type Security, type OreValue,
 } from '../services/mining';
 import { createLedgerPanel, createMoonPanel } from './miningLedger';
+import { createCompressPanel } from './miningCompress';
 import { tx } from '../i18n';
 
-type Tab = 'yield' | 'refine' | 'ores' | 'ledger' | 'moons';
+type Tab = 'yield' | 'refine' | 'ores' | 'compress' | 'ledger' | 'moons';
 type Basis = 'sell' | 'buy';
 
 const TABS = (): { id: Tab; label: string }[] => [
   { id: 'yield', label: tx('Randament și ISK/oră') },
   { id: 'refine', label: tx('Reprocesare') },
   { id: 'ores', label: tx('Valoare minereu') },
+  { id: 'compress', label: tx('Minereu comprimat') },
   { id: 'ledger', label: tx('Registru de minerit') },
   { id: 'moons', label: tx('Extracții lunare') },
 ];
@@ -56,12 +58,14 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     <div id="mineYield"></div>
     <div id="mineRefine"></div>
     <div id="mineOres"></div>
+    <div id="mineCompress"></div>
     <div id="mineLedger"></div>
     <div id="mineMoons"></div>`;
   const panes: Record<Tab, HTMLElement> = {
     yield: el.querySelector<HTMLElement>('#mineYield')!,
     refine: el.querySelector<HTMLElement>('#mineRefine')!,
     ores: el.querySelector<HTMLElement>('#mineOres')!,
+    compress: el.querySelector<HTMLElement>('#mineCompress')!,
     ledger: el.querySelector<HTMLElement>('#mineLedger')!,
     moons: el.querySelector<HTMLElement>('#mineMoons')!,
   };
@@ -127,6 +131,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   const ledger = createLedgerPanel(panes.ledger, () => ({ data: data!, price, refinedPerUnit: (ore, p) => refinedUnitValue(ore, yieldOf(ore).value, p, setup.tax) }));
   const moons = createMoonPanel(panes.moons);
+  const compress = createCompressPanel(panes.compress, () => ({ data: data!, yieldOf: (o) => yieldOf(o).value, price, agg: (id) => prices.get(id), place: placeName() }));
 
   async function render() {
     const pane = panes[tab];
@@ -138,6 +143,7 @@ export function createMiningView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     if (tab === 'yield') renderYield();
     if (tab === 'refine') renderRefine();
     if (tab === 'ores') renderOres();
+    if (tab === 'compress') compress.render();
     if (tab === 'ledger') ledger.render();
   }
 
