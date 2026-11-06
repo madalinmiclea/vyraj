@@ -17,8 +17,8 @@ import { CURRENT_KEY } from '../fitting/shared';
 import { Category } from '../data/sde';
 import {
   loadMissions, pick, pickList, faction, sectionOf, intensities, dealtOf, weakOf, ewarOf, empiresOf, hasBlitz, searchText,
-  SECTIONS, INTENSITY, CLASS_LABEL, FLAG_LABEL, EWAR_LABEL, EMPIRES, ES_URL, EU_URL, FACTIONS,
-  type Mission, type MVariant, type MRoom, type Dmg, type Section, type Intensity,
+  SECTIONS, INTENSITY, CLASS_LABEL, FLAG_LABEL, EWAR_LABEL, EMPIRES, ES_URL, EU_URL, FACTIONS, INFO_LABEL, NPC_HEAD,
+  type Mission, type MVariant, type MRoom, type MRow, type Dmg, type Section, type Intensity,
 } from '../services/missions';
 
 const STATE_KEY = 'eve-missions:state';
@@ -329,7 +329,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function overview(m: Mission, v: MVariant) {
     const rows: [string, string][] = [];
-    const obj = pick(v.obj) || (lang === 'ro' ? m.guide?.obj ?? '' : '');
+    const obj = lang === 'ro' ? v.obj?.ro || m.guide?.obj || v.obj?.en || '' : pick(v.obj);
     if (obj) rows.push([tx('Obiectiv'), esc(obj)]);
     const roomCount = v.rooms?.filter((r) => r.g.length).length ?? 0;
     if (lang === 'ro' && m.guide?.rooms) rows.push([tx('Camere'), esc(m.guide.rooms)]);
@@ -345,19 +345,38 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     return rows.length ? `<div class="mis-overview">${rows.map(([k, val]) => `<div class="mis-line"><span class="label">${k}</span><span>${val}</span></div>`).join('')}</div>` : '';
   }
 
+  function npcTable(rows: MRow[]) {
+    const cell = (c: MRow['c'][number], head: boolean) => {
+      const tag = head ? 'th' : 'td';
+      const span = `${c[1] && c[1] > 1 ? ` colspan="${c[1]}"` : ''}${c[2] && c[2] > 1 ? ` rowspan="${c[2]}"` : ''}`;
+      const text = head ? NPC_HEAD[c[0]] ?? c[0] : c[0];
+      return `<${tag}${span}>${esc(text)}</${tag}>`;
+    };
+    const head = rows.filter((r) => r.h);
+    const rest = rows.filter((r) => !r.h);
+    return `<div class="table-scroll mis-npc"><table class="table compact">
+      ${head.length ? `<thead>${head.map((r) => `<tr>${r.c.map((c) => cell(c, true)).join('')}</tr>`).join('')}</thead>` : ''}
+      <tbody>${rest.map((r) => `<tr>${r.c.map((c) => cell(c, false)).join('')}</tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
   function roomHtml(r: MRoom, i: number) {
     const rows = r.g.map((g) => {
       const ships = g.s.map((s) => {
         const fl = s[3].map((f) => `<span class="badge mis-flag ${f}">${esc(FLAG_LABEL[f] ?? f)}</span>`).join(' ');
-        return `<div class="mis-ship"><span class="num">${esc(s[0])}×</span> <span class="mis-cls">${esc(CLASS_LABEL[s[1]] ?? s[1])}</span> <span class="dim">${esc(s[2])}</span> ${fl}</div>`;
+        const cls = s[1] !== 'O' ? `<span class="mis-cls">${esc(CLASS_LABEL[s[1]] ?? s[1])}</span>` : '';
+        return `<div class="mis-ship"><span class="num">${esc(s[0])}×</span> ${cls} ${s[2] ? `<span class="dim">${esc(s[2])}</span>` : ''} ${fl}</div>`;
       }).join('');
       return `<tr><td class="mis-group">${esc(pick(g.l))}</td><td class="num">${esc(g.d ?? '')}</td><td>${ships}</td></tr>`;
     }).join('');
     const notes = pickList(r.x);
+    const info = (r.i ?? []).filter(([k]) => k in INFO_LABEL);
     return `<div class="mis-room">
       <div class="mis-room-head">${esc(pick(r.n) || tx('Camera {n}', { n: i + 1 }))}${r.gate ? ` <span class="dim">· ${esc(tx('poarta la {d}', { d: r.gate }))}</span>` : ''}</div>
+      ${info.length ? `<div class="mis-info">${info.map(([k, val]) => `<div class="mis-line"><span class="label">${esc(INFO_LABEL[k])}</span><span>${esc(val)}</span></div>`).join('')}</div>` : ''}
       ${rows ? `<div class="table-scroll"><table class="table compact mis-table"><thead><tr><th>${tx('Grup')}</th><th>${tx('Distanță')}</th><th>${tx('Nave')}</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
       ${notes.length ? `<ul class="mis-notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${r.t?.length ? `<div class="mis-npc-head">${tx('Statistici NPC')}</div>${r.t.map(npcTable).join('')}` : ''}
     </div>`;
   }
 
@@ -490,7 +509,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   renderSide();
   showTool();
   loadMissions().then((data) => {
-    missions = [...data.missions].sort((a, b) => (a.rating ? 1 : 0) - (b.rating ? 1 : 0) || a.name.replace(/^(The|A|An) /, '').localeCompare(b.name.replace(/^(The|A|An) /, '')) || a.level - b.level || (a.rating ?? 0) - (b.rating ?? 0));
+    const sortName = (n: string) => n.replace(/^(The|A|An) /i, '').replace(/[()[\]]/g, '').replace(/\s+/g, ' ').trim();
+    missions = [...data.missions].sort((a, b) => (a.rating ? 1 : 0) - (b.rating ? 1 : 0) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }) || a.level - b.level || (a.rating ?? 0) - (b.rating ?? 0));
     levels = intensities(missions);
     texts = new Map(missions.map((m) => [m.key, searchText(m)]));
     fit = currentFit();

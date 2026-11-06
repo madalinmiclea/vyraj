@@ -58,6 +58,13 @@
 .mis-flag.loot { color: var(--gold); }
 .mis-flag.aggro { color: var(--danger); }
 
+.mis-info { padding: 6px 12px; margin: 4px 0 8px; background: var(--bg-inset); border: 1px solid var(--line); }
+.mis-npc-head { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.mis-npc table { font-size: 12.5px; }
+.mis-npc th, .mis-npc td { padding: 3px 6px; text-align: center; white-space: nowrap; }
+.mis-npc td:first-child { text-align: left; color: var(--text-bright); }
+.mis-npc thead th { color: var(--text-faint); font-weight: 600; }
+
 .mis-links { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; }
 
 @media (max-width: 760px) {

@@ -12,7 +12,10 @@ export interface MText { en: string; ro: string }
 export interface MList { en: string[]; ro: string[] }
 export type MShip = [string, ShipClass, string, Flag[]];
 export interface MGroup { l: MText; d?: string | null; s: MShip[] }
-export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; x?: MList }
+export type InfoKey = 'type' | 'space' | 'dealt' | 'dmg' | 'ships' | 'setup' | 'extras' | 'web' | 'diff' | 'obj' | 'limit' | 'bounty' | 'enemy';
+export type MCell = [string, number?, number?];
+export interface MRow { h?: number; c: MCell[] }
+export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; x?: MList; i?: [InfoKey, string][]; t?: MRow[][] }
 
 export interface MVariant {
   id: string;
@@ -105,6 +108,19 @@ export const FLAG_LABEL: Record<Flag, string> = {
 export const EWAR_LABEL: Record<Ewar, string> = {
   web: tx('Web (te încetinește)'), scram: tx('Scram (oprește MWD și warp)'), disrupt: tx('Warp disruptor'), damp: tx('Sensor dampener (rază de lock mai mică)'),
   ecm: tx('ECM (îți pierzi lock-ul)'), neut: tx('Neut (îți golește capacitorul)'), td: tx('Tracking disruptor'), tp: tx('Target painter'),
+};
+
+export const INFO_LABEL: Record<InfoKey, string> = {
+  type: tx('Tip misiune'), space: tx('Spațiu'), dealt: tx('Daune primite'), dmg: tx('Daune recomandate'), ships: tx('Nave recomandate'), setup: tx('Echipare recomandată'),
+  extras: tx('Extra'), web: 'Web / scram', diff: tx('Dificultate'), obj: tx('Obiectiv'), limit: tx('Nave permise'), bounty: 'Bounty', enemy: tx('Inamic'),
+};
+
+export const NPC_HEAD: Record<string, string> = {
+  Qty: tx('Nr.'), Name: tx('Nume'), Orbit: tx('Orbită'), 'Orbit (km)': tx('Orbită (km)'), 'Max velocity': tx('Viteză max.'),
+  'Shield (hp)': tx('Scut (HP)'), 'Armor (hp)': tx('Armură (HP)'), 'Structure (hp)': tx('Structură (HP)'),
+  'Shield resist (%)': tx('Rezistențe scut (%)'), 'Armor resist (%)': tx('Rezistențe armură (%)'), 'Shield & armor resist (%)': tx('Rezistențe scut și armură (%)'),
+  'DPS (hp/s)': 'DPS (HP/s)', 'Group DPS': tx('DPS grup'), Bounty: 'Bounty', Weapon: tx('Armă'), 'Shield boost': tx('Boost scut'),
+  'Chance (%)': tx('Șansă (%)'), 'Amount (hp)': tx('Cantitate (HP)'), 'Duration (s)': tx('Durată (s)'), EM: 'EM', Exp: tx('Expl.'), Kin: tx('Cin.'), Th: tx('Term.'),
 };
 
 const CLASS_WEIGHT: Record<ShipClass, number> = { F: 1, D: 1.5, C: 3, BC: 5, BS: 10, EF: 3, EC: 6, ST: 0, TW: 2, DR: 1, O: 2 };
