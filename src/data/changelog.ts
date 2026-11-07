@@ -4,6 +4,20 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-11-07',
+    title: tx('Calea COSMOS și misiuni fără ghicit'),
+    lead: tx('Fiecare misiune din EVE, de la COSMOS la L4, are acum un ghid în care poți avea încredere.'),
+    items: [
+      tx('COSMOS are modulul lui: cele 8 linii din imperii și pirați, 603 misiuni scrise pas cu pas în RO și EN, standing-ul tău față de cel cerut, salturile până la fiecare agent și progresul salvat pe fiecare caracter.'),
+      tx('Cardul Pasul următor îți arată linia potrivită pentru tine, cel mai apropiat agent pe care îl poți lua și ce iteme să aduci, iar ghidul COSMOS pas cu pas îl duce de mână pe orice începător.'),
+      tx('Ghidul de misiuni, refăcut misiune cu misiune: toate cele 556 verificate pe wiki-uri, forumuri și peste 7.000 de comentarii ale jucătorilor, cu blitz-urile care merg azi, trigger-ele reale, EWAR-ul corect și pierderile de standing.'),
+      tx('Magazinul LP calculează ISK/LP realist, instant și pe sell order, semnalează capcanele, prețuiește insigniile pe order book-ul din Jita și îți propune singur ce să cumperi, până la pragul de calitate ales de tine.'),
+      tx('Order book în Market pe toate regiunile, cu filtre pe salturi, securitate și stații, plus tabelul Cumpără instant, vinde instant cu profitul și drumul dintre stații.'),
+      tx('Standing-urile NPC cu skill-urile sociale incluse și nivelul de agent deblocat la fiecare corporație.'),
+      tx('Calculator de minereu comprimat pentru mineralele de care ai nevoie, joburile de industrie ale corporației și mailuri care se deschid pe loc, din cache-ul local.'),
+    ],
+  },
+  {
     date: '2026-11-04',
     title: tx('Vânătoare, minereu și drumuri noi'),
     lead: tx('Cel mai mare release de până acum: un modul PvE întreg, minerit pe toate caracterele și o hartă care știe pe unde ai fost.'),
