@@ -12,6 +12,7 @@ import { clearVisits } from '../services/visited';
 import { forgetCharacterNotices } from '../services/notices';
 import { forgetEscalations } from '../services/escalations';
 import { forgetMail } from '../services/mailCache';
+import { forgetCosmos } from '../services/cosmos';
 
 const FLASH_KEY = 'vyraj:flash';
 
@@ -21,6 +22,7 @@ async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   forgetPlan(c.id);
   forgetSkins(c.id);
   forgetRoster(c.id);
+  forgetCosmos(c.id);
   if (!c.characterId || !lastOfId) return;
   const id = c.characterId;
   forgetWallet(id);

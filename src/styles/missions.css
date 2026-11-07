@@ -11,7 +11,9 @@
 .mis-search > svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); color: var(--accent); pointer-events: none; }
 .mis-search input { flex: 1 1 200px; min-width: 120px; height: 38px; padding: 0; background: none; border: 0; outline: none; color: var(--text-bright); font-size: 17px; }
 .mis-search input::placeholder { color: var(--text-faint); }
-.mis-search .mis-count { margin-left: 0; white-space: nowrap; }
+.mis-measure { position: absolute; visibility: hidden; white-space: pre; font-size: 17px; pointer-events: none; }
+.mis-search input.sized { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 200px); }
+.mis-search .mis-count { margin-left: auto; white-space: nowrap; }
 .mis-clear { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; font-size: 20px; line-height: 1; color: var(--text-dim); background: var(--bg-raised); border: 1px solid var(--line-strong); border-radius: 3px; cursor: pointer; }
 .mis-clear:hover { color: var(--text-bright); border-color: var(--accent); }
 .mis-clear[hidden] { display: none; }
@@ -32,7 +34,7 @@
 @media (max-width: 760px) {
   .mis-search { min-height: 46px; padding-left: 38px; }
   .mis-search > svg { left: 11px; }
-  .mis-search input { font-size: 16px; }
+  .mis-search input, .mis-measure { font-size: 16px; }
   .mis-search kbd { display: none; }
 }
 

@@ -1,0 +1,24 @@
+.cos-lines { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 6px; }
+.cos-kind { min-width: 64px; font-size: 12px; color: var(--text-dim); }
+.cos-prog { margin-left: 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--text-dim); }
+.chip-btn.active .cos-prog { color: var(--text); }
+.cos-where { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 8px 0 6px; font-size: 13px; color: var(--text-dim); }
+.cos-where b { font-weight: 600; color: var(--text); margin-right: 4px; }
+.cos-meter { height: 6px; background: var(--bg-inset); border: 1px solid var(--line); margin: 4px 0 8px; }
+.cos-meter span { display: block; height: 100%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); transition: width 0.25s var(--ease); }
+.cos-rules { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.cos-rules span { padding: 2px 8px; font-size: 12px; color: var(--warn); border: 1px solid rgba(var(--accent-rgb), 0.2); border-radius: 3px; background: var(--bg-inset); }
+.cos-chk-cell { width: 28px; }
+.cos-chk { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; vertical-align: middle; }
+.cos-table tr.cos-done td:not(.cos-chk-cell) { opacity: 0.5; }
+.cos-table td .badge { margin-left: 4px; }
+.cos-src { margin-top: 8px; }
+@media (max-width: 720px) {
+  .cos-kind { min-width: 100%; }
+}
+.cos-next { margin: 4px 0 10px; padding: 10px 12px; background: var(--bg-inset); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3px; }
+.cos-next-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cos-next ol { margin: 8px 0 0; padding-left: 20px; }
+.cos-next li { margin: 5px 0; line-height: 1.5; }
+.cos-next li .btn { margin-left: 6px; vertical-align: middle; }
+.cos-next .perm-gate { margin-top: 10px; }

@@ -11,7 +11,9 @@ import { createAgentsPanel } from './pveAgents';
 import { createStandingsPanel } from './pveStandings';
 import { createEscalationsPanel } from './pveEscalations';
 import { createAbyssGuidePanel } from './pveAbyss';
+import { createCosmosPanel } from './pveCosmos';
 import { enemyGuide, dedGuide } from './pveGuides';
+import { cosmosGuide } from './cosmosGuide';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -25,7 +27,7 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'standings' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
+type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'standings' | 'cosmos' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
 type OwnTool = Exclude<MisTool, 'abyssal' | 'lp'>;
 
 const MIS_TOOLS: { id: MisTool; label: string }[] = [
@@ -35,6 +37,7 @@ const MIS_TOOLS: { id: MisTool; label: string }[] = [
   { id: 'anomalies', label: tx('Ghid de anomalii') },
   { id: 'agents', label: tx('Agenți') },
   { id: 'standings', label: tx('Standing-uri NPC') },
+  { id: 'cosmos', label: 'COSMOS' },
   { id: 'escalations', label: tx('Escaladări') },
   { id: 'abyss', label: tx('Ghid abisal') },
   { id: 'abyssal', label: tx('Jurnal abisal') },
@@ -43,11 +46,12 @@ const MIS_TOOLS: { id: MisTool; label: string }[] = [
 
 interface Tool { show(): void; hide(): void }
 
-type Guide = 'enemy' | 'ded';
+type Guide = 'enemy' | 'ded' | 'cosmos';
 
 const GUIDES: { id: Guide; label: string }[] = [
   { id: 'enemy', label: tx('Contra cui e misiunea') },
   { id: 'ded', label: tx('Scanare complex DED') },
+  { id: 'cosmos', label: tx('COSMOS pas cu pas') },
 ];
 
 const GROUP_ORDER = ['l1', 'l2', 'l3', 'l4', 'l5', 'story', ...Array.from({ length: 10 }, (_, i) => `ded${i + 1}`)];
@@ -107,6 +111,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
     agents,
     standings: createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } }),
+    cosmos: createCosmosPanel(box('cosmos'), ctx, { openGuide: () => openGuide('cosmos') }),
     escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => missions.filter((m) => sectionOf(m) === 'ded').map((m) => m.name), openMission }),
     abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
   };
@@ -156,7 +161,20 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   const save = () => saveJson(STATE_KEY, state);
 
-  help.innerHTML = `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div><div class="mis-help" data-guide="ded" hidden>${dedGuide()}</div>`;
+  help.innerHTML = `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div><div class="mis-help" data-guide="ded" hidden>${dedGuide()}</div><div class="mis-help" data-guide="cosmos" hidden>${cosmosGuide()}</div>`;
+  help.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-open-tool]');
+    if (b) openTool(b.dataset.openTool as MisTool);
+  });
+
+  function openGuide(id: Guide) {
+    state.tool = '';
+    state.guide = id;
+    save();
+    renderSide();
+    showTool();
+    el.closest('.main')?.scrollTo({ top: 0 });
+  }
 
   function renderSide() {
     const counts = new Map<string, number>();
@@ -196,8 +214,18 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
     input.value = state.q;
     const clear = bar.querySelector<HTMLButtonElement>('#misClear')!;
-    const syncClear = () => { clear.hidden = !input.value; };
+    const measure = document.createElement('span');
+    measure.className = 'mis-measure';
+    bar.querySelector('#misSearchBox')!.append(measure);
+    const syncClear = () => {
+      clear.hidden = !input.value;
+      if (!input.value) { input.style.width = ''; input.classList.remove('sized'); return; }
+      measure.textContent = input.value;
+      input.style.width = `${Math.ceil(measure.getBoundingClientRect().width) + 4}px`;
+      input.classList.add('sized');
+    };
     syncClear();
+    input.addEventListener('sync', syncClear);
     const reset = () => { input.value = ''; state.q = ''; syncClear(); closeSg(); save(); apply(); };
     clear.addEventListener('click', (e) => { e.stopPropagation(); reset(); input.focus(); });
     input.addEventListener('focus', () => openSg());
@@ -291,7 +319,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
     input.value = m.name;
     state.q = m.name;
-    bar.querySelector<HTMLButtonElement>('#misClear')!.hidden = false;
+    input.dispatchEvent(new Event('sync'));
     closeSg();
     save();
     apply();
