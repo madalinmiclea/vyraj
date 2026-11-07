@@ -220,7 +220,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
     const open = l.agents.filter((a) => !isDone('a', a.n) && prevOk(a));
     const allowed = (a: CosmosAgent) => a.std == null || (myStanding(a) ?? -99) >= a.std;
     const far = (a: CosmosAgent) => (dist && a.s ? dist.get(a.s) ?? 999 : 999);
-    const next = open.filter(allowed).sort((p, q) => far(p) - far(q) || (p.lvl ?? 9) - (q.lvl ?? 9))[0];
+    const next = open.filter(allowed).sort((p, q) => (st ? (q.lvl ?? 0) - (p.lvl ?? 0) : 0) || far(p) - far(q) || (p.lvl ?? 9) - (q.lvl ?? 9))[0];
     const blocked = !next ? open.filter((a) => a.std != null).sort((p, q) => p.std! - q.std!)[0] : undefined;
     const steps: string[] = [];
     if (!logged()) steps.push(tx('Loghează un caracter ca să vezi ce agenți poți lua.'));
