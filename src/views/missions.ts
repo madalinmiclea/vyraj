@@ -11,6 +11,7 @@ import { createAgentsPanel } from './pveAgents';
 import { createStandingsPanel } from './pveStandings';
 import { createEscalationsPanel } from './pveEscalations';
 import { createAbyssGuidePanel } from './pveAbyss';
+import { enemyGuide, dedGuide } from './pveGuides';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -56,6 +57,9 @@ type SgItem = { s: Sug; m?: undefined } | { m: Mission; s?: undefined };
 
 const KIND_LABEL: Record<Kind, string> = { section: tx('Nivel'), level: tx('Dificultate'), enemy: tx('Inamic'), empire: tx('Agentul tău'), flag: tx('Opțiuni') };
 const LEVEL_KEYS: Record<'e' | 'm' | 'h', string> = { e: 'usor usoara easy', m: 'mediu medie average medium', h: 'greu grea hard' };
+const GROUP_ORDER = ['l1', 'l2', 'l3', 'l4', 'l5', 'story', ...Array.from({ length: 10 }, (_, i) => `ded${i + 1}`)];
+const groupOf = (m: Mission) => (m.rating ? `ded${m.rating}` : sectionOf(m));
+const groupLabel = (g: string) => (g.startsWith('ded') ? `DED ${g.slice(3)}/10` : SECTIONS.find((s) => s.id === g)?.label ?? g);
 const norm = (s: string) => fold(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')).trim();
 
 interface State { section: Section | 'all'; tool?: MisTool | ''; guide?: Guide | ''; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
@@ -160,32 +164,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   const save = () => saveJson(STATE_KEY, state);
 
-  help.innerHTML = `<section class="mis-help panel" data-guide="enemy" hidden>
-      <div class="panel-head">${windowTitle(tx('Cum afli contra cui e misiunea'))}</div>
-      <div class="panel-body">
-        <p>${tx('Multe misiuni au mai multe variante, iar standing-ul scade doar la variantele contra unui imperiu (Amarr, Caldari, Gallente, Minmatar). Variantele contra piraților nu te costă nimic.')}</p>
-        <ol>
-          <li>${tx('La oferta misiunii, fereastra agentului afișează un avertisment roșu dacă misiunea te poate costa standing la o facțiune. Dacă avertismentul lipsește, varianta e contra piraților.')}</li>
-          <li>${tx('Briefing-ul misiunii numește inamicul, iar în jurnal, la obiective, apare facțiunea cu care te bați.')}</li>
-          <li>${tx('Pe grid, navele imperiilor au prefixe precum Federation, Republic, Imperial sau State. Navele pirat au numele facțiunii lor (Guristas, Serpentis, Angel, Blood, Sansha).')}</li>
-        </ol>
-        <p>${tx('Adaugă în căutare filtrul „Agentul tău”: variantele contra facțiunii lui nu ți se oferă, iar celelalte imperii apar marcate cu „scade standing”.')}</p>
-      </div>
-    </section>
-    <section class="mis-help panel" data-guide="ded" hidden>
-      <div class="panel-head">${windowTitle(tx('Cum scanezi un complex DED'))}</div>
-      <div class="panel-body">
-        <p>${tx('Complexele DED sunt combat signatures: nu apar în lista de anomalii, trebuie găsite cu probe. Unele vin și ca escaladare din anomalii (Hideaway, Refuge, Den), iar asta e scris la fiecare complex.')}</p>
-        <ol>
-          <li>${tx('Montezi un Core Probe Launcher pe un slot high liber și iei în cargo Core Scanner Probes.')}</li>
-          <li>${tx('În sistem deschizi Probe Scanner (Alt + P) și lansezi 8 probe. Folosești o formație largă ca să găsești semnătura, apoi una strânsă ca s-o fixezi.')}</li>
-          <li>${tx('Filtrezi rezultatele după Combat. Apeși Analyze, muți probele peste semnătura aleasă, înjumătățești raza și apeși din nou Analyze.')}</li>
-          <li>${tx('Repeți până semnătura ajunge la 100%. Atunci vezi numele complexului și poți face warp la ea. La final îți recuperezi probele.')}</li>
-          <li>${tx('Înainte să intri, verifici pe poartă ce nave au voie. Limita apare și pe cardul fiecărui complex, în lista Complexe DED.')}</li>
-        </ol>
-        <p>${tx('Semnătura (20%, 10%, 5% sau 2.5%) arată cât de greu e de scanat. La 2.5% îți trebuie skill-urile de scanare cât mai sus: Astrometrics, Astrometric Rangefinding, Astrometric Pinpointing și Astrometric Acquisition.')}</p>
-      </div>
-    </section>`;
+  help.innerHTML = `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div><div class="mis-help" data-guide="ded" hidden>${dedGuide()}</div>`;
 
   function renderSide() {
     const counts = new Map<string, number>();
@@ -202,6 +181,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
         ${MIS_TOOLS.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${t.label}</button>`).join('')}</div>`;
   }
 
+  const openGroups = new Set<string>();
   let sgOpen = false;
   let sgKind: Kind | null = null;
   let sgItems: SgItem[] = [];
@@ -431,7 +411,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     save();
     apply();
     const d = list.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(it.m.key)}"]`);
-    if (d && !d.hidden) { d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    if (d && !d.hidden) { const g = d.closest<HTMLDetailsElement>('details.mis-group'); if (g) g.open = true; d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
   }
 
   function dropToken(k: Drop) {
@@ -670,6 +650,15 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       d.hidden = !vis;
       if (vis) shown++;
     }
+    const grouped = state.section === 'all' || state.section === 'ded';
+    list.classList.toggle('mis-flat', !grouped);
+    list.querySelectorAll<HTMLDetailsElement>('details.mis-group').forEach((g) => {
+      const n = g.querySelectorAll('details.mis-card:not([hidden])').length;
+      g.hidden = n === 0;
+      g.querySelector('.mis-group-count')!.textContent = String(n);
+      const want = !grouped || !!state.q.trim() || openGroups.has(g.dataset.group!);
+      if (g.open !== want) g.open = want;
+    });
     const count = bar.querySelector('#misCount');
     if (count) count.textContent = countLabel(shown);
     list.querySelector('.mis-empty')?.toggleAttribute('hidden', shown !== 0);
@@ -677,7 +666,12 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   }
 
   function renderList() {
-    list.innerHTML = `${missions.map((m) => `<details class="mis-card panel" data-key="${esc(m.key)}">${summary(m)}<div class="mis-body"></div></details>`).join('')}
+    const groups = new Map<string, Mission[]>();
+    for (const m of missions) { const g = groupOf(m); const arr = groups.get(g); if (arr) arr.push(m); else groups.set(g, [m]); }
+    list.innerHTML = `${[...groups].map(([g, ms]) => `<details class="mis-group" data-group="${g}">
+        <summary class="mis-group-head"><span class="mis-caret" aria-hidden="true"></span><span class="mis-group-name">${esc(groupLabel(g))}</span><span class="mis-group-count"></span></summary>
+        <div class="mis-group-body">${ms.map((m) => `<details class="mis-card panel" data-key="${esc(m.key)}">${summary(m)}<div class="mis-body"></div></details>`).join('')}</div>
+      </details>`).join('')}
       <div class="mis-empty" hidden>${emptyState({ title: tx('Nicio misiune nu se potrivește'), text: tx('Încearcă doar o parte din nume sau scoate un filtru.'), vy: 'The Hunt Finds No Trail', vyText: 'No quarry answers these words. Loosen the snare and listen again.' })}</div>`;
     apply();
   }
@@ -691,6 +685,11 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   }
 
   list.addEventListener('toggle', (e) => {
+    const g = e.target as HTMLDetailsElement;
+    if (g instanceof HTMLDetailsElement && g.classList.contains('mis-group')) {
+      if ((state.section === 'all' || state.section === 'ded') && !state.q.trim()) { if (g.open) openGroups.add(g.dataset.group!); else openGroups.delete(g.dataset.group!); }
+      return;
+    }
     const d = e.target as HTMLDetailsElement;
     if (!(d instanceof HTMLDetailsElement) || !d.classList.contains('mis-card')) return;
     const b = d.querySelector<HTMLElement>('.mis-body')!;
@@ -713,6 +712,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     if (open) {
       const on = open.dataset.misOpen === '1';
       list.querySelectorAll<HTMLDetailsElement>('details.mis-card').forEach((d) => { if (!on) d.open = false; else if (!d.hidden) d.open = true; });
+      if (!list.classList.contains('mis-flat')) list.querySelectorAll<HTMLDetailsElement>('details.mis-group').forEach((g) => { if (on && !g.hidden) { g.open = true; openGroups.add(g.dataset.group!); } else if (!on) { g.open = false; openGroups.delete(g.dataset.group!); } });
     }
   });
 
@@ -762,7 +762,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   showTool();
   loadMissions().then((data) => {
     const sortName = (n: string) => n.replace(/^(The|A|An) /i, '').replace(/[()[\]]/g, '').replace(/\s+/g, ' ').trim();
-    missions = [...data.missions].sort((a, b) => (a.rating ? 1 : 0) - (b.rating ? 1 : 0) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }) || a.level - b.level || (a.rating ?? 0) - (b.rating ?? 0));
+    missions = [...data.missions].sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
     levels = intensities(missions);
     texts = new Map(missions.map((m) => [m.key, `${searchText(m)} ${norm([...new Set(m.variants.flatMap((v) => v.fac))].map((f) => faction(f).name).join(' '))} ${m.rating ? 'ded' : `l${m.level}`}`]));
     fit = currentFit();
