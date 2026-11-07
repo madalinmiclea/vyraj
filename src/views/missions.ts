@@ -1,5 +1,6 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, searchField, button } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, button } from '../ui/components';
+import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { createToolPanel } from './tools';
 import { createPveActivityPanel } from './pveActivity';
@@ -41,7 +42,23 @@ const MIS_TOOLS: { id: MisTool; label: string }[] = [
 
 interface Tool { show(): void; hide(): void }
 
-interface State { section: Section | 'all'; tool?: MisTool | ''; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
+type Guide = 'enemy' | 'ded';
+
+const GUIDES: { id: Guide; label: string }[] = [
+  { id: 'enemy', label: tx('Contra cui e misiunea') },
+  { id: 'ded', label: tx('Scanare complex DED') },
+];
+
+type Kind = 'section' | 'level' | 'enemy' | 'empire' | 'flag';
+type Drop = 'section' | 'level' | 'enemy' | 'empire' | 'blitz' | 'hideEmpire';
+interface Sug { kind: Kind; value: string; label: string; keys: string }
+type SgItem = { s: Sug; m?: undefined } | { m: Mission; s?: undefined };
+
+const KIND_LABEL: Record<Kind, string> = { section: tx('Nivel'), level: tx('Dificultate'), enemy: tx('Inamic'), empire: tx('Agentul tău'), flag: tx('Opțiuni') };
+const LEVEL_KEYS: Record<'e' | 'm' | 'h', string> = { e: 'usor usoara easy', m: 'mediu medie average medium', h: 'greu grea hard' };
+const norm = (s: string) => fold(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')).trim();
+
+interface State { section: Section | 'all'; tool?: MisTool | ''; guide?: Guide | ''; q: string; level: Intensity | ''; empire: string; enemy: string; blitz: boolean; hideEmpire: boolean }
 
 const DMG_NAME: Record<Dmg, string> = { em: 'EM', th: tx('Termic'), kin: tx('Cinetic'), exp: tx('Exploziv') };
 const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', exp: 'explosive' };
@@ -98,10 +115,14 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   ctx.onCharacterChange(() => incursions.reset());
   const isOwn = (t: MisTool | null): t is OwnTool => !!t && t in own;
   if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
+  if (!GUIDES.some((g) => g.id === state.guide)) state.guide = '';
 
   function showTool() {
     const tool = state.tool || null;
-    for (const x of [help, bar, list]) x.hidden = !!tool;
+    const guide = !tool && state.guide ? state.guide : null;
+    help.hidden = !guide;
+    help.querySelectorAll<HTMLElement>('[data-guide]').forEach((p) => { p.hidden = p.dataset.guide !== guide; });
+    for (const x of [bar, list]) x.hidden = !!tool || !!guide;
     toolBox.hidden = !tool || isOwn(tool);
     ownBox.hidden = !isOwn(tool);
     if (tool && !isOwn(tool)) tools.show(tool); else tools.hide();
@@ -116,6 +137,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   function openTool(id: MisTool) {
     if (!MIS_TOOLS.some((t) => t.id === id)) return;
     state.tool = id;
+    state.guide = '';
     save();
     renderSide();
     showTool();
@@ -124,6 +146,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function openMission(name: string) {
     state.tool = '';
+    state.guide = '';
     state.section = 'ded';
     state.q = name;
     state.level = '';
@@ -137,8 +160,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   const save = () => saveJson(STATE_KEY, state);
 
-  help.innerHTML = `<details class="mis-help panel">
-      <summary>${tx('Cum afli contra cui e misiunea')}</summary>
+  help.innerHTML = `<section class="mis-help panel" data-guide="enemy" hidden>
+      <div class="panel-head">${windowTitle(tx('Cum afli contra cui e misiunea'))}</div>
       <div class="panel-body">
         <p>${tx('Multe misiuni au mai multe variante, iar standing-ul scade doar la variantele contra unui imperiu (Amarr, Caldari, Gallente, Minmatar). Variantele contra piraților nu te costă nimic.')}</p>
         <ol>
@@ -146,11 +169,11 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
           <li>${tx('Briefing-ul misiunii numește inamicul, iar în jurnal, la obiective, apare facțiunea cu care te bați.')}</li>
           <li>${tx('Pe grid, navele imperiilor au prefixe precum Federation, Republic, Imperial sau State. Navele pirat au numele facțiunii lor (Guristas, Serpentis, Angel, Blood, Sansha).')}</li>
         </ol>
-        <p>${tx('Alege mai jos facțiunea agentului tău: variantele contra ei nu ți se oferă, iar celelalte imperii apar marcate cu „scade standing”.')}</p>
+        <p>${tx('Adaugă în căutare filtrul „Agentul tău”: variantele contra facțiunii lui nu ți se oferă, iar celelalte imperii apar marcate cu „scade standing”.')}</p>
       </div>
-    </details>
-    <details class="mis-help panel">
-      <summary>${tx('Cum scanezi un complex DED')}</summary>
+    </section>
+    <section class="mis-help panel" data-guide="ded" hidden>
+      <div class="panel-head">${windowTitle(tx('Cum scanezi un complex DED'))}</div>
       <div class="panel-body">
         <p>${tx('Complexele DED sunt combat signatures: nu apar în lista de anomalii, trebuie găsite cu probe. Unele vin și ca escaladare din anomalii (Hideaway, Refuge, Den), iar asta e scris la fiecare complex.')}</p>
         <ol>
@@ -158,11 +181,11 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
           <li>${tx('În sistem deschizi Probe Scanner (Alt + P) și lansezi 8 probe. Folosești o formație largă ca să găsești semnătura, apoi una strânsă ca s-o fixezi.')}</li>
           <li>${tx('Filtrezi rezultatele după Combat. Apeși Analyze, muți probele peste semnătura aleasă, înjumătățești raza și apeși din nou Analyze.')}</li>
           <li>${tx('Repeți până semnătura ajunge la 100%. Atunci vezi numele complexului și poți face warp la ea. La final îți recuperezi probele.')}</li>
-          <li>${tx('Înainte să intri, verifici pe poartă ce nave au voie. Fiecare complex scrie limita mai jos.')}</li>
+          <li>${tx('Înainte să intri, verifici pe poartă ce nave au voie. Limita apare și pe cardul fiecărui complex, în lista Complexe DED.')}</li>
         </ol>
         <p>${tx('Semnătura (20%, 10%, 5% sau 2.5%) arată cât de greu e de scanat. La 2.5% îți trebuie skill-urile de scanare cât mai sus: Astrometrics, Astrometric Rangefinding, Astrometric Pinpointing și Astrometric Acquisition.')}</p>
       </div>
-    </details>`;
+    </section>`;
 
   function renderSide() {
     const counts = new Map<string, number>();
@@ -173,39 +196,255 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       counts.set(s, (counts.get(s) ?? 0) + 1);
     }
     side.innerHTML = `<div class="sidebar-head">${windowTitle('PvE')}</div>
-      <div class="side-nav"><div class="ord-side-label">${tx('Misiuni și complexe DED')}</div>${SECTIONS.map((s) => `<button class="side-link ${!state.tool && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
+      <div class="side-nav"><div class="ord-side-label">${tx('Ghiduri')}</div>${GUIDES.map((g) => `<button class="side-link ${!state.tool && state.guide === g.id ? 'active' : ''}" data-mis-guide="${g.id}">${esc(g.label)}</button>`).join('')}
+        <div class="ord-side-label">${tx('Misiuni și complexe DED')}</div>${SECTIONS.map((s) => `<button class="side-link ${!state.tool && !state.guide && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
         <div class="ord-side-label">${tx('Unelte PvE')}</div>
         ${MIS_TOOLS.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${t.label}</button>`).join('')}</div>`;
   }
 
+  let sgOpen = false;
+  let sgKind: Kind | null = null;
+  let sgItems: SgItem[] = [];
+  let sgIndex = -1;
+  let applyTimer = 0;
+
+  const enemyList = () => FACTIONS.filter((f) => missions.some((m) => m.variants.some((v) => v.fac.includes(f.id))));
+  const sectionShort = (id: Section) => (id === 'ded' ? 'DED' : id === 'story' ? tx('Storyline') : id.toUpperCase());
+
+  function activeTokens(): [Drop, string][] {
+    const out: [Drop, string][] = [];
+    if (state.section !== 'all') out.push(['section', sectionShort(state.section)]);
+    if (state.level) out.push(['level', INTENSITY[state.level]]);
+    if (state.enemy) out.push(['enemy', `${tx('Inamic')}: ${faction(state.enemy).name}`]);
+    if (state.empire) out.push(['empire', `${tx('Agentul tău')}: ${state.empire}`]);
+    if (state.blitz) out.push(['blitz', 'Blitz']);
+    if (state.hideEmpire) out.push(['hideEmpire', tx('Fără pierdere de standing')]);
+    return out;
+  }
+
   function renderBar() {
-    const enemies = FACTIONS.filter((f) => missions.some((m) => m.variants.some((v) => v.fac.includes(f.id))));
     bar.innerHTML = `<div class="mis-bar">
-      ${searchField({ id: 'misSearch', placeholder: tx('Caută după numele misiunii… ( / )') })}
-      <div class="mis-filters">
-        <div class="chip-row" role="group" aria-label="${tx('Intensitate')}">
-          ${([['', tx('Toate')], ['e', INTENSITY.e], ['m', INTENSITY.m], ['h', INTENSITY.h]] as [Intensity | '', string][]).map(([id, label]) => `<button class="chip-btn ${state.level === id ? 'active' : ''}" data-mis-level="${id}">${esc(label)}</button>`).join('')}
-        </div>
-        <label>${tx('Agentul tău')} <select class="input sm" id="misEmpire">
-          <option value="">${tx('Oricare')}</option>
-          ${EMPIRES.map((e) => `<option value="${e}" ${state.empire === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}
-        </select></label>
-        <label>${tx('Inamic')} <select class="input sm" id="misEnemy">
-          <option value="">${tx('Oricare')}</option>
-          ${enemies.map((f) => `<option value="${f.id}" ${state.enemy === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}
-        </select></label>
-        <label class="check"><input type="checkbox" id="misBlitz" ${state.blitz ? 'checked' : ''} /> ${tx('Doar cu blitz')}</label>
-        <label class="check"><input type="checkbox" id="misHideEmpire" ${state.hideEmpire ? 'checked' : ''} /> ${tx('Ascunde ce scade standing')}</label>
-        <span class="mis-count dim" id="misCount"></span>
-        <span class="mis-actions">${button(tx('Deschide tot'), { cls: 'sm', attrs: 'data-mis-open="1"' })} ${button(tx('Închide tot'), { cls: 'sm', attrs: 'data-mis-open="0"' })}</span>
+      <div class="mis-search-wrap">
+      <div class="mis-search" id="misSearchBox">
+        ${icon('search')}
+        <span class="mis-tokens" id="misTokens"></span>
+        <input id="misSearch" type="text" placeholder="${esc(tx('Caută misiune, facțiune sau nivel'))}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="misSuggest" aria-autocomplete="list" />
+        <span class="mis-count" id="misCount"></span>
+        <kbd>/</kbd>
       </div>
+      <div class="mis-suggest" id="misSuggest" role="listbox" hidden></div>
+      </div>
+      <div class="mis-quick" id="misQuick"></div>
     </div>`;
     const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
     input.value = state.q;
-    let t = 0;
-    input.addEventListener('input', () => { clearTimeout(t); t = window.setTimeout(() => { state.q = input.value; save(); apply(); }, 90); });
-    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { input.value = ''; state.q = ''; save(); apply(); } });
+    renderTokens();
+    input.addEventListener('focus', () => openSg());
+    input.addEventListener('input', () => {
+      state.q = input.value;
+      sgKind = null;
+      openSg();
+      clearTimeout(applyTimer);
+      applyTimer = window.setTimeout(() => { save(); apply(); }, 90);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!sgOpen) { openSg(); return; }
+        if (!sgItems.length) return;
+        sgIndex = e.key === 'ArrowDown' ? (sgIndex + 1) % sgItems.length : (sgIndex <= 0 ? sgItems.length - 1 : sgIndex - 1);
+        markSg();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const it = sgOpen ? sgItems[sgIndex] : undefined;
+        if (it) pickSg(it); else closeSg();
+      } else if (e.key === 'Escape') {
+        if (sgOpen) { closeSg(); return; }
+        input.value = '';
+        state.q = '';
+        save();
+        apply();
+      } else if (e.key === 'Backspace' && !input.value) {
+        const last = activeTokens().pop();
+        if (last) { e.preventDefault(); dropToken(last[0]); }
+      } else if (e.key === 'Tab') closeSg();
+    });
+    const sg = bar.querySelector<HTMLElement>('#misSuggest')!;
+    sg.addEventListener('mousedown', (e) => e.preventDefault());
+    sg.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sg]');
+      if (b) pickSg(sgItems[Number(b.dataset.sg)]);
+    });
+    bar.querySelector<HTMLElement>('#misSearchBox')!.addEventListener('click', (e) => {
+      const x = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-drop]');
+      if (x) { dropToken(x.dataset.misDrop as Drop); return; }
+      input.focus();
+    });
+    bar.querySelector<HTMLElement>('#misQuick')!.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const k = t.closest<HTMLElement>('[data-mis-kind]');
+      if (k) { sgKind = k.dataset.misKind as Kind; if (document.activeElement === input) openSg(); else input.focus(); return; }
+      const f = t.closest<HTMLElement>('[data-mis-flag]');
+      if (f) {
+        const key = f.dataset.misFlag as 'blitz' | 'hideEmpire';
+        state[key] = !state[key];
+        afterFilter();
+      }
+    });
   }
+
+  function renderTokens() {
+    const tk = bar.querySelector<HTMLElement>('#misTokens');
+    if (!tk) return;
+    tk.innerHTML = activeTokens().map(([k, label]) => `<span class="mis-token">${esc(label)}<button type="button" class="mis-token-x" data-mis-drop="${k}" aria-label="${esc(tx('Scoate filtrul'))}">×</button></span>`).join('');
+    const quick = bar.querySelector<HTMLElement>('#misQuick');
+    if (quick) quick.innerHTML = `<span class="mis-quick-label">${tx('Adaugă filtru')}</span>
+      ${(['section', 'level', 'enemy', 'empire'] as Kind[]).map((k) => `<button type="button" class="chip-btn" data-mis-kind="${k}">${esc(KIND_LABEL[k])}</button>`).join('')}
+      <button type="button" class="chip-btn ${state.blitz ? 'active' : ''}" data-mis-flag="blitz">Blitz</button>
+      <button type="button" class="chip-btn ${state.hideEmpire ? 'active' : ''}" data-mis-flag="hideEmpire">${tx('Fără pierdere de standing')}</button>
+      <span class="mis-actions">${button(tx('Deschide tot'), { cls: 'sm ghost', attrs: 'data-mis-open="1"' })} ${button(tx('Închide tot'), { cls: 'sm ghost', attrs: 'data-mis-open="0"' })}</span>`;
+  }
+
+  function candidates(): Sug[] {
+    const out: Sug[] = [];
+    for (const s of SECTIONS) {
+      if (s.id === 'all' || s.id === state.section) continue;
+      const n = s.id.slice(1);
+      out.push({ kind: 'section', value: s.id, label: s.label, keys: `${s.label} ${s.id} ${s.id === 'ded' ? 'ded complex' : s.id === 'story' ? 'storyline' : `level ${n} nivel ${n} l${n}`}` });
+    }
+    for (const id of ['e', 'm', 'h'] as const) if (state.level !== id) out.push({ kind: 'level', value: id, label: INTENSITY[id], keys: `${INTENSITY[id]} ${LEVEL_KEYS[id]}` });
+    for (const f of enemyList()) if (state.enemy !== f.id) out.push({ kind: 'enemy', value: f.id, label: f.name, keys: `${f.name} ${f.id}` });
+    for (const e of EMPIRES) if (state.empire !== e) out.push({ kind: 'empire', value: e, label: e, keys: e });
+    if (!state.blitz) out.push({ kind: 'flag', value: 'blitz', label: 'Blitz', keys: 'blitz' });
+    if (!state.hideEmpire) out.push({ kind: 'flag', value: 'hideEmpire', label: tx('Fără pierdere de standing'), keys: `${tx('Fără pierdere de standing')} standing` });
+    return out;
+  }
+
+  function patchOf(s: Sug): Partial<State> {
+    if (s.kind === 'section') return { section: s.value as Section };
+    if (s.kind === 'level') return { level: s.value as Intensity };
+    if (s.kind === 'enemy') return { enemy: s.value };
+    if (s.kind === 'empire') return { empire: s.value };
+    return { [s.value]: true } as Partial<State>;
+  }
+
+  function countWith(patch: Partial<State>) {
+    const saved = { ...state };
+    Object.assign(state, patch, { q: '' });
+    let n = 0;
+    for (const m of missions) if (visible(m)) n++;
+    Object.assign(state, saved);
+    return n;
+  }
+
+  const countLabel = (n: number) => (n === 1 ? tx('1 misiune') : tx('{n} misiuni', { n }));
+
+  function hl(text: string, q: string) {
+    const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const low = text.toLowerCase();
+    for (const t of terms) {
+      const i = low.indexOf(t);
+      if (i >= 0) return `${esc(text.slice(0, i))}<mark>${esc(text.slice(i, i + t.length))}</mark>${esc(text.slice(i + t.length))}`;
+    }
+    return esc(text);
+  }
+
+  function openSg() {
+    const sg = bar.querySelector<HTMLElement>('#misSuggest');
+    const input = bar.querySelector<HTMLInputElement>('#misSearch');
+    if (!sg || !input || !missions.length) return;
+    const q = norm(input.value);
+    const terms = q.split(/\s+/).filter(Boolean);
+    let filters = candidates();
+    if (sgKind) filters = filters.filter((s) => s.kind === sgKind);
+    if (terms.length) filters = filters.filter((s) => { const k = norm(s.keys); return terms.every((t) => k.includes(t)); });
+    const byName = (m: Mission) => (terms.every((t) => norm(m.name).includes(t)) ? 0 : 1);
+    const ms = terms.length && !sgKind ? missions.filter((m) => visible(m)).map((m) => [byName(m), m] as const).sort((x, y) => x[0] - y[0]).slice(0, 6).map(([, m]) => m) : [];
+    sgItems = [...filters.map((s) => ({ s })), ...ms.map((m) => ({ m }))];
+    sgIndex = terms.length && sgItems.length ? 0 : -1;
+    if (!sgItems.length) {
+      sg.innerHTML = terms.length ? `<div class="mis-sg-empty">${tx('Nicio misiune nu se potrivește')}</div>` : '';
+      sg.hidden = !terms.length;
+      sgOpen = !sg.hidden;
+      input.setAttribute('aria-expanded', String(sgOpen));
+      return;
+    }
+    let html = '';
+    let group = '';
+    sgItems.forEach((it, i) => {
+      const g = it.s ? it.s.kind : 'mission';
+      if (g !== group) { group = g; html += `<div class="mis-sg-group">${esc(it.s ? KIND_LABEL[it.s.kind] : tx('Misiuni'))}</div>`; }
+      if (it.s) {
+        html += `<button type="button" class="mis-sg" data-sg="${i}" role="option"><span class="mis-token sm">${esc(KIND_LABEL[it.s.kind])}</span><span class="mis-sg-name">${hl(it.s.label, input.value)}</span><span class="mis-sg-meta">${countLabel(countWith(patchOf(it.s)))}</span></button>`;
+      } else {
+        const lvl = levels.get(it.m.key) ?? 'x';
+        html += `<button type="button" class="mis-sg" data-sg="${i}" role="option">${levelTag(it.m)}<span class="mis-sg-name">${hl(it.m.name, input.value)}</span><span class="mis-sg-meta">${esc(INTENSITY[lvl])}${hasBlitz(it.m) || it.m.guide?.blitz ? ' · Blitz' : ''}</span></button>`;
+      }
+    });
+    sg.innerHTML = html;
+    sg.hidden = false;
+    sgOpen = true;
+    input.setAttribute('aria-expanded', 'true');
+    markSg();
+  }
+
+  function markSg() {
+    const sg = bar.querySelector<HTMLElement>('#misSuggest');
+    if (!sg) return;
+    sg.querySelectorAll<HTMLElement>('[data-sg]').forEach((b) => {
+      const on = Number(b.dataset.sg) === sgIndex;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+      if (on) b.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  function closeSg() {
+    const sg = bar.querySelector<HTMLElement>('#misSuggest');
+    if (sg) sg.hidden = true;
+    sgOpen = false;
+    sgKind = null;
+    bar.querySelector('#misSearch')?.setAttribute('aria-expanded', 'false');
+  }
+
+  function afterFilter() {
+    save();
+    renderTokens();
+    list.querySelectorAll<HTMLDetailsElement>('details.mis-card').forEach(refreshCard);
+    apply();
+  }
+
+  function pickSg(it: SgItem) {
+    const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
+    if (it.s) {
+      Object.assign(state, patchOf(it.s));
+      input.value = '';
+      state.q = '';
+      sgKind = null;
+      afterFilter();
+      openSg();
+      return;
+    }
+    input.value = it.m.name;
+    state.q = it.m.name;
+    closeSg();
+    save();
+    apply();
+    const d = list.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(it.m.key)}"]`);
+    if (d && !d.hidden) { d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  }
+
+  function dropToken(k: Drop) {
+    if (k === 'section') state.section = 'all';
+    else if (k === 'level') state.level = '';
+    else if (k === 'enemy') state.enemy = '';
+    else if (k === 'empire') state.empire = '';
+    else state[k] = false;
+    afterFilter();
+    if (sgOpen) openSg();
+  }
+
+  document.addEventListener('pointerdown', (e) => { if (sgOpen && !bar.contains(e.target as Node)) closeSg(); });
 
   function variantsFor(m: Mission): MVariant[] {
     return m.variants.filter((v) => {
@@ -223,7 +462,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     if (state.blitz && !hasBlitz(m) && !m.guide?.blitz) return false;
     if (state.level && levels.get(m.key) !== state.level) return false;
     if (state.q) {
-      const terms = fold(state.q.normalize('NFD').replace(/[̀-ͯ]/g, '')).split(/\s+/).filter(Boolean);
+      const terms = norm(state.q).split(/\s+/).filter(Boolean);
       const hay = texts.get(m.key) ?? '';
       if (!terms.every((t) => hay.includes(t))) return false;
     }
@@ -432,14 +671,14 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       if (vis) shown++;
     }
     const count = bar.querySelector('#misCount');
-    if (count) count.textContent = shown === 1 ? tx('1 misiune') : tx('{n} misiuni', { n: shown });
+    if (count) count.textContent = countLabel(shown);
     list.querySelector('.mis-empty')?.toggleAttribute('hidden', shown !== 0);
     renderSide();
   }
 
   function renderList() {
     list.innerHTML = `${missions.map((m) => `<details class="mis-card panel" data-key="${esc(m.key)}">${summary(m)}<div class="mis-body"></div></details>`).join('')}
-      <div class="mis-empty" hidden>${emptyState({ title: tx('Nicio misiune nu se potrivește'), text: tx('Încearcă doar o parte din nume, de exemplu „worlds” sau „angel”, sau scoate un filtru.'), vy: 'The Hunt Finds No Trail', vyText: 'No quarry answers these words. Loosen the snare and listen again.' })}</div>`;
+      <div class="mis-empty" hidden>${emptyState({ title: tx('Nicio misiune nu se potrivește'), text: tx('Încearcă doar o parte din nume sau scoate un filtru.'), vy: 'The Hunt Finds No Trail', vyText: 'No quarry answers these words. Loosen the snare and listen again.' })}</div>`;
     apply();
   }
 
@@ -460,8 +699,6 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   el.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
-    const lvl = t.closest<HTMLElement>('[data-mis-level]');
-    if (lvl) { state.level = lvl.dataset.misLevel as Intensity | ''; save(); bar.querySelectorAll('[data-mis-level]').forEach((b) => b.classList.toggle('active', b === lvl)); apply(); return; }
     const v = t.closest<HTMLElement>('[data-mis-variant]');
     if (v) {
       const [key, i] = v.dataset.misVariant!.split('|');
@@ -479,22 +716,21 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     }
   });
 
-  el.addEventListener('change', (e) => {
-    const t = e.target as HTMLInputElement | HTMLSelectElement;
-    if (t.id === 'misEmpire') state.empire = t.value;
-    else if (t.id === 'misEnemy') state.enemy = t.value;
-    else if (t.id === 'misBlitz') state.blitz = (t as HTMLInputElement).checked;
-    else if (t.id === 'misHideEmpire') state.hideEmpire = (t as HTMLInputElement).checked;
-    else return;
-    save();
-    list.querySelectorAll<HTMLDetailsElement>('details.mis-card').forEach(refreshCard);
-    apply();
-  });
-
   side.addEventListener('click', (e) => {
     const tb = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-tool]');
     if (tb) {
       state.tool = tb.dataset.misTool as MisTool;
+      state.guide = '';
+      save();
+      renderSide();
+      showTool();
+      el.closest('.main')?.scrollTo({ top: 0 });
+      return;
+    }
+    const gb = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-guide]');
+    if (gb) {
+      state.guide = gb.dataset.misGuide as Guide;
+      state.tool = '';
       save();
       renderSide();
       showTool();
@@ -503,11 +739,13 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     }
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mis-section]');
     if (!b) return;
-    const wasTool = !!state.tool;
+    const wasTool = !!state.tool || !!state.guide;
     state.section = b.dataset.misSection as Section | 'all';
     state.tool = '';
+    state.guide = '';
     save();
     if (wasTool) showTool();
+    renderTokens();
     apply();
     el.closest('.main')?.scrollTo({ top: 0 });
   });
@@ -526,7 +764,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const sortName = (n: string) => n.replace(/^(The|A|An) /i, '').replace(/[()[\]]/g, '').replace(/\s+/g, ' ').trim();
     missions = [...data.missions].sort((a, b) => (a.rating ? 1 : 0) - (b.rating ? 1 : 0) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }) || a.level - b.level || (a.rating ?? 0) - (b.rating ?? 0));
     levels = intensities(missions);
-    texts = new Map(missions.map((m) => [m.key, searchText(m)]));
+    texts = new Map(missions.map((m) => [m.key, `${searchText(m)} ${norm([...new Set(m.variants.flatMap((v) => v.fac))].map((f) => faction(f).name).join(' '))} ${m.rating ? 'ded' : `l${m.level}`}`]));
     fit = currentFit();
     renderBar();
     renderList();
