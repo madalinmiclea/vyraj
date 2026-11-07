@@ -15,7 +15,7 @@ export interface MGroup { l: MText; d?: string | null; s: MShip[] }
 export type InfoKey = 'type' | 'space' | 'dealt' | 'dmg' | 'ships' | 'setup' | 'extras' | 'web' | 'diff' | 'obj' | 'limit' | 'bounty' | 'enemy';
 export type MCell = [string, number?, number?];
 export interface MRow { h?: number; c: MCell[] }
-export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; x?: MList; i?: [InfoKey, string][]; t?: MRow[][] }
+export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; x?: MList; i?: [InfoKey, string, string?][]; t?: MRow[][] }
 
 export interface MVariant {
   id: string;

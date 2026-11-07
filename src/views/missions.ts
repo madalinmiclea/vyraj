@@ -373,7 +373,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const info = (r.i ?? []).filter(([k]) => k in INFO_LABEL);
     return `<div class="mis-room">
       <div class="mis-room-head">${esc(pick(r.n) || tx('Camera {n}', { n: i + 1 }))}${r.gate ? ` <span class="dim">· ${esc(tx('poarta la {d}', { d: r.gate }))}</span>` : ''}</div>
-      ${info.length ? `<div class="mis-info">${info.map(([k, val]) => `<div class="mis-line"><span class="label">${esc(INFO_LABEL[k])}</span><span>${esc(val)}</span></div>`).join('')}</div>` : ''}
+      ${info.length ? `<div class="mis-info">${info.map(([k, val, ro]) => `<div class="mis-line"><span class="label">${esc(INFO_LABEL[k])}</span><span>${esc(lang === 'ro' && ro ? ro : val)}</span></div>`).join('')}</div>` : ''}
       ${rows ? `<div class="table-scroll"><table class="table compact mis-table"><thead><tr><th>${tx('Grup')}</th><th>${tx('Distanță')}</th><th>${tx('Nave')}</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
       ${notes.length ? `<ul class="mis-notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${r.t?.length ? `<div class="mis-npc-head">${tx('Statistici NPC')}</div>${r.t.map(npcTable).join('')}` : ''}
