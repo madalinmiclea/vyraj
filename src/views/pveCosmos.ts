@@ -173,9 +173,14 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
       </tr>`;
     };
 
-    const agents = l.agents.filter((a) => secOk(a.sec) && (!state.hide || !isDone('a', a.n)) && match(`${a.n} ${a.site ?? ''} ${m.systems.get(a.s)?.name ?? ''} ${factionName(a)}`));
-    const sites = l.sites.filter((x) => secOk(x.sec) && (!state.hide || !isDone('s', x.n)) && match(`${x.n} ${m.systems.get(x.s)?.name ?? x.sn ?? ''}`));
-    const items = l.items.filter((i) => (!state.hide || !isDone('i', i.n)) && match(`${i.n} ${i.src ?? ''} ${i.req.map((r) => `${r.a ?? ''} ${r.m}`).join(' ')}`));
+    const byName = (x: { n: string }, y: { n: string }) => x.n.localeCompare(y.n);
+    const lvlOf = new Map(l.agents.map((a) => [a.n, a.lvl ?? 9]));
+    const dedOf = (x: CosmosSite) => (x.ded ? parseInt(x.ded, 10) || 99 : 99);
+    const siteLvl = (x: CosmosSite) => Math.min(9, ...l.agents.filter((a) => a.site === x.n).map((a) => a.lvl ?? 9));
+    const itemLvl = (i: CosmosItem) => Math.min(9, ...i.req.map((r) => (r.a ? lvlOf.get(r.a) ?? 9 : 9)));
+    const agents = l.agents.filter((a) => secOk(a.sec) && (!state.hide || !isDone('a', a.n)) && match(`${a.n} ${a.site ?? ''} ${m.systems.get(a.s)?.name ?? ''} ${factionName(a)}`)).sort((x, y) => (x.lvl ?? 9) - (y.lvl ?? 9) || byName(x, y));
+    const sites = l.sites.filter((x) => secOk(x.sec) && (!state.hide || !isDone('s', x.n)) && match(`${x.n} ${m.systems.get(x.s)?.name ?? x.sn ?? ''}`)).sort((x, y) => dedOf(x) - dedOf(y) || siteLvl(x) - siteLvl(y) || byName(x, y));
+    const items = l.items.filter((i) => (!state.hide || !isDone('i', i.n)) && match(`${i.n} ${i.src ?? ''} ${i.req.map((r) => `${r.a ?? ''} ${r.m}`).join(' ')}`)).sort((x, y) => itemLvl(x) - itemLvl(y) || byName(x, y));
 
     const groups = (['empire', 'pirate'] as const).map((k) => `<div class="cos-lines"><span class="cos-kind">${KIND_LABEL[k]}</span>${data!.lines.filter((x) => x.kind === k).map((x) => {
       const s = lineStats(x);
