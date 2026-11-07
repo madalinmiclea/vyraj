@@ -10,6 +10,7 @@ import { loadNpcStandings, cachedNpcStandings, canReadNpcStandings, socialSkills
 import { fetchPrices, pricesAt, typeIconUrl, type Aggregates } from '../services/market';
 import { loadCosmos, loadDone, saveDone, doneKey, WIKI, type CosmosData, type CosmosLine, type CosmosAgent, type CosmosSite, type CosmosItem, type CosmosSec } from '../services/cosmos';
 import { fold } from '../ui/fold';
+import { openCosmosAgent } from './cosmosAgent';
 import { tx } from '../i18n';
 
 const STATE_KEY = 'eve-pve:cosmos';
@@ -133,8 +134,9 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
       const portrait = a.id ? `<img class="row-icon round" src="https://images.evetech.net/characters/${a.id}/portrait?size=32" alt="" loading="lazy" />` : '';
       return `<tr class="${isDone('a', a.n) ? 'cos-done' : ''}">
         <td class="cos-chk-cell">${chk('a', a.n)}</td>
-        <td><span class="recon-ship">${portrait}<span>${wiki(a.w, a.n)}</span></span> ${tags}</td>
+        <td><span class="recon-ship">${portrait}<button class="link cos-agent" data-cos-agent="${esc(a.n)}">${esc(a.n)}</button></span> ${tags}</td>
         <td class="r num">${a.lvl ? `L${a.lvl}` : '—'}</td>
+        <td class="r num">${a.mc ?? '—'}</td>
         <td class="r num">${req != null ? formatNum(req, 2) : `<span class="dim">${tx('fără')}</span>`}</td>
         ${st ? `<td class="r num">${mine == null ? '—' : `<span class="badge ${ok ? 'ok' : 'warn'}">${formatNum(mine, 2)}</span>`}</td>` : ''}
         <td>${esc(factionName(a))}</td>
@@ -197,7 +199,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
 
     let table = '';
     if (state.tab === 'agents') {
-      table = agents.length ? `<div class="wallet-scroll tall"><table class="table compact cos-table"><thead><tr><th></th><th>${tx('Agent')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing cerut')}</th>${st ? `<th class="r">${tx('Standingul tău')}</th>` : ''}<th>${tx('Facțiune')}</th><th>${tx('Locație')}</th><th class="r">${tx('Salturi')}</th><th>${tx('Înainte în lanț')}</th></tr></thead><tbody>${agents.map(agentRow).join('')}</tbody></table></div>` : `<p class="dim">${tx('Niciun agent nu se potrivește.')}</p>`;
+      table = agents.length ? `<div class="wallet-scroll tall"><table class="table compact cos-table"><thead><tr><th></th><th>${tx('Agent')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Misiuni')}</th><th class="r">${tx('Standing cerut')}</th>${st ? `<th class="r">${tx('Standingul tău')}</th>` : ''}<th>${tx('Facțiune')}</th><th>${tx('Locație')}</th><th class="r">${tx('Salturi')}</th><th>${tx('Înainte în lanț')}</th></tr></thead><tbody>${agents.map(agentRow).join('')}</tbody></table></div>` : `<p class="dim">${tx('Niciun agent nu se potrivește.')}</p>`;
     } else if (state.tab === 'sites') {
       table = sites.length ? `<div class="wallet-scroll tall"><table class="table compact cos-table"><thead><tr><th></th><th>${tx('Site')}</th><th class="r">DED</th><th>${tx('Tip')}</th><th>${tx('Sistem')}</th><th class="r">${tx('Salturi')}</th><th>ID</th><th class="r">${tx('Agenți')}</th></tr></thead><tbody>${sites.map(siteRow).join('')}</tbody></table></div>` : `<p class="dim">${tx('Niciun site nu se potrivește.')}</p>`;
     } else {
@@ -230,7 +232,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
     if (next) {
       const need = l.items.filter((i) => !isDone('i', i.n) && i.req.some((r) => r.a === next.n));
       const s = next.s ? m.systems.get(next.s) : undefined;
-      steps.push(tx('Mergi la {agent} în {where}.', { agent: `<b>${wiki(next.w, next.n)}</b>${next.lvl ? ` (L${next.lvl})` : ''}`, where: `${s ? `${esc(s.name)} <span class="sec ${secClass(s.sec)}">${formatNum(displaySec(s.sec), 1)}</span>` : '—'}${next.site ? ` · ${esc(next.site)}` : ''}${dist && next.s ? ` · ${tx('{n} salturi', { n: jumps(next.s) })}` : ''}` }));
+      steps.push(tx('Mergi la {agent} în {where}.', { agent: `<button class="link cos-agent" data-cos-agent="${esc(next.n)}"><b>${esc(next.n)}</b></button>${next.lvl ? ` (L${next.lvl})` : ''}`, where: `${s ? `${esc(s.name)} <span class="sec ${secClass(s.sec)}">${formatNum(displaySec(s.sec), 1)}</span>` : '—'}${next.site ? ` · ${esc(next.site)}` : ''}${dist && next.s ? ` · ${tx('{n} salturi', { n: jumps(next.s) })}` : ''}` }));
       if (need.length) steps.push(`${tx('Ia cu tine:')} ${need.map((i) => `${esc(i.n)}${i.q > 1 ? ` ×${formatInt(i.q)}` : ''}`).join(', ')} ${button(tx('Vezi lista'), { cls: 'sm ghost', attrs: 'data-cos-tab="items"' })}`);
       steps.push(`${tx('Citește lanțul pe wiki înainte să vorbești cu agentul.')} ${button(tx('Am terminat lanțul'), { cls: 'sm', attrs: `data-cos-finish="${esc(next.n)}"` })}`);
     } else if (!open.length) {
@@ -304,6 +306,19 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
     if (sec) { state.sec = (sec.dataset.cosSec || '') as CosmosSec | ''; save(); render(); return; }
     if (t.closest('[data-cos-prices]')) { loadPrices(!!prices.size); return; }
     if (t.closest('[data-cos-guide]')) { opts.openGuide(); return; }
+    const ag = t.closest<HTMLElement>('[data-cos-agent]');
+    if (ag && data && map) {
+      const l = line();
+      const a = l.agents.find((x) => x.n === ag.dataset.cosAgent);
+      if (!a) return;
+      const c = ctx.character;
+      const st = logged() ? cachedNpcStandings(c.characterId!) : null;
+      const mine = st && a.f ? effective(st.faction.get(a.f), a.f, socialSkills(ctx.sde, c)) : null;
+      const dist = origin.system ? map.gateDistances(origin.system.id, 80) : null;
+      const jumps = dist && a.s ? (dist.has(a.s) ? String(dist.get(a.s)) : '80+') : '—';
+      openCosmosAgent(a, l, { map, faction: factionName(a), mine, jumps });
+      return;
+    }
     const fin = t.closest<HTMLElement>('[data-cos-finish]');
     if (fin) { toggle('a', fin.dataset.cosFinish!, true); return; }
     if (t.closest('[data-cos-reset]')) {

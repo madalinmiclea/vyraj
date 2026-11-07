@@ -22,3 +22,37 @@
 .cos-next li { margin: 5px 0; line-height: 1.5; }
 .cos-next li .btn { margin-left: 6px; vertical-align: middle; }
 .cos-next .perm-gate { margin-top: 10px; }
+.cos-agent { color: var(--accent-bright); font-weight: 500; }
+.cam-modal { width: min(900px, 100%); }
+.cam-agent { display: flex; gap: 16px; align-items: flex-start; }
+.cam-portrait { width: 96px; height: 96px; border-radius: 3px; border: 1px solid var(--line-strong); flex: none; }
+.cam-agent-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cam-agent-name { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--text-bright); }
+.cam-agent-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cam-agent-meta { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--text-dim); }
+.cam-agent-meta b { color: var(--text); font-weight: 600; }
+.cam-rule { margin: 14px 0 4px; padding: 8px 12px; font-size: 13px; color: var(--warn); background: var(--bg-inset); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 3px; }
+.cam-story { margin: 14px 0 0; color: var(--text-dim); line-height: 1.6; max-width: 80ch; }
+.cam-list { list-style: none; margin: 16px 0 0; padding: 0; position: relative; }
+.cam-list::before { content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+.cam-mission { position: relative; display: flex; gap: 14px; margin-bottom: 14px; }
+.cam-dot { position: relative; z-index: 1; flex: none; width: 32px; height: 32px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text-bright); background: var(--bg-raised); border: 2px solid var(--accent); border-radius: 50%; }
+.cam-card { flex: 1; min-width: 0; padding: 12px 14px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 4px; }
+.cam-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cam-part { font-size: 12px; color: var(--text-dim); margin-right: 4px; }
+.cam-title { margin: 6px 0 4px; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--text-bright); }
+.cam-goal { margin: 4px 0 8px; font-weight: 500; color: var(--text); line-height: 1.5; }
+.cam-steps { margin: 4px 0 8px; padding-left: 20px; }
+.cam-steps li { margin: 4px 0; line-height: 1.5; }
+.cam-row { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin: 5px 0; font-size: 13px; }
+.cam-row .label { color: var(--text-dim); }
+.cam-item { display: inline-block; margin: 0 4px 4px 0; padding: 1px 8px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--bg-raised); }
+.cam-tip { margin-top: 8px; padding: 7px 10px; font-size: 13px; line-height: 1.5; border-left: 3px solid var(--accent); background: rgba(var(--accent-rgb), 0.08); border-radius: 3px; }
+.cam-brief { margin-top: 8px; font-size: 13px; }
+.cam-brief summary { cursor: pointer; color: var(--text-dim); }
+.cam-brief p { margin: 6px 0; color: var(--text-dim); font-style: italic; line-height: 1.55; }
+.cam-foot { margin-top: 6px; }
+@media (max-width: 720px) {
+  .cam-agent { flex-direction: column; }
+  .cam-row { grid-template-columns: 1fr; gap: 2px; }
+}
