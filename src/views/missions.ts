@@ -186,6 +186,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       <div class="mis-search" id="misSearchBox">
         ${icon('search')}
         <input id="misSearch" type="text" placeholder="${esc(tx('Caută după numele misiunii'))}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="misSuggest" aria-autocomplete="list" />
+        <button type="button" class="mis-clear" id="misClear" aria-label="${esc(tx('Șterge căutarea'))}" hidden>×</button>
         <span class="mis-count" id="misCount"></span>
         <kbd>/</kbd>
       </div>
@@ -194,9 +195,15 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     </div>`;
     const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
     input.value = state.q;
+    const clear = bar.querySelector<HTMLButtonElement>('#misClear')!;
+    const syncClear = () => { clear.hidden = !input.value; };
+    syncClear();
+    const reset = () => { input.value = ''; state.q = ''; syncClear(); closeSg(); save(); apply(); };
+    clear.addEventListener('click', (e) => { e.stopPropagation(); reset(); input.focus(); });
     input.addEventListener('focus', () => openSg());
     input.addEventListener('input', () => {
       state.q = input.value;
+      syncClear();
       openSg();
       clearTimeout(applyTimer);
       applyTimer = window.setTimeout(() => { save(); apply(); }, 90);
@@ -214,10 +221,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
         if (m) pickSg(m); else closeSg();
       } else if (e.key === 'Escape') {
         if (sgOpen) { closeSg(); return; }
-        input.value = '';
-        state.q = '';
-        save();
-        apply();
+        reset();
       } else if (e.key === 'Tab') closeSg();
     });
     const sg = bar.querySelector<HTMLElement>('#misSuggest')!;
@@ -287,6 +291,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
     input.value = m.name;
     state.q = m.name;
+    bar.querySelector<HTMLButtonElement>('#misClear')!.hidden = false;
     closeSg();
     save();
     apply();

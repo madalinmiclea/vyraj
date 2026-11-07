@@ -3602,4 +3602,5 @@ export const EN: Record<string, string> = {
   "Semnătura și skill-urile": "Signature strength and skills",
   "Dacă procentul nu mai crește, apropie probele, micșorează raza sau folosește o navă cu bonus la scanare.": "If the percentage stops rising, move the probes closer, reduce the range or use a ship with a scanning bonus.",
   "Caută după numele misiunii": "Search by mission name",
+  "Șterge căutarea": "Clear search",
 };
