@@ -19,11 +19,12 @@ type Tab = 'agents' | 'sites' | 'items';
 interface State { line: string; tab: Tab; sec: CosmosSec | ''; hide: boolean; q: string }
 
 const SEC_LABEL: Record<CosmosSec, string> = { high: 'High-sec', low: 'Low-sec', null: 'Null-sec' };
-const KIND_LABEL = { empire: tx('Imperii'), pirate: tx('Pirați') };
 
 const wiki = (w: string | undefined, text: string) => (w ? `<a href="${esc(WIKI + w)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>` : esc(text));
 
-export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { openGuide: () => void }) {
+export interface CosmosLineSummary { id: string; name: string; kind: 'empire' | 'pirate'; sum: number; total: number }
+
+export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { openGuide: () => void; onRender?: (lines: CosmosLineSummary[], active: string) => void }) {
   const state: State = { line: 'caldari', tab: 'agents', sec: '', hide: false, q: '', ...loadJson<Partial<State>>(STATE_KEY, {}) };
   let visible = false;
   let seq = 0;
@@ -184,10 +185,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
     const sites = l.sites.filter((x) => secOk(x.sec) && (!state.hide || !isDone('s', x.n)) && match(`${x.n} ${m.systems.get(x.s)?.name ?? x.sn ?? ''}`)).sort((x, y) => dedOf(x) - dedOf(y) || siteLvl(x) - siteLvl(y) || byName(x, y));
     const items = l.items.filter((i) => (!state.hide || !isDone('i', i.n)) && match(`${i.n} ${i.src ?? ''} ${i.req.map((r) => `${r.a ?? ''} ${r.m}`).join(' ')}`)).sort((x, y) => itemLvl(x) - itemLvl(y) || byName(x, y));
 
-    const groups = (['empire', 'pirate'] as const).map((k) => `<div class="cos-lines"><span class="cos-kind">${KIND_LABEL[k]}</span>${data!.lines.filter((x) => x.kind === k).map((x) => {
-      const s = lineStats(x);
-      return `<button class="chip-btn ${x.id === l.id ? 'active' : ''}" data-cos-line="${x.id}">${esc(x.name)} <span class="cos-prog">${s.sum}/${s.total}</span></button>`;
-    }).join('')}</div>`).join('');
+    opts.onRender?.(data.lines.map((x) => ({ id: x.id, name: x.name, kind: x.kind, ...lineStats(x) })), l.id);
 
     const where = l.where.map(([sec, cons, reg]) => `<span><b>${SEC_LABEL[sec]}</b> ${esc(cons)} · ${esc(reg)}</span>`).join('');
     const pct = stats.total ? Math.round((stats.sum / stats.total) * 100) : 0;
@@ -236,7 +234,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
       if (need.length) steps.push(`${tx('Ia cu tine:')} ${need.map((i) => `${esc(i.n)}${i.q > 1 ? ` ×${formatInt(i.q)}` : ''}`).join(', ')} ${button(tx('Vezi lista'), { cls: 'sm ghost', attrs: 'data-cos-tab="items"' })}`);
       steps.push(`${tx('Citește lanțul pe wiki înainte să vorbești cu agentul.')} ${button(tx('Am terminat lanțul'), { cls: 'sm', attrs: `data-cos-finish="${esc(next.n)}"` })}`);
     } else if (!open.length) {
-      steps.push(tx('Ai terminat linia {line}. Alege alta de mai sus.', { line: l.name }));
+      steps.push(tx('Ai terminat linia {line}. Alege alta din meniu.', { line: l.name }));
     } else if (blocked) {
       steps.push(tx('Pentru agenții rămași îți trebuie cel puțin {v} standing la {f}.', { v: formatNum(blocked.std!, 2), f: esc(factionName(blocked)) }));
     }
@@ -247,8 +245,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
       title: `COSMOS ${l.name}`,
       count: tx('{d} din {n} gata', { d: formatInt(stats.sum), n: formatInt(stats.total) }),
       actions: `${priceAction}${button(tx('Resetează linia'), { cls: 'ghost sm', attrs: 'data-cos-reset' })}`,
-      body: `${groups}
-        <div class="cos-where">${where}</div>
+      body: `<div class="cos-where">${where}</div>
         <div class="cos-meter"><span style="width:${pct}%"></span></div>
         <div class="cos-rules"><span>${tx('Oferta expiră în 7 zile')}</span><span>${tx('Misiune eșuată = lanț pierdut')}</span><span>${tx('Standing de facțiune: L2 {a} · L3 {b} · L4 {c}', { a: '2.0', b: '4.0', c: '6.0' })}</span></div>
         ${nextCard}
@@ -340,6 +337,7 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
 
   return {
     show() { visible = true; done = loadDone(charKey()); load(); },
+    setLine(id: string) { state.line = id; state.sec = ''; save(); if (visible) render(); },
     hide() { visible = false; seq++; },
   };
 }

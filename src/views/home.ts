@@ -21,7 +21,7 @@ interface Tile { id: string; label: string; icon: string }
 const GROUPS: { title: string; vy: string; ids: string[] }[] = [
   { title: tx('Nave'), vy: 'Svarog', ids: ['fitting', 'doctrines', 'skins'] },
   { title: tx('Pilot'), vy: 'Perun', ids: ['character', 'mail', 'notifications'] },
-  { title: tx('PvE'), vy: 'Morana', ids: ['missions', 'operations'] },
+  { title: tx('PvE'), vy: 'Morana', ids: ['missions', 'cosmos', 'operations'] },
   { title: tx('Piață și comerț'), vy: 'Veles', ids: ['market', 'intel', 'orders', 'wallet'] },
   { title: tx('Producție'), vy: 'Mokosh', ids: ['industry', 'pi', 'mining'] },
   { title: tx('Spațiu'), vy: 'Perun', ids: ['navigation', 'recon'] },
@@ -39,6 +39,7 @@ const ABOUT: Record<string, string> = {
   notifications: tx('Alegi ce te anunță: ordine vândute, outbid, skill-uri, industrie, kill-uri PvP lângă tine și notificările din joc.'),
   mail: tx('Mailurile din joc: etichete, liste de mail, citire, răspuns și trimitere.'),
   missions: tx('Misiuni și complexe DED, incursiuni, unde faci ratting, anomalii, agenți, escaladări, Abyss, activitatea ta PvE și magazin LP.'),
+  cosmos: tx('Cele 8 linii COSMOS: agenți, misiuni pas cu pas, site-uri și iteme, cu progresul tău.'),
   operations: tx('Joburi freelance, campanii militare, Mercenary Dens și skyhook-uri de jefuit, citite direct din ESI.'),
   industry: tx('Cost de fabricație și invenție față de prețul din Jita.'),
   pi: tx('Colonii, timere de extractoare și profitul fiecărui lanț.'),

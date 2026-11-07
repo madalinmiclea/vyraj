@@ -31,6 +31,7 @@ import { openPermissionsModal } from './character/loginModal';
 import { logoutCharacter, showLogoutFlash } from './character/logout';
 import { createMissionsView, type MissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
+import { createCosmosView, type CosmosView } from './views/cosmos';
 import { esiHealth } from './services/operations';
 import { startAlertWatcher } from './services/alerts';
 import { startNotifyWatcher } from './services/notify';
@@ -59,10 +60,10 @@ import { isDemo, startDemo, exitDemo } from './demo/demo';
 import { DEMO_ID } from './demo/identity';
 import { registerServiceWorker, canInstall, installApp, INSTALL_EVENT } from './services/pwa';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'operations' | 'mail' | 'notifications' | 'about';
+type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'cosmos' | 'operations' | 'mail' | 'notifications' | 'about';
 
 const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const;
+const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const;
 type SideView = (typeof SIDE_VIEWS)[number];
 
 const FLAG: Record<Lang, string> = {
@@ -86,6 +87,7 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
   { id: 'missions', label: 'PvE', short: 'PvE', icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
+  { id: 'cosmos', label: 'COSMOS', short: 'COSMOS', icon: 'cosmos', categories: null, lore: 'Zvezdy', clade: 'Morana', order: 17 },
   { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
   { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 9 },
   { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 9 },
@@ -179,9 +181,10 @@ market.setFees(() => intel.fees());
 
 let fitting: FittingView | null = null;
 let missions: MissionsView | null = null;
+let cosmos: CosmosView | null = null;
 let doctrines: DoctrinesView | null = null;
 let notifications: NotificationsView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -296,6 +299,7 @@ function switchView(id: ViewId, push = true) {
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   runLazy(id);
   if (id === 'missions') missions?.show();
+  if (id === 'cosmos') cosmos?.show(); else cosmos?.hide();
   if (id === 'notifications') notifications?.show('history');
   setSide(false);
   syncSubnav();
@@ -517,7 +521,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -609,6 +613,7 @@ async function start() {
   later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
   later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
+  later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
   later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   runLazy(activeView);
