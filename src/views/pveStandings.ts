@@ -28,9 +28,12 @@ const levelOf = (eff: number) => (eff <= -2 ? 0 : [5, 4, 3, 2].find((l) => eff >
 const levelBadge = (l: number) => (l ? `<span class="badge ${l >= 4 ? 'ok' : 'accent'}">L${l}</span>` : `<span class="badge danger">${tx('Blocat')}</span>`);
 
 function baseNeeded(target: number, faction: number, skills: SocialSkills): number {
-  const sk = skillFor(target, faction);
-  const k = sk ? 0.04 * skills[sk] : 0;
-  return target >= 0 ? Math.max(0, (target - 10 * k) / (1 - k)) : target;
+  const sk = skillFor(Math.max(0, target), faction);
+  const kp = sk ? 0.04 * skills[sk] : 0;
+  const kd = 0.04 * skills.diplomacy;
+  const neg = (target - 10 * kd) / (1 - kd);
+  if (neg < 0) return neg;
+  return Math.max(0, (target - 10 * kp) / (1 - kp));
 }
 
 export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { openAgents: (corp: number, faction: number, level: number) => void }) {
