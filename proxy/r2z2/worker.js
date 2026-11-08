@@ -259,18 +259,27 @@ async function links(request, env, url) {
 
 const validRegion = (id) => (id >= 10000001 && id <= 10999999) || id === 19000001;
 
+async function bookPage(url, budget) {
+  for (let attempt = 0; ; attempt++) {
+    if (budget.left <= 0) throw new Error('budget');
+    budget.left--;
+    const res = await fetch(url, { headers: ESI_HEADERS });
+    if (res.ok) return res;
+    if (res.status < 500 || attempt >= 2) throw new Error(String(res.status));
+    await new Promise((resolve) => setTimeout(resolve, 300 * 2 ** attempt));
+  }
+}
+
 async function bookRegion(region, type, budget) {
   const url = (page) => `${ESI}/markets/${region}/orders/?order_type=all&type_id=${type}&page=${page}&compatibility_date=${ESI_DATE}`;
-  budget.left--;
-  const first = await fetch(url(1), { headers: ESI_HEADERS });
-  if (!first.ok) throw new Error(String(first.status));
+  const first = await bookPage(url(1), budget);
+  const stamp = first.headers.get('last-modified');
   const pages = Number(first.headers.get('x-pages')) || 1;
   const rows = await first.json();
   for (let page = 2; page <= pages; page++) {
-    if (budget.left <= 0) throw new Error('budget');
-    budget.left--;
-    const res = await fetch(url(page), { headers: ESI_HEADERS });
-    if (!res.ok) throw new Error(String(res.status));
+    const res = await bookPage(url(page), budget);
+    const other = res.headers.get('last-modified');
+    if (stamp && other && other !== stamp) throw new Error('mixed');
     rows.push(...(await res.json()));
   }
   return rows.map((o) => [o.order_id, o.is_buy_order ? 1 : 0, o.price, o.volume_remain, o.volume_total, o.min_volume, o.location_id, o.system_id, region, o.range, o.issued, o.duration]);
