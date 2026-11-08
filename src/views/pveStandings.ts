@@ -88,11 +88,18 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
       return lines.join('\n');
     };
     const effCell = (base: number | undefined, faction: number) => `<span class="std-cell"><span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span> <span class="std-base">(${base == null ? '0.00' : sign(base)})</span></span>`;
-    const nextCell = (eff: number, faction: number, via?: string) => {
+    type Route = { kind: 'corp' | 'faction' | 'agent'; name: string; base: number | undefined };
+    const KIND: Record<Route['kind'], string> = { corp: tx('corporația'), faction: tx('facțiunea'), agent: tx('agentul') };
+    const nextCell = (eff: number, faction: number, via?: string, routes: Route[] = []) => {
       const next = [2, 3, 4, 5].find((l) => eff < STANDING_NEEDED[l]);
       if (!next || eff <= -2) return `<span class="dim">—</span>`;
-      return `<span class="small">L${next} <span class="dim">${via ? `${esc(via)} ` : ''}${tx('la bază {b}', { b: formatNum(baseNeeded(STANDING_NEEDED[next], faction, skills), 2) })}</span></span>`;
+      const need = baseNeeded(STANDING_NEEDED[next], faction, skills);
+      const tip = routes.length ? [tx('L{l} cu oricare dintre:', { l: next }), ...routes.map((r) => `${KIND[r.kind]} ${r.name}: ${sign(r.base ?? 0)} → ${formatNum(need, 2)}`)].join('\n') : '';
+      const top = [...routes].sort((a, b) => (b.base ?? 0) - (a.base ?? 0))[0];
+      const label = top ? `${KIND[top.kind]} ${top.name} ${sign(top.base ?? 0)} → ${formatNum(need, 2)}` : `${via ? `${via} ` : ''}${tx('la bază {b}', { b: formatNum(need, 2) })}`;
+      return `<span class="small"${tip ? ` title="${esc(tip)}"` : ''}>L${next} <span class="dim">${esc(label)}</span>${routes.length > 1 ? ` <span class="std-base">+${routes.length - 1}</span>` : ''}</span>`;
     };
+    const agentsOf = (corp: number) => d.agents.filter((a) => a.corp === corp && s.agent.has(a.id)).map((a) => ({ kind: 'agent' as const, name: a.name, base: s.agent.get(a.id) }));
 
     const agentCorps = new Set(d.agents.filter((a) => a.kind === 0).map((a) => a.corp));
     const factionIds = [...new Set([...d.factions.keys(), ...s.faction.keys()])];
@@ -131,12 +138,12 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     let table = '';
     if (state.tab === 'factions') {
       table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${nextCell(best, f, via ? corpName(via) : undefined)}</td></tr>`).join('')}
+        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${nextCell(best, f, via ? corpName(via) : undefined, [...(via ? [{ kind: 'corp' as const, name: corpName(via), base: s.corp.get(via) }] : []), { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...[...agentCorps].filter((c) => c !== via && d.corps.get(c)?.faction === f).map((c) => ({ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) })).sort((x, y) => (y.base ?? 0) - (x.base ?? 0)).slice(0, 3)])}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio facțiune nu se potrivește.')}</p>`;
     } else if (state.tab === 'corps') {
       table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
         ${groupOrder.map((f) => `<tr class="std-group"><td colspan="6">${f ? `${logo(f)}${esc(factionName(f))}` : tx('Fără facțiune')} <span class="dim">${num(effective(s.faction.get(f), f, skills))}</span></td></tr>
-          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f)}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
+          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...agentsOf(c)])}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio corporație nu se potrivește.')}</p>`;
     } else {
       table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th></tr></thead><tbody>

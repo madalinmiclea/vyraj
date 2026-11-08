@@ -3818,4 +3818,8 @@ export const EN: Record<string, string> = {
   "Copiază skill-urile": "Copy skills",
   "Skill-uri copiate": "Skills copied",
   "fără standing": "no standing",
+  "L{l} cu oricare dintre:": "L{l} with any of:",
+  "corporația": "corporation",
+  "facțiunea": "faction",
+  "agentul": "agent",
 };
