@@ -66,8 +66,12 @@
 .mis-sec-head, .mis-room-head { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
 .mis-notes { margin: 4px 0; padding-left: 20px; font-size: 14px; }
 .mis-notes li { margin: 3px 0; max-width: 80ch; }
+.mis-warn { color: var(--danger); font-weight: 600; }
 
 .mis-room { margin: 14px 0 6px; }
+.mis-range { font-weight: 500; color: var(--text-faint); }
+.mis-part + .mis-part { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-strong); }
+.mis-part-head { font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--text-bright); margin: 6px 0 2px; }
 .mis-table td { vertical-align: top; }
 .mis-table td.mis-group { width: 22%; color: var(--text-bright); }
 .mis-table td.num { width: 90px; white-space: nowrap; }

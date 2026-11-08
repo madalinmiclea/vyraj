@@ -1479,6 +1479,8 @@ export const EN: Record<string, string> = {
   "Escaladare din": "Escalation from",
   "Loot + salvage": "Loot + salvage",
   "Camera {n}": "Room {n}",
+  "Partea {n} din {t}": "Part {n} of {t}",
+  "Părțile {a}-{b} din {t}": "Parts {a}-{b} of {t}",
   "poarta la {d}": "gate at {d}",
   "Grup": "Group",
   "Varianta {n}": "Variant {n}",
@@ -3851,4 +3853,6 @@ export const EN: Record<string, string> = {
   "cu același roll": "with the same roll",
   "Roll aleator": "Random roll",
   "bază": "base",
+  "Sigur": "Safe",
+  "Nesigur": "Not safe",
 };

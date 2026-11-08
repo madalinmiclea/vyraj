@@ -28,12 +28,12 @@ const num = (v: number | undefined) => (v == null ? `<span class="dim">—</span
 const levelOf = (eff: number) => (eff <= -2 ? 0 : [5, 4, 3, 2].find((l) => eff >= STANDING_NEEDED[l]) ?? 1);
 const levelBadge = (l: number) => (l ? `<span class="badge ${l >= 4 ? 'ok' : 'accent'}">L${l}</span>` : `<span class="badge danger">${tx('Blocat')}</span>`);
 
-function baseNeeded(target: number, faction: number, skills: SocialSkills): number {
+function baseNeeded(target: number, faction: number, skills: SocialSkills, from = 0): number {
   const sk = skillFor(Math.max(0, target), faction);
   const kp = sk ? 0.04 * skills[sk] : 0;
   const kd = 0.04 * skills.diplomacy;
   const neg = (target - 10 * kd) / (1 - kd);
-  if (neg < 0) return neg;
+  if (from < 0 && neg < 0) return neg;
   return Math.max(0, (target - 10 * kp) / (1 - kp));
 }
 
@@ -94,11 +94,11 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const nextCell = (eff: number, faction: number, via?: string, routes: Route[] = []) => {
       const next = [2, 3, 4, 5].find((l) => eff < STANDING_NEEDED[l]);
       if (!next || eff <= -2) return `<span class="dim">—</span>`;
-      const need = baseNeeded(STANDING_NEEDED[next], faction, skills);
-      const needTxt = `${formatNum(STANDING_NEEDED[next], 2)} (${tx('bază')} ${formatNum(need, 2)})`;
-      const tip = routes.length ? [tx('L{l} cu oricare dintre:', { l: next }), ...routes.map((r) => `${KIND[r.kind]} ${r.name}: ${needTxt} (${tx('acum')} ${tx('bază')} ${sign(r.base ?? 0)})`)].join('\n') : '';
+      const need = (from = 0) => baseNeeded(STANDING_NEEDED[next], faction, skills, from);
+      const needTxt = (from = 0) => `${formatNum(STANDING_NEEDED[next], 2)} (${tx('bază')} ${formatNum(need(from), 2)})`;
+      const tip = routes.length ? [tx('L{l} cu oricare dintre:', { l: next }), ...routes.map((r) => `${KIND[r.kind]} ${r.name}: ${needTxt(r.base)} (${tx('acum')} ${tx('bază')} ${sign(r.base ?? 0)})`)].join('\n') : '';
       const top = [...routes].sort((a, b) => (b.base ?? 0) - (a.base ?? 0))[0];
-      const label = top ? `${KIND[top.kind]} ${top.name} ${needTxt}` : `${via ? `${via} ` : ''}${tx('la bază {b}', { b: formatNum(need, 2) })}`;
+      const label = top ? `${KIND[top.kind]} ${top.name} ${needTxt(top.base)}` : `${via ? `${via} ` : ''}${tx('la bază {b}', { b: formatNum(need(), 2) })}`;
       return `<span class="small"${tip ? ` title="${esc(tip)}"` : ''}>L${next} <span class="dim">${esc(label)}</span></span>`;
     };
 

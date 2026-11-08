@@ -19,7 +19,7 @@ import { canLoadCharge, type Fit } from '../engine/fit';
 import { CURRENT_KEY } from '../fitting/shared';
 import { Category } from '../data/sde';
 import {
-  loadMissions, pick, pickList, faction, sectionOf, intensities, dealtOf, weakOf, ewarOf, empiresOf, hasBlitz, searchText,
+  loadMissions, mergeChains, chainBase, rangeLabel, pick, pickList, faction, sectionOf, intensities, dealtOf, weakOf, ewarOf, empiresOf, hasBlitz, searchText,
   SECTIONS, INTENSITY, CLASS_LABEL, FLAG_LABEL, EWAR_LABEL, ES_URL, EU_URL, INFO_LABEL, NPC_HEAD,
   type Mission, type MVariant, type MRoom, type MRow, type Dmg, type Section, type Intensity,
 } from '../services/missions';
@@ -160,7 +160,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     state.tool = '';
     state.guide = '';
     state.section = section;
-    state.q = name;
+    state.q = name ? chainBase(name) : name;
     save();
     renderSide();
     showTool();
@@ -290,7 +290,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     sg.innerHTML = sgItems.length
       ? sgItems.map((m, i) => {
         const lvl = levels.get(m.key) ?? 'x';
-        return `<button type="button" class="mis-sg" data-sg="${i}" role="option">${levelTag(m)}<span class="mis-sg-name">${hl(m.name, input.value)}</span><span class="mis-sg-meta">${esc(INTENSITY[lvl])}</span></button>`;
+        return `<button type="button" class="mis-sg" data-sg="${i}" role="option">${levelTag(m)}<span class="mis-sg-name">${hl(m.name, input.value)}${m.range ? ` <span class="mis-range">${rangeLabel(m)}</span>` : ''}</span><span class="mis-sg-meta">${esc(INTENSITY[lvl])}</span></button>`;
       }).join('')
       : `<div class="mis-sg-empty">${tx('Nicio misiune nu se potrivește')}</div>`;
     sg.hidden = false;
@@ -360,7 +360,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     return `<summary>
       <span class="mis-caret" aria-hidden="true"></span>
       <span class="mis-main">
-        <span class="mis-name">${esc(m.name)}</span>
+        <span class="mis-name">${esc(m.name)}${m.range ? ` <span class="mis-range">${rangeLabel(m)}</span>` : ''}</span>
         <span class="mis-tags">${levelTag(m)}<span class="badge mis-int ${lvl}">${esc(INTENSITY[lvl])}</span>${m.story ? `<span class="badge gold">${tx('Storyline')}</span>` : ''}${m.bonus?.some((b) => b.k === 'room') ? `<span class="badge gold">${tx('Cameră bonus')}</span>` : ''}${hasBlitz(m) || m.guide?.blitz ? `<span class="badge ok">Blitz</span>` : ''}${m.courier ? `<span class="badge">${tx('Transport')}</span>` : ''}${facs.map((f) => `<span class="badge">${esc(faction(f).name)}</span>`).join('')}${emp ? `<span class="badge warn">${tx('scade standing')}</span>` : some ? `<span class="badge">${tx('standing doar la unele variante')}</span>` : ''}${m.ship ? `<span class="badge">${esc(tx('Maxim: {s}', { s: pick(m.ship) }))}</span>` : ''}</span>
       </span>
       <span class="mis-weak">${weak.map(chip).join('')}</span>
@@ -485,9 +485,11 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       return `<tr><td class="mis-group">${esc(pick(g.l))}</td><td class="num">${esc(g.d ?? '')}</td><td>${ships}</td></tr>`;
     }).join('');
     const notes = pickList(r.x);
+    const warns = pickList(r.w);
     const info = (r.i ?? []).filter(([k]) => k in INFO_LABEL);
     return `<div class="mis-room">
       <div class="mis-room-head">${esc(pick(r.n) || tx('Camera {n}', { n: i + 1 }))}${r.gate ? ` <span class="dim">· ${esc(tx('poarta la {d}', { d: r.gate }))}</span>` : ''}</div>
+      ${warns.length ? `<ul class="mis-notes mis-warn">${warns.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${info.length ? `<div class="mis-info">${info.map(([k, val, ro]) => `<div class="mis-line"><span class="label">${esc(INFO_LABEL[k])}</span><span>${esc(lang === 'ro' && ro ? ro : val)}</span></div>`).join('')}</div>` : ''}
       ${rows ? `<div class="table-scroll"><table class="table compact mis-table"><thead><tr><th>${tx('Grup')}</th><th>${tx('Distanță')}</th><th>${tx('Nave')}</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
       ${notes.length ? `<ul class="mis-notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
@@ -514,7 +516,14 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     return `<div class="mis-sec"><div class="mis-sec-head">${esc(title)}</div><${tag} class="mis-notes">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}></div>`;
   }
 
-  function body(m: Mission) {
+  function partHead(p: Mission) {
+    const [a, b] = p.range ?? [1, 1];
+    const t = p.total ?? b;
+    return a === b ? tx('Partea {n} din {t}', { n: a, t }) : tx('Părțile {a}-{b} din {t}', { a, b, t });
+  }
+
+  function body(m: Mission): string {
+    if (m.parts?.length) return m.parts.map((p) => `<section class="mis-part"><div class="mis-part-head">${esc(partHead(p))}</div>${body(p)}</section>`).join('');
     const vs = variantsFor(m);
     const all = vs.length ? vs : m.variants;
     const idx = Math.min(chosen.get(m.key) ?? 0, all.length - 1);
@@ -598,7 +607,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     if (v) {
       const [key, i] = v.dataset.misVariant!.split('|');
       chosen.set(key, Number(i));
-      const d = list.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(key)}"]`);
+      const d = v.closest<HTMLDetailsElement>('details.mis-card');
       if (d) refreshCard(d);
       return;
     }
@@ -651,7 +660,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   showTool();
   loadMissions().then((data) => {
     const sortName = (n: string) => n.replace(/^(The|A|An) /i, '').replace(/[()[\]]/g, '').replace(/\s+/g, ' ').trim();
-    missions = [...data.missions].sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
+    missions = mergeChains(data.missions).sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
     levels = intensities(missions);
     texts = new Map(missions.map((m) => [m.key, searchText(m)]));
     fit = currentFit();

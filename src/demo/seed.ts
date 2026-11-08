@@ -1,4 +1,6 @@
-import { loadSde } from '../data/sde';
+import { loadSde, type Sde } from '../data/sde';
+import { mutate, mutationRows, type Mutable } from '../engine/mutation';
+import type { FitDrone } from '../engine/fit';
 import { loadItems, allEveItems } from '../data/items';
 import { parseEft } from '../io/eft';
 import { saveJson } from '../storage';
@@ -14,6 +16,9 @@ import { saveLog as saveNoticeLog } from '../services/notices';
 import { saveEscalations } from '../services/escalations';
 import { loadMissions, sectionOf } from '../services/missions';
 import { DEMO_ID } from './identity';
+import { OPEN_KEY, CURRENT_KEY } from '../fitting/shared';
+import { loadCosmos, loadDone, saveDone, doneKey } from '../services/cosmos';
+import { getActiveCharacterId } from '../character/characters';
 
 const DAY = 86_400_000;
 
@@ -23,12 +28,12 @@ Drone Damage Amplifier II
 Drone Damage Amplifier II
 Drone Damage Amplifier II
 Power Diagnostic System II
+Omnidirectional Tracking Enhancer II
 
 Large Shield Extender II
 Large Shield Extender II
 Multispectrum Shield Hardener II
 10MN Afterburner II
-Omnidirectional Tracking Link II
 
 Drone Link Augmentor II
 
@@ -80,6 +85,50 @@ Medium Core Defense Field Extender I
 
 Vespa II x2`;
 
+const JACKDAW = `[Jackdaw, Jackdaw missions]
+Ballistic Control System II
+Micro Auxiliary Power Core II
+Damage Control II
+
+Medium Shield Extender II
+Medium Shield Extender II
+Multispectrum Shield Hardener II
+Multispectrum Shield Hardener II
+1MN Monopropellant Enduring Afterburner
+
+Arbalest Compact Light Missile Launcher, Scourge Light Missile
+Arbalest Compact Light Missile Launcher, Scourge Light Missile
+Arbalest Compact Light Missile Launcher, Scourge Light Missile
+Arbalest Compact Light Missile Launcher, Scourge Light Missile
+Arbalest Compact Light Missile Launcher, Scourge Light Missile
+
+Small Core Defense Field Extender I
+Small Core Defense Field Extender I
+Small Core Defense Field Extender I`;
+
+const THANATOS = `[Thanatos, Thanatos ratting]
+Fighter Support Unit II
+Fighter Support Unit II
+Damage Control II
+Capital Armor Repairer II
+Multispectrum Energized Membrane II
+Multispectrum Energized Membrane II
+
+Capital Capacitor Booster II, Navy Cap Booster 3200
+Omnidirectional Tracking Link II
+Omnidirectional Tracking Link II
+Sensor Booster II
+50000MN Microwarpdrive II
+
+Networked Sensor Array
+
+Capital Trimark Armor Pump I
+Capital Trimark Armor Pump I
+Capital Auxiliary Nano Pump I
+
+Firbolg II x27
+Dromi II x12`;
+
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -114,11 +163,52 @@ function abyssalRuns(now: number): AbyssalRun[] {
   return out;
 }
 
+function mutateDemo(sde: Sde, target: Mutable | undefined, pick: RegExp, seed: number) {
+  const mps = target ? sde.mutaplasmidsFor(target.typeId) : [];
+  const mp = mps.find((x) => pick.test(x.name)) ?? mps[0];
+  if (!target || !mp) return;
+  const r = rng(seed);
+  mutate(sde, target, mp);
+  for (const row of mutationRows(sde, target)) {
+    const toward = r() < 0.75 ? (row.highIsGood ? row.max : row.min) : (row.highIsGood ? row.min : row.max);
+    target.mutation!.values[row.attrId] = row.base + (toward - row.base) * (0.3 + r() * 0.5);
+  }
+}
+
+function splitDrone(sde: Sde, drones: FitDrone[], name: string): FitDrone | undefined {
+  const typeId = sde.findType(name)?.id;
+  const i = drones.findIndex((d) => d.typeId === typeId && d.count > 1);
+  if (i < 0) return undefined;
+  const d = drones[i];
+  const one: FitDrone = { ...d, count: 1, active: Math.min(1, d.active) };
+  drones[i] = { ...d, count: d.count - 1, active: Math.min(d.count - 1, d.active - one.active) };
+  drones.splice(i + 1, 0, one);
+  return one;
+}
+
+async function seedCosmos() {
+  const data = await loadCosmos().catch(() => null);
+  const line = data?.lines.find((l) => l.id === 'caldari') ?? data?.lines[0];
+  if (!line) return;
+  const done = loadDone(getActiveCharacterId());
+  for (const a of line.agents.filter((x) => x.sec === 'high').slice(0, 9)) done.a.add(doneKey(line.id, a.n));
+  for (const x of line.sites.filter((x) => x.sec === 'high').slice(0, 4)) done.s.add(doneKey(line.id, x.n));
+  for (const x of line.items.slice(0, 12)) done.i.add(doneKey(line.id, x.n));
+  saveDone(getActiveCharacterId(), done);
+}
+
 export async function seedDemo(): Promise<void> {
   const [sde] = await Promise.all([loadSde(), loadItems()]);
   const fit = (text: string) => parseEft(sde, text).fit;
-  const fits = [ISHTAR, GILA, RETRIEVER, VENTURE].map(fit);
+  const fits = [ISHTAR, GILA, JACKDAW, THANATOS, RETRIEVER, VENTURE].map(fit);
+  mutateDemo(sde, splitDrone(sde, fits[0].drones, 'Ogre II'), /Exigent Heavy Drone Firepower/, 4242);
+  mutateDemo(sde, fits[1].slots.mid.find((m) => m?.typeId === sde.findType('Large Shield Extender II')?.id) ?? undefined, /^Gravid Large Shield Extender/, 4343);
+  for (const f of fits) f.mode ??= sde.modesFor(f.shipId)[0]?.id;
   saveJson('eve-fit:saved-fits', fits);
+  saveJson(OPEN_KEY, { fits: [fits[0]], active: 0 });
+  saveJson(CURRENT_KEY, fits[0]);
+  saveJson('eve-industry:calc', { product: 'Hammerhead II', me: 10, te: 20, runs: 10 });
+  await seedCosmos();
   saveDoctrines(WTM_DOCTRINES.map((w) => {
     const doctrine = newDoctrine(w.name);
     doctrine.notes = w.fits.some(([, tier]) => tier)

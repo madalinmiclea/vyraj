@@ -31,7 +31,7 @@ export function demoNoticeLog(now: number, pilot: string): Notice[] {
     n('outbid', 2 * HOUR, tx('Ți-a dat cineva outbid'), 'Nanite Repair Paste (buy) 10.910,00 ISK → 10,92K', viewHref('orders')),
     n('skill', 3 * HOUR, tx('Skill terminat · {name}', { name: pilot }), 'Drones V', viewHref('character')),
     n('filled', 6 * HOUR, tx('Ordin de cumpărare umplut · {name}', { name: pilot }), `Hammerhead II: 14 × 532.000,00 ISK = 7,45M ISK`, viewHref('orders')),
-    n('mail', 8 * HOUR, tx('Mail nou · {name}', { name: pilot }), 'Rodna Collective: Ops duminică 20:00', viewHref('mail')),
+    n('mail', 8 * HOUR, tx('Mail nou · {name}', { name: pilot }), tx('Operațiune de flotă diseară la 19:00 EVE'), viewHref('mail')),
     n('industry', 26 * HOUR, tx('Job de industrie gata · {name}', { name: pilot }), 'Hobgoblin II × 10', viewHref('industry')),
     n('expired', 30 * HOUR, tx('Ordin expirat · {name}', { name: pilot }), `Ogre II (sell) · ${tx('rămase {n} la {price}', { n: '3', price: '1.412.000,00 ISK' })}`, viewHref('orders')),
     n('pi', 40 * HOUR, tx('Extractor PI oprit · {name}', { name: pilot }), tx('{planet}: extractorul de {product} se oprește.', { planet: 'Venal III', product: 'Base Metals' }), viewHref('pi')),

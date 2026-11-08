@@ -173,7 +173,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
           </div>
           <div class="row-actions"><button class="btn ghost sm" data-copy-total="${Math.round(basis === 'sell' ? t.sell : t.buy)}">${icon('copy')}${tx('Copiază total')}</button></div>
           <table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Cant.')}</th><th class="r">${tx('Unitar')}</th><th class="r">Sell</th><th class="r">Buy</th></tr></thead><tbody>
-          ${t.rows.map((r) => `<tr><td><img class="row-icon" src="${typeIconUrl(r.typeId, 32)}" alt="" />${esc(r.name)}</td><td class="r num">${formatInt(r.quantity)}</td><td class="r">${isk(r.unit)}</td><td class="r">${isk(r.sell)}</td><td class="r">${isk(r.buy)}</td></tr>`).join('')}
+          ${t.rows.map((r) => `<tr><td><img class="row-icon" src="${typeIconUrl(r.typeId, 32, r.name)}" alt="" />${esc(r.name)}</td><td class="r num">${formatInt(r.quantity)}</td><td class="r">${isk(r.unit)}</td><td class="r">${isk(r.sell)}</td><td class="r">${isk(r.buy)}</td></tr>`).join('')}
           </tbody></table>
           ${unknown.length ? `<p class="small warn-text">${tx('Nerecunoscute')}: ${unknown.slice(0, 20).map(esc).join(', ')}${unknown.length > 20 ? '…' : ''}</p>` : ''}`,
       });
@@ -271,7 +271,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
   let assetLines = new Map<number, AssetLine[]>();
   const openLocs = new Set<number>();
 
-  const assetItemLink = (id: number) => `<button class="link asset-item" data-asset-info="${id}" title="${esc(tx('Deschide informațiile itemului'))}"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />${esc(typeName(id))}</button>`;
+  const assetItemLink = (id: number) => `<button class="link asset-item" data-asset-info="${id}" title="${esc(tx('Deschide informațiile itemului'))}"><img class="row-icon" src="${typeIconUrl(id, 32, typeName(id))}" alt="" loading="lazy" />${esc(typeName(id))}</button>`;
 
   function assetItemsRow(loc: number) {
     const lines = [...(assetLines.get(loc) ?? [])].sort((a, b) => b.value - a.value || typeName(a.typeId).localeCompare(typeName(b.typeId)));

@@ -1,6 +1,7 @@
 import { loadJson, saveJson } from '../storage';
 import { tx } from '../i18n';
 import { ESI, esiFetch, esiPages } from './esiClient';
+import { allEveItems } from '../data/items';
 export const JITA_REGION = 10000002;
 export const JITA_STATION = 60003760;
 export const PLEX_TYPE_ID = 44992;
@@ -184,7 +185,18 @@ export async function fetchJitaBuyBook(typeId: number): Promise<[number, number]
   return orders.filter((o) => o.location_id === JITA_STATION).sort((a, b) => b.price - a.price).map((o) => [o.price, o.volume_remain]);
 }
 
-export const typeIconUrl = (typeId: number, size = 64) => `https://images.evetech.net/types/${typeId}/icon?size=${size}`;
+const SKIN_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7d8d9c" stroke-width="1.5"><path d="M12 3c4 3 7 3 8 3 0 8-3 12-8 15C7 18 4 14 4 6c1 0 4 0 8-3z"/></svg>')}`;
+let categoryOf: Map<number, string> | null = null;
+const itemCategory = (typeId: number) => {
+  if (!categoryOf?.size && allEveItems.length) categoryOf = new Map(allEveItems.map((i) => [i.t, i.c]));
+  return categoryOf?.get(typeId);
+};
+export const typeIconUrl = (typeId: number, size = 64, name = '') => {
+  const c = itemCategory(typeId);
+  if (c === 'Ship SKINs' || / SKIN$/.test(name)) return SKIN_ICON;
+  const bp = c === 'Blueprints & Reactions' || / (Blueprint|Reaction Formula)$/.test(name);
+  return `https://images.evetech.net/types/${typeId}/${bp ? 'bp' : 'icon'}?size=${size}`;
+};
 export const typeRenderUrl = (typeId: number, size = 256) => `https://images.evetech.net/types/${typeId}/render?size=${size}`;
 
 const LISTED_KEY = 'eve-market:listed-types';

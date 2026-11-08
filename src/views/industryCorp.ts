@@ -183,7 +183,7 @@ export function createCorpJobsPanel(pane: HTMLElement, ctx: AppContext, nameOf: 
     const end = finished(j) ? when(j.completed_date ?? j.end_date) : isReady(j) || left(j) <= 0 ? '—' : span(left(j));
     const product = j.product_type_id && j.product_type_id !== j.blueprint_type_id ? esc(nameOf(j.product_type_id)) : '—';
     const runs = j.successful_runs != null && finished(j) && j.successful_runs !== j.runs ? `${formatInt(j.successful_runs)} / ${formatInt(j.runs)}` : formatInt(j.runs);
-    return `<tr><td>${esc(ACTIVITY[j.activity_id] ?? `#${j.activity_id}`)}</td><td><img class="row-icon" src="${typeIconUrl(j.blueprint_type_id, 32)}" alt="" />${esc(nameOf(j.blueprint_type_id))}</td><td>${product}</td><td class="r num">${runs}</td><td>${esc(who(j.installer_id))}</td><td class="small">${esc(place(j))}</td><td>${state(j)}</td><td class="r num">${end}</td><td class="r num">${j.cost ? compactISK(j.cost) : '—'}</td></tr>`;
+    return `<tr><td>${esc(ACTIVITY[j.activity_id] ?? `#${j.activity_id}`)}</td><td><img class="row-icon" src="${typeIconUrl(j.blueprint_type_id, 32, ' Blueprint')}" alt="" />${esc(nameOf(j.blueprint_type_id))}</td><td>${product}</td><td class="r num">${runs}</td><td>${esc(who(j.installer_id))}</td><td class="small">${esc(place(j))}</td><td>${state(j)}</td><td class="r num">${end}</td><td class="r num">${j.cost ? compactISK(j.cost) : '—'}</td></tr>`;
   }
 
   return { render, refresh };

@@ -15,7 +15,7 @@ export interface MGroup { l: MText; d?: string | null; s: MShip[] }
 export type InfoKey = 'type' | 'space' | 'dealt' | 'dmg' | 'ships' | 'setup' | 'extras' | 'web' | 'diff' | 'obj' | 'limit' | 'bounty' | 'enemy';
 export type MCell = [string, number?, number?];
 export interface MRow { h?: number; c: MCell[] }
-export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; x?: MList; i?: [InfoKey, string, string?][]; t?: MRow[][] }
+export interface MRoom { n: MText; gate?: string | null; g: MGroup[]; w?: MList; x?: MList; i?: [InfoKey, string, string?][]; t?: MRow[][] }
 
 export interface MVariant {
   id: string;
@@ -53,6 +53,9 @@ export interface Mission {
   guide?: MGuide;
   bonus?: MBonus[];
   variants: MVariant[];
+  range?: [number, number];
+  total?: number;
+  parts?: Mission[];
 }
 
 export interface MissionData { missions: Mission[] }
@@ -217,3 +220,95 @@ export function searchText(m: Mission): string {
 
 export const ES_URL = 'https://eve-survival.org/?wakka=';
 export const EU_URL = 'https://wiki.eveuniversity.org/';
+
+interface NamePart { base: string; from?: number; to?: number; total?: number }
+
+export function parseChainName(name: string): NamePart {
+  const n = name.trim();
+  let r = n.match(/^(.*?)\s*\(P(\d+) of (.+)\)$/i);
+  if (r) return { base: r[3].trim(), from: +r[2], to: +r[2] };
+  r = n.match(/^(.*?)\s*\((\d+)(?:\s*-\s*(\d+))?\s+of\s+(\d+)\)$/i);
+  if (r) return { base: r[1], from: +r[2], to: +(r[3] ?? r[2]), total: +r[4] };
+  r = n.match(/^(.*?)\s*\((\d+)\s*-\s*(\d+)\)$/);
+  if (r) return { base: r[1], from: +r[2], to: +r[3] };
+  r = n.match(/^(.*?)\s+part\s+(\d+)\s+to\s+(\d+)$/i);
+  if (r) return { base: r[1], from: +r[2], to: +r[3] };
+  r = n.match(/^(.*?)\s+(\d+)\s*-\s*(\d+)$/);
+  if (r) return { base: r[1], from: +r[2], to: +r[3] };
+  return { base: n };
+}
+
+export const chainBase = (name: string) => parseChainName(name).base;
+
+function roomRange(m: Mission): { from?: number; to?: number; total?: number } {
+  let from: number | undefined;
+  let to: number | undefined;
+  let total: number | undefined;
+  let unlabeledFirst = false;
+  for (const v of m.variants) {
+    (v.rooms ?? []).forEach((r, i) => {
+      const t = r.n?.en ?? '';
+      const nums: number[] = [];
+      for (const x of t.matchAll(/\bparts?\s+(\d+)(?:\s+(?:to|-)\s+(\d+))?/gi)) { nums.push(+x[1]); if (x[2]) nums.push(+x[2]); }
+      for (const x of t.matchAll(/\((\d+)\s+of\s+(\d+)\)/gi)) nums.push(+x[1]);
+      for (const x of t.matchAll(/\bof\s+(\d+)\b/gi)) total = Math.max(total ?? 0, +x[1]);
+      if (!nums.length) { if (i === 0) unlabeledFirst = true; return; }
+      from = Math.min(from ?? Infinity, ...nums);
+      to = Math.max(to ?? 0, ...nums);
+    });
+  }
+  if (from !== undefined && unlabeledFirst) from = 1;
+  return { from, to, total };
+}
+
+export function mergeChains(list: Mission[]): Mission[] {
+  const groups = new Map<string, { m: Mission; p: NamePart }[]>();
+  for (const m of list) {
+    const p = m.rating ? { base: m.name } : parseChainName(m.name);
+    const k = `${p.base.toLowerCase()}|${m.level}|${m.rating ?? 0}`;
+    const g = groups.get(k);
+    if (g) g.push({ m, p }); else groups.set(k, [{ m, p }]);
+  }
+  const out: Mission[] = [];
+  for (const g of groups.values()) {
+    if (g.length > 1 && g.every((x) => x.p.from === undefined && x.m.name === g[0].m.name)) { out.push(...g.map((x) => x.m)); continue; }
+    if (g.length === 1) {
+      const { m, p } = g[0];
+      const rr = roomRange(m);
+      const from = Math.min(p.from ?? Infinity, rr.from ?? Infinity);
+      const to = Math.max(p.to ?? 0, rr.to ?? 0);
+      const isChain = p.from !== undefined || (rr.from !== undefined && to > from);
+      out.push(isChain && Number.isFinite(from) ? { ...m, name: p.base, range: [from, Math.max(from, to)], total: Math.max(p.total ?? 0, rr.total ?? 0, to) } : m);
+      continue;
+    }
+    const items = g.map(({ m, p }) => {
+      const rr = roomRange(m);
+      const from = p.from ?? rr.from ?? 1;
+      const to = p.to ?? Math.max(rr.to ?? 0, from);
+      return { m, from, to, total: Math.max(p.total ?? 0, rr.total ?? 0) };
+    }).sort((a, b) => a.from - b.from || a.to - b.to);
+    const from = items[0].from;
+    const to = Math.max(...items.map((x) => x.to));
+    const total = Math.max(to, ...items.map((x) => x.total));
+    const parts = items.map((x) => ({ ...x.m, range: [x.from, x.to] as [number, number], total }));
+    const first = parts[0];
+    const ships = [...new Set(parts.map((x) => x.ship?.en ?? ''))];
+    out.push({
+      key: `${first.key}-chain`,
+      name: g[0].p.base,
+      level: first.level,
+      story: parts.some((x) => x.story) || undefined,
+      courier: parts.every((x) => x.courier) || undefined,
+      ship: ships.length === 1 && ships[0] ? first.ship : undefined,
+      bonus: parts.flatMap((x) => x.bonus ?? []),
+      guide: parts.some((x) => x.guide?.blitz) ? { blitz: true } : undefined,
+      variants: parts.flatMap((x) => x.variants),
+      range: [from, to],
+      total,
+      parts,
+    });
+  }
+  return out;
+}
+
+export const rangeLabel = (m: Mission) => (m.range ? `(${m.range[0] === m.range[1] ? m.range[0] : `${m.range[0]}-${m.range[1]}`})` : '');

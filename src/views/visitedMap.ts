@@ -44,8 +44,8 @@ const PERIODS: [number, string][] = [[0, tx('Tot')], [30, tx('30 zile')], [7, tx
 const COUNTS = [5, 10, 20, 40, 70, 100];
 
 const LEVELS: { id: RiskLevel; label: string; text: string }[] = [
-  { id: 'safe', label: 'Safe', text: tx('Doar highsec. Kill-urile din ultima oră apar lângă fiecare sistem.') },
-  { id: 'risky', label: 'Not safe', text: tx('Highsec și lowsec. Ocolește gate camp-urile și sistemele cu multe kill-uri în ultima oră.') },
+  { id: 'safe', label: tx('Sigur'), text: tx('Doar highsec. Kill-urile din ultima oră apar lângă fiecare sistem.') },
+  { id: 'risky', label: tx('Nesigur'), text: tx('Highsec și lowsec. Ocolește gate camp-urile și sistemele cu multe kill-uri în ultima oră.') },
   { id: 'yolo', label: 'YOLO', text: tx('Oriunde în k-space, inclusiv nullsec și Pochven, pe drumul cel mai scurt.') },
 ];
 

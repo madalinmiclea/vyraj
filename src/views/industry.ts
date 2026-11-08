@@ -561,7 +561,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
   function jobRow(j: IndustryJob) {
     const left = (new Date(j.end_date).getTime() - Date.now()) / 1000;
     const done = left <= 0 || j.status === 'ready';
-    return `<tr><td>${esc(ACTIVITY[j.activity_id] ?? `#${j.activity_id}`)}</td><td><img class="row-icon" src="${typeIconUrl(j.blueprint_type_id, 32)}" alt="" />${esc(nameOf(j.blueprint_type_id))}</td><td>${j.product_type_id ? esc(nameOf(j.product_type_id)) : '—'}</td><td class="r num">${formatInt(j.runs)}</td><td>${done ? badge(tx('Gata'), 'ok') : j.status === 'paused' ? badge(tx('Pe pauză'), 'warn') : esc(tx('În lucru'))}</td><td class="r num">${done ? '—' : duration(left)}</td><td class="r num">${j.cost ? compactISK(j.cost) : '—'}</td></tr>`;
+    return `<tr><td>${esc(ACTIVITY[j.activity_id] ?? `#${j.activity_id}`)}</td><td><img class="row-icon" src="${typeIconUrl(j.blueprint_type_id, 32, ' Blueprint')}" alt="" />${esc(nameOf(j.blueprint_type_id))}</td><td>${j.product_type_id ? esc(nameOf(j.product_type_id)) : '—'}</td><td class="r num">${formatInt(j.runs)}</td><td>${done ? badge(tx('Gata'), 'ok') : j.status === 'paused' ? badge(tx('Pe pauză'), 'warn') : esc(tx('În lucru'))}</td><td class="r num">${done ? '—' : duration(left)}</td><td class="r num">${j.cost ? compactISK(j.cost) : '—'}</td></tr>`;
   }
 
   function refresh() {

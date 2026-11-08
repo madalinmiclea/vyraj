@@ -12,6 +12,7 @@ import { loadCosmos, loadDone, saveDone, doneKey, WIKI, type CosmosData, type Co
 import { fold } from '../ui/fold';
 import { openCosmosAgent } from './cosmosAgent';
 import { tx } from '../i18n';
+import { cosmosText } from '../i18n/cosmosRo';
 
 const STATE_KEY = 'eve-pve:cosmos';
 
@@ -169,9 +170,9 @@ export function createCosmosPanel(el: HTMLElement, ctx: AppContext, opts: { open
       return `<tr class="${isDone('i', i.n) ? 'cos-done' : ''}">
         <td class="cos-chk-cell">${chk('i', i.n)}</td>
         <td><span class="recon-ship">${icon}<span>${esc(i.n)}</span></span>${i.q > 1 ? ` <span class="num dim">×${formatInt(i.q)}</span>` : ''}</td>
-        <td>${via} ${i.src && i.src !== 'Market' ? i.src.split('\n').map((x, n) => (n ? esc(x) : wiki(i.sw, x))).join('<br>') : ''}</td>
+        <td>${via} ${i.src && i.src !== 'Market' ? cosmosText(i.src).split('\n').map((x, n) => (n ? esc(x) : wiki(i.sw, x))).join('<br>') : ''}</td>
         <td class="small">${req || '—'}</td>
-        <td class="small dim">${i.note ? esc(i.note).replace(/\n/g, '<br>') : '—'}</td>
+        <td class="small dim">${i.note ? esc(cosmosText(i.note)).replace(/\n/g, '<br>') : '—'}</td>
         <td class="r num">${p?.sellMin ? formatISK(p.sellMin * i.q, 0) : i.m ? (pricing ? '…' : '—') : ''}</td>
       </tr>`;
     };

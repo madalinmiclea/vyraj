@@ -172,6 +172,12 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     return SLOT_KINDS.some((k) => f.slots[k].some(Boolean)) || f.drones.length > 0 || f.cargo.length > 0 || f.implants.length > 0 || !!f.notes?.trim();
   }
 
+  function markClean() {
+    if (!fit) return;
+    pristine.set(fit.id, JSON.stringify(fit));
+    renderTabs();
+  }
+
   function savedJson() {
     return new Map(loadFits().map((f) => [f.id, JSON.stringify(f)]));
   }
@@ -599,6 +605,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const open = async (f: Fit, published: boolean) => {
       f.id = newFitId();
       if (!(await replaceCurrent(limitDrones(f)))) { done(); return; }
+      markClean();
       const problems = violations(sde, f, ctx.character.skills, ctx.character.implants).size;
       const what = published ? tx('Fit {kind} publicat încărcat în tab-ul curent', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
       toast(problems ? `${what}. ${tx('Ce nu încape cu skill-urile caracterului apare cu roșu.')}` : what);
@@ -957,7 +964,10 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   return {
     selectItem,
-    load(f: Fit) { void openFit(cloneFit(f)); },
+    load(f: Fit) {
+      const wasOpen = tabs.some((x) => x?.id === f.id);
+      void openFit(cloneFit(f)).then((ok) => { if (ok && !wasOpen) markClean(); });
+    },
     loadIncoming(f: Fit) { return openFit(cloneFit(f), true); },
     clearSlot() { if (pickedSlot) pickSlot(null); },
     setNpc(site: string, faction: string) { npc.setScenario(site, faction); render(); },
