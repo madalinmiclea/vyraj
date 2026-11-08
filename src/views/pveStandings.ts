@@ -91,7 +91,14 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const factionIds = [...new Set([...d.factions.keys(), ...s.faction.keys()])];
     const factionRows = factionIds
       .filter((f) => match(factionName(f)))
-      .map((f) => ({ f, eff: effective(s.faction.get(f), f, skills) }))
+      .map((f) => {
+        const eff = effective(s.faction.get(f), f, skills);
+        const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => corpAccess(s, skills, c, f)).filter((a) => !a.blocked);
+        const top = accs.sort((a, b) => b.level - a.level || b.best - a.best)[0];
+        const level = eff <= -2 ? 0 : Math.max(levelOf(eff), top?.level ?? 0);
+        const best = eff <= -2 ? eff : Math.max(eff, top?.best ?? eff);
+        return { f, eff, level, best };
+      })
       .sort((a, b) => b.eff - a.eff || factionName(a.f).localeCompare(factionName(b.f)));
 
     const corpIds = [...new Set([...agentCorps, ...s.corp.keys()])];
@@ -117,7 +124,7 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     let table = '';
     if (state.tab === 'factions') {
       table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Efectiv')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${factionRows.map(({ f, eff }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${num(s.faction.get(f))}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(levelOf(eff))}</td><td>${nextCell(eff, f)}</td></tr>`).join('')}
+        ${factionRows.map(({ f, level, best }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${num(s.faction.get(f))}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(level)}</td><td>${nextCell(best, f)}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio facțiune nu se potrivește.')}</p>`;
     } else if (state.tab === 'corps') {
       table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Efectiv')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
