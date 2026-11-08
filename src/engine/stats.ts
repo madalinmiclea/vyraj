@@ -210,14 +210,14 @@ export function offense(sde: Sde, d: Dogma): Offense {
         dps = add(dps, scale(v, 1 / seconds));
         range = Math.max(range, ab.range ? item.get(ab.range) : 0);
       }
-      if (sum(dps) > 0) push({ name: item.type.name, count, kind: 'fighter', volley, dps, range: range || undefined });
+      if (sum(dps) > 0) push({ name: item.label ?? item.type.name, count, kind: 'fighter', volley, dps, range: range || undefined });
       continue;
     }
     if (!sde.hasEffect(item.typeId, 'targetAttack') && !sde.hasEffect(item.typeId, 'projectileFired')) continue;
     const cycle = item.get('speed') / 1000;
     if (cycle <= 0) continue;
     const volley = scale(chargeDamage(item), item.get('damageMultiplier') * count);
-    push({ name: item.type.name, count, kind: 'drone', volley, dps: scale(volley, 1 / cycle), range: item.get('maxRange') });
+    push({ name: item.label ?? item.type.name, count, kind: 'drone', volley, dps: scale(volley, 1 / cycle), range: item.get('maxRange') });
   }
 
   const weaponDps = weapons.filter((w) => w.kind !== 'drone' && w.kind !== 'fighter').reduce((a, w) => a + sum(w.dps), 0);

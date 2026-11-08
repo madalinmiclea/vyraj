@@ -1,7 +1,7 @@
-import { Category, type Sde } from '../data/sde';
+import { Category, type Mutaplasmid, type Sde } from '../data/sde';
 import type { DynamicItem, EsiAsset } from '../character/esi';
-import type { Fit, SlotKind } from '../engine/fit';
-import { mutate, mutationRows } from '../engine/mutation';
+import { launchDrones, type Fit, type FitDrone, type SlotKind } from '../engine/fit';
+import { mutate, mutationRows, type Mutable } from '../engine/mutation';
 import { fromEsiFitting } from './esiFit';
 
 const FIT_FLAGS = /^(HiSlot|MedSlot|LoSlot|RigSlot|SubSystemSlot)\d+$|^(DroneBay|FighterBay|Cargo)$/;
@@ -38,24 +38,40 @@ export async function fitFromShipWithAbyssal(sde: Sde, ship: OwnedShip, fitName:
   await Promise.all(ship.contents.filter((a) => sde.isAbyssal(a.type_id) && /Slot/.test(a.location_flag)).map(async (a) => {
     try { dynamics.set(a.location_flag, await load(a.type_id, a.item_id)); } catch { }
   }));
-  const contents = ship.contents.map((a) => {
+  const droneBay = ship.contents.filter((a) => a.location_flag === 'DroneBay' && sde.isAbyssal(a.type_id));
+  const mutatedDrones = (await Promise.all(droneBay.map(async (a) => {
+    try { return { asset: a, d: await load(a.type_id, a.item_id) }; } catch { return null; }
+  }))).filter((x): x is { asset: EsiAsset; d: DynamicItem } => !!x);
+  const contents = ship.contents.filter((a) => !droneBay.includes(a)).map((a) => {
     const d = dynamics.get(a.location_flag);
     return d && sde.types.has(d.source_type_id) ? { ...a, type_id: d.source_type_id } : a;
   });
   const fit = fitFromShip(sde, { ...ship, contents }, fitName);
+  for (const { asset, d } of mutatedDrones) {
+    const mp = sde.mutaplasmids.get(d.mutator_type_id);
+    if (!sde.types.has(d.source_type_id)) continue;
+    const drone: FitDrone = { typeId: d.source_type_id, count: Math.max(1, asset.quantity), active: 0 };
+    if (mp) applyDynamic(sde, drone, mp, d);
+    fit.drones.push(drone);
+  }
+  if (mutatedDrones.length) launchDrones(sde, fit);
   for (const [flag, d] of dynamics) {
     const slot = FLAG_SLOT.find(([re]) => re.test(flag));
     const m = slot && fit.slots[slot[1]][Number(flag.match(slot[0])![1])];
     const mp = sde.mutaplasmids.get(d.mutator_type_id);
     if (!m || !mp || m.typeId !== d.source_type_id) continue;
-    mutate(sde, m, mp);
-    const values = new Map(d.dogma_attributes.map((x) => [x.attribute_id, x.value]));
-    for (const row of mutationRows(sde, m)) {
-      const v = values.get(row.attrId);
-      if (v != null) m.mutation!.values[row.attrId] = v;
-    }
+    applyDynamic(sde, m, mp, d);
   }
   return fit;
+}
+
+function applyDynamic(sde: Sde, m: Mutable, mp: Mutaplasmid, d: DynamicItem) {
+  mutate(sde, m, mp);
+  const values = new Map(d.dogma_attributes.map((x) => [x.attribute_id, x.value]));
+  for (const row of mutationRows(sde, m)) {
+    const v = values.get(row.attrId);
+    if (v != null) m.mutation!.values[row.attrId] = v;
+  }
 }
 
 export function fitFromShip(sde: Sde, ship: OwnedShip, fitName: string): Fit {

@@ -1,6 +1,6 @@
 import { Category, MODE_GROUP, type Sde } from '../data/sde';
-import { emptyFit, implantSlotKey, launchDrones, slotOf, defaultState, canLoadCharge, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type FitModule, type SlotKind } from '../engine/fit';
-import { abyssalTypeId, mutate, mutationRows } from '../engine/mutation';
+import { emptyFit, implantSlotKey, launchDrones, slotOf, defaultState, canLoadCharge, isFighterType, squadSize, squadsFromFighters, SLOT_KINDS, type Fit, type FitDrone, type FitModule, type SlotKind } from '../engine/fit';
+import { abyssalTypeId, mutate, mutationRows, type Mutable } from '../engine/mutation';
 import { tx } from '../i18n';
 
 interface MutationBlock {
@@ -30,7 +30,7 @@ function readMutations(lines: string[]): { blocks: Map<number, MutationBlock>; u
   return { blocks, used };
 }
 
-function applyBlock(sde: Sde, m: FitModule, block: MutationBlock | undefined) {
+function applyBlock(sde: Sde, m: Mutable, block: MutationBlock | undefined) {
   if (!block?.mutaplasmid) return;
   const mp = [...sde.mutaplasmids.values()].find((x) => x.name.toLowerCase() === block.mutaplasmid!.toLowerCase());
   if (!mp || !mp.resultFor.has(m.typeId)) return;
@@ -83,13 +83,16 @@ export function parseEft(sde: Sde, text: string): EftResult {
 
     const qty = line.match(/^(.*?)\s+x(\d+)$/i);
     if (qty) {
-      const t = sde.findType(qty[1]);
+      let t = sde.findType(qty[1]);
+      if (t && sde.isAbyssal(t.id)) t = (block?.base && sde.findType(block.base)) || sde.types.get(sde.abyssalBases(t.id)[0]) || t;
       const count = Number(qty[2]);
       if (!t) { unknown.push(raw); continue; }
       if (t.categoryId === Category.Fighter) {
         fit.drones.push({ typeId: t.id, count: squadsFromFighters(sde, t.id, count), active: 0 });
       } else if (t.categoryId === Category.Drone) {
-        fit.drones.push({ typeId: t.id, count, active: 0 });
+        const drone: FitDrone = { typeId: t.id, count, active: 0 };
+        applyBlock(sde, drone, block);
+        fit.drones.push(drone);
       } else {
         fit.cargo.push({ typeId: t.id, count });
       }
@@ -130,7 +133,7 @@ export function parseEft(sde: Sde, text: string): EftResult {
 export function exportEft(sde: Sde, fit: Fit): string {
   const name = (id: number) => sde.types.get(id)?.name ?? `Type ${id}`;
   const out: string[] = [`[${name(fit.shipId)}, ${fit.name}]`];
-  const mutated: FitModule[] = [];
+  const mutated: Mutable[] = [];
   for (const kind of EXPORT_ORDER) {
     const list = fit.slots[kind];
     if (!list.length) continue;
@@ -148,6 +151,7 @@ export function exportEft(sde: Sde, fit: Fit): string {
   if (fit.drones.length) {
     for (const d of fit.drones) {
       if (isFighterType(sde, d.typeId)) for (let i = 0; i < d.count; i++) out.push(`${name(d.typeId)} x${squadSize(sde, d.typeId)}`);
+      else if (d.mutation) { mutated.push(d); out.push(`${name(d.typeId)} x${d.count} [${mutated.length}]`); }
       else out.push(`${name(d.typeId)} x${d.count}`);
     }
     out.push('');

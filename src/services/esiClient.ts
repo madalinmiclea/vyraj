@@ -160,7 +160,7 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
       else release();
     }
     if (res && key) noteLimits(res, key, who);
-    const retryable = !res || res.status === 420 || res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
+    const retryable = !res || res.status === 420 || res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504;
     if (!retryable || attempt >= MAX_RETRIES) {
       if (res) return res;
       throw failure;
@@ -175,14 +175,19 @@ export async function esiPages<T>(url: (page: number) => string, init?: RequestI
   const get = async (page: number) => {
     const res = await esiFetch(url(page), init, { bulk });
     if (!res.ok) throw new Error(`ESI ${label}: ${res.status} ${await res.text()}`);
-    return { stamp: res.headers.get('last-modified') ?? '', pages: Number(res.headers.get('x-pages')) || 1, rows: (await res.json()) as T[] };
+    return { stamp: res.headers.get('last-modified') ?? '', expires: Date.parse(res.headers.get('expires') ?? ''), pages: Number(res.headers.get('x-pages')) || 1, rows: (await res.json()) as T[] };
   };
   for (let attempt = 0; ; attempt++) {
     const first = await get(1);
     const pages = Math.min(maxPages, first.pages);
     const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => get(i + 2)));
     const mixed = rest.some((r) => r.stamp && first.stamp && r.stamp !== first.stamp);
-    if (!mixed || attempt >= 1) return [...first.rows, ...rest.flatMap((r) => r.rows)];
+    if (!mixed) return [...first.rows, ...rest.flatMap((r) => r.rows)];
+    if (attempt >= 2) throw new Error(`ESI ${label}: pages from different cache versions`);
+    if (attempt === 1) {
+      const wait = Number.isFinite(first.expires) ? first.expires - Date.now() + 1000 : 5000;
+      await sleep(Math.min(Math.max(wait, 1000), 30_000));
+    }
   }
 }
 

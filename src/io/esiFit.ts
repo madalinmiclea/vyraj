@@ -20,7 +20,8 @@ export function fromEsiFitting(sde: Sde, f: EsiFitting): Fit {
     } else if (t.categoryId === Category.Fighter && (item.flag === 'FighterBay' || item.flag === 'DroneBay')) {
       fit.drones.push({ typeId: t.id, count: squadsFromFighters(sde, t.id, item.quantity), active: 0 });
     } else if (item.flag === 'DroneBay' && t.categoryId === Category.Drone) {
-      fit.drones.push({ typeId: t.id, count: item.quantity, active: 0 });
+      const base = sde.isAbyssal(t.id) ? sde.abyssalBases(t.id)[0] : t.id;
+      if (base && sde.types.has(base)) fit.drones.push({ typeId: base, count: item.quantity, active: 0 });
     } else if (t.categoryId === Category.Charge) {
       charges.push({ typeId: t.id, quantity: item.quantity });
       fit.cargo.push({ typeId: t.id, count: item.quantity });
@@ -49,7 +50,10 @@ export function toEsiFitting(sde: Sde, fit: Fit): Omit<EsiFitting, 'fitting_id'>
   }
   for (const d of fit.drones) {
     const fighter = isFighterType(sde, d.typeId);
-    items.push({ type_id: d.typeId, flag: fighter ? 'FighterBay' : 'DroneBay', quantity: fighter ? d.count * squadSize(sde, d.typeId) : d.count });
+    const flag = fighter ? 'FighterBay' : 'DroneBay';
+    const quantity = fighter ? d.count * squadSize(sde, d.typeId) : d.count;
+    const same = items.find((x) => x.type_id === d.typeId && x.flag === flag);
+    if (same) same.quantity += quantity; else items.push({ type_id: d.typeId, flag, quantity });
   }
   const cargo = new Map(fit.cargo.map((c) => [c.typeId, c.count]));
   for (const k of SLOT_KINDS) {

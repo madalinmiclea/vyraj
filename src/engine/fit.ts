@@ -23,6 +23,7 @@ export interface FitDrone {
   count: number;
   active: number;
   wanted?: number;
+  mutation?: Mutation;
 }
 
 export interface FitCargo {
@@ -165,7 +166,7 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
   }
 
   if (t.categoryId === Category.Drone || t.categoryId === Category.Fighter) {
-    const existing = fit.drones.find((d) => d.typeId === typeId);
+    const existing = fit.drones.find((d) => d.typeId === typeId && !d.mutation);
     if (existing) { existing.count++; existing.active++; if (existing.wanted != null) existing.wanted++; } else fit.drones.push({ typeId, count: 1, active: 1 });
     return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în hangarul de fighteri', { name: t.name }) : tx('{name} adăugată în hangarul de drone', { name: t.name }) };
   }
@@ -242,7 +243,7 @@ export function fighterClass(sde: Sde, typeId: number): string | undefined {
 export function launchDrones(sde: Sde, fit: Fit, maxActive = 5) {
   const merged: FitDrone[] = [];
   for (const d of fit.drones) {
-    const same = merged.find((x) => x.typeId === d.typeId);
+    const same = d.mutation ? undefined : merged.find((x) => x.typeId === d.typeId && !x.mutation);
     if (same) same.count += d.count; else merged.push({ ...d });
   }
   for (const d of merged) delete d.wanted;
@@ -282,7 +283,8 @@ export function droneLimit(sde: Sde, fit: Fit, skills: Map<number, number>, impl
 }
 
 export function ensureDroneLimits(sde: Sde, fit: Fit, maxActive = 5) {
-  const dupes = new Set(fit.drones.map((d) => d.typeId)).size !== fit.drones.length;
+  const plain = fit.drones.filter((d) => !d.mutation);
+  const dupes = new Set(plain.map((d) => d.typeId)).size !== plain.length;
   const fighters = fighterLimits(sde, fit).some((x) => x.used > x.total);
   if (dupes || fighters) launchDrones(sde, fit, maxActive);
   let bandwidth = sde.baseAttr(fit.shipId, sde.attrId('droneBandwidth'));
@@ -320,7 +322,7 @@ export function toDogmaInput(sde: Sde, fit: Fit, skills: Map<number, number>, im
     skills,
     implants: mergeImplants(sde, implants, fit.implants),
     modules,
-    drones: fit.drones.map((d) => ({ typeId: d.typeId, count: d.active })),
+    drones: fit.drones.map((d, i) => ({ typeId: d.typeId, count: d.active, slotKey: `drone${i}`, overrides: d.mutation?.values, label: d.mutation ? `Mutated ${sde.type(d.typeId).name}` : undefined })),
     boosterSides: fit.boosterSides,
     mode: fit.mode,
     fleet: fit.fleet,
@@ -343,7 +345,7 @@ export function fitContents(sde: Sde, fit: Fit, hullOnly = false): Map<number, n
       if (m.chargeId && !hullOnly) add(m.chargeId, chargesPerModule(sde, m.typeId, m.chargeId));
     }
   }
-  for (const d of fit.drones) add(d.typeId, isFighterType(sde, d.typeId) ? d.count * squadSize(sde, d.typeId) : d.count);
+  for (const d of fit.drones) if (!d.mutation) add(d.typeId, isFighterType(sde, d.typeId) ? d.count * squadSize(sde, d.typeId) : d.count);
   if (hullOnly) return out;
   for (const c of fit.cargo) add(c.typeId, c.count);
   for (const i of fit.implants) add(i, 1);

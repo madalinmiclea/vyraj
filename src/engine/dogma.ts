@@ -183,7 +183,7 @@ export interface DogmaInput {
   skills: Map<number, number>;
   implants?: number[];
   modules: { typeId: number; state: ModuleState; chargeId?: number; slotKey: string; overrides?: Record<string, number> }[];
-  drones?: { typeId: number; count: number }[];
+  drones?: { typeId: number; count: number; slotKey?: string; overrides?: Record<string, number>; label?: string }[];
   boosterSides?: Record<string, string[]>;
   mode?: number;
   buffs?: { id: number; value: number; label?: string }[];
@@ -248,7 +248,10 @@ export class Dogma {
     }
     for (const d of input.drones ?? []) {
       if (!isA(d.typeId, Category.Drone, Category.Fighter) || d.count <= 0) continue;
-      this.drones.push({ item: new DogmaItem(this, d.typeId, 'drone', 'active'), count: d.count });
+      const drone = new DogmaItem(this, d.typeId, 'drone', 'active', d.slotKey);
+      for (const [attr, v] of Object.entries(d.overrides ?? {})) drone.baseOverrides.set(Number(attr), v);
+      drone.label = d.label;
+      this.drones.push({ item: drone, count: d.count });
     }
 
     if (input.mode && sde.types.get(input.mode)?.groupId === MODE_GROUP) this.mode = new DogmaItem(this, input.mode, 'mode');

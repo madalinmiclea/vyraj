@@ -373,9 +373,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   function droneRows(f: Fit, fighters: boolean) {
     const isFighter = (id: number) => sde.types.get(id)?.categoryId === Category.Fighter;
-    return f.drones.map((dr, i) => ({ dr, i })).filter((x) => isFighter(x.dr.typeId) === fighters).map(({ dr, i }) => `<div class="slot fitted drone-row">
+    return f.drones.map((dr, i) => ({ dr, i })).filter((x) => isFighter(x.dr.typeId) === fighters).map(({ dr, i }) => `<div class="slot fitted drone-row" data-drone-row="${i}">
       <img class="slot-img" src="${typeIconUrl(dr.typeId, 32)}" alt="" loading="lazy" />
-      <div class="slot-main"><button class="slot-name link" data-info="${dr.typeId}">${esc(name(dr.typeId))}</button></div>
+      <div class="slot-main"><button class="slot-name link ${dr.mutation ? 'abyssal' : ''}" data-info="${dr.typeId}">${esc(moduleName(sde, dr))}</button>${dr.mutation ? `<div class="slot-base">${esc(name(dr.typeId))}</div>` : ''}</div>
       <span class="dim small drone-total">${tx('{n} în total', { n: dr.count })}</span>
       <div class="drone-step" title="${fighters ? tx('Escadrile lansate din hangarul de fighteri, cele care contează la DPS') : tx('Drone lansate în spațiu, cele care contează la DPS și la lățimea de bandă')}">
         <span class="drone-step-label">${tx('În spațiu')}</span>
@@ -385,6 +385,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         <span class="drone-step-label">${tx('În hangar')}</span>
         <div class="stepper"><button data-drone="${i}:bay:-1" ${dr.count - dr.active ? '' : 'disabled'}>−</button><span class="num">${dr.count - dr.active}</span><button data-drone="${i}:bay:1">+</button></div>
       </div>
+      ${sde.mutaplasmidsFor(dr.typeId).length ? `<button class="slot-mutate ${dr.mutation ? 'on' : ''}" data-mutate-drone="${i}" title="${tx('Mutaplasmid')}">${icon('mutate')}</button>` : ''}
       <button class="slot-info" data-info="${dr.typeId}" title="${tx('Informații')}">${icon('info')}</button>
       <button class="slot-remove" data-drone="${i}:remove:0" title="${tx('Scoate')}">${icon('close')}</button>
     </div>`).join('');
@@ -489,6 +490,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const contents = fitContents(sde, f, true);
     const abyssal = new Map<number, number>();
     for (const k of SLOT_KINDS) for (const m of f.slots[k]) if (m?.mutation) abyssal.set(m.typeId, (abyssal.get(m.typeId) ?? 0) + 1);
+    for (const d of f.drones) if (d.mutation) abyssal.set(d.typeId, (abyssal.get(d.typeId) ?? 0) + d.count);
     const req = requirementsFor(sde, fitTypeIds(f), ctx.character);
     const books = req.missing.filter((s) => s.current === 0).map((s) => s.skillId);
     try {
@@ -530,8 +532,16 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     const row = button.closest<HTMLElement>('[data-slot]');
     if (row) return d.modules.find((m) => m.slotKey === row.dataset.slot!.replace(':', ''));
     if (typeId === fit.shipId && button.closest('.ship-head')) return d.ship;
-    const droneRow = button.closest('.drone-row');
-    if (droneRow) return d.drones.find((x) => x.item.typeId === typeId)?.item;
+    const droneRow = button.closest<HTMLElement>('[data-drone-row]');
+    if (droneRow) {
+      const idx = Number(droneRow.dataset.droneRow);
+      const key = `drone${idx}`;
+      const launched = d.drones.find((x) => x.item.slotKey === key)?.item;
+      if (launched || !fit.drones[idx]?.mutation) return launched ?? d.drones.find((x) => x.item.typeId === typeId)?.item;
+      const draft = cloneFit(fit);
+      draft.drones[idx].active = 1;
+      return buildDogma(sde, draft, ctx.character).drones.find((x) => x.item.slotKey === key)?.item;
+    }
     return d.drones.find((x) => x.item.typeId === typeId)?.item ?? d.implants.find((x) => x.typeId === typeId);
   }
 
@@ -711,7 +721,9 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       return;
     }
     const mut = at('[data-mutate]');
-    if (mut) { openMutation(...parseSlot(mut.dataset.mutate!)); return; }
+    if (mut) { const [kind, i] = parseSlot(mut.dataset.mutate!); openMutation({ kind, i }); return; }
+    const mutDrone = at('[data-mutate-drone]');
+    if (mutDrone) { openMutation({ drone: Number(mutDrone.dataset.mutateDrone) }); return; }
     const remove = at('[data-remove]');
     if (remove) {
       const [k, i] = parseSlot(remove.dataset.remove!);

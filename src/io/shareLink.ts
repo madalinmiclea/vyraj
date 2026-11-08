@@ -1,7 +1,7 @@
 import { Category, MODE_GROUP, type Sde } from '../data/sde';
 import type { ModuleState } from '../engine/dogma';
 import { SHIP_BONUSES } from '../engine/fleet';
-import { canLoadCharge, defaultState, emptyFit, SLOT_KINDS, type Fit, type FitModule } from '../engine/fit';
+import { canLoadCharge, defaultState, emptyFit, SLOT_KINDS, type Fit, type FitDrone, type FitModule, type Mutation } from '../engine/fit';
 import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
 import { shortLink } from './shortLink';
 
@@ -50,7 +50,7 @@ export function compactFit(fit: Fit): Raw {
   const slots: Raw = {};
   for (const k of SLOT_KINDS) if (fit.slots[k].length) slots[k] = fit.slots[k].map((m) => (m ? [m.typeId, STATES.indexOf(m.state), m.chargeId ?? 0, m.mutation ? [m.mutation.mutaplasmidId, m.mutation.values] : 0] : 0));
   const out: Raw = { v: 1, n: fit.name, s: fit.shipId, sl: slots };
-  if (fit.drones.length) out.d = fit.drones.map((d) => [d.typeId, d.count, d.active]);
+  if (fit.drones.length) out.d = fit.drones.map((d) => (d.mutation ? [d.typeId, d.count, d.active, [d.mutation.mutaplasmidId, d.mutation.values]] : [d.typeId, d.count, d.active]));
   if (fit.cargo.length) out.c = fit.cargo.map((c) => [c.typeId, c.count]);
   if (fit.implants.length) out.i = fit.implants;
   if (fit.boosterSides && Object.keys(fit.boosterSides).length) out.b = fit.boosterSides;
@@ -59,6 +59,15 @@ export function compactFit(fit: Fit): Raw {
   if (fit.projected?.length) out.p = fit.projected.map((p) => [p.typeId, p.count]);
   if (fit.notes?.trim()) out.o = fit.notes;
   return out;
+}
+
+function readMutation(sde: Sde, typeId: number, input: unknown): Mutation | undefined {
+  const mut = list(input, 2);
+  const mpId = int(mut[0], 0, 2 ** 31, 0);
+  if (!sde.mutaplasmids.get(mpId)?.resultFor.has(typeId)) return undefined;
+  const values: Record<string, number> = {};
+  for (const [key, v] of Object.entries(obj(mut[1]))) if (/^\d+$/.test(key) && typeof v === 'number' && Number.isFinite(v)) values[key] = v;
+  return { mutaplasmidId: mpId, values };
 }
 
 export function expandFit(sde: Sde, input: unknown): Fit | null {
@@ -77,21 +86,20 @@ export function expandFit(sde: Sde, input: unknown): Fit | null {
       const m: FitModule = { typeId, state: STATES[int(e[1], -1, 3, -1)] ?? defaultState(sde, typeId) };
       const charge = known(e[2]);
       if (charge && canLoadCharge(sde, typeId, charge)) m.chargeId = charge;
-      const mut = list(e[3], 2);
-      const mpId = int(mut[0], 0, 2 ** 31, 0);
-      if (sde.mutaplasmids.has(mpId)) {
-        const values: Record<string, number> = {};
-        for (const [key, v] of Object.entries(obj(mut[1]))) if (/^\d+$/.test(key) && typeof v === 'number' && Number.isFinite(v)) values[key] = v;
-        m.mutation = { mutaplasmidId: mpId, values };
-      }
+      const mutation = readMutation(sde, typeId, e[3]);
+      if (mutation) m.mutation = mutation;
       return m;
     });
   }
   for (const entry of list(raw.d, 32)) {
-    const e = list(entry, 3);
+    const e = list(entry, 4);
     const typeId = knownOf(e[0], Category.Drone, Category.Fighter);
     const count = int(e[1], 1, 500, 1);
-    if (typeId) fit.drones.push({ typeId, count, active: int(e[2], 0, count, 0) });
+    if (!typeId) continue;
+    const drone: FitDrone = { typeId, count, active: int(e[2], 0, count, 0) };
+    const mutation = readMutation(sde, typeId, e[3]);
+    if (mutation) drone.mutation = mutation;
+    fit.drones.push(drone);
   }
   for (const entry of list(raw.c, 200)) {
     const e = list(entry, 2);

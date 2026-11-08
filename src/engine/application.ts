@@ -123,7 +123,7 @@ export function applied(sde: Sde, d: Dogma, target: TargetProfile, distance: num
     if (cycle <= 0) continue;
     const raw = (damageOf(item) * item.get('damageMultiplier') * count) / cycle;
     const factor = controlRange && distance > controlRange ? 0 : 1;
-    push({ name: item.type.name, kind: 'drone', rawDps: raw, dps: raw * factor, factor });
+    push({ name: item.label ?? item.type.name, kind: 'drone', rawDps: raw, dps: raw * factor, factor });
   }
 
   const rawDps = weapons.reduce((a, w) => a + w.rawDps, 0);

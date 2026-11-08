@@ -1,5 +1,5 @@
 import { Category } from '../data/sde';
-import { buildDogma, cloneFit, fitContents, type SlotKind } from '../engine/fit';
+import { buildDogma, cloneFit, fitContents, type Fit, type FitDrone, type SlotKind } from '../engine/fit';
 import { computeStats } from '../engine/stats';
 import { findProfile, profileText } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
@@ -17,9 +17,12 @@ import { loadFits, deleteFit } from './savedFits';
 import { icon } from '../ui/icons';
 import { alertBox, badge, button, closeModal, confirmDialog, copyText, emptyState, esc, formatInt, formatNum, lore, openModal, toast } from '../ui/components';
 import { formatAttribute } from '../ui/attributes';
-import { mutate, mutationRows, moduleName, type MutationRow } from '../engine/mutation';
+import { betterChance, mutate, mutationRows, moduleName, rollMutation, rowPct, type Mutable, type MutationRow } from '../engine/mutation';
+import type { Mutaplasmid } from '../data/sde';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
+
+export type MutTarget = { kind: SlotKind; i: number } | { drone: number };
 
 export function createFitModals(env: FitEnv) {
   const { sde, ctx, name } = env;
@@ -149,23 +152,67 @@ export function createFitModals(env: FitEnv) {
       </table></div>`, { wide: true });
   }
 
-  function openMutation(kind: SlotKind, i: number) {
-    const current = env.getFit()?.slots[kind][i];
+  function openMutation(target: MutTarget) {
+    let ref = target;
+    const pickOf = (f: Fit | null | undefined): Mutable | null => {
+      if (!f) return null;
+      if ('drone' in ref) return f.drones[ref.drone] ?? null;
+      return f.slots[ref.kind][ref.i] ?? null;
+    };
+    const current = pickOf(env.getFit());
     if (!current) return;
     const tier = (n: string) => (/^Glorified/.test(n) ? 3 : 0) + (/Decayed/.test(n) ? 0 : /Gravid/.test(n) ? 1 : /Unstable/.test(n) ? 2 : 3);
     const options = [...sde.mutaplasmidsFor(current.typeId)].sort((a, b) => tier(a.name) - tier(b.name) || a.name.localeCompare(b.name));
     const modal = openModal(tx('Mutaplasmid'), '', { wide: true });
     const body = modal.querySelector<HTMLElement>('.panel-body')!;
-    const module = () => env.getFit()?.slots[kind][i] ?? null;
-    const pct = (v: number, base: number) => ((v - base) / Math.abs(base)) * 100;
+    const item = () => pickOf(env.getFit());
+    let rolls: Record<string, number>[] = [];
+    let rollCount = 10;
+    let keyAttr = 0;
+    const editItem = (fn: (m: Mutable) => void) => env.change((draft) => { const m = pickOf(draft); if (m) fn(m); });
+    const signed = (p: number) => `${p >= 0 ? '+' : ''}${p.toFixed(1)}%`;
+    const tone = (p: number) => (Math.abs(p) < 0.05 ? '' : p > 0 ? 'good' : 'bad');
+    const simulator = (rows: MutationRow[]) => {
+      if (!rows.length) return '';
+      if (!rows.some((r) => r.attrId === keyAttr)) keyAttr = rows[0].attrId;
+      const key = rows.find((r) => r.attrId === keyAttr)!;
+      const allBetter = rows.reduce((a, r) => a * betterChance(r), 1);
+      const tiles = rolls.map((values, n) => {
+        const p = rowPct(key, values[keyAttr] ?? key.base);
+        const pos = sliderPos({ ...key, value: values[keyAttr] ?? key.base });
+        const ups = rows.filter((r) => rowPct(r, values[r.attrId] ?? r.base) > 0.05).length;
+        return `<button class="mut-roll" data-mut-roll="${n}" title="${tx('Aplică acest roll')}">
+          <span class="mut-roll-name">#${n + 1}</span>
+          <span class="num ${tone(p)}">${signed(p)}</span>
+          <span class="mut-roll-bar"><i style="width:${(pos * 100).toFixed(1)}%"></i></span>
+          <span class="dim small">${ups}/${rows.length} ${tx('peste bază')}</span>
+        </button>`;
+      }).join('');
+      return `<div class="mut-sim">
+        <div class="window-title">${tx('Simulator roll-uri')}</div>
+        <div class="mut-sim-controls">
+          <label class="select-field"><span>${tx('Atribut urmărit')}</span>
+            <select class="input plain" data-mut-key>${rows.map((r) => `<option value="${r.attrId}" ${r.attrId === keyAttr ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+          </label>
+          <label class="select-field"><span>${tx('Roll-uri')}</span>
+            <input class="input plain num mut-count" type="number" min="1" max="50" value="${rollCount}" data-mut-count />
+          </label>
+          <button class="btn sm" data-mut-dice>${icon('dice')}${tx('Aruncă')}</button>
+        </div>
+        <div class="dim small">${tx('Șansă peste bază')}: ${esc(key.name)} <b class="num">${(betterChance(key) * 100).toFixed(0)}%</b> · ${tx('toate atributele')} <b class="num">${(allBetter * 100).toFixed(allBetter < 0.1 ? 1 : 0)}%</b></div>
+        ${tiles ? `<div class="mut-rolls">${tiles}</div>` : ''}
+      </div>`;
+    };
     const draw = () => {
-      const m = module();
+      const m = item();
       if (!m) { closeModal(); return; }
       const rows = mutationRows(sde, m);
+      const drone = 'drone' in ref;
+      const count = drone ? (m as FitDrone).count : 1;
       body.innerHTML = `
         <div class="mut-head">
           <img src="${typeIconUrl(m.typeId, 64)}" alt="" />
-          <div><b>${esc(moduleName(sde, m))}</b><div class="dim small">${esc(name(m.typeId))}</div></div>
+          <div><b>${esc(moduleName(sde, m))}</b><div class="dim small">${esc(name(m.typeId))}${drone && m.mutation && count > 1 ? ` · ×${count} ${tx('cu același roll')}` : ''}</div></div>
         </div>
         <label class="select-field mut-select"><span>${tx('Mutaplasmid')}</span>
           <select class="input plain" data-mut-pick>
@@ -175,23 +222,25 @@ export function createFitModals(env: FitEnv) {
         </label>
         ${rows.length ? `<table class="table compact mut-table"><tbody>${rows.map((r) => {
           const a = sde.attributes.get(r.attrId)!;
-          const p = pct(r.value, r.base) * (r.highIsGood ? 1 : -1);
-          const good = Math.abs(p) < 0.05 ? '' : p > 0 ? 'good' : 'bad';
+          const p = rowPct(r);
           const [worst, best] = r.highIsGood ? [r.min, r.max] : [r.max, r.min];
+          const basePos = sliderPos({ ...r, value: r.base });
           return `<tr>
             <td>${esc(r.name)}</td>
-            <td class="mut-range"><span class="dim small num">${esc(formatAttribute(sde, a, worst))}</span>
-              <input type="range" min="0" max="1000" step="1" value="${Math.round(sliderPos(r) * 1000)}" data-mut-attr="${r.attrId}" />
-              <span class="dim small num">${esc(formatAttribute(sde, a, best))}</span></td>
+            <td><div class="mut-range"><span class="dim small num">${esc(formatAttribute(sde, a, worst))}</span>
+              <span class="mut-track" style="--base:${(basePos * 100).toFixed(1)}%"><input type="range" min="0" max="1000" step="1" value="${Math.round(sliderPos(r) * 1000)}" data-mut-attr="${r.attrId}" aria-label="${esc(r.name)}" /></span>
+              <span class="dim small num">${esc(formatAttribute(sde, a, best))}</span></div></td>
             <td class="r num mut-value" data-mut-show="${r.attrId}">${esc(formatAttribute(sde, a, r.value))}</td>
-            <td class="r num ${good}" data-mut-pct="${r.attrId}">${p >= 0 ? '+' : ''}${p.toFixed(1)}%</td>
+            <td class="r num ${tone(p)}" data-mut-pct="${r.attrId}">${signed(p)}</td>
           </tr>`;
         }).join('')}</tbody></table>
         <div class="row-actions">
           <button class="btn ghost sm" data-mut-preset="base">${tx('Valori de bază')}</button>
           <button class="btn ghost sm" data-mut-preset="best">${tx('Cel mai bun roll')}</button>
           <button class="btn ghost sm" data-mut-preset="worst">${tx('Cel mai slab roll')}</button>
-        </div>` : ''}`;
+          <button class="btn ghost sm" data-mut-preset="random">${icon('dice')}${tx('Roll aleator')}</button>
+        </div>
+        ${simulator(rows)}` : ''}`;
     };
     const sliderPos = (r: MutationRow) => {
       const t = r.max > r.min ? (r.value - r.min) / (r.max - r.min) : 0;
@@ -202,28 +251,62 @@ export function createFitModals(env: FitEnv) {
       return r.min + t * (r.max - r.min);
     };
     const setValue = (attrId: number, v: number) => {
-      env.change((draft) => {
-        const m = draft.slots[kind][i];
-        if (!m?.mutation) return;
+      editItem((m) => {
+        if (!m.mutation) return;
         const row = mutationRows(sde, m).find((r) => r.attrId === attrId);
         if (row) m.mutation.values[attrId] = Math.min(row.max, Math.max(row.min, v));
       });
+    };
+    const applyValues = (values: Record<string, number>) => {
+      editItem((m) => {
+        if (!m.mutation) return;
+        for (const r of mutationRows(sde, m)) if (values[r.attrId] != null) m.mutation.values[r.attrId] = Math.min(r.max, Math.max(r.min, values[r.attrId]));
+      });
+    };
+    const roll = () => {
+      const m = item();
+      const mp = m?.mutation && sde.mutaplasmids.get(m.mutation.mutaplasmidId);
+      rolls = mp ? Array.from({ length: rollCount }, () => rollMutation(sde, m.typeId, mp)) : [];
+    };
+    const pickMutaplasmid = (mp: Mutaplasmid | undefined) => {
+      rolls = [];
+      if ('drone' in ref) {
+        const at = ref.drone;
+        const d = env.getFit()?.drones[at];
+        if (mp && d && !d.mutation && d.count > 1) {
+          env.change((draft) => {
+            const src = draft.drones[at];
+            if (!src) return;
+            const split: FitDrone = { typeId: src.typeId, count: 1, active: src.active > 0 ? 1 : 0 };
+            src.count--;
+            src.active = Math.min(src.active - split.active, src.count);
+            delete src.wanted;
+            mutate(sde, split, mp);
+            draft.drones.splice(at + 1, 0, split);
+          });
+          ref = { drone: at + 1 };
+          return;
+        }
+      }
+      editItem((m) => { if (mp) mutate(sde, m, mp); else delete m.mutation; });
     };
     draw();
     body.addEventListener('change', (e) => {
       const t = e.target as HTMLInputElement;
       if (t.matches('[data-mut-pick]')) {
-        const mp = sde.mutaplasmids.get(Number(t.value));
-        env.change((draft) => {
-          const m = draft.slots[kind][i];
-          if (!m) return;
-          if (mp) mutate(sde, m, mp); else delete m.mutation;
-        });
+        pickMutaplasmid(sde.mutaplasmids.get(Number(t.value)));
         draw();
       } else if (t.matches('[data-mut-attr]')) {
         const attrId = Number(t.dataset.mutAttr);
-        const row = module() && mutationRows(sde, module()!).find((r) => r.attrId === attrId);
+        const m = item();
+        const row = m && mutationRows(sde, m).find((r) => r.attrId === attrId);
         if (row) setValue(attrId, fromSlider(row, Number(t.value) / 1000));
+        draw();
+      } else if (t.matches('[data-mut-key]')) {
+        keyAttr = Number(t.value);
+        draw();
+      } else if (t.matches('[data-mut-count]')) {
+        rollCount = Math.max(1, Math.min(50, Math.round(Number(t.value)) || 10));
         draw();
       }
     });
@@ -231,24 +314,41 @@ export function createFitModals(env: FitEnv) {
       const t = e.target as HTMLInputElement;
       if (!t.matches('[data-mut-attr]')) return;
       const attrId = Number(t.dataset.mutAttr);
-      const before = module() && mutationRows(sde, module()!).find((r) => r.attrId === attrId);
+      const m = item();
+      const before = m && mutationRows(sde, m).find((r) => r.attrId === attrId);
       if (!before) return;
       const row = { ...before, value: Math.min(before.max, Math.max(before.min, fromSlider(before, Number(t.value) / 1000))) };
       const a = sde.attributes.get(attrId)!;
-      const p = pct(row.value, row.base) * (row.highIsGood ? 1 : -1);
+      const p = rowPct(row);
       const tr = t.closest('tr')!;
       tr.querySelector('[data-mut-show]')!.textContent = formatAttribute(sde, a, row.value);
       const pctEl = tr.querySelector<HTMLElement>('[data-mut-pct]')!;
-      pctEl.textContent = `${p >= 0 ? '+' : ''}${p.toFixed(1)}%`;
-      pctEl.className = `r num ${Math.abs(p) < 0.05 ? '' : p > 0 ? 'good' : 'bad'}`;
+      pctEl.textContent = signed(p);
+      pctEl.className = `r num ${tone(p)}`;
     });
     body.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mut-preset]');
+      const t = e.target as HTMLElement;
+      const rollBtn = t.closest<HTMLElement>('[data-mut-roll]');
+      if (rollBtn) { const values = rolls[Number(rollBtn.dataset.mutRoll)]; if (values) applyValues(values); draw(); return; }
+      if (t.closest('[data-mut-dice]')) {
+        const input = body.querySelector<HTMLInputElement>('[data-mut-count]');
+        if (input) rollCount = Math.max(1, Math.min(50, Math.round(Number(input.value)) || 10));
+        roll();
+        draw();
+        return;
+      }
+      const b = t.closest<HTMLElement>('[data-mut-preset]');
       if (!b) return;
       const preset = b.dataset.mutPreset;
-      env.change((draft) => {
-        const m = draft.slots[kind][i];
-        if (!m?.mutation) return;
+      if (preset === 'random') {
+        const m = item();
+        const mp = m?.mutation && sde.mutaplasmids.get(m.mutation.mutaplasmidId);
+        if (mp) applyValues(rollMutation(sde, m.typeId, mp));
+        draw();
+        return;
+      }
+      editItem((m) => {
+        if (!m.mutation) return;
         for (const r of mutationRows(sde, m)) {
           m.mutation.values[r.attrId] = preset === 'base' ? Math.min(r.max, Math.max(r.min, r.base))
             : (preset === 'best') === r.highIsGood ? r.max : r.min;
