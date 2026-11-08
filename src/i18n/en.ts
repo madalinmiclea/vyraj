@@ -3850,4 +3850,5 @@ export const EN: Record<string, string> = {
   "toate atributele": "all attributes",
   "cu același roll": "with the same roll",
   "Roll aleator": "Random roll",
+  "bază": "base",
 };

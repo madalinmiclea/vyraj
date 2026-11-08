@@ -24,7 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
 const SKILL_NAME: Record<Exclude<StandingSkill, ''>, string> = { connections: 'Connections', diplomacy: 'Diplomacy', criminal: 'Criminal Connections' };
 
 const tone = (v: number) => (v <= -2 ? 'danger' : v < 0 ? 'warn' : v >= 5 ? 'ok' : v > 0 ? 'accent' : 'dim');
-const num = (v: number | undefined) => (v == null ? `<span class="dim">—</span>` : `<span class="std-val ${tone(v)}">${v > 0 ? '+' : ''}${formatNum(v, 2)}</span>`);
+const num = (v: number | undefined) => (v == null ? `<span class="dim">—</span>` : `<span class="std-val ${tone(v)}">${formatNum(v, 2)}</span>`);
 const levelOf = (eff: number) => (eff <= -2 ? 0 : [5, 4, 3, 2].find((l) => eff >= STANDING_NEEDED[l]) ?? 1);
 const levelBadge = (l: number) => (l ? `<span class="badge ${l >= 4 ? 'ok' : 'accent'}">L${l}</span>` : `<span class="badge danger">${tx('Blocat')}</span>`);
 
@@ -77,7 +77,7 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const factionName = (id: number) => d.factions.get(id) ?? names.get(id) ?? `#${id}`;
     const corpName = (id: number) => d.corps.get(id)?.name ?? names.get(id) ?? `#${id}`;
     const agentById = new Map(d.agents.map((a) => [a.id, a]));
-    const sign = (v: number) => `${v > 0 ? '+' : ''}${formatNum(v, 2)}`;
+    const sign = (v: number) => formatNum(v, 2);
     const effTip = (base: number | undefined, faction: number) => {
       const b = base ?? 0;
       const sk = skillFor(b, faction);
@@ -88,16 +88,17 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
       lines.push(`${tx('Efectiv')}: ${sign(eff)}`);
       return lines.join('\n');
     };
-    const effCell = (base: number | undefined, faction: number) => `<span class="std-cell"><span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span> <span class="std-base">(${base == null ? '0.00' : sign(base)})</span></span>`;
+    const effCell = (base: number | undefined, faction: number) => `<span class="std-cell"><span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span> <span class="std-base">(${tx('bază')} ${base == null ? '0.00' : sign(base)})</span></span>`;
     type Route = { kind: 'corp' | 'faction' | 'agent'; name: string; base: number | undefined };
     const KIND: Record<Route['kind'], string> = { corp: tx('corporația'), faction: tx('facțiunea'), agent: tx('agentul') };
     const nextCell = (eff: number, faction: number, via?: string, routes: Route[] = []) => {
       const next = [2, 3, 4, 5].find((l) => eff < STANDING_NEEDED[l]);
       if (!next || eff <= -2) return `<span class="dim">—</span>`;
       const need = baseNeeded(STANDING_NEEDED[next], faction, skills);
-      const tip = routes.length ? [tx('L{l} cu oricare dintre:', { l: next }), ...routes.map((r) => `${KIND[r.kind]} ${r.name}: ${sign(r.base ?? 0)} → ${formatNum(need, 2)}`)].join('\n') : '';
+      const needTxt = `${formatNum(STANDING_NEEDED[next], 2)} (${tx('bază')} ${formatNum(need, 2)})`;
+      const tip = routes.length ? [tx('L{l} cu oricare dintre:', { l: next }), ...routes.map((r) => `${KIND[r.kind]} ${r.name}: ${needTxt} (${tx('acum')} ${tx('bază')} ${sign(r.base ?? 0)})`)].join('\n') : '';
       const top = [...routes].sort((a, b) => (b.base ?? 0) - (a.base ?? 0))[0];
-      const label = top ? `${KIND[top.kind]} ${top.name} ${sign(top.base ?? 0)} → ${formatNum(need, 2)}` : `${via ? `${via} ` : ''}${tx('la bază {b}', { b: formatNum(need, 2) })}`;
+      const label = top ? `${KIND[top.kind]} ${top.name} ${needTxt}` : `${via ? `${via} ` : ''}${tx('la bază {b}', { b: formatNum(need, 2) })}`;
       return `<span class="small"${tip ? ` title="${esc(tip)}"` : ''}>L${next} <span class="dim">${esc(label)}</span></span>`;
     };
 
