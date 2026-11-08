@@ -65,3 +65,15 @@
 .bz-body .dmg-tag:first-child { margin-left: 0; }
 .bz-table { overflow-x: auto; }
 .bz-tank { white-space: nowrap; }
+.bz-card-target { display: flex; align-items: center; gap: 6px; }
+.bz-card-target .row-icon { width: 20px; height: 20px; }
+.bz-hero { display: flex; gap: 14px; align-items: flex-start; padding: 12px; margin: 4px 0 6px; background: var(--bg-inset); border: 1px solid var(--line); border-left: 2px solid var(--accent); }
+.bz-hero-img { width: 64px; height: 64px; flex: none; border: 1px solid var(--line); }
+.bz-hero-title { margin: 0 0 6px; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--text-bright); }
+.bz-hero p { margin: 0 0 6px; }
+.bz-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.bz-skills { margin-top: 4px; }
+.bz-skill-sum { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+@media (max-width: 560px) { .bz-hero { flex-direction: column; } }
+.std-hint { font-size: 12px; color: var(--ok); margin-bottom: 2px; }
+.std-gain { margin: 0 0 8px; }

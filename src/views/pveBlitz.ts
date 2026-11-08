@@ -9,6 +9,10 @@ import { BLITZ_MISSIONS, BURNERS, BLITZ_SHIPS, BLITZ_FITS, NERGAL_FITS, type Bli
 import { parseEft } from '../io/eft';
 import type { Fit } from '../engine/fit';
 import { tx } from '../i18n';
+import { requirementsFor, skillsPlan, fitTypeIds, type PlanStep } from '../character/requirements';
+import { formatDuration } from '../character/training';
+import { roman, showItemInfo } from '../ui/itemInfo';
+import { loadPlan, savePlan, addToPlan } from '../character/skillPlan';
 
 const STATE_KEY = 'eve-pve:blitz';
 const HUB_LIMIT = 25;
@@ -36,6 +40,14 @@ const WHERE: Record<BlitzWhere, string> = { system: tx('în sistemul agentului')
 const KIND: Record<BurnerKind, string> = { agent: 'Anomic Agent', team: 'Anomic Team', base: 'Anomic Base' };
 const KIND_NOTE: Record<BurnerKind, string> = { agent: tx('o fregată pirat'), team: tx('o fregată T2 cu doi logistici'), base: tx('mai multe nave, cruiser recomandat') };
 const RESIST: Record<Resist, string> = { em: 'EM', thermal: tx('Termic'), kinetic: tx('Cinetic'), explosive: tx('Exploziv') };
+
+const NERGAL_RECOMMENDED: [string, number][] = [
+  ['Assault Frigates', 4], ['Small Disintegrator Specialization', 4], ['Surgical Strike', 4], ['Rapid Firing', 4], ['Motion Prediction', 4],
+  ['Thermodynamics', 4], ['Nanite Operation', 4], ['Repair Systems', 4],
+  ['EM Armor Compensation', 4], ['Thermal Armor Compensation', 4], ['Kinetic Armor Compensation', 4], ['Explosive Armor Compensation', 4],
+  ['Acceleration Control', 4], ['High Speed Maneuvering', 4], ['Evasive Maneuvering', 4],
+  ['Capacitor Management', 5], ['Capacitor Systems Operation', 5], ['Weapon Upgrades', 5], ['Advanced Weapon Upgrades', 4], ['Drone Interfacing', 4],
+];
 
 const fitShip = (id: string) => BLITZ_FITS[id].slice(1, BLITZ_FITS[id].indexOf(','));
 const fitName = (id: string) => { const h = BLITZ_FITS[id].split('\n')[0]; return h.slice(h.indexOf(',') + 1, -1).trim(); };
@@ -124,14 +136,70 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
     return [['Nergal', 1] as [string, number], ...max].map(([n, c]) => `${n} ${c}`).join('\n');
   }
 
+  function nergalSkills() {
+    const sde = ctx.sde;
+    const c = ctx.character;
+    const hullId = sde.findType('Nergal')?.id ?? 0;
+    const mods = new Set<number>();
+    for (const id of NERGAL_FITS) {
+      try { for (const t of fitTypeIds(parseEft(sde, BLITZ_FITS[id]).fit)) if (t !== hullId) mods.add(t); } catch { continue; }
+    }
+    const hull = requirementsFor(sde, [hullId], c);
+    const hullMax = new Map(hull.steps.map((x) => [x.skillId, x.required]));
+    const all = requirementsFor(sde, [hullId, ...mods], c);
+    const modSteps = all.steps.filter((x) => (hullMax.get(x.skillId) ?? 0) < x.required);
+    const rec = new Map<number, number>();
+    for (const [name, lvl] of NERGAL_RECOMMENDED) {
+      const t = sde.findType(name);
+      if (t && (all.steps.find((x) => x.skillId === t.id)?.required ?? 0) < lvl) rec.set(t.id, lvl);
+    }
+    const recPlan = skillsPlan(sde, rec, c);
+    const recSteps = recPlan.steps.filter((x) => rec.has(x.skillId));
+    return { hullId, hull, all, modSteps, rec, recPlan, recSteps };
+  }
+
+  function skillTable(steps: PlanStep[]) {
+    return `<table class="table compact bz-skills"><thead><tr><th>${tx('Skill')}</th><th class="r">${tx('Necesar')}</th><th class="r">${tx('Tu')}</th><th class="r">${tx('Timp')}</th></tr></thead><tbody>
+      ${steps.map((x) => `<tr><td><button class="link" data-bz-info="${x.skillId}">${esc(x.name)}</button></td><td class="r num">${roman(x.required)}</td><td class="r"><span class="badge ${x.status === 'ok' ? 'ok' : x.status === 'partial' ? 'warn' : 'danger'}">${x.current ? roman(x.current) : '0'}</span></td><td class="r num">${x.status === 'ok' ? '<span class="dim">—</span>' : formatDuration(x.seconds)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
   function nergalTab() {
-    return `<p class="small">${tx('O singură navă pentru toate cele 9 burnere de fregată. Rig-urile rămân aceleași, schimbi doar modulele.')}</p>
-      <p class="small"><span class="dim">${tx('Rig-uri fixe:')}</span> <b>Small Auxiliary Nano Pump II</b> · <b>Small Capacitor Control Circuit II</b></p>
+    const k = nergalSkills();
+    const missing = (steps: PlanStep[]) => steps.filter((x) => x.status !== 'ok');
+    const summary = (steps: PlanStep[], total: number, plan: string) => {
+      const m = missing(steps).length;
+      return `<p class="small bz-skill-sum">${m ? `${tx('Îți lipsesc {n}', { n: m })} · <b>${formatDuration(total)}</b> ${button(tx('Adaugă în planul de skill-uri'), { cls: 'sm ghost', attrs: `data-bz-plan="${plan}"` })}` : `<span class="badge ok">${tx('Le ai pe toate')}</span>`}</p>`;
+    };
+    return `<div class="bz-hero">
+        ${k.hullId ? `<img class="bz-hero-img" src="${typeIconUrl(k.hullId, 64)}" alt="" />` : ''}
+        <div>
+          <h4 class="bz-hero-title">${tx('Nergal: nava pentru misiunile Anomic Agent și Anomic Team')}</h4>
+          <p class="small">${tx('Misiunile Anomic (numite și burnere) le dau agenții de securitate L4. În fiecare te bați cu o singură fregată pirat sau T2 mult mai puternică decât una normală și primești ~14k LP.')}</p>
+          <p class="small">${tx('Nergal e o fregată de asalt Triglavian. Arma ei face tot mai mult damage cât timp trage în aceeași țintă, e rapidă și are tank bun pe armură. Cu aceleași rig-uri o refitezi pentru toate cele 9 misiuni de fregată.')}</p>
+          <div class="row-actions">${button(tx('Informații despre Nergal'), { cls: 'sm ghost', iconName: 'info', attrs: `data-bz-info="${k.hullId}"` })}</div>
+        </div>
+      </div>
+      <h4 class="bz-sub">${tx('1. Skill-uri obligatorii')}</h4>
+      <p class="small dim">${tx('Fără ele nu poți zbura nava sau nu poți pune modulele din fituri.')}</p>
+      <div class="bz-two">
+        <div><div class="small"><b>${tx('Ca să zbori nava')}</b></div>${skillTable(k.hull.steps)}</div>
+        <div><div class="small"><b>${tx('Ca să folosești modulele din fituri')}</b></div>${skillTable(k.modSteps)}</div>
+      </div>
+      ${summary(k.all.steps, k.all.totalSeconds, 'required')}
+      <h4 class="bz-sub">${tx('2. Skill-uri recomandate')}</h4>
+      <p class="small dim">${tx('Nava zboară și fără ele, dar cu ele ai damage, tank și viteză destule ca să termini misiunile fără să pierzi nava.')}</p>
+      ${k.recSteps.length ? skillTable(k.recSteps) : ''}
+      ${summary(k.recSteps, k.recPlan.totalSeconds, 'recommended')}
+      <h4 class="bz-sub">${tx('3. Fitul pentru fiecare misiune')}</h4>
+      <p class="small">${tx('Rig-urile rămân mereu pe navă:')} <b>Small Auxiliary Nano Pump II</b> · <b>Small Capacitor Control Circuit II</b>. ${tx('Pentru fiecare misiune schimbi modulele și muniția: hardener-ele pe damage-ul cu care trage inamicul.')}</p>
       <div class="bz-grid">${NERGAL_FITS.map((id) => {
         const b = BURNERS.find((x) => x.fit === id)!;
         return `<div class="bz-card">
-          <div class="bz-card-head"><img class="row-icon" src="${typeIconUrl(b.enemyId, 32)}" alt="" loading="lazy" /><b>${esc(b.enemy)}</b><span class="dim small">${KIND[b.kind]}</span></div>
-          <div>${b.tank.map((d) => `<span class="dmg-tag ${d}">${RESIST[d]}</span>`).join('')}</div>
+          <div class="bz-card-head"><b>${KIND[b.kind]} · ${esc(b.title)}</b></div>
+          <div class="bz-card-target small"><span class="dim">${tx('Țintă')}</span><img class="row-icon" src="${typeIconUrl(b.enemyId, 32)}" alt="" loading="lazy" /><span>${esc(b.enemy)}</span></div>
+          <div class="small"><span class="dim">${tx('Trage cu')}</span> ${b.tank.map((d) => `<span class="dmg-tag ${d}">${RESIST[d]}</span>`).join('')}</div>
+          <div class="small">${esc(b.how)}</div>
           <div>${fitBtn(id, tx('Deschide fitul'))}</div>
         </div>`;
       }).join('')}</div>
@@ -242,6 +310,19 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
     const ag = t.closest<HTMLElement>('[data-bz-agents]');
     if (ag) { opts.openAgents(Number(ag.dataset.bzAgents), Number(ag.dataset.bzFac)); return; }
     if (t.closest('[data-bz-lp]')) { opts.openTool('lp'); return; }
+    const info = t.closest<HTMLElement>('[data-bz-info]');
+    if (info) { showItemInfo(ctx, Number(info.dataset.bzInfo)); return; }
+    const plan = t.closest<HTMLElement>('[data-bz-plan]');
+    if (plan) {
+      const k = nergalSkills();
+      const c = ctx.character;
+      const want = plan.dataset.bzPlan === 'required' ? k.all.steps : k.recSteps;
+      let next = loadPlan(c.id);
+      for (const x of want) if (x.status !== 'ok') next = addToPlan(ctx.sde, next, c, x.skillId, x.required);
+      savePlan(c.id, next);
+      toast(tx('Adăugat în planul de skill-uri'));
+      return;
+    }
     if (t.closest('[data-bz-shop]')) void copyText(shoppingList(), tx('Lista e copiată. Lipește-o în Multibuy.'));
   });
   el.addEventListener('change', (e) => {

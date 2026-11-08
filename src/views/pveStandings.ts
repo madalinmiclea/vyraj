@@ -8,6 +8,7 @@ import { loadAgents, STANDING_NEEDED, type AgentData } from '../services/agents'
 import { loadNpcStandings, canReadNpcStandings, socialSkills, effective, skillFor, corpAccess, type NpcStandings, type SocialSkills, type StandingSkill } from '../services/npcStandings';
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
+import { roman } from '../ui/itemInfo';
 
 const STATE_KEY = 'eve-pve:standings';
 
@@ -102,17 +103,29 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const agentsOf = (corp: number) => d.agents.filter((a) => a.corp === corp && s.agent.has(a.id)).map((a) => ({ kind: 'agent' as const, name: a.name, base: s.agent.get(a.id) }));
 
     const agentCorps = new Set(d.agents.filter((a) => a.kind === 0).map((a) => a.corp));
+    const factionInfo = (f: number, sk: SocialSkills) => {
+      const eff = effective(s.faction.get(f), f, sk);
+      const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => ({ c, a: corpAccess(s, sk, c, f) })).filter((x) => !x.a.blocked);
+      const top = accs.sort((x, y) => y.a.corp - x.a.corp)[0];
+      const viaCorp = eff > -2 && !!top && top.a.corp > eff;
+      const best = viaCorp ? top.a.corp : eff;
+      return { f, eff, level: levelOf(best), best, via: viaCorp ? top.c : 0 };
+    };
+    const skillHint = (now: number, levelWith: (sk: SocialSkills) => number) => {
+      const out: string[] = [];
+      for (const k of ['diplomacy', 'connections', 'criminal'] as const) {
+        for (let l = skills[k] + 1; l <= 5; l++) {
+          const n = levelWith({ ...skills, [k]: l });
+          if (n > now) { out.push(`${SKILL_NAME[k]} ${roman(l)} → ${n === 1 && now === 0 ? tx('deblocat') : `L${n}`}`); break; }
+        }
+      }
+      return out.length ? `<div class="std-hint">${tx('Cu')} ${out.map(esc).join(' · ')}</div>` : '';
+    };
+    const ALL5: SocialSkills = { connections: 5, diplomacy: 5, criminal: 5 };
     const factionIds = [...new Set([...d.factions.keys(), ...s.faction.keys()])];
     const factionRows = factionIds
       .filter((f) => match(factionName(f)))
-      .map((f) => {
-        const eff = effective(s.faction.get(f), f, skills);
-        const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => ({ c, a: corpAccess(s, skills, c, f) })).filter((x) => !x.a.blocked);
-        const top = accs.sort((x, y) => y.a.corp - x.a.corp)[0];
-        const viaCorp = eff > -2 && !!top && top.a.corp > eff;
-        const best = viaCorp ? top.a.corp : eff;
-        return { f, eff, level: levelOf(best), best, via: viaCorp ? top.c : 0 };
-      })
+      .map((f) => factionInfo(f, skills))
       .sort((a, b) => b.eff - a.eff || factionName(a.f).localeCompare(factionName(b.f)));
 
     const corpIds = [...new Set([...agentCorps, ...s.corp.keys()])];
@@ -138,12 +151,12 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     let table = '';
     if (state.tab === 'factions') {
       table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${nextCell(best, f, via ? corpName(via) : undefined, [...(via ? [{ kind: 'corp' as const, name: corpName(via), base: s.corp.get(via) }] : []), { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...[...agentCorps].filter((c) => c !== via && d.corps.get(c)?.faction === f).map((c) => ({ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) })).sort((x, y) => (y.base ?? 0) - (x.base ?? 0)).slice(0, 3)])}</td></tr>`).join('')}
+        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${skillHint(level, (sk) => factionInfo(f, sk).level)}${nextCell(best, f, via ? corpName(via) : undefined, [...(via ? [{ kind: 'corp' as const, name: corpName(via), base: s.corp.get(via) }] : []), { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...[...agentCorps].filter((c) => c !== via && d.corps.get(c)?.faction === f).map((c) => ({ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) })).sort((x, y) => (y.base ?? 0) - (x.base ?? 0)).slice(0, 3)])}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio facțiune nu se potrivește.')}</p>`;
     } else if (state.tab === 'corps') {
       table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
         ${groupOrder.map((f) => `<tr class="std-group"><td colspan="6">${f ? `${logo(f)}${esc(factionName(f))}` : tx('Fără facțiune')} <span class="dim">${num(effective(s.faction.get(f), f, skills))}</span></td></tr>
-          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...agentsOf(c)])}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
+          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${skillHint(acc.level, (sk) => corpAccess(s, sk, c, f).level)}${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...agentsOf(c)])}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio corporație nu se potrivește.')}</p>`;
     } else {
       table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th></tr></thead><tbody>
@@ -152,6 +165,8 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     }
 
     const unlocked = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && corpAccess(s, skills, c, d.corps.get(c)?.faction ?? 0).level >= l).length }));
+    const maxed = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && corpAccess(s, ALL5, c, d.corps.get(c)?.faction ?? 0).level >= l).length }));
+    const gains = maxed.filter((m, i) => m.n > unlocked[i].n).map((m) => `L${m.l}: ${formatInt(unlocked[[5, 4, 3, 2].indexOf(m.l)].n)} → ${formatInt(m.n)}`);
     el.innerHTML = panel({
       title: tx('Standing-uri NPC'),
       count: tx('{f} facțiuni · {c} corporații · {a} agenți', { f: formatInt(s.faction.size), c: formatInt(s.corp.size), a: formatInt(s.agent.size) }),
@@ -160,6 +175,7 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
           ${(['connections', 'diplomacy', 'criminal'] as const).map((k) => `<div class="std-tile"><span class="label">${SKILL_NAME[k]}</span><span class="value">${skills[k]}</span></div>`).join('')}
           ${unlocked.map(({ l, n }) => `<div class="std-tile ${n ? 'on' : ''}"><span class="label">${tx('Corporații cu L{l}', { l })}</span><span class="value">${formatInt(n)}</span></div>`).join('')}
         </div>
+        ${gains.length ? `<p class="small std-gain">${tx('Cu Connections, Diplomacy și Criminal Connections la V, corporațiile cu agenți deblocați ar fi:')} <b>${gains.join(' · ')}</b></p>` : ''}
         <div class="pve-filters">
           <div class="chip-row">${TABS.map((t) => `<button class="chip-btn ${t.id === state.tab ? 'active' : ''}" data-std-tab="${t.id}">${t.label}</button>`).join('')}</div>
           ${state.tab !== 'corps' ? '' : `<label class="check"><input type="checkbox" id="stdOnly" ${state.only ? 'checked' : ''} /> ${tx('Doar cu standing')}</label>`}

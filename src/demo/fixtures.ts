@@ -89,6 +89,8 @@ async function jita(w: World): Promise<Jita> {
   };
 }
 
+const SOCIAL: Record<string, number> = { Connections: 4, Diplomacy: 3, 'Criminal Connections': 0, Social: 4 };
+
 const spAt = (rank: number, level: number) => (level <= 0 ? 0 : Math.ceil(250 * rank * Math.pow(32, (level - 1) / 2)));
 
 function skillLevels(w: World): Map<number, { level: number; rank: number }> {
@@ -102,6 +104,7 @@ function skillLevels(w: World): Map<number, { level: number; rank: number }> {
     let level = forced.has(t.id) ? 5 : rank >= 10 ? 0 : r < 0.22 ? 0 : r < 0.36 ? 3 : r < 0.74 ? 4 : 5;
     if (queued.has(t.id)) level = Math.min(level, 3);
     if (queued.has(t.id) && level === 0) level = 3;
+    if (t.name in SOCIAL) level = SOCIAL[t.name];
     if (level) out.set(t.id, { level, rank });
   }
   return out;
