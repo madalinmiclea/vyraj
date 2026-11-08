@@ -59,9 +59,12 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
   openAgents: (corp: number, faction: number) => void;
   openTool: (id: string) => void;
   blitzCounts: () => Map<number, number>;
+  only: 'blitz' | 'anomic';
 }) {
-  const state: State = { tab: 'missions', faction: 0, ...loadJson<Partial<State>>(STATE_KEY, {}) };
-  if (!TABS.some((t) => t.id === state.tab)) state.tab = 'missions';
+  const tabs = TABS.filter((t) => (opts.only === 'blitz') === (t.id === 'missions'));
+  const key = opts.only === 'blitz' ? STATE_KEY : `${STATE_KEY}:anomic`;
+  const state: State = { tab: tabs[0].id, faction: 0, ...loadJson<Partial<State>>(key, {}) };
+  if (!tabs.some((t) => t.id === state.tab)) state.tab = tabs[0].id;
   let visible = false;
   let seq = 0;
   let agents: AgentData | null = null;
@@ -75,12 +78,13 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
   const fitBtn = (id: string, label = fitShip(id), cls = 'sm') => button(label, { cls, attrs: `data-bz-fit="${id}" title="${esc(tx('Deschide în Fitting'))}"` });
 
   function head() {
+    if (opts.only === 'blitz') return '';
     return `<div class="pve-facts">
         <div><span class="label">${tx('Burner')}</span><span class="value">~5 min</span><span class="small dim">${tx('cu drumul inclus')}</span></div>
         <div><span class="label">${tx('LP pe burner')}</span><span class="value">~14k</span><span class="small dim">${tx('agent în 0.5, Security Connections V')}</span></div>
         <div><span class="label">${tx('Venit posibil')}</span><span class="value">200M+/h</span><span class="small dim">${tx('blitz L4 plus burnere, cu LP vândut')}</span></div>
       </div>
-      <div class="chip-row bz-tabs">${TABS.map((t) => `<button class="chip-btn ${t.id === state.tab ? 'active' : ''}" data-bz-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+      ${tabs.length > 1 ? `<div class="chip-row bz-tabs">${tabs.map((t) => `<button class="chip-btn ${t.id === state.tab ? 'active' : ''}" data-bz-tab="${t.id}">${t.label}</button>`).join('')}</div>` : ''}`;
   }
 
   function missionsTab() {
@@ -265,7 +269,7 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
 
   function render() {
     const body = state.tab === 'missions' ? missionsTab() : state.tab === 'burners' ? burnersTab() : state.tab === 'nergal' ? nergalTab() : state.tab === 'where' ? hubsTab() : shipsTab();
-    el.innerHTML = panel({ title: tx('Ghid blitz L4'), body: `${head()}<div class="bz-body">${body}</div>` });
+    el.innerHTML = panel({ title: opts.only === 'blitz' ? tx('Ghid blitz L4') : tx('Misiuni Anomic'), body: `${head()}<div class="bz-body">${body}</div>` });
   }
 
   async function loadHubs() {
@@ -293,12 +297,12 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
     }
   }
 
-  const save = () => saveJson(STATE_KEY, state);
+  const save = () => saveJson(key, state);
 
   el.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const tab = t.closest<HTMLElement>('[data-bz-tab]');
-    if (tab) { state.tab = tab.dataset.bzTab as Tab; save(); render(); if (state.tab === 'where' && !agents) void loadHubs(); return; }
+    if (tab) { const next = tab.dataset.bzTab as Tab; if (!tabs.some((x) => x.id === next)) { opts.openTool(next === 'missions' ? 'blitz' : 'anomic'); return; } state.tab = next; save(); render(); if (state.tab === 'where' && !agents) void loadHubs(); return; }
     const fit = t.closest<HTMLElement>('[data-bz-fit]');
     if (fit) { openFit(fit.dataset.bzFit!); return; }
     const ship = t.closest<HTMLElement>('[data-bz-ship]');

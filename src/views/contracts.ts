@@ -67,6 +67,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
 
   const save = () => saveJson(UI_KEY, ui);
   const mine = () => new Set(rosterCharacters().map((c) => c.characterId!));
+  const closed = (c: OwnedContract): [string, number] => c.date_completed ? [tx('Finalizat'), Date.parse(c.date_completed)] : Date.parse(c.date_expired) <= Date.now() ? [tx('Expirat'), Date.parse(c.date_expired)] : [tx('Termen inițial'), Date.parse(c.date_expired)];
   const nameOf = (id: number | undefined) => (!id ? '—' : names.get(id) ?? (id >= 1e12 ? tx('Structură {id}', { id }) : '…'));
 
   async function resolveNames(list: OwnedContract[]) {
@@ -77,8 +78,9 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
     }
     for (const [owner, ids] of byOwner) {
       if (!ids.length) continue;
-      const got = await universeNames([...new Set(ids)], owner).catch(() => new Map<number, string>());
-      for (const [id, n] of got) names.set(id, n);
+      const unique = [...new Set(ids)];
+      const got = await universeNames(unique, owner).catch(() => new Map<number, string>());
+      for (const id of unique) names.set(id, got.get(id) ?? (id >= 1e12 ? tx('Structură {id}', { id }) : `#${id}`));
     }
   }
 
@@ -158,7 +160,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
       <td>${badge(label, tone, true)}</td>
       <td class="r">${priceCell(c)}</td>
       <td class="r">${valueCell(c)}</td>
-      <td class="r num">${due != null ? remaining(due - Date.now()) : `<span class="dim">${dateTime(Date.parse(c.date_completed ?? c.date_expired))}</span>`}</td>
+      <td class="r num">${due != null ? remaining(due - Date.now()) : `<span class="dim">${closed(c)[0]} ${dateTime(closed(c)[1])}</span>`}</td>
     </tr>`;
   }
 
@@ -195,7 +197,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
           ${chips([['all', tx('Toate tipurile')], ['item_exchange', TYPE_LABEL.item_exchange], ['auction', TYPE_LABEL.auction], ['courier', TYPE_LABEL.courier]], 'kind')}</div>
           <div class="ord-meta small dim"><span>${tx('Citit la {time}. Valoarea e la Jita vânzare minimă pentru itemele din contract, comparată cu prețul.', { time: dateTime(scan.at) })}</span></div>
           ${list.length ? `<div class="table-scroll"><table class="table compact ord-table ct-table"><thead><tr>
-            <th>${tx('Contract')}</th><th>${tx('Stare')}</th><th class="r">${tx('Preț')}</th><th class="r">${tx('Valoare Jita')}</th><th class="r">${tx('Expiră')}</th>
+            <th>${tx('Contract')}</th><th>${tx('Stare')}</th><th class="r">${tx('Preț')}</th><th class="r">${tx('Valoare Jita')}</th><th class="r">${tx('Termen')}</th>
           </tr></thead><tbody>${list.map((c) => row(c, multi)).join('')}</tbody></table></div>`
           : `<p class="dim">${scoped.length ? tx('Niciun contract pentru filtrele alese.') : tx('Niciun contract în ultimele 30 de zile.')}</p>`}`,
       })}`;
@@ -257,7 +259,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
         ...(c.type !== 'courier' ? [[tx('Preț'), formatISK(c.price ?? 0)]] as [string, string][] : []),
         ...(c.buyout ? [[tx('Buyout'), formatISK(c.buyout)]] as [string, string][] : []),
         [tx('Emis'), dateTime(Date.parse(c.date_issued))],
-        [due != null ? tx('Termen') : tx('Expirat'), due != null ? `${dateTime(due)} · ${remaining(due - Date.now())}` : dateTime(Date.parse(c.date_expired))],
+        due != null ? [tx('Termen'), `${dateTime(due)} · ${remaining(due - Date.now())}`] : [closed(c)[0], dateTime(closed(c)[1])],
       ];
       body.innerHTML = `<dl class="ct-facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
         ${table(items.filter((i) => i.is_included), tx('Primești / oferă emitentul'))}

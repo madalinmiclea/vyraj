@@ -5,7 +5,7 @@ import { loginProblem } from '../character/sso';
 import { universeNames } from '../character/esi';
 import { permissionGate } from '../character/permissions';
 import { loadAgents, STANDING_NEEDED, type AgentData } from '../services/agents';
-import { loadNpcStandings, canReadNpcStandings, socialSkills, effective, skillFor, corpAccess, type NpcStandings, type SocialSkills, type StandingSkill } from '../services/npcStandings';
+import { loadNpcStandings, canReadNpcStandings, socialSkills, effective, skillFor, corpAccess, type NpcStandings, type SocialSkills, type StandingSkill, type Access } from '../services/npcStandings';
 import { fold } from '../ui/fold';
 import { tx } from '../i18n';
 import { roman } from '../ui/itemInfo';
@@ -145,6 +145,17 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     }).filter((r) => match(`${r.a?.name ?? names.get(r.id) ?? ''} ${corpName(r.corp)}`))
       .sort((x, y) => y.base - x.base);
 
+    const blockReason = (acc: Access) => {
+      const low = [acc.agent != null && acc.agent <= -2 ? tx('agentul') : '', acc.corp <= -2 ? tx('corporația') : '', acc.faction <= -2 ? tx('facțiunea') : ''].filter(Boolean);
+      return tx('Blocat: {w} sub -2', { w: low.join(', ') });
+    };
+    const agentAccess = (level: number, acc: Access) => {
+      if (acc.blocked) return `<span class="badge danger" title="${esc(blockReason(acc))}">${tx('Blocat')}</span>`;
+      if (acc.level < level) return `<span class="badge warn">${tx('Nu')}</span>`;
+      const need = STANDING_NEEDED[level];
+      const only = level > 1 && acc.agent != null && acc.agent >= need && acc.corp < need && acc.faction < need;
+      return only ? `<span class="badge accent" title="${esc(tx('Corporația și facțiunea nu ajung la {s}', { s: formatNum(need, 2) }))}">${tx('Doar acest agent')}</span>` : `<span class="badge ok">${tx('Da')}</span>`;
+    };
     const logo = (id: number) => `<img class="row-icon" src="https://images.evetech.net/corporations/${id}/logo?size=32" alt="" loading="lazy" />`;
     const agentsBtn = (corp: number, f: number, l: number) => (l && agentCorps.has(corp) ? `<button class="btn ghost sm" data-std-agents="${corp}" data-std-faction="${f}" data-std-level="${l}">${tx('Agenți L{l}', { l })}</button>` : '');
 
@@ -159,8 +170,8 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
           ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${skillHint(acc.level, (sk) => corpAccess(s, sk, c, f).level)}${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }])}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio corporație nu se potrivește.')}</p>`;
     } else {
-      table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th></tr></thead><tbody>
-        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? (acc.blocked ? levelBadge(0) : acc.level >= a.level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge warn">${tx('Nu')}</span>`) : '—'}</td></tr>`).join('')}
+      table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
+        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? agentAccess(a.level, acc) : '—'}</td><td>${acc.blocked ? `<span class="small dim">${esc(blockReason(acc))}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'agent' as const, name: a?.name ?? names.get(id) ?? `#${id}`, base }, { kind: 'corp' as const, name: corpName(corp), base: s.corp.get(corp) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }])}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Niciun agent cu standing personal.')}</p>`;
     }
 
@@ -181,6 +192,7 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
           ${state.tab !== 'corps' ? '' : `<label class="check"><input type="checkbox" id="stdOnly" ${state.only ? 'checked' : ''} /> ${tx('Doar cu standing')}</label>`}
           <label class="field"><input class="input sm" id="stdSearch" placeholder="${esc(tx('Caută facțiune, corporație sau agent'))}" value="${esc(state.q)}" /></label>
         </div>
+        ${state.tab === 'agents' ? `<p class="dim small std-gain">${tx('Standing-ul cu agentul deschide doar acel agent și nu schimbă ISK-ul sau LP-ul.')}</p>` : ''}
         ${table}`,
     });
     const search = el.querySelector<HTMLInputElement>('#stdSearch');

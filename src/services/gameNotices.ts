@@ -89,7 +89,75 @@ const NAMES: Record<string, string> = {
   JumpCloneDeletedMsg1: tx('Jump clone șters'),
   LocateCharMsg: tx('Rezultat de la agentul locator'),
   ContactAdd: tx('Ai fost adăugat la contacte'),
+  ContactEdit: tx('Contact modificat'),
+  NPCStandingsLost: tx('Standing NPC pierdut'),
+  NPCStandingsGained: tx('Standing NPC câștigat'),
+  StoryLineMissionAvailableMsg: tx('Misiune storyline disponibilă'),
+  AgentRetiredTrigravian: tx('Agent retras'),
+  CorpBecameWarEligible: tx('Corporația poate intra în războaie'),
+  CorpNoLongerWarEligible: tx('Corporația nu mai poate intra în războaie'),
+  CharLeftCorpMsg2: tx('Un membru a plecat din corporație'),
+  CorpAppInvitedMsg: tx('Invitație în corporație'),
+  CharTerminationMsg: tx('Rol sau membru eliminat din corporație'),
+  OwnershipTransferred: tx('Proprietate transferată'),
+  IndustryTeamAuctionWon: tx('Licitație câștigată'),
+  ExpertSystemExpired: tx('Expert System expirat'),
+  ExpertSystemExpiryImminent: tx('Expert System expiră curând'),
+  KillReportVictimMsg: tx('Ai pierdut o navă'),
+  BuddyConnectContactAdd: tx('Ai fost adăugat la contacte'),
+  DailyItemRewardAutoClaimed: tx('Recompensă zilnică primită'),
+  MissionOfferExpirationMsg: tx('Oferta de misiune expiră'),
+  MissionTimeoutMsg: tx('Misiune expirată'),
+  MissionCanceledTriglavian: tx('Misiune anulată'),
+  CloneRevokedMsg1: tx('Clonă revocată'),
+  JumpCloneDeletedMsg2: tx('Jump clone șters'),
+  StructureItemsDelivered: tx('Iteme livrate la structură'),
+  StructureItemsMovedToSafety: tx('Iteme mutate în siguranță'),
+  StructureOnline: tx('Structură online'),
+  StructureFuelEmpty: tx('Structură fără combustibil'),
+  ESSMainBankLink: tx('ESS accesat'),
+  SeasonalChallengeCompleted: tx('Provocare de sezon terminată'),
+  AchievementTaskFinished: tx('Obiectiv terminat'),
+  GameTimeReceived: tx('Timp de joc primit'),
+  GameTimeSent: tx('Timp de joc trimis'),
+  GiftReceived: tx('Cadou primit'),
 };
+
+const FACTS: Record<string, string> = {
+  agentID: tx('Agent'), charID: tx('Caracter'), characterID: tx('Caracter'), corpID: tx('Corporație'), corporationID: tx('Corporație'),
+  allianceID: tx('Alianță'), factionID: tx('Facțiune'), ownerID: tx('Proprietar'), declaredByID: tx('Declarat de'), againstID: tx('Împotriva'),
+  aggressorID: tx('Atacator'), aggressorCorpID: tx('Corporația atacatorului'), victimID: tx('Victimă'), solarSystemID: tx('Sistem'),
+  solarsystemID: tx('Sistem'), systemID: tx('Sistem'), stationID: tx('Stație'), locationID: tx('Locație'), structureID: tx('Structură'),
+  typeID: 'Item', shipTypeID: tx('Navă'), structureTypeID: tx('Tip structură'), planetID: tx('Planetă'), moonID: tx('Lună'),
+};
+const AMOUNTS: Record<string, string> = { amount: 'ISK', payout: 'ISK', bounty: 'Bounty', cost: tx('Cost'), iskValue: 'ISK' };
+
+export interface NoticeFact { label: string; id?: number; value?: string }
+
+export function noticeFacts(n: GameNotice): NoticeFact[] {
+  const out: NoticeFact[] = [];
+  const seen = new Set<string>();
+  for (const line of (n.text ?? '').split('\n')) {
+    const m = /^\s*([A-Za-z]+):\s*(-?[\d.eE+]+)\s*$/.exec(line);
+    if (!m) continue;
+    const [, key, raw] = m;
+    const num = Number(raw);
+    if (!Number.isFinite(num)) continue;
+    if (FACTS[key] && num > 0 && Number.isInteger(num) && !seen.has(FACTS[key])) { seen.add(FACTS[key]); out.push({ label: FACTS[key], id: num }); }
+    else if (AMOUNTS[key] && num) out.push({ label: AMOUNTS[key], value: `${Math.round(num).toLocaleString()} ISK` });
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
+export const noticeIds = (list: GameNotice[]) => [...new Set(list.flatMap((n) => [n.sender_id, ...noticeFacts(n).map((f) => f.id ?? 0)]).filter((id) => id > 0 && id < 2_200_000_000 || id >= 1e12))];
+
+export function noticeDetail(n: GameNotice, names: Map<number, string>): string {
+  const facts = noticeFacts(n).map((f) => (f.id ? (names.has(f.id) ? `${f.label}: ${names.get(f.id)}` : '') : `${f.label}: ${f.value}`)).filter(Boolean);
+  if (facts.length) return facts.join(' · ');
+  const from = names.get(n.sender_id);
+  return from ? tx('De la {name}', { name: from }) : '';
+}
 
 export const humanType = (type: string) => type.replace(/Msg\d*$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
 
@@ -108,7 +176,7 @@ export async function pollGame(): Promise<void> {
     seen[id] = Math.max(last ?? 0, max);
     if (last == null) continue;
     const fresh = list.filter((n) => n.notification_id > last && !n.is_read).slice(0, 8).reverse();
-    for (const n of fresh) deliver(gameKind(n.type), { title: `${gameTitle(n.type)} · ${c.name}`, body: humanType(n.type), url: viewHref('notifications'), charId: id, tag: `vyraj-game-${n.notification_id}`, at: Date.parse(n.timestamp) || Date.now() });
+    for (const n of fresh) deliver(gameKind(n.type), { title: `${gameTitle(n.type)} · ${c.name}`, body: '', url: viewHref('notifications'), charId: id, tag: `vyraj-game-${n.notification_id}`, at: Date.parse(n.timestamp) || Date.now() });
   }
   saveJson(SEEN_KEY, seen);
 }

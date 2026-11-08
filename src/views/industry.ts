@@ -17,14 +17,16 @@ import {
 import { tx } from '../i18n';
 import { clearShared, sharedCode, shareLinkUrl } from '../app/route';
 import { createCorpJobsPanel } from './industryCorp';
+import { createResearchPanel } from './industryResearch';
 
-type Tab = 'calc' | 'mine' | 'jobs' | 'corp';
+type Tab = 'calc' | 'mine' | 'jobs' | 'corp' | 'rd';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'calc', label: tx('Calculator') },
   { id: 'mine', label: tx('Blueprint-urile mele') },
   { id: 'jobs', label: tx('Joburi active') },
   { id: 'corp', label: tx('Joburi corporație') },
+  { id: 'rd', label: tx('Agenți R&D') },
 ];
 
 const TAB_KEY = 'eve-industry:tab';
@@ -81,6 +83,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     <div id="indMine"></div>
     <div id="indJobs"></div>
     <div id="indCorp"></div>
+    <div id="indRd"></div>
     <datalist id="indProducts"></datalist>
     <datalist id="indSystems"></datalist>`;
   const settingsEl = el.querySelector<HTMLElement>('#indSettings')!;
@@ -89,6 +92,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     mine: el.querySelector<HTMLElement>('#indMine')!,
     jobs: el.querySelector<HTMLElement>('#indJobs')!,
     corp: el.querySelector<HTMLElement>('#indCorp')!,
+    rd: el.querySelector<HTMLElement>('#indRd')!,
   };
   const productList = el.querySelector<HTMLDataListElement>('#indProducts')!;
   const systemList = el.querySelector<HTMLDataListElement>('#indSystems')!;
@@ -109,7 +113,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   function renderStamp() {
     const box = side.querySelector<HTMLElement>('.side-stamp');
-    if (box) box.innerHTML = tab === 'corp' ? corpStamp : tab === 'jobs' ? '' : dataStamp(pricesAt(priceIds), 'data-ind-prices');
+    if (box) box.innerHTML = tab === 'corp' ? corpStamp : tab === 'rd' ? rdStamp : tab === 'jobs' ? '' : dataStamp(pricesAt(priceIds), 'data-ind-prices');
   }
   const ready = Promise.all([loadIndustry(), loadMap().catch(() => null)]).then(([d, m]) => { data = d; map = m; return d; });
 
@@ -188,10 +192,14 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
       <div class="side-stamp"></div>`;
     renderStamp();
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
-    settingsEl.hidden = tab === 'jobs' || tab === 'corp';
+    settingsEl.hidden = tab === 'jobs' || tab === 'corp' || tab === 'rd';
   }
 
   side.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-rd-prices]')) {
+      research.refresh();
+      return;
+    }
     if ((e.target as HTMLElement).closest('[data-corp-jobs]')) {
       corp.refresh();
       return;
@@ -503,7 +511,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
         title: tx('Fabricație din blueprint-urile tale'),
         count: `${formatInt(bpos)} BPO · ${formatInt(owned.length - bpos)} BPC`,
         body: rows.length ? `<div class="table-scroll"><table class="table compact ind-table"><thead><tr><th>Blueprint</th><th>${tx('Tip')}</th><th class="r">ME / TE</th><th class="r">${tx('Cost / unitate')}</th><th class="r">${tx('Jita vânzare')}</th><th class="r">${tx('Profit / unitate')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('ISK / oră')}</th></tr></thead><tbody>
-            ${rows.map(({ g, bpc, r }) => `<tr class="clickable" data-own="${g.o.type_id}" data-me="${g.o.material_efficiency}" data-te="${g.o.time_efficiency}" data-runs="${r.runs}"><td><img class="row-icon" src="${typeIconUrl(r.bp.productId, 32)}" alt="" />${esc(d.name(r.bp.productId))}${g.n > 1 ? ` <span class="dim">×${g.n}</span>` : ''}</td><td>${bpc ? `BPC · ${tx('{n} run-uri', { n: formatInt(g.runs) })}` : 'BPO'}</td><td class="r num">${r.bp.reaction ? '—' : `${g.o.material_efficiency} / ${g.o.time_efficiency}`}</td><td class="r num">${compactISK(r.costUnit)}</td><td class="r num">${r.sellUnit ? compactISK(r.sellUnit) : '—'}</td><td class="r">${r.sellUnit ? signed(r.profitUnit) : '—'}</td><td class="r">${r.sellUnit ? pct(r.margin) : '—'}</td><td class="r">${r.sellUnit ? signed(r.iskHour) : '—'}</td></tr>`).join('')}
+            ${rows.map(({ g, bpc, r }) => `<tr class="clickable" data-own="${g.o.type_id}" data-me="${g.o.material_efficiency}" data-te="${g.o.time_efficiency}" data-runs="${r.runs}"><td><img class="row-icon" src="${typeIconUrl(r.bp.productId, 32)}" alt="" />${esc(d.name(r.bp.productId))}${g.n > 1 ? ` <span class="dim">×${g.n}</span>` : ''}</td><td>${bpc ? `BPC · ${g.runs === 1 ? tx('1 run') : tx('{n} run-uri', { n: formatInt(g.runs) })}` : 'BPO'}</td><td class="r num">${r.bp.reaction ? '—' : `${g.o.material_efficiency} / ${g.o.time_efficiency}`}</td><td class="r num">${compactISK(r.costUnit)}</td><td class="r num">${r.sellUnit ? compactISK(r.sellUnit) : '—'}</td><td class="r">${r.sellUnit ? signed(r.profitUnit) : '—'}</td><td class="r">${r.sellUnit ? pct(r.margin) : '—'}</td><td class="r">${r.sellUnit ? signed(r.iskHour) : '—'}</td></tr>`).join('')}
           </tbody></table></div>
           <p class="dim small">${tx('BPO calculat pe {n} run-uri, BPC pe toate run-urile rămase. Click pe un rând ca să-l deschizi în calculator.', { n: 10 })}</p>` : emptyState({ title: tx('Niciun blueprint de fabricație') }),
       })}
@@ -534,6 +542,8 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   let corpStamp = '';
   const corp = createCorpJobsPanel(panes.corp, ctx, nameOf, (html) => { corpStamp = html; renderStamp(); });
+  let rdStamp = '';
+  const research = createResearchPanel(panes.rd, ctx, (html) => { rdStamp = html; renderStamp(); });
 
   let jobsSeq = 0;
   async function renderJobs() {
@@ -568,6 +578,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     if (tab === 'calc') renderCalc();
     else if (tab === 'mine') renderMine();
     else if (tab === 'corp') corp.render();
+    else if (tab === 'rd') research.render();
     else renderJobs();
   }
 

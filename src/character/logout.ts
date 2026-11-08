@@ -13,6 +13,7 @@ import { forgetCharacterNotices } from '../services/notices';
 import { forgetEscalations } from '../services/escalations';
 import { forgetMail } from '../services/mailCache';
 import { forgetCosmos } from '../services/cosmos';
+import { forgetEpicArcs } from '../services/epicArcs';
 
 const FLASH_KEY = 'vyraj:flash';
 
@@ -23,6 +24,7 @@ async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   forgetSkins(c.id);
   forgetRoster(c.id);
   forgetCosmos(c.id);
+  forgetEpicArcs(c.id);
   if (!c.characterId || !lastOfId) return;
   const id = c.characterId;
   forgetWallet(id);
@@ -31,6 +33,8 @@ async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   const colonies = loadColonies();
   if (colonies[id]) { delete colonies[id]; saveColonies(colonies); }
   clearVisits(c.name);
+  const backfill = loadJson<Record<string, number>>('eve-nav:visit-backfill', {});
+  if (backfill[id] != null) { delete backfill[id]; saveJson('eve-nav:visit-backfill', backfill); }
   const accounts = loadJson<{ chars: Record<string, string>; omega: Record<string, string> }>('eve-fit:roster-accounts', { chars: {}, omega: {} });
   if (accounts.omega[account] && !Object.values(accounts.chars).includes(account)) { delete accounts.omega[account]; saveJson('eve-fit:roster-accounts', accounts); }
   const live = loadJson<Record<string, unknown>>('eve-live:settings', {});

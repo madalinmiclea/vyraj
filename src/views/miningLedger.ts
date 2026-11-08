@@ -1,4 +1,4 @@
-import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, loginEmpty } from '../ui/components';
+import { panel, loader, alertBox, esc, formatInt, formatNum, compactISK, badge, loginEmpty, emptyState } from '../ui/components';
 import { icon } from '../ui/icons';
 import { seriesChart, bindSeriesChart } from '../ui/charts';
 import { loadJson, saveJson } from '../storage';
@@ -191,6 +191,10 @@ export function createMoonPanel(pane: HTMLElement) {
       }
       const corps = new Map<number, string>();
       for (const r of scan.rows) if (!corps.has(r.corporationId)) corps.set(r.corporationId, await corpName(r.corporationId, r.readerId));
+      if (!scan.rows.length && !scan.errors.length && !scan.noRole.length && scan.npc.length) {
+        pane.innerHTML = panel({ body: emptyState({ title: tx('Corporație NPC'), text: tx('Caracterul e într-o corporație NPC, care nu are extracții lunare.') }) });
+        return;
+      }
       draw(scan.rows, scan.errors, scan.noRole, corps);
     } catch (e) {
       pane.innerHTML = panel({ body: alertBox((e as Error).message) });

@@ -86,9 +86,9 @@ const VIEWS: { id: ViewId; label: string; short: string; icon: string; categorie
   { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 7 },
   { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 15 },
-  { id: 'missions', label: 'PvE', short: 'PvE', icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
+  { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 17 },
   { id: 'cosmos', label: 'COSMOS', short: 'COSMOS', icon: 'cosmos', categories: null, lore: 'Zvezdy', clade: 'Morana', order: 17 },
-  { id: 'operations', label: tx('Operațiuni'), short: tx('Operațiuni'), icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
+  { id: 'operations', label: 'PvE', short: 'PvE', icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 17 },
   { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 9 },
   { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 9 },
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
@@ -129,7 +129,7 @@ document.querySelector('#app')!.innerHTML = `
       ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Mokosh', 12], ['Morana', 16], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<a class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" href="${viewHref(v.id)}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></a>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
-      <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · AGPL-3.0">v${__APP_VERSION__}</div>
+      <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · PolyForm Strict 1.0.0">v${__APP_VERSION__}</div>
     </nav>
     <div class="neocom-sheet" id="neocomSheet" hidden>
       ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<a class="sheet-btn" href="${viewHref(v.id)}" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></a>`).join('')}
@@ -612,9 +612,9 @@ async function start() {
   later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
   later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
   later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
-  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
+  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
   later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
-  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); if (activeView === 'missions') missions.show(); });
+  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {

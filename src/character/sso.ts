@@ -39,6 +39,7 @@ export const SCOPES = [
   'esi-alliances.read_contacts.v1',
   'esi-characters.read_standings.v1',
   'esi-industry.read_corporation_jobs.v1',
+  'esi-characters.read_agents_research.v1',
 ];
 
 export const BASE_SCOPES = ['esi-skills.read_skills.v1', 'esi-skills.read_skillqueue.v1', 'esi-clones.read_implants.v1'];

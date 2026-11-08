@@ -512,6 +512,7 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
     case 'wallet': return json(ledger(w, now, name, await jita(w)).balance);
     case 'wallet/journal': return json(ledger(w, now, name, await jita(w)).journal);
     case 'wallet/transactions': return json(ledger(w, now, name, await jita(w)).trades);
+    case 'agents_research': return json([[3009329, 11450, 41, 121.5, 38.2], [3009368, 11441, 17, 117.04, 12.6], [3009320, 11448, 63, 72.1, 4.9]].map(([agent_id, skill_type_id, days, points_per_day, remainder_points]) => ({ agent_id, skill_type_id, started_at: iso(now - days * 24 * HOUR), points_per_day, remainder_points })));
     case 'loyalty/points': return json([{ corporation_id: 1000120, loyalty_points: 146_500 }, { corporation_id: 1000035, loyalty_points: 38_200 }]);
     case 'standings': return json([[500004, 'faction', 4.62], [500002, 'faction', 1.85], [500016, 'faction', 1.2], [500014, 'faction', 0.9], [500015, 'faction', 0.5], [500006, 'faction', 0.3], [500003, 'faction', -0.75], [500010, 'faction', -2.4], [500001, 'faction', -3.1], [500020, 'faction', -4.05], [1000120, 'npc_corp', 6.78], [1000035, 'npc_corp', 2.05], [1000051, 'npc_corp', 1.1], [1000130, 'npc_corp', 2.4], [1000127, 'npc_corp', -1.6], [3009851, 'agent', 7.3], [3009858, 'agent', 2.1]].map(([from_id, from_type, standing]) => ({ from_id, from_type, standing })));
     case 'orders': return json(orders(w, now, await jita(w)));

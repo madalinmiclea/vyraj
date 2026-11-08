@@ -7,6 +7,8 @@ export const AGENT_FILES = ['npcCharacters', 'npcStations', 'npcCorporations', '
 
 const DIVISIONS: Record<number, number> = { 22: 0, 23: 1, 24: 2 };
 const KINDS: Record<number, number> = { 2: 0, 6: 1, 7: 1, 9: 2, 5: 3, 8: 4 };
+const RESEARCH_TYPE = 4;
+const RESEARCH_DIVISION = 18;
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
 const en = (v: any): string => (typeof v === 'string' ? v : v?.en ?? '');
@@ -34,9 +36,11 @@ export function buildAgents(dir: string) {
     const corps: Record<number, [string, number]> = {};
     const factions: Record<number, string> = {};
     const stations: Record<number, [number, string]> = {};
+    const rd: (string | number | number[])[][] = [];
     for (const c of rows(dir, 'npcCharacters')) {
         const a = c.agent;
-        if (!a || !(a.divisionID in DIVISIONS) || !(a.agentTypeID in KINDS)) continue;
+        const research = !!a && a.agentTypeID === RESEARCH_TYPE && a.divisionID === RESEARCH_DIVISION;
+        if (!a || (!research && (!(a.divisionID in DIVISIONS) || !(a.agentTypeID in KINDS)))) continue;
         const corp = corpRows.get(c.corporationID);
         if (!corp) continue;
         let system = 0;
@@ -51,8 +55,10 @@ export function buildAgents(dir: string) {
         }
         corps[c.corporationID] ??= [en(corp.name), corp.factionID ?? 0];
         if (corp.factionID && !factions[corp.factionID]) factions[corp.factionID] = en(factionRows.get(corp.factionID)?.name);
-        agents.push([c._key, en(c.name), c.corporationID, DIVISIONS[a.divisionID], a.level, system, place, KINDS[a.agentTypeID], a.isLocator ? 1 : 0]);
+        if (research) rd.push([c._key, en(c.name), c.corporationID, a.level, system, place, (c.skills ?? []).map((k: Row) => k.typeID)]);
+        else agents.push([c._key, en(c.name), c.corporationID, DIVISIONS[a.divisionID], a.level, system, place, KINDS[a.agentTypeID], a.isLocator ? 1 : 0]);
     }
     agents.sort((x, y) => Number(x[0]) - Number(y[0]));
-    return { corps, factions, stations, agents };
+    rd.sort((x, y) => Number(x[0]) - Number(y[0]));
+    return { corps, factions, stations, agents, rd };
 }

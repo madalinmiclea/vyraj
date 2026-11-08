@@ -2,7 +2,7 @@
   "name": "vyraj",
   "version": "0.1.0",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "PolyForm-Strict-1.0.0",
   "type": "module",
   "scripts": {
     "predev": "node scripts/build-data.ts --if-missing",

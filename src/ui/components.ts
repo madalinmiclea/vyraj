@@ -35,7 +35,9 @@ export function stampTime(at: number) {
   const d = new Date(at);
   return d.toDateString() === new Date().toDateString()
     ? d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    : d.getFullYear() === new Date().getFullYear()
+      ? d.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function dataStamp(at: number, attrs: string, { label = tx('Prețuri Jita din {time}'), title = tx('Prețurile Jita sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou.') }: { label?: string; title?: string } = {}) {

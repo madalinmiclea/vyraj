@@ -95,7 +95,7 @@ function body() {
     <div id="about-notice">${notice()}</div>
     <footer class="about-copy" id="about-copyright">
       <span class="about-copy-mark">© 2026 Vyraj</span>
-      <span>${tx('Codul și designul Vyraj sunt publicate sub licența')} ${ext(LICENSE_URL, 'GNU AGPL-3.0')}. ${tx('Datele, numele și grafica EVE Online aparțin CCP hf.')}</span>
+      <span>${tx('Codul și designul Vyraj sunt publicate sub licența')} ${ext(LICENSE_URL, 'PolyForm Strict 1.0.0')}. ${tx('Doar folosire necomercială, fără copiere, modificare sau redistribuire a codului.')} ${tx('Datele, numele și grafica EVE Online aparțin CCP hf.')}</span>
     </footer>
   </div>`;
 }

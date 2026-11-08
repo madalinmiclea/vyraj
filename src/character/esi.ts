@@ -114,7 +114,7 @@ async function namesBatch(ids: number[], out: Map<number, string>): Promise<void
     for (const x of (await res.json()) as { id: number; name: string }[]) out.set(x.id, x.name);
     return;
   }
-  if (res.status === 404 && ids.length > 1) {
+  if ((res.status === 404 || res.status === 400) && ids.length > 1) {
     const mid = Math.ceil(ids.length / 2);
     await namesBatch(ids.slice(0, mid), out);
     await namesBatch(ids.slice(mid), out);
@@ -124,7 +124,7 @@ async function namesBatch(ids: number[], out: Map<number, string>): Promise<void
 export async function universeNames(ids: number[], characterId?: number): Promise<Map<number, string>> {
   const out = new Map<number, string>();
   const unique = [...new Set(ids)];
-  const known = unique.filter((id) => (id > 0 && id < 100_000_000) || (id >= 2_100_000_000 && id < 2_200_000_000));
+  const known = unique.filter((id) => id > 0 && id < 2_200_000_000);
   for (let i = 0; i < known.length; i += 1000) await namesBatch(known.slice(i, i + 1000), out);
   const structures = unique.filter((id) => id >= 1e12);
   if (!structures.length) return out;
@@ -222,6 +222,12 @@ export function npcStandings(characterId: number): Promise<{ from_id: number; fr
   return esi(characterId, `/characters/${characterId}/standings/`);
 }
 
+export interface AgentResearch { agent_id: number; skill_type_id: number; started_at: string; points_per_day: number; remainder_points: number }
+
+export function agentsResearch(characterId: number): Promise<AgentResearch[]> {
+  return esi(characterId, `/characters/${characterId}/agents_research/`);
+}
+
 export function loyaltyPoints(characterId: number): Promise<{ corporation_id: number; loyalty_points: number }[]> {
   return esi(characterId, `/characters/${characterId}/loyalty/points/`);
 }
@@ -239,8 +245,17 @@ export function walletTransactions(characterId: number): Promise<WalletTransacti
   return esi(characterId, `/characters/${characterId}/wallet/transactions/`);
 }
 
-export function characterLocation(characterId: number): Promise<{ solar_system_id: number; station_id?: number; structure_id?: number }> {
-  return esi(characterId, `/characters/${characterId}/location/`);
+type CharLocation = { solar_system_id: number; station_id?: number; structure_id?: number };
+const LOCATION_MS = 20_000;
+const locations = new Map<number, { at: number; req: Promise<CharLocation> }>();
+
+export function characterLocation(characterId: number): Promise<CharLocation> {
+  const hit = locations.get(characterId);
+  if (hit && Date.now() - hit.at < LOCATION_MS) return hit.req;
+  const req = esi<CharLocation>(characterId, `/characters/${characterId}/location/`);
+  locations.set(characterId, { at: Date.now(), req });
+  req.catch(() => { if (locations.get(characterId)?.req === req) locations.delete(characterId); });
+  return req;
 }
 
 export function characterOnline(characterId: number): Promise<{ online: boolean; last_login?: string; last_logout?: string }> {

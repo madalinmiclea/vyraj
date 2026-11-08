@@ -299,7 +299,7 @@ export function createPiView(el: HTMLElement, side: HTMLElement) {
               <td data-label="${tx('Extractoare')}">${extractorCell(c, now)}</td>
               <td data-label="${tx('Fabrici')}">${factoryCell(c)}</td>
               <td data-label="${tx('Depozit')}">${storageCell(c)}</td>
-              <td class="r small dim" data-label="${tx('Actualizat în joc')}">${c.lastUpdate ? ago(c.lastUpdate) : '—'}</td>
+              <td class="r small dim" data-label="${tx('Actualizat în joc')}">${c.lastUpdate ? ago(c.lastUpdate) : '—'}${c.lastUpdate && now - c.lastUpdate > 30 * 86_400_000 ? `<div><span class="badge warn" title="${esc(tx('Colonia n-a mai fost deschisă în joc de peste 30 de zile.'))}">${tx('Inactivă')}</span></div>` : ''}</td>
             </tr>`;
           }).join('')}</tbody></table></div>` : busy ? loader(tx('Citim coloniile din ESI')) : emptyState({ title: tx('Nicio colonie găsită'), text: tx('Caracterele logate nu au colonii PI sau nu au încă permisiunea pentru planete.') })}
         <p class="small dim roster-note">${tx('Timer-ele extractoarelor vin din ESI și sunt exacte. Fabricile și depozitele sunt instantanee de la ultima deschidere a coloniei în joc. Producția pe zi e estimată din cantitatea pe ciclu la Jita buy.')}${updated ? ` ${tx('Actualizat la {time}.', { time: new Date(updated).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })}` : ''}</p>

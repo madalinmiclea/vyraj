@@ -10,6 +10,7 @@ import { loadMap, displaySec, secClass, POCHVEN_REGION, type NavMap, type NavSys
 import { systemActivity, type SystemActivity } from '../services/recon';
 import { fetchPrices, typeIconUrl } from '../services/market';
 import { loadStoredCharacters } from '../character/characters';
+import { savedBountySystems } from '../services/wallet';
 import { hasScope } from '../character/sso';
 import { permissionButtons } from '../character/permissions';
 import { formatDuration } from '../character/training';
@@ -22,6 +23,7 @@ import {
 import { travelFits, rankTravelFits, INSTA_ALIGN, type TravelFit } from '../services/travelFits';
 
 type SideTab = 'progress' | 'route' | 'import';
+const BACKFILL_KEY = 'eve-nav:visit-backfill';
 
 interface Settings {
   who: string;
@@ -565,6 +567,22 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
     input.click();
   }
 
+  function backfillFromWallet() {
+    if (isDemo()) return;
+    const done = loadJson<Record<string, number>>(BACKFILL_KEY, {});
+    const entries: VisitEntry[] = [];
+    for (const c of loadStoredCharacters()) {
+      if (!c.characterId) continue;
+      const list = savedBountySystems(c.characterId, done[c.characterId] ?? 0);
+      if (!list.length) continue;
+      for (const v of list) entries.push({ who: c.name, systemId: v.systemId, time: v.time });
+      done[c.characterId] = Math.floor(Math.max(...list.map((v) => v.time)) / 1000);
+    }
+    if (!entries.length) return;
+    importVisits(entries);
+    saveJson(BACKFILL_KEY, done);
+  }
+
   function seedDemo() {
     if (!isDemo() || !map || visitStats().entries > 5) return;
     const demo = loadStoredCharacters().find((c) => c.characterId === DEMO_ID);
@@ -584,6 +602,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
       return;
     }
     seedDemo();
+    backfillFromWallet();
     el.innerHTML = `<div class="live-map vis-map">
       <div class="live-toolbar">
         <input class="input live-jump" id="visFind" data-list="visSystems" placeholder="${esc(tx('Caută sistem sau regiune'))}" autocomplete="off" spellcheck="false" />

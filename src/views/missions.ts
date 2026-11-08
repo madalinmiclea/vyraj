@@ -3,16 +3,11 @@ import { pageHead, panel, loader, alertBox, esc, windowTitle, emptyState, button
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { createToolPanel } from './tools';
-import { createPveActivityPanel } from './pveActivity';
-import { createIncursionsPanel } from './incursions';
-import { createRattingPanel } from './pveRatting';
-import { createAnomaliesPanel } from './pveAnomalies';
 import { createAgentsPanel } from './pveAgents';
 import { createStandingsPanel } from './pveStandings';
-import { createEscalationsPanel } from './pveEscalations';
-import { createAbyssGuidePanel } from './pveAbyss';
 import { createBlitzPanel } from './pveBlitz';
-import { enemyGuide, dedGuide } from './pveGuides';
+import { enemyGuide } from './pveGuides';
+import { createEpicArcsPanel } from './epicArcs';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
@@ -26,30 +21,25 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'blitz' | 'agents' | 'standings' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
-type OwnTool = Exclude<MisTool, 'abyssal' | 'lp'>;
+type MisTool = 'anomic' | 'epic' | 'agents' | 'standings' | 'lp' | 'blitz';
+type OwnTool = Exclude<MisTool, 'lp'>;
 
-const MIS_TOOLS: { id: MisTool; label: string }[] = [
-  { id: 'activity', label: tx('Activitate PvE') },
-  { id: 'incursions', label: tx('Incursiuni') },
-  { id: 'ratting', label: tx('Unde faci ratting') },
-  { id: 'anomalies', label: tx('Ghid de anomalii') },
-  { id: 'blitz', label: tx('Ghid blitz') },
+const GUIDE_TOOLS: { id: MisTool; label: string }[] = [{ id: 'anomic', label: tx('Misiuni Anomic') }];
+const AGENT_TOOLS: { id: MisTool; label: string }[] = [
   { id: 'agents', label: tx('Agenți') },
   { id: 'standings', label: tx('Standing-uri NPC') },
-  { id: 'escalations', label: tx('Escaladări') },
-  { id: 'abyss', label: tx('Ghid abisal') },
-  { id: 'abyssal', label: tx('Jurnal abisal') },
   { id: 'lp', label: tx('Magazin LP') },
 ];
+const BLITZ_TOOLS: { id: MisTool; label: string }[] = [{ id: 'blitz', label: tx('Ghid blitz') }];
+const EPIC_TOOLS: { id: MisTool; label: string }[] = [{ id: 'epic', label: tx('Arcuri epice') }];
+const MIS_TOOLS = [...GUIDE_TOOLS, ...EPIC_TOOLS, ...AGENT_TOOLS, ...BLITZ_TOOLS];
 
 interface Tool { show(): void; hide(): void }
 
-type Guide = 'enemy' | 'ded';
+type Guide = 'enemy';
 
 const GUIDES: { id: Guide; label: string }[] = [
   { id: 'enemy', label: tx('Contra cui e misiunea') },
-  { id: 'ded', label: tx('Scanare complex DED') },
 ];
 
 const GROUP_ORDER = ['l1', 'l2', 'l3', 'l4', 'l5', 'story', ...Array.from({ length: 10 }, (_, i) => `ded${i + 1}`)];
@@ -66,12 +56,17 @@ const ATTR: Record<Dmg, string> = { em: 'emDamage', th: 'thermalDamage', kin: 'k
 const chip = (d: Dmg) => `<span class="badge mis-dmg ${DMG_CLS[d]}">${DMG_NAME[d]}</span>`;
 const chips = (list: Dmg[]) => (list.length ? list.map(chip).join(' ') : `<span class="dim">${tx('Omni: orice tip')}</span>`);
 
-export interface MissionsView { show(): void }
+export interface MissionsView { show(): void; openMission(name: string, section?: Section | 'all'): void; names(): string[] }
 
-export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean; openFit?: (fit: Fit) => void }): MissionsView {
+export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openFit?: (fit: Fit) => void; scope?: 'ded' }): MissionsView {
   const sde = ctx.sde;
-  const saved = loadJson<Partial<State>>(STATE_KEY, {});
-  const state: State = { section: saved.section ?? 'all', tool: saved.tool ?? '', guide: saved.guide ?? '', q: '' };
+  const embedded = opts.scope === 'ded';
+  const P = embedded ? 'ded' : 'mis';
+  const key = embedded ? 'eve-pve:ded' : STATE_KEY;
+  const sections = SECTIONS.filter((s) => (s.id === 'ded') === embedded);
+  const saved = loadJson<Partial<State>>(key, {});
+  const state: State = { section: embedded ? 'ded' : saved.section ?? 'all', tool: embedded ? '' : saved.tool ?? '', guide: embedded ? '' : saved.guide ?? '', q: '' };
+  if (!sections.some((x) => x.id === state.section)) state.section = sections[0].id;
   let missions: Mission[] = [];
   let levels = new Map<string, Intensity>();
   let texts = new Map<string, string>();
@@ -79,18 +74,18 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   const ammoCache = new Map<string, string[]>();
   let fit: Fit | null = null;
 
-  el.innerHTML = `${pageHead('PvE', tx('Ghid pentru misiunile L1–L5 și complexele DED, activitatea ta PvE din portofel și unelte pentru LP și abisal'), 'Lov')}
-    <div id="misHelp"></div>
-    <div id="misBar"></div>
-    <div id="misList">${loader(tx('Încărcăm misiunile'))}</div>
-    <div id="misTool" hidden></div>
-    <div id="misOwn" hidden></div>`;
-  const help = el.querySelector<HTMLElement>('#misHelp')!;
-  const bar = el.querySelector<HTMLElement>('#misBar')!;
-  const list = el.querySelector<HTMLElement>('#misList')!;
-  const toolBox = el.querySelector<HTMLElement>('#misTool')!;
-  const tools = createToolPanel(toolBox, ctx);
-  const ownBox = el.querySelector<HTMLElement>('#misOwn')!;
+  el.innerHTML = `${embedded ? '' : pageHead(tx('Misiuni'), tx('Ghid pentru misiunile L1–L5, storyline și arcuri epice, agenți, standing-uri, magazin LP și blitz'), 'Lov')}
+    <div id="${P}Help"></div>
+    <div id="${P}Bar"></div>
+    <div id="${P}List">${loader(tx('Încărcăm misiunile'))}</div>
+    <div id="${P}Tool" hidden></div>
+    <div id="${P}Own" hidden></div>`;
+  const help = el.querySelector<HTMLElement>(`#${P}Help`)!;
+  const bar = el.querySelector<HTMLElement>(`#${P}Bar`)!;
+  const list = el.querySelector<HTMLElement>(`#${P}List`)!;
+  const toolBox = el.querySelector<HTMLElement>(`#${P}Tool`)!;
+  const tools = embedded ? null : createToolPanel(toolBox, ctx);
+  const ownBox = el.querySelector<HTMLElement>(`#${P}Own`)!;
   const boxes = new Map<OwnTool, HTMLElement>();
   const box = (id: OwnTool) => {
     const b = document.createElement('div');
@@ -99,32 +94,28 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     boxes.set(id, b);
     return b;
   };
-  const incursionBox = box('incursions');
-  const agents = createAgentsPanel(box('agents'), ctx);
-  const incursions = createIncursionsPanel(incursionBox, ctx, { openDoctrine: opts.openDoctrine });
-  const own: Record<OwnTool, Tool> = {
-    activity: createPveActivityPanel(box('activity'), ctx),
-    incursions: { show: () => incursions.show(), hide: () => {} },
-    ratting: createRattingPanel(box('ratting'), ctx),
-    anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
-    agents,
-    standings: createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } }),
-    escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => missions.filter((m) => sectionOf(m) === 'ded').map((m) => m.name), openMission }),
-    abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
-    blitz: createBlitzPanel(box('blitz'), ctx, {
-      openFit: (f) => opts.openFit?.(f),
-      openMission: (name, section) => openMission(name, section as Section),
-      openSection: (section) => openMission('', section as Section),
-      openAgents: (corp, faction) => { agents.focus(corp, faction, 4); openTool('agents'); },
-      openTool: (id) => openTool(id as MisTool),
+  const own: Partial<Record<OwnTool, Tool>> = {};
+  if (!embedded) {
+    const agents = createAgentsPanel(box('agents'), ctx);
+    const blitzOpts = (only: 'blitz' | 'anomic') => ({
+      openFit: (f: Fit) => opts.openFit?.(f),
+      openMission: (name: string, section: string) => openMission(name, section as Section),
+      openSection: (section: string) => openMission('', section as Section),
+      openAgents: (corp: number, faction: number) => { agents.focus(corp, faction, 4); openTool('agents'); },
+      openTool: (id: string) => openTool(id as MisTool),
       blitzCounts: () => {
         const n = new Map<number, number>();
         for (const m of missions) if (m.level && sectionOf(m) === `l${m.level}` && hasBlitz(m)) n.set(m.level, (n.get(m.level) ?? 0) + 1);
         return n;
       },
-    }),
-  };
-  ctx.onCharacterChange(() => incursions.reset());
+      only,
+    });
+    own.anomic = createBlitzPanel(box('anomic'), ctx, blitzOpts('anomic'));
+    own.agents = agents;
+    own.standings = createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } });
+    own.blitz = createBlitzPanel(box('blitz'), ctx, blitzOpts('blitz'));
+    own.epic = createEpicArcsPanel(box('epic'), ctx, { onTank: opts.onTank });
+  }
   const isOwn = (t: MisTool | null): t is OwnTool => !!t && t in own;
   if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
   if (!GUIDES.some((g) => g.id === state.guide)) state.guide = '';
@@ -137,12 +128,12 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     for (const x of [bar, list]) x.hidden = !!tool || !!guide;
     toolBox.hidden = !tool || isOwn(tool);
     ownBox.hidden = !isOwn(tool);
-    if (tool && !isOwn(tool)) tools.show(tool); else tools.hide();
+    if (tool && !isOwn(tool)) tools?.show(tool); else tools?.hide();
     for (const [id, b] of boxes) {
       const on = id === tool;
       if (b.hidden === !on && !on) continue;
       b.hidden = !on;
-      if (on) own[id].show(); else own[id].hide();
+      if (on) own[id]?.show(); else own[id]?.hide();
     }
   }
 
@@ -156,7 +147,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     el.closest('.main')?.scrollTo({ top: 0 });
   }
 
-  function openMission(name: string, section: Section | 'all' = 'ded') {
+  function openMission(name: string, section: Section | 'all' = embedded ? 'ded' : 'all') {
     state.tool = '';
     state.guide = '';
     state.section = section;
@@ -168,9 +159,9 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     el.closest('.main')?.scrollTo({ top: 0 });
   }
 
-  const save = () => saveJson(STATE_KEY, { ...state, q: '' });
+  const save = () => saveJson(key, { ...state, q: '' });
 
-  help.innerHTML = `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div><div class="mis-help" data-guide="ded" hidden>${dedGuide()}</div>`;
+  help.innerHTML = embedded ? '' : `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div>`;
   help.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-open-tool]');
     if (b) openTool(b.dataset.openTool as MisTool);
@@ -184,11 +175,13 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       const s = sectionOf(m);
       counts.set(s, (counts.get(s) ?? 0) + 1);
     }
-    side.innerHTML = `<div class="sidebar-head">${windowTitle('PvE')}</div>
-      <div class="side-nav"><div class="ord-side-label">${tx('Ghiduri')}</div>${GUIDES.map((g) => `<button class="side-link ${!state.tool && state.guide === g.id ? 'active' : ''}" data-mis-guide="${g.id}">${esc(g.label)}</button>`).join('')}
-        <div class="ord-side-label">${tx('Misiuni și complexe DED')}</div>${SECTIONS.map((s) => `<button class="side-link ${!state.tool && !state.guide && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}
-        <div class="ord-side-label">${tx('Unelte PvE')}</div>
-        ${MIS_TOOLS.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${t.label}</button>`).join('')}</div>`;
+    if (embedded) return;
+    const toolLinks = (list: { id: MisTool; label: string }[]) => list.map((t) => `<button class="side-link ${state.tool === t.id ? 'active' : ''}" data-mis-tool="${t.id}">${esc(t.label)}</button>`).join('');
+    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Misiuni'))}</div>
+      <div class="side-nav"><div class="ord-side-label">${tx('Ghiduri')}</div>${GUIDES.map((g) => `<button class="side-link ${!state.tool && state.guide === g.id ? 'active' : ''}" data-mis-guide="${g.id}">${esc(g.label)}</button>`).join('')}${toolLinks(GUIDE_TOOLS)}
+        <div class="ord-side-label">${tx('Misiuni')}</div>${sections.map((s) => `<button class="side-link ${!state.tool && !state.guide && s.id === state.section ? 'active' : ''}" data-mis-section="${s.id}">${esc(s.label)}<span class="count">${missions.length ? counts.get(s.id) ?? 0 : ''}</span></button>`).join('')}${toolLinks(EPIC_TOOLS)}
+        <div class="ord-side-label">${tx('Agenți și LP')}</div>${toolLinks(AGENT_TOOLS)}
+        <div class="ord-side-label">Blitz</div>${toolLinks(BLITZ_TOOLS)}</div>`;
   }
 
   const openGroups = new Set<string>();
@@ -201,22 +194,22 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   function renderBar() {
     bar.innerHTML = `<div class="mis-bar">
       <div class="mis-search-wrap">
-      <div class="mis-search" id="misSearchBox">
+      <div class="mis-search" id="${P}SearchBox">
         ${icon('search')}
-        <input id="misSearch" type="text" placeholder="${esc(tx('Caută după numele misiunii'))}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="misSuggest" aria-autocomplete="list" />
-        <button type="button" class="mis-clear" id="misClear" aria-label="${esc(tx('Șterge căutarea'))}" hidden>×</button>
-        <span class="mis-count" id="misCount"></span>
+        <input id="${P}Search" type="text" placeholder="${esc(embedded ? tx('Caută după numele complexului') : tx('Caută după numele misiunii'))}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="${P}Suggest" aria-autocomplete="list" />
+        <button type="button" class="mis-clear" id="${P}Clear" aria-label="${esc(tx('Șterge căutarea'))}" hidden>×</button>
+        <span class="mis-count" id="${P}Count"></span>
         <kbd>/</kbd>
       </div>
-      <div class="mis-suggest" id="misSuggest" role="listbox" hidden></div>
+      <div class="mis-suggest" id="${P}Suggest" role="listbox" hidden></div>
       </div>
     </div>`;
-    const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
+    const input = bar.querySelector<HTMLInputElement>(`#${P}Search`)!;
     input.value = state.q;
-    const clear = bar.querySelector<HTMLButtonElement>('#misClear')!;
+    const clear = bar.querySelector<HTMLButtonElement>(`#${P}Clear`)!;
     const measure = document.createElement('span');
     measure.className = 'mis-measure';
-    bar.querySelector('#misSearchBox')!.append(measure);
+    bar.querySelector(`#${P}SearchBox`)!.append(measure);
     const syncClear = () => {
       clear.hidden = !input.value;
       if (!input.value) { input.style.width = ''; input.classList.remove('sized'); return; }
@@ -254,16 +247,16 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
         reset();
       } else if (e.key === 'Tab') closeSg();
     });
-    const sg = bar.querySelector<HTMLElement>('#misSuggest')!;
+    const sg = bar.querySelector<HTMLElement>(`#${P}Suggest`)!;
     sg.addEventListener('mousedown', (e) => e.preventDefault());
     sg.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sg]');
       if (b) pickSg(sgItems[Number(b.dataset.sg)]);
     });
-    bar.querySelector<HTMLElement>('#misSearchBox')!.addEventListener('click', () => input.focus());
+    bar.querySelector<HTMLElement>(`#${P}SearchBox`)!.addEventListener('click', () => input.focus());
   }
 
-  const countLabel = (n: number) => (n === 1 ? tx('1 misiune') : tx('{n} misiuni', { n }));
+  const countLabel = (n: number) => (embedded ? (n === 1 ? tx('1 complex') : tx('{n} complexe', { n })) : n === 1 ? tx('1 misiune') : tx('{n} misiuni', { n }));
 
   function hl(text: string, q: string) {
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean).sort((a, b) => b.length - a.length);
@@ -281,8 +274,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   }
 
   function openSg() {
-    const sg = bar.querySelector<HTMLElement>('#misSuggest');
-    const input = bar.querySelector<HTMLInputElement>('#misSearch');
+    const sg = bar.querySelector<HTMLElement>(`#${P}Suggest`);
+    const input = bar.querySelector<HTMLInputElement>(`#${P}Search`);
     if (!sg || !input || !missions.length) return;
     if (!qActive()) { closeSg(); return; }
     sgItems = missions.filter((m) => visible(m)).slice(0, 30);
@@ -300,7 +293,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   }
 
   function markSg() {
-    const sg = bar.querySelector<HTMLElement>('#misSuggest');
+    const sg = bar.querySelector<HTMLElement>(`#${P}Suggest`);
     if (!sg) return;
     sg.querySelectorAll<HTMLElement>('[data-sg]').forEach((b) => {
       const on = Number(b.dataset.sg) === sgIndex;
@@ -311,14 +304,14 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   }
 
   function closeSg() {
-    const sg = bar.querySelector<HTMLElement>('#misSuggest');
+    const sg = bar.querySelector<HTMLElement>(`#${P}Suggest`);
     if (sg) sg.hidden = true;
     sgOpen = false;
-    bar.querySelector('#misSearch')?.setAttribute('aria-expanded', 'false');
+    bar.querySelector(`#${P}Search`)?.setAttribute('aria-expanded', 'false');
   }
 
   function pickSg(m: Mission) {
-    const input = bar.querySelector<HTMLInputElement>('#misSearch')!;
+    const input = bar.querySelector<HTMLInputElement>(`#${P}Search`)!;
     input.value = m.name;
     state.q = m.name;
     input.dispatchEvent(new Event('sync'));
@@ -564,7 +557,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       const want = !grouped || qActive() || openGroups.has(g.dataset.group!);
       if (g.open !== want) g.open = want;
     });
-    const count = bar.querySelector('#misCount');
+    const count = bar.querySelector(`#${P}Count`);
     if (count) count.textContent = countLabel(shown);
     list.querySelector('.mis-empty')?.toggleAttribute('hidden', shown !== 0);
     renderSide();
@@ -649,18 +642,18 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key !== '/' || !el.classList.contains('active')) return;
+    if (e.key !== '/' || (embedded ? el.hidden || !el.closest('.view.active') : !el.classList.contains('active'))) return;
     const a = document.activeElement;
     if (a instanceof HTMLInputElement || a instanceof HTMLTextAreaElement) return;
     e.preventDefault();
-    bar.querySelector<HTMLInputElement>('#misSearch')?.focus();
+    bar.querySelector<HTMLInputElement>(`#${P}Search`)?.focus();
   });
 
   renderSide();
   showTool();
   loadMissions().then((data) => {
     const sortName = (n: string) => n.replace(/^(The|A|An) /i, '').replace(/[()[\]]/g, '').replace(/\s+/g, ' ').trim();
-    missions = mergeChains(data.missions).sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
+    missions = mergeChains(data.missions).filter((m) => (sectionOf(m) === 'ded') === embedded).sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
     levels = intensities(missions);
     texts = new Map(missions.map((m) => [m.key, searchText(m)]));
     fit = currentFit();
@@ -671,6 +664,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   });
 
   return {
+    openMission,
+    names: () => missions.map((m) => m.name),
     show() {
       if (state.q && missions.length) { state.q = ''; renderBar(); apply(); }
       const next = currentFit();

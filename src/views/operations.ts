@@ -13,17 +13,30 @@ import { loadMap, type NavMap } from '../services/navigation';
 import { planetNames } from '../services/pi';
 import { fold } from '../ui/fold';
 import { createFwPanel } from './factionWarfare';
+import { createToolPanel } from './tools';
+import { createPveActivityPanel } from './pveActivity';
+import { createIncursionsPanel } from './incursions';
+import { createRattingPanel } from './pveRatting';
+import { createAnomaliesPanel } from './pveAnomalies';
+import { createEscalationsPanel } from './pveEscalations';
+import { createAbyssGuidePanel } from './pveAbyss';
+import { dedGuide } from './pveGuides';
+import { createMissionsView } from './missions';
 import { tx, locale } from '../i18n';
 
-type Tab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks' | 'fw';
+type EsiTab = 'jobs' | 'campaigns' | 'dens' | 'skyhooks' | 'fw';
+type OwnTab = 'activity' | 'abyssal' | 'ratting' | 'anomalies' | 'escalations' | 'ded' | 'dedguide' | 'abyss' | 'incursions';
+type Tab = EsiTab | OwnTab;
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'jobs', label: tx('Joburi freelance') },
-  { id: 'campaigns', label: tx('Campanii militare') },
-  { id: 'dens', label: tx('Mercenary Dens') },
-  { id: 'skyhooks', label: tx('Skyhook-uri raidabile') },
-  { id: 'fw', label: 'Faction Warfare' },
+const GROUPS: { label: string; tabs: { id: Tab; label: string }[] }[] = [
+  { label: tx('Activitatea ta'), tabs: [{ id: 'activity', label: tx('Activitate PvE') }, { id: 'abyssal', label: tx('Jurnal abisal') }] },
+  { label: tx('Ratting și explorare'), tabs: [{ id: 'ratting', label: tx('Unde faci ratting') }, { id: 'anomalies', label: tx('Ghid de anomalii') }, { id: 'escalations', label: tx('Escaladări') }, { id: 'ded', label: tx('Complexe DED') }, { id: 'dedguide', label: tx('Scanare complex DED') }] },
+  { label: tx('Abisal'), tabs: [{ id: 'abyss', label: tx('Ghid abisal') }] },
+  { label: tx('Flotă'), tabs: [{ id: 'incursions', label: tx('Incursiuni') }, { id: 'campaigns', label: tx('Campanii militare') }, { id: 'fw', label: 'Faction Warfare' }] },
+  { label: tx('Din ESI'), tabs: [{ id: 'jobs', label: tx('Joburi freelance') }, { id: 'dens', label: tx('Mercenary Dens') }, { id: 'skyhooks', label: tx('Skyhook-uri raidabile') }] },
 ];
+const TABS = GROUPS.flatMap((g) => g.tabs);
+const ESI_TABS: Tab[] = ['jobs', 'campaigns', 'dens', 'skyhooks', 'fw'];
 
 const TAB_KEY = 'eve-ops:tab';
 
@@ -57,19 +70,55 @@ const span = (ms: number) => {
 const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 const until = (ms: number) => (ms <= Date.now() ? tx('acum') : tx('în {t}', { t: span(ms) }));
 
-export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
-  let tab = loadJson<Tab>(TAB_KEY, 'jobs');
-  if (!TABS.some((t) => t.id === tab)) tab = 'jobs';
+export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean }) {
+  let tab = loadJson<Tab>(TAB_KEY, 'activity');
+  if (!TABS.some((t) => t.id === tab)) tab = 'activity';
   let run = 0;
 
-  el.innerHTML = `${pageHead(tx('Operațiuni'), tx('Joburi freelance, campanii militare, Mercenary Dens, skyhook-uri raidabile și Faction Warfare, direct din ESI'), 'Pohod')}
-    <div id="opsBody"></div>`;
+  el.innerHTML = `${pageHead('PvE', tx('Activitatea ta PvE, ratting, anomalii, escaladări, complexe DED, abisal, incursiuni și operațiuni din ESI'), 'Pohod')}
+    <div id="opsBody"></div>
+    <div id="opsOwn"></div>`;
   const body = el.querySelector<HTMLElement>('#opsBody')!;
+  const ownBox = el.querySelector<HTMLElement>('#opsOwn')!;
   const fw = createFwPanel(body);
+  const boxes = new Map<OwnTab, HTMLElement>();
+  const box = (id: OwnTab) => {
+    const b = document.createElement('div');
+    b.hidden = true;
+    ownBox.append(b);
+    boxes.set(id, b);
+    return b;
+  };
+  const openTab = (id: string) => {
+    if (!TABS.some((t) => t.id === id)) return;
+    tab = id as Tab;
+    saveJson(TAB_KEY, tab);
+    render();
+    el.closest('.main')?.scrollTo({ top: 0 });
+  };
+  const abyssalBox = box('abyssal');
+  const toolPanel = createToolPanel(abyssalBox, ctx);
+  const dedBox = box('ded');
+  const ded = createMissionsView(dedBox, ctx, document.createElement('div'), { onTank: opts.onTank, scope: 'ded' });
+  const guideBox = box('dedguide');
+  guideBox.innerHTML = `<div class="mis-help">${dedGuide()}</div>`;
+  const incursions = createIncursionsPanel(box('incursions'), ctx, { openDoctrine: opts.openDoctrine });
+  const own: Record<OwnTab, { show(): void; hide(): void }> = {
+    activity: createPveActivityPanel(box('activity'), ctx),
+    abyssal: { show: () => toolPanel.show('abyssal'), hide: () => toolPanel.hide() },
+    ratting: createRattingPanel(box('ratting'), ctx),
+    anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: openTab }),
+    escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => ded.names(), openMission: (name) => { ded.openMission(name); openTab('ded'); } }),
+    ded: { show: () => ded.show(), hide: () => {} },
+    dedguide: { show: () => {}, hide: () => {} },
+    abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: openTab }),
+    incursions: { show: () => incursions.show(), hide: () => {} },
+  };
+  const isEsi = (t: Tab): t is EsiTab => ESI_TABS.includes(t);
 
   function renderTabs() {
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Operațiuni'))}</div>
-      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-ops-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+    side.innerHTML = `<div class="sidebar-head">${windowTitle('PvE')}</div>
+      <div class="side-nav">${GROUPS.map((g) => `<div class="ord-side-label">${esc(g.label)}</div>${g.tabs.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-ops-tab="${t.id}">${esc(t.label)}</button>`).join('')}`).join('')}</div>`;
   }
 
   function esiChar(scopes: string[]): { id: number } | 'scope' | string {
@@ -86,7 +135,16 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
     renderTabs();
     run++;
     fw.stop();
-    ({ jobs, campaigns, dens, skyhooks, fw: () => fw.render() } as Record<Tab, () => void>)[tab]();
+    const esiTab = isEsi(tab);
+    body.hidden = !esiTab;
+    for (const [id, b] of boxes) {
+      const on = id === tab;
+      if (b.hidden === !on && !on) continue;
+      b.hidden = !on;
+      if (on) own[id].show(); else own[id].hide();
+    }
+    if (!esiTab) { body.innerHTML = ''; return; }
+    ({ jobs, campaigns, dens, skyhooks, fw: () => fw.render() } as Record<EsiTab, () => void>)[tab as EsiTab]();
   }
 
   let jobList: FreelanceJob[] = [];
@@ -401,10 +459,7 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
 
   side.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-ops-tab]');
-    if (!b) return;
-    tab = b.dataset.opsTab as Tab;
-    saveJson(TAB_KEY, tab);
-    render();
+    if (b) openTab(b.dataset.opsTab!);
   });
 
   body.addEventListener('click', (e) => {
@@ -427,7 +482,8 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
   ctx.onCharacterChange(() => {
     myJobs = null;
     mineObj = null;
-    render();
+    incursions.reset();
+    if (isEsi(tab)) render();
   });
 
   render();

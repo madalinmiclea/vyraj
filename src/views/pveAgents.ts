@@ -107,7 +107,9 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
     const access = (corp: number, faction: number, id: number, level: number) => {
       if (!standings || !skills) return '';
       const acc = corpAccess(standings, skills, corp, faction, id);
-      return `<td class="r">${acc.level >= level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge ${acc.blocked ? 'danger' : 'warn'}">${tx('Nu')}</span>`}</td>`;
+      const low = [acc.agent != null && acc.agent <= -2 ? tx('agentul') : '', acc.corp <= -2 ? tx('corporația') : '', acc.faction <= -2 ? tx('facțiunea') : ''].filter(Boolean);
+      const tip = acc.blocked ? ` title="${esc(tx('Blocat: {w} sub -2', { w: low.join(', ') }))}"` : '';
+      return `<td class="r">${acc.level >= level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge ${acc.blocked ? 'danger' : 'warn'}"${tip}>${tx('Nu')}</span>`}</td>`;
     };
     el.innerHTML = panel({
       title: tx('Agenți de misiuni'),
@@ -124,7 +126,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
           <label class="check"><input type="checkbox" id="agSpecial" ${state.special ? 'checked' : ''} /> ${tx('Și agenți speciali')}</label>
           <label class="field"><input class="input sm" id="agSearch" placeholder="${esc(tx('Caută agent, corporație sau sistem'))}" value="${esc(state.q)}" /></label>
         </div>
-        <p class="dim small wallet-note">${state.level ? tx('Pentru agenții L{l} ai nevoie de standing efectiv cel puțin {s} la corporația sau facțiunea agentului.', { l: state.level, s: formatNum(STANDING_NEEDED[state.level], 1) }) : tx('Standing necesar: L2 1.0, L3 3.0, L4 5.0, L5 7.0 la corporația sau facțiunea agentului.')}</p>
+        <p class="dim small wallet-note">${state.level ? tx('Pentru agenții L{l} ai nevoie de standing efectiv cel puțin {s} la agent, la corporația sau la facțiunea lui.', { l: state.level, s: formatNum(STANDING_NEEDED[state.level], 1) }) : tx('Standing necesar: L2 1.0, L3 3.0, L4 5.0, L5 7.0 la agent, la corporația sau la facțiunea lui.')}</p>
         ${rows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th>${tx('Diviziune')}</th><th>${tx('Sistem')}</th>${dist ? `<th class="r">${tx('Salturi')}</th>` : ''}${points ? `<th class="r">${tx('LP-ul tău')}</th>` : ''}${standings ? `<th class="r">${tx('Acces')}</th>` : ''}</tr></thead><tbody>
           ${rows.slice(0, LIMIT).map(({ a, sys, jumps }) => {
             const corp = d.corps.get(a.corp);

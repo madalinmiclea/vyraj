@@ -204,7 +204,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     let all = [...first, ...fc.older.filter((h) => !seen.has(h.mail_id))];
     const f = ui.folder;
     if (f.kind === 'list') all = all.filter((h) => h.recipients?.some((r) => r.recipient_id === f.id));
-    headers = all;
+    headers = all.sort((a, b) => (Date.parse(b.timestamp ?? '') || 0) - (Date.parse(a.timestamp ?? '') || 0) || b.mail_id - a.mail_id);
     more = fc.more;
     labels = store.labels?.data.labels ?? [];
     lists = store.lists?.data ?? [];

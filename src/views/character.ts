@@ -17,6 +17,7 @@ import { backupPanel } from '../io/backup';
 import { tx, locale } from '../i18n';
 import { characterPublic, loadActivities } from '../services/operations';
 import { loreText } from '../i18n/lore';
+import { typeIconUrl } from '../services/market';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
 
@@ -69,7 +70,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
 
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
-    aside.innerHTML = `${queuePanel()}${permissionsPanel()}${setup}${backupPanel()}`;
+    aside.innerHTML = `${queuePanel()}${implantsPanel()}${permissionsPanel()}${setup}${backupPanel()}`;
     fillPublic();
   }
 
@@ -130,6 +131,14 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${missing.length ? button(tx('Alege pe grupuri'), { cls: 'ghost sm', attrs: `data-perm-modal="${id}"` }) : ''}
           <a class="btn ghost sm" href="https://community.eveonline.com/support/third-party-applications/" target="_blank" rel="noopener">${icon('external')}${tx('Aplicațiile tale EVE')}</a>
         </div>`);
+  }
+
+  function implantsPanel() {
+    const c = ctx.character;
+    if (c.kind !== 'esi' || !c.implants?.length) return '';
+    const slotOf = (id: number) => sde.baseAttr(id, sde.attrId('implantness')) || 99;
+    const rows = [...c.implants].sort((a, b) => slotOf(a) - slotOf(b)).map((id) => `<tr><td class="num dim">${slotOf(id) < 99 ? slotOf(id) : '—'}</td><td><button class="link" data-skill-info="${id}"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />${esc(sde.types.get(id)?.name ?? String(id))}</button></td></tr>`).join('');
+    return collapsible('implants', tx('Implanturi'), c.implants.length, `<table class="table compact"><thead><tr><th>${tx('Slot')}</th><th>Implant</th></tr></thead><tbody>${rows}</tbody></table>`);
   }
 
   function queuePanel() {

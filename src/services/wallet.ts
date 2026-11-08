@@ -1,6 +1,6 @@
 import { walletJournal, walletBalance, walletTransactions, type WalletEntry, type WalletTransaction } from '../character/esi';
 import { loadJson, saveJson, removeKey, storageKey, evictCaches } from '../storage';
-import { tx } from '../i18n';
+import { tx, lang } from '../i18n';
 
 export const PVE_REFS = new Set([
   'bounty_prizes', 'bounty_prize', 'ess_escrow_transfer', 'agent_mission_reward', 'agent_mission_time_bonus_reward',
@@ -33,9 +33,113 @@ export const REF_LABELS: Record<string, string> = {
   reprocessing_tax: tx('Reprocesare'),
   jump_clone_installation_fee: tx('Clonă de salt'),
   structure_gate_jump: 'Ansiblex',
+  lp_store: tx('Magazin LP'),
+  contract_deposit: tx('Depozit contract'),
+  contract_deposit_refund: tx('Depozit contract returnat'),
+  contract_brokers_fee: tx('Comision broker contract'),
+  contract_brokers_fee_corp: tx('Comision broker contract'),
+  contract_sales_tax: tx('Taxă vânzare contract'),
+  contract_collateral: tx('Colateral contract'),
+  contract_collateral_refund: tx('Colateral returnat'),
+  contract_collateral_payout: tx('Colateral încasat'),
+  contract_reward_deposited: tx('Recompensă curierat depusă'),
+  contract_reward_refund: tx('Recompensă curierat returnată'),
+  contract_auction_bid: tx('Ofertă licitație'),
+  contract_auction_bid_refund: tx('Ofertă licitație returnată'),
+  contract_auction_bid_corp: tx('Ofertă licitație'),
+  contract_auction_sold: tx('Licitație vândută'),
+  contract_price_payment_corp: tx('Contracte'),
+  air_career_program_reward: tx('Program de carieră AIR'),
+  repair_bill: tx('Reparații'),
+  clone_activation: tx('Activare clonă'),
+  clone_transfer: tx('Transfer clonă'),
+  docking_fee: tx('Taxă de andocare'),
+  office_rental_fee: tx('Chirie birou'),
+  corporation_account_withdrawal: tx('Retragere din corporație'),
+  corporate_reward_tax: tx('Taxă corporație'),
+  bounty_surcharge: tx('Taxă recompense'),
+  agent_location_services: tx('Agent locator'),
+  agent_mission_collateral_paid: tx('Colateral misiune plătit'),
+  agent_mission_collateral_refunded: tx('Colateral misiune returnat'),
+  agent_donation: tx('Donație de la agent'),
+  agent_services_rendered: tx('Servicii agent'),
+  medal_creation: tx('Creare medalie'),
+  medal_issued: tx('Medalie acordată'),
+  war_fee: tx('Taxă de război'),
+  war_fee_surrender: tx('Taxă de capitulare'),
+  alliance_maintainance_fee: tx('Întreținere alianță'),
+  sovereignity_bill: tx('Factură suveranitate'),
+  infrastructure_hub_maintenance: tx('Întreținere infrastructure hub'),
+  manufacturing: tx('Fabricație'),
+  researching_time_productivity: tx('Cercetare TE'),
+  researching_material_productivity: tx('Cercetare ME'),
+  copying: tx('Copiere blueprint'),
+  reverse_engineering: tx('Inginerie inversă'),
+  reaction: tx('Reacții'),
+  planetary_construction: tx('Construcții PI'),
+  market_provider_tax: tx('Taxă furnizor piață'),
+  kill_right_fee: tx('Kill right'),
+  cspa: 'CSPA',
+  ess_escrow_payment: 'ESS',
+  project_discovery_tax: tx('Taxă Project Discovery'),
+  project_discovery_reward: 'Project Discovery',
+  freelance_jobs_reward: tx('Joburi freelance'),
+  freelance_jobs_reward_corporation_tax: tx('Taxă joburi freelance'),
+  freelance_jobs_escrow_refund: tx('Joburi freelance returnate'),
+  freelance_jobs_duration_fee: tx('Taxă joburi freelance'),
+  freelance_jobs_broadcasting_fee: tx('Taxă joburi freelance'),
+  daily_challenge_reward: tx('Provocare zilnică'),
+  insurgency_corruption_contribution_reward: tx('Recompensă insurgență'),
+  insurgency_suppression_contribution_reward: tx('Recompensă insurgență'),
+  milestone_reward_payment: tx('Recompensă de etapă'),
+  skyhook_claim_fee: tx('Taxă skyhook'),
+  asset_safety_recovery_tax: tx('Taxă Asset Safety'),
+  cosmetic_market_component_item_purchase: tx('Piață cosmetice'),
+  cosmetic_market_skin_sale: tx('Piață cosmetice'),
+  cosmetic_market_skin_purchase: tx('Piață cosmetice'),
+  cosmetic_market_skin_sale_broker_fee: tx('Piață cosmetice'),
+  cosmetic_market_skin_sale_tax: tx('Piață cosmetice'),
+  cosmetic_market_skin_transaction: tx('Piață cosmetice'),
+  external_trade_freeze: tx('Comerț extern blocat'),
+  external_trade_thaw: tx('Comerț extern deblocat'),
+  external_trade_delivery: tx('Comerț extern livrat'),
 };
 
-export const refLabel = (ref: string) => REF_LABELS[ref] ?? ref.replace(/_/g, ' ');
+const pretty = (ref: string) => { const t = ref.replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
+
+export const refLabel = (ref: string) => REF_LABELS[ref] ?? pretty(ref);
+
+const DESCRIPTIONS: [RegExp, string][] = [
+  [/^(.+) got bounty prizes for killing pirates in (.+)$/, '{a} a primit recompense pentru pirații uciși în {b}'],
+  [/^(.+) received a time bonus for completing a mission$/, '{a} a primit bonusul de timp pentru o misiune'],
+  [/^(.+) received a reward for completing a mission$/, '{a} a primit recompensa pentru o misiune'],
+  [/^Mission reward bonus from agent (.+)$/i, 'Bonus de misiune de la agentul {a}'],
+  [/^Mission reward from agent (.+)$/i, 'Recompensă de misiune de la agentul {a}'],
+  [/^CONCORD rewarded (.+) for completing an incursion site$/, 'CONCORD l-a răsplătit pe {a} pentru un site de incursiune'],
+  [/^Market: (.+) bought stuff in (.+)$/, 'Piață: {a} a cumpărat în {b}'],
+  [/^Market: (.+) sold stuff in (.+)$/, 'Piață: {a} a vândut în {b}'],
+  [/^Market: (.+) bought stuff from (.+)$/, 'Piață: {a} a cumpărat de la {b}'],
+  [/^Market escrow release$/i, 'Escrow eliberat'],
+  [/^Sales tax$/i, 'Taxă de vânzare'],
+  [/^Brokers? fee$/i, 'Comision broker'],
+  [/^Bounty prizes$/i, 'Recompense NPC'],
+  [/^Skill purchase$/i, 'Cumpărare skillbook'],
+  [/^Donation$/i, 'Donație'],
+  [/^Daily Goal Payout$/i, 'Plată obiectiv zilnic'],
+  [/^Office rental$/i, 'Chirie birou'],
+  [/^Industry Job Tax$/i, 'Taxă job industrie'],
+  [/^Planetary Export Tax$/i, 'Taxă export PI'],
+  [/^Planetary Import Tax$/i, 'Taxă import PI'],
+];
+
+function translateDescription(text: string) {
+  if (lang !== 'ro') return text;
+  for (const [re, ro] of DESCRIPTIONS) {
+    const m = re.exec(text.trim());
+    if (m) return ro.replace('{a}', m[1] ?? '').replace('{b}', m[2] ?? '');
+  }
+  return text;
+}
 
 export function entryLabel(e: { ref_type: string; amount?: number }) {
   if (e.ref_type === 'market_escrow') return (e.amount ?? 0) < 0 ? tx('Blocat în escrow') : tx('Returnat din escrow');
@@ -44,7 +148,7 @@ export function entryLabel(e: { ref_type: string; amount?: number }) {
 
 export function entryDescription(e: { ref_type: string; amount?: number; description?: string; reason?: string }) {
   if (e.ref_type === 'market_escrow') return (e.amount ?? 0) < 0 ? tx('ISK mutat din portofel în escrow pentru un ordin de cumpărare') : tx('ISK întors din escrow în portofel (ordin expirat, anulat sau modificat)');
-  return e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '';
+  return translateDescription(e.description && e.description.trim() !== '-' ? e.description : e.reason ?? '');
 }
 
 export interface Session {
@@ -150,6 +254,14 @@ export function archiveJournal(characterId: number, fresh: WalletEntry[]): Walle
   return all;
 }
 
+export function savedBountySystems(characterId: number, after = 0): { systemId: number; time: number }[] {
+  const out: { systemId: number; time: number }[] = [];
+  for (const [, t, ref, amount, , , , context] of loadJson<PackedEntry[]>(`eve-fit:wallet:${characterId}`, [])) {
+    if (context && t > after && BOUNTY_REFS.has(ref) && amount > 0) out.push({ systemId: context, time: t * 1000 });
+  }
+  return out;
+}
+
 export const WALLET_SCOPE = 'esi-wallet.read_character_wallet.v1';
 const FETCHED_KEY = 'eve-tools:wallet-fetched';
 const ARCHIVE_GAP_MS = 7 * DAY;
@@ -190,13 +302,15 @@ export function archiveTrades(characterId: number, fresh: WalletTransaction[]): 
 }
 
 export function flow(entries: WalletEntry[]) {
-  let earned = 0, spent = 0, pve = 0;
+  let earned = 0, spent = 0, pve = 0, escrow = 0;
   for (const e of entries) {
     const a = e.amount ?? 0;
+    if (e.ref_type === 'market_escrow') { escrow += a; continue; }
     if (a > 0) earned += a; else spent -= a;
     if (a > 0 && PVE_REFS.has(e.ref_type)) pve += a;
   }
-  return { earned, spent, net: earned - spent, pve, count: entries.length };
+  if (escrow > 0) earned += escrow; else spent -= escrow;
+  return { earned, spent, net: earned - spent, pve, escrow, count: entries.length };
 }
 
 export interface FlowBucket {
@@ -214,13 +328,16 @@ export function flowBuckets(entries: WalletEntry[], period: Period, oldest: numb
   const from = Math.floor(start / align) * align;
   const n = Math.max(1, Math.ceil((now - from) / size));
   const out: FlowBucket[] = Array.from({ length: n }, (_, i) => ({ start: from + i * size, size, earned: 0, spent: 0 }));
+  const escrow = new Array<number>(n).fill(0);
   for (const e of entries) {
     const t = Date.parse(e.date);
     if (t < start || t > now) continue;
     const i = Math.min(n - 1, Math.floor((t - from) / size));
     const a = e.amount ?? 0;
+    if (e.ref_type === 'market_escrow') { escrow[i] += a; continue; }
     if (a > 0) out[i].earned += a; else out[i].spent -= a;
   }
+  escrow.forEach((a, i) => { if (a > 0) out[i].earned += a; else out[i].spent -= a; });
   return out;
 }
 
@@ -366,5 +483,5 @@ export function realisedProfit(rows: WalletTransaction[], from: number): Realise
     row.heldQty = s?.qty ?? 0;
     row.heldCost = s?.cost ?? 0;
   }
-  return [...out.values()].sort((a, b) => b.profit - a.profit);
+  return [...out.values()].sort((a, b) => Number(b.matchedQty > 0) - Number(a.matchedQty > 0) || b.profit - a.profit || b.unmatchedIsk - a.unmatchedIsk);
 }

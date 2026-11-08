@@ -25,7 +25,7 @@ export const moonCharacters = () => rosterCharacters().filter((c) => c.character
 
 const CACHE_MS = 10 * 60 * 1000;
 let ledgerCache: { at: number; rows: OwnedLedgerRow[]; errors: string[] } | null = null;
-let moonCache: { at: number; rows: OwnedExtraction[]; errors: string[]; noRole: string[] } | null = null;
+let moonCache: { at: number; rows: OwnedExtraction[]; errors: string[]; noRole: string[]; npc: string[] } | null = null;
 
 export async function loadLedger(force = false) {
   if (!force && ledgerCache && Date.now() - ledgerCache.at < CACHE_MS) return ledgerCache;
@@ -48,10 +48,12 @@ export async function loadExtractions(force = false) {
   const rows: OwnedExtraction[] = [];
   const errors: string[] = [];
   const noRole: string[] = [];
+  const npc: string[] = [];
   const seen = new Set<number>();
   for (const c of moonCharacters()) {
     const id = c.characterId!;
     const corp = await corporationOf(id).catch(() => null);
+    if (corp && !isPlayerCorp(corp)) { npc.push(c.name); continue; }
     if (!isPlayerCorp(corp) || seen.has(corp!)) continue;
     const roles = await corporationRoles(id);
     if (!roles.some((r) => MOON_ROLES.includes(r))) { noRole.push(c.name); continue; }
@@ -63,7 +65,7 @@ export async function loadExtractions(force = false) {
       errors.push(`${c.name}: ${(e as Error).message}`);
     }
   }
-  moonCache = { at: Date.now(), rows, errors, noRole };
+  moonCache = { at: Date.now(), rows, errors, noRole, npc };
   return moonCache;
 }
 

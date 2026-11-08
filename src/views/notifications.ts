@@ -10,7 +10,8 @@ import {
   loadLog, markAllRead, clearLog, unreadCount, testNotice, type NoticeGroup, type NoticeKind, type Notice,
 } from '../services/notices';
 import { upcoming, fireAt, left, type Upcoming } from '../services/notify';
-import { gameNotices, gameKind, gameTitle, humanType, GAME_SCOPE, type GameNotice } from '../services/gameNotices';
+import { gameNotices, gameKind, gameTitle, noticeIds, noticeDetail, GAME_SCOPE, type GameNotice } from '../services/gameNotices';
+import { universeNames } from '../character/esi';
 import { nearbyStatus, NEARBY_EVENT } from '../services/nearbyKills';
 import { loadMap, type NavMap } from '../services/navigation';
 import { viewHref } from '../app/route';
@@ -38,6 +39,8 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
   let next: Upcoming[] | null = null;
   let nextBusy = false;
   let game: { charId: number; list: GameNotice[] } | null = null;
+  const gameNames = new Map<number, string>();
+  let gameShown = 80;
   let gameBusy = false;
   let gameError = '';
   let map: NavMap | null = null;
@@ -157,17 +160,18 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
     if (gameError) return panel({ title: tx('Din joc'), actions, body: alertBox(gameError) });
     if (!game || game.charId !== c.characterId || gameBusy) return panel({ title: tx('Din joc'), actions, body: loader(tx('Citim notificările din joc')) });
     const s = noticeSettings();
-    const rows = game.list.slice(0, 80).map((n) => {
+    const rows = game.list.slice(0, gameShown).map((n) => {
       const k = gameKind(n.type);
+      const detail = noticeDetail(n, gameNames);
       return `<div class="nt-row ${n.is_read ? '' : 'unread'}">
         <span class="nt-ico">${icon('structure')}</span>
-        <span class="nt-text"><b>${esc(gameTitle(n.type))}</b><span class="dim">${esc(humanType(n.type))}</span></span>
+        <span class="nt-text"><b>${esc(gameTitle(n.type))}</b>${detail ? `<span class="dim">${esc(detail)}</span>` : ''}</span>
         <span class="nt-meta small dim"><span class="num">${esc(when(Date.parse(n.timestamp)))}</span>${badge(kindInfo(k).label, s.kinds[k].on ? 'ok' : '', true)}</span>
       </div>`;
     }).join('');
     return panel({
       title: tx('Din joc'), count: game.list.length, actions,
-      body: `${game.list.length ? `<div class="nt-log">${rows}</div>` : `<p class="dim">${tx('Nicio notificare din joc în ultimele zile.')}</p>`}
+      body: `${game.list.length ? `<div class="nt-log">${rows}</div>${game.list.length > gameShown ? `<div class="mail-more">${button(tx('Mai vechi'), { cls: 'ghost sm', attrs: 'data-nt-game-more' })}</div>` : ''}` : `<p class="dim">${tx('Nicio notificare din joc în ultimele zile.')}</p>`}
         <p class="small dim">${tx('Ultimele notificări din joc ale caracterului {name}, citite din ESI (EVE le ține doar câteva zile și le actualizează la 10 minute). Punctul verde arată categoriile pentru care primești notificare.', { name: esc(c.name) })}</p>`,
     });
   }
@@ -192,7 +196,15 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
     gameBusy = true;
     gameError = '';
     render();
-    try { game = { charId, list: await gameNotices(charId, force) }; } catch (err) { gameError = (err as Error).message; } finally { gameBusy = false; if (section === 'game') render(); }
+    try { game = { charId, list: await gameNotices(charId, force) }; gameShown = 80; } catch (err) { gameError = (err as Error).message; } finally { gameBusy = false; if (section === 'game') render(); }
+    if (game?.charId === charId) {
+      const missing = noticeIds(game.list).filter((id) => !gameNames.has(id));
+      if (missing.length) {
+        const got = await universeNames(missing, charId).catch(() => new Map<number, string>());
+        for (const [id, n] of got) gameNames.set(id, n);
+        if (section === 'game' && got.size) render();
+      }
+    }
   }
 
   function show(s?: Section) {
@@ -213,6 +225,7 @@ export function createNotificationsView(el: HTMLElement, ctx: AppContext, side: 
   body.addEventListener('click', async (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('[data-nt-test]')) { testNotice(); return; }
+    if (t.closest('[data-nt-game-more]')) { gameShown += 80; render(); return; }
     if (t.closest('[data-nt-ask]')) { askBrowser(); return; }
     if (t.closest('[data-nt-refresh]')) { loadUpcoming(true); return; }
     if (t.closest('[data-nt-game-refresh]')) { loadGame(true); return; }

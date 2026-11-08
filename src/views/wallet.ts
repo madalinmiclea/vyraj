@@ -372,20 +372,23 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
       });
     };
     const profitPanel = () => {
-      const list = realisedProfit(trades, from).slice(0, 300);
-      if (!list.length) return '';
-      const gross = list.reduce((a, r) => a + r.profit, 0);
-      const fees = -rows.filter((e) => e.ref_type === 'transaction_tax' || e.ref_type === 'brokers_fee').reduce((a, e) => a + (e.amount ?? 0), 0);
-      const unmatched = list.reduce((a, r) => a + r.unmatchedIsk, 0);
+      const all = realisedProfit(trades, from);
+      if (!all.length) return '';
+      const list = all.slice(0, 300);
+      const gross = all.reduce((a, r) => a + r.profit, 0);
+      const fees = -rows.filter((e) => e.ref_type === 'transaction_tax').reduce((a, e) => a + (e.amount ?? 0), 0);
+      const broker = -rows.filter((e) => e.ref_type === 'brokers_fee').reduce((a, e) => a + (e.amount ?? 0), 0);
+      const unmatched = all.reduce((a, r) => a + r.unmatchedIsk, 0);
       const net = gross - fees;
       return panel({
         title: tx('Profit realizat pe item'),
-        count: tx('{n} iteme', { n: formatInt(list.length) }),
+        count: tx('{n} iteme', { n: formatInt(all.length) }),
         body: `<div class="history-kpis compact">
             <div><span class="label">${tx('Profit brut')}</span><span class="value ${gross >= 0 ? 'up' : 'down'}">${signed(gross)}</span></div>
-            <div><span class="label">${tx('Taxe și comision broker')}</span><span class="value down">${compactISK(fees)}</span></div>
+            <div><span class="label">${tx('Taxă vânzări')}</span><span class="value down">${compactISK(fees)}</span></div>
             <div><span class="label">${tx('Profit net')}</span><span class="value ${net >= 0 ? 'up' : 'down'}">${signed(net)}</span></div>
             <div title="${tx('Vândut fără o cumpărare înainte în istoricul salvat (loot, minat, fabricat)')}"><span class="label">${tx('Vândut fără cost')}</span><span class="value">${compactISK(unmatched)}</span></div>
+            <div title="${tx('Plătit pe toate ordinele, inclusiv cumpărări. Nu e scăzut din profit.')}"><span class="label">${tx('Comision broker')}</span><span class="value down">${compactISK(broker)}</span></div>
           </div>
           <div class="wallet-scroll"><table class="table compact"><thead><tr><th>Item</th><th class="r">${tx('Vândut')}</th><th class="r">${tx('Cost mediu')}</th><th class="r">${tx('Preț mediu')}</th><th class="r">${tx('Profit')}</th><th class="r">${tx('Marjă')}</th><th class="r">${tx('Rămas în stoc')}</th></tr></thead><tbody>
           ${list.map((r) => {
@@ -399,7 +402,7 @@ export async function renderWallet(body: HTMLElement, ctx: AppContext, character
               <td class="r num">${r.heldQty ? `${formatInt(r.heldQty)}<div class="dim small">${compactISK(r.heldCost)}</div>` : ''}</td></tr>`;
           }).join('')}
           </tbody></table></div>
-          <p class="dim small">${tx('Cost mediu ponderat din cumpărările salvate, taxele din jurnalul perioadei.')}</p>`,
+          ${all.length > list.length ? `<p class="dim small">${tx('Primele {n} din {total}', { n: formatInt(list.length), total: formatInt(all.length) })}</p>` : ''}`,
       });
     };
     const sessionsPanel = () => panel({
