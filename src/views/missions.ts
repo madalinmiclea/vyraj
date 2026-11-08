@@ -71,7 +71,7 @@ export interface MissionsView { show(): void }
 export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean; openFit?: (fit: Fit) => void }): MissionsView {
   const sde = ctx.sde;
   const saved = loadJson<Partial<State>>(STATE_KEY, {});
-  const state: State = { section: saved.section ?? 'all', tool: saved.tool ?? '', guide: saved.guide ?? '', q: saved.q ?? '' };
+  const state: State = { section: saved.section ?? 'all', tool: saved.tool ?? '', guide: saved.guide ?? '', q: '' };
   let missions: Mission[] = [];
   let levels = new Map<string, Intensity>();
   let texts = new Map<string, string>();
@@ -168,7 +168,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     el.closest('.main')?.scrollTo({ top: 0 });
   }
 
-  const save = () => saveJson(STATE_KEY, state);
+  const save = () => saveJson(STATE_KEY, { ...state, q: '' });
 
   help.innerHTML = `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div><div class="mis-help" data-guide="ded" hidden>${dedGuide()}</div>`;
   help.addEventListener('click', (e) => {
@@ -221,7 +221,9 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       clear.hidden = !input.value;
       if (!input.value) { input.style.width = ''; input.classList.remove('sized'); return; }
       measure.textContent = input.value;
-      input.style.width = `${Math.ceil(measure.getBoundingClientRect().width) + 4}px`;
+      const w = measure.getBoundingClientRect().width;
+      if (!w) { input.style.width = ''; input.classList.remove('sized'); return; }
+      input.style.width = `${Math.ceil(w) + 4}px`;
       input.classList.add('sized');
     };
     syncClear();
@@ -661,6 +663,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
 
   return {
     show() {
+      if (state.q && missions.length) { state.q = ''; renderBar(); apply(); }
       const next = currentFit();
       if (JSON.stringify(next) === JSON.stringify(fit)) return;
       fit = next;
