@@ -113,7 +113,7 @@ const charCache = new Map<number, { at: number; value: CharacterOrder[] }>();
 export async function characterOrders(characterId: number, force = false): Promise<CharacterOrder[]> {
   const hit = charCache.get(characterId);
   if (!force && hit && Date.now() - hit.at < CHAR_MS) return hit.value;
-  const value = await authedPages<CharacterOrder>(characterId, `/characters/${characterId}/orders/`, 1);
+  const value = (await authedPages<CharacterOrder>(characterId, `/characters/${characterId}/orders/`, 1)).filter((o) => o.duration > 0);
   charCache.set(characterId, { at: Date.now(), value });
   return value;
 }
@@ -212,14 +212,14 @@ async function detectFills(orders: TrackedOrder[], read: Set<number>) {
   const prev = loadJson<Record<string, Snap> | null>(SNAP_KEY, null);
   const now = Date.now();
   const next: Record<string, Snap> = {};
-  for (const o of orders) next[o.order_id] = { c: o.characterId, n: o.characterName, t: o.type_id, b: o.is_buy_order ? 1 : 0, p: o.price, r: o.volume_remain };
+  for (const o of orders) if (o.duration > 0) next[o.order_id] = { c: o.characterId, n: o.characterName, t: o.type_id, b: o.is_buy_order ? 1 : 0, p: o.price, r: o.volume_remain };
   for (const [id, o] of Object.entries(prev ?? {})) if (!next[id] && !read.has(o.c) && now - (o.gone ?? now) < PENDING_MS) next[id] = o;
   if (!prev) { saveJson(SNAP_KEY, next); return; }
   const fills: Fill[] = [];
   const expired: Snap[] = [];
   for (const o of orders) {
     const before = prev[o.order_id];
-    if (before && o.volume_remain < before.r) fills.push({ o: { ...before, p: o.price }, qty: before.r - o.volume_remain, done: false });
+    if (o.duration > 0 && before && o.volume_remain < before.r) fills.push({ o: { ...before, p: o.price }, qty: before.r - o.volume_remain, done: false });
   }
   const vanished = Object.entries(prev).filter(([id, o]) => !next[id] && read.has(o.c));
   const byChar = new Map<number, [string, Snap][]>();
@@ -231,6 +231,7 @@ async function detectFills(orders: TrackedOrder[], read: Set<number>) {
     for (const [id, o] of list) {
       const h = found.get(id);
       if (!h) { if (now - (o.gone ?? now) < PENDING_MS) next[id] = { ...o, gone: o.gone ?? now }; continue; }
+      if (!(h.duration > 0) || h.type_id !== o.t || Boolean(h.is_buy_order) !== Boolean(o.b)) continue;
       if (h.volume_remain < o.r) fills.push({ o, qty: o.r - h.volume_remain, done: h.volume_remain === 0 });
       if (h.volume_remain > 0 && h.state === 'expired') expired.push({ ...o, r: h.volume_remain });
     }

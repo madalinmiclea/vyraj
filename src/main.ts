@@ -614,7 +614,7 @@ async function start() {
   later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations')));
   later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
-  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }); if (activeView === 'missions') missions.show(); });
+  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); if (activeView === 'missions') missions.show(); });
   intel.setContext(ctx);
   runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {

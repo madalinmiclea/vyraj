@@ -51,3 +51,14 @@
 .std-val.dim { color: var(--text-dim); }
 .std-group td { padding-top: 10px; font-family: var(--font-display); font-weight: 600; color: var(--text-bright); background: var(--bg-raised); }
 .std-group .row-icon { vertical-align: middle; margin-right: 6px; }
+.bz-tabs { margin: 2px 0 12px; flex-wrap: wrap; }
+.bz-sub { margin: 14px 0 6px; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-bright); }
+.bz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin: 4px 0 10px; }
+.bz-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--bg-inset); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.bz-card-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bz-fits { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.bz-card .bz-fits { justify-content: flex-start; }
+.bz-levels { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.bz-body .dmg-tag:first-child { margin-left: 0; }
+.bz-table { overflow-x: auto; }
+.bz-tank { white-space: nowrap; }

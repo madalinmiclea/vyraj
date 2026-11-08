@@ -155,8 +155,21 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
             <button class="tree-head" data-group="${esc(g)}">${icon('chevron', 'chev')}<span>${esc(skillGroupLabel(g))}</span><span class="count">${any}/${list.length}</span></button>
             <div class="tree-items"><div class="skill-list">${open ? skillRows(g) : ''}</div></div>
           </div>`;
-      }).join('')}</div>`;
+      }).join('')}</div>
+      <div class="sidebar-foot"><button class="btn sm" data-copy-skills>${icon('copy')}${tx('Copiază skill-urile')}</button></div>`;
     side.querySelector('.side-nav')!.scrollTop = scroll;
+  }
+
+  function skillsText() {
+    const c = ctx.character;
+    const lines = [`${c.name} · ${formatInt(c.totalSp ?? 0)} SP`];
+    for (const g of [...groups.keys()].sort()) {
+      const trained = groups.get(g)!.filter((s) => (c.skills.get(s.id) ?? 0) > 0);
+      if (!trained.length) continue;
+      lines.push('', g);
+      for (const s of trained) lines.push(`${s.name} ${roman(c.skills.get(s.id)!)}`);
+    }
+    return lines.join('\n');
   }
 
   function toggleGroup(head: HTMLElement) {
@@ -212,6 +225,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   const onClick = (e: Event) => {
     const t = e.target as HTMLElement;
     const at = (sel: string) => t.closest<HTMLElement>(sel);
+    if (at('[data-copy-skills]')) { copyText(skillsText(), tx('Skill-uri copiate')); return; }
     const group = at('[data-group]');
     if (group) { toggleGroup(group); return; }
     const info = at('[data-info]');

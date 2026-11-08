@@ -11,6 +11,7 @@ import { createAgentsPanel } from './pveAgents';
 import { createStandingsPanel } from './pveStandings';
 import { createEscalationsPanel } from './pveEscalations';
 import { createAbyssGuidePanel } from './pveAbyss';
+import { createBlitzPanel } from './pveBlitz';
 import { enemyGuide, dedGuide } from './pveGuides';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
@@ -25,7 +26,7 @@ import {
 
 const STATE_KEY = 'eve-missions:state';
 
-type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'agents' | 'standings' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
+type MisTool = 'activity' | 'incursions' | 'ratting' | 'anomalies' | 'blitz' | 'agents' | 'standings' | 'escalations' | 'abyss' | 'abyssal' | 'lp';
 type OwnTool = Exclude<MisTool, 'abyssal' | 'lp'>;
 
 const MIS_TOOLS: { id: MisTool; label: string }[] = [
@@ -33,6 +34,7 @@ const MIS_TOOLS: { id: MisTool; label: string }[] = [
   { id: 'incursions', label: tx('Incursiuni') },
   { id: 'ratting', label: tx('Unde faci ratting') },
   { id: 'anomalies', label: tx('Ghid de anomalii') },
+  { id: 'blitz', label: tx('Ghid blitz') },
   { id: 'agents', label: tx('Agenți') },
   { id: 'standings', label: tx('Standing-uri NPC') },
   { id: 'escalations', label: tx('Escaladări') },
@@ -66,7 +68,7 @@ const chips = (list: Dmg[]) => (list.length ? list.map(chip).join(' ') : `<span 
 
 export interface MissionsView { show(): void }
 
-export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean }): MissionsView {
+export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openDoctrine?: (query: string) => boolean; openFit?: (fit: Fit) => void }): MissionsView {
   const sde = ctx.sde;
   const saved = loadJson<Partial<State>>(STATE_KEY, {});
   const state: State = { section: saved.section ?? 'all', tool: saved.tool ?? '', guide: saved.guide ?? '', q: saved.q ?? '' };
@@ -109,6 +111,18 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     standings: createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } }),
     escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => missions.filter((m) => sectionOf(m) === 'ded').map((m) => m.name), openMission }),
     abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: (id) => openTool(id as MisTool) }),
+    blitz: createBlitzPanel(box('blitz'), ctx, {
+      openFit: (f) => opts.openFit?.(f),
+      openMission: (name, section) => openMission(name, section as Section),
+      openSection: (section) => openMission('', section as Section),
+      openAgents: (corp, faction) => { agents.focus(corp, faction, 4); openTool('agents'); },
+      openTool: (id) => openTool(id as MisTool),
+      blitzCounts: () => {
+        const n = new Map<number, number>();
+        for (const m of missions) if (m.level && sectionOf(m) === `l${m.level}` && hasBlitz(m)) n.set(m.level, (n.get(m.level) ?? 0) + 1);
+        return n;
+      },
+    }),
   };
   ctx.onCharacterChange(() => incursions.reset());
   const isOwn = (t: MisTool | null): t is OwnTool => !!t && t in own;
@@ -142,10 +156,10 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     el.closest('.main')?.scrollTo({ top: 0 });
   }
 
-  function openMission(name: string) {
+  function openMission(name: string, section: Section | 'all' = 'ded') {
     state.tool = '';
     state.guide = '';
-    state.section = 'ded';
+    state.section = section;
     state.q = name;
     save();
     renderSide();
