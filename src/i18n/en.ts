@@ -3817,4 +3817,5 @@ export const EN: Record<string, string> = {
   "Vezi setul": "See the set",
   "Copiază skill-urile": "Copy skills",
   "Skill-uri copiate": "Skills copied",
+  "fără standing": "no standing",
 };

@@ -76,15 +76,22 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const factionName = (id: number) => d.factions.get(id) ?? names.get(id) ?? `#${id}`;
     const corpName = (id: number) => d.corps.get(id)?.name ?? names.get(id) ?? `#${id}`;
     const agentById = new Map(d.agents.map((a) => [a.id, a]));
+    const sign = (v: number) => `${v > 0 ? '+' : ''}${formatNum(v, 2)}`;
     const effTip = (base: number | undefined, faction: number) => {
-      const sk = skillFor(base ?? 0, faction);
-      return sk ? `${SKILL_NAME[sk]} ${skills[sk]}` : '';
+      const b = base ?? 0;
+      const sk = skillFor(b, faction);
+      const lvl = sk ? skills[sk] : 0;
+      const eff = effective(base, faction, skills);
+      const lines = [`${tx('Bază')}: ${sign(b)}${base == null ? ` (${tx('fără standing')})` : ''}`];
+      if (sk) lines.push(`${SKILL_NAME[sk]} ${lvl}: ${sign(eff - b)}  (10 − ${formatNum(b, 2)}) × ${lvl * 4}%`);
+      lines.push(`${tx('Efectiv')}: ${sign(eff)}`);
+      return lines.join('\n');
     };
-    const effCell = (base: number | undefined, faction: number) => `<span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span>`;
-    const nextCell = (eff: number, faction: number) => {
+    const effCell = (base: number | undefined, faction: number) => `<span class="std-cell"><span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span> <span class="std-base">(${base == null ? '0.00' : sign(base)})</span></span>`;
+    const nextCell = (eff: number, faction: number, via?: string) => {
       const next = [2, 3, 4, 5].find((l) => eff < STANDING_NEEDED[l]);
       if (!next || eff <= -2) return `<span class="dim">—</span>`;
-      return `<span class="small">L${next} <span class="dim">${tx('la bază {b}', { b: formatNum(baseNeeded(STANDING_NEEDED[next], faction, skills), 2) })}</span></span>`;
+      return `<span class="small">L${next} <span class="dim">${via ? `${esc(via)} ` : ''}${tx('la bază {b}', { b: formatNum(baseNeeded(STANDING_NEEDED[next], faction, skills), 2) })}</span></span>`;
     };
 
     const agentCorps = new Set(d.agents.filter((a) => a.kind === 0).map((a) => a.corp));
@@ -93,11 +100,11 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
       .filter((f) => match(factionName(f)))
       .map((f) => {
         const eff = effective(s.faction.get(f), f, skills);
-        const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => corpAccess(s, skills, c, f)).filter((a) => !a.blocked);
-        const top = accs.sort((a, b) => b.level - a.level || b.best - a.best)[0];
-        const level = eff <= -2 ? 0 : Math.max(levelOf(eff), top?.level ?? 0);
-        const best = eff <= -2 ? eff : Math.max(eff, top?.best ?? eff);
-        return { f, eff, level, best };
+        const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => ({ c, a: corpAccess(s, skills, c, f) })).filter((x) => !x.a.blocked);
+        const top = accs.sort((x, y) => y.a.corp - x.a.corp)[0];
+        const viaCorp = eff > -2 && !!top && top.a.corp > eff;
+        const best = viaCorp ? top.a.corp : eff;
+        return { f, eff, level: levelOf(best), best, via: viaCorp ? top.c : 0 };
       })
       .sort((a, b) => b.eff - a.eff || factionName(a.f).localeCompare(factionName(b.f)));
 
@@ -123,17 +130,17 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
 
     let table = '';
     if (state.tab === 'factions') {
-      table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Efectiv')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${factionRows.map(({ f, level, best }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${num(s.faction.get(f))}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(level)}</td><td>${nextCell(best, f)}</td></tr>`).join('')}
+      table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
+        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${nextCell(best, f, via ? corpName(via) : undefined)}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio facțiune nu se potrivește.')}</p>`;
     } else if (state.tab === 'corps') {
-      table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Efectiv')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
-        ${groupOrder.map((f) => `<tr class="std-group"><td colspan="7">${f ? `${logo(f)}${esc(factionName(f))}` : tx('Fără facțiune')} <span class="dim">${num(effective(s.faction.get(f), f, skills))}</span></td></tr>
-          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${num(s.corp.get(c))}</td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${num(acc.faction)}</td><td class="r">${levelBadge(acc.level)}</td><td>${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f)}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
+      table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
+        ${groupOrder.map((f) => `<tr class="std-group"><td colspan="6">${f ? `${logo(f)}${esc(factionName(f))}` : tx('Fără facțiune')} <span class="dim">${num(effective(s.faction.get(f), f, skills))}</span></td></tr>
+          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f)}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio corporație nu se potrivește.')}</p>`;
     } else {
-      table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Efectiv')}</th><th class="r">${tx('Acces')}</th></tr></thead><tbody>
-        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${num(base)}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? (acc.blocked ? levelBadge(0) : acc.level >= a.level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge warn">${tx('Nu')}</span>`) : '—'}</td></tr>`).join('')}
+      table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th></tr></thead><tbody>
+        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? (acc.blocked ? levelBadge(0) : acc.level >= a.level ? `<span class="badge ok">${tx('Da')}</span>` : `<span class="badge warn">${tx('Nu')}</span>`) : '—'}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Niciun agent cu standing personal.')}</p>`;
     }
 
