@@ -5,6 +5,7 @@ import { activePainters, damageOf, TARGETS, TURRET_EFFECTS, turretChance, turret
 import { esc, formatNum, openModal } from '../ui/components';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
+import { fitCharacter } from './implantSets';
 
 interface WeaponGroup { typeId: number; chargeId: number | null; count: number }
 
@@ -90,7 +91,7 @@ export function openTracking(env: FitEnv) {
     if (!dogma) {
       const copy = cloneFit(fit!);
       for (const k of SLOT_KINDS) for (const m of copy.slots[k]) if (m && m.typeId === st.weapon) m.chargeId = st.ammo;
-      dogma = buildDogma(sde, copy, ctx.character);
+      dogma = buildDogma(sde, copy, fitCharacter(ctx.character));
       dogmaCache.set(key, dogma);
     }
     const list = dogma.modules.filter((m) => m.typeId === st.weapon && m.other && m.state !== 'offline');

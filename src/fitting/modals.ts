@@ -21,6 +21,7 @@ import { betterChance, mutate, mutationRows, moduleName, rollMutation, rowPct, t
 import type { Mutaplasmid } from '../data/sde';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
+import { fitCharacter } from './implantSets';
 
 export type MutTarget = { kind: SlotKind; i: number } | { drone: number };
 
@@ -124,7 +125,7 @@ export function createFitModals(env: FitEnv) {
     if (fits.length < 2) return toast(tx('Salvează câteva fit-uri ca să le compari'));
     const profile = findProfile(env.profileId());
     const rows = fits.map((f) => {
-      const s = computeStats(sde, f, buildDogma(sde, f, ctx.character), profile);
+      const s = computeStats(sde, f, buildDogma(sde, f, fitCharacter(ctx.character)), profile);
       const req = requirementsFor(sde, fitTypeIds(f), ctx.character);
       return { f, s, req };
     });

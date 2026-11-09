@@ -3,9 +3,10 @@ import type { Dogma } from '../engine/dogma';
 import { typeIconUrl } from '../services/market';
 import { attributeSections } from '../ui/attributes';
 import { icon } from '../ui/icons';
-import { badge, esc, panel } from '../ui/components';
+import { badge, button, confirmDialog, esc, panel, toast } from '../ui/components';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
+import { activeSet, deleteSet, fitCharacter, implantSets, saveSet, useSet } from './implantSets';
 
 const PERCENT_UNITS = [105, 109, 111, 121, 124, 127];
 
@@ -51,15 +52,54 @@ export function createImplantPanel(env: FitEnv) {
   }
 
   function render(f: Fit, d: Dogma): string {
-    const active = new Set(mergeImplants(sde, env.ctx.character.implants, f.implants));
-    const own = env.ctx.character.implants.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id) && !isBooster(id));
+    const base = fitCharacter(env.ctx.character).implants;
+    const set = activeSet();
+    const active = new Set(mergeImplants(sde, base, f.implants));
+    const own = base.filter((id) => sde.types.has(id) && active.has(id) && !f.implants.includes(id) && !isBooster(id));
     const fitted = f.implants.map((id, i) => ({ id, i })).filter((x) => !isBooster(x.id));
-    const rows = [...own].sort((a, b) => slotOf(a) - slotOf(b)).map((id) => row(d, id, { tag: tx('caracter') })).join('')
+    const rows = [...own].sort((a, b) => slotOf(a) - slotOf(b)).map((id) => row(d, id, { tag: set?.name ?? tx('caracter') })).join('')
       + fitted.sort((a, b) => slotOf(a.id) - slotOf(b.id)).map((x) => row(d, x.id, { attr: `data-implant="${x.i}"` })).join('');
     const body = `<div class="slot-group implants">${rows}</div>`
-      + (rows ? '' : `<p class="dim small extras-hint">${tx('Apasă pe un implant din browser ca să-l adaugi.')}</p>`);
-    return panel({ title: tx('Implanturi'), count: own.length + fitted.length || undefined, id: 'fitImplants', cls: 'fit-implants', body });
+      + (rows ? '' : `<p class="dim small extras-hint">${tx('Apasă pe un implant din browser ca să-l adaugi.')}</p>`)
+      + `<div class="implant-set-save"><input class="input sm" id="fitImplantSetName" placeholder="${tx('Nume set')}" value="${esc(set?.name ?? '')}" />${button(tx('Salvează set'), { cls: 'sm', attrs: 'data-implant-set-save' })}${set ? button(tx('Șterge set'), { cls: 'ghost sm', attrs: 'data-implant-set-delete' }) : ''}</div>`;
+    const actions = `<select class="input plain sm" id="fitImplantSet" title="${tx('Implanturi folosite la calcul')}">
+        <option value="">${tx('Din joc')}</option>${implantSets().map((x) => `<option value="${esc(x.name)}" ${x.name === set?.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+      </select>`;
+    return panel({ title: tx('Implanturi'), count: own.length + fitted.length || undefined, id: 'fitImplants', cls: 'fit-implants', body, actions });
   }
 
-  return { bonusLine, render };
+  function handleChange(target: HTMLElement): boolean {
+    if (target.id !== 'fitImplantSet') return false;
+    useSet((target as HTMLSelectElement).value);
+    return true;
+  }
+
+  function handleClick(target: HTMLElement, done: () => void): boolean {
+    const f = env.getFit();
+    if (target.closest('[data-implant-set-save]') && f) {
+      const name = document.querySelector<HTMLInputElement>('#fitImplantSetName')?.value.trim() ?? '';
+      if (!name) { toast(tx('Scrie un nume pentru set')); return true; }
+      const implants = mergeImplants(sde, fitCharacter(env.ctx.character).implants, f.implants).filter((id) => sde.types.has(id) && !isBooster(id));
+      const exists = implantSets().some((x) => x.name === name);
+      void (exists ? confirmDialog(tx('Setul „{name}” există. Îl înlocuiești?', { name }), { ok: tx('Înlocuiește') }) : Promise.resolve(true)).then((ok) => {
+        if (!ok) return;
+        saveSet(name, implants);
+        toast(tx('Set salvat'));
+        done();
+      });
+      return true;
+    }
+    const set = activeSet();
+    if (target.closest('[data-implant-set-delete]') && set) {
+      void confirmDialog(tx('Ștergi setul „{name}”?', { name: set.name }), { ok: tx('Șterge set'), danger: true }).then((ok) => {
+        if (!ok) return;
+        deleteSet(set.name);
+        done();
+      });
+      return true;
+    }
+    return false;
+  }
+
+  return { bonusLine, render, handleChange, handleClick };
 }

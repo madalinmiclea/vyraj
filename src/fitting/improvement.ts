@@ -10,6 +10,7 @@ import { icon } from '../ui/icons';
 import { badge, badgeHtml, copyText, esc, formatInt, loader, panel, toast } from '../ui/components';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
+import { fitCharacter } from './implantSets';
 
 const KINDS: { key: AdviceKind; label: string }[] = [
   { key: 'dps', label: 'DPS' },
@@ -27,7 +28,7 @@ export function createImprovementPanel(env: FitEnv) {
   let mastery: FitRequirements[] | null = null;
   let timer = 0;
 
-  const keyOf = (f: Fit) => `${ctx.character.id}|${env.profileId()}|${JSON.stringify(f)}`;
+  const keyOf = (f: Fit) => `${ctx.character.id}|${env.profileId()}|${fitCharacter(ctx.character).implants.join()}|${JSON.stringify(f)}`;
   const masteryKeyOf = (f: Fit) => `${ctx.character.id}|${f.shipId}`;
   const host = () => document.querySelector<HTMLElement>('#fitImprove .panel-body');
 
@@ -90,7 +91,7 @@ export function createImprovementPanel(env: FitEnv) {
       timer = window.setTimeout(() => {
         const current = env.getFit();
         if (!current || keyOf(current) !== key) return;
-        advice = adviseSkills(sde, current, ctx.character, findProfile(env.profileId()));
+        advice = adviseSkills(sde, current, fitCharacter(ctx.character), findProfile(env.profileId()));
         adviceKey = key;
         redraw();
       }, 250);

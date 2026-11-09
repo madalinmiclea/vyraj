@@ -38,6 +38,7 @@ import { createFitModals } from '../fitting/modals';
 import { openTracking } from '../fitting/tracking';
 import { createSupportPanels } from '../fitting/support';
 import { createImplantPanel } from '../fitting/implants';
+import { fitCharacter } from '../fitting/implantSets';
 import { createImprovementPanel } from '../fitting/improvement';
 import { createNpcPanel } from '../fitting/npc';
 import { findRealFit, hasFittingSlots, type RealFitKind } from '../services/realFits';
@@ -56,7 +57,7 @@ export interface FittingView {
 
 export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
   const sde = ctx.sde;
-  const limitDrones = (f: Fit) => ensureDroneLimits(sde, f, droneLimit(sde, f, ctx.character.skills, ctx.character.implants));
+  const limitDrones = (f: Fit) => ensureDroneLimits(sde, f, droneLimit(sde, f, ctx.character.skills, fitCharacter(ctx.character).implants));
   const usable = (f: Fit | null | undefined) => (f && sde.types.has(f.shipId) ? limitDrones(f) : null);
   const stored = loadJson<{ fits: (Fit | null)[]; active: number } | null>(OPEN_KEY, null);
   let tabs: (Fit | null)[] = stored?.fits?.length ? stored.fits.map(usable) : [usable(loadJson<Fit | null>(CURRENT_KEY, null))];
@@ -300,7 +301,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       return;
     }
     support.ensureMode(fit);
-    const d = buildDogma(sde, fit, ctx.character);
+    const d = buildDogma(sde, fit, fitCharacter(ctx.character));
     lastDogma = d;
     const stats = computeStats(sde, fit, d, findProfile(profileId));
     const counts = slotCounts(sde, fit, d);
@@ -546,7 +547,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       if (launched || !fit.drones[idx]?.mutation) return launched ?? d.drones.find((x) => x.item.typeId === typeId)?.item;
       const draft = cloneFit(fit);
       draft.drones[idx].active = 1;
-      return buildDogma(sde, draft, ctx.character).drones.find((x) => x.item.slotKey === key)?.item;
+      return buildDogma(sde, draft, fitCharacter(ctx.character)).drones.find((x) => x.item.slotKey === key)?.item;
     }
     return d.drones.find((x) => x.item.typeId === typeId)?.item ?? d.implants.find((x) => x.typeId === typeId);
   }
@@ -571,7 +572,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         if (!fit || slotOf(sde, typeId) !== kind) return undefined;
         const draft = cloneFit(fit);
         draft.slots[kind][i] = swappedModule(m, typeId);
-        return buildDogma(sde, draft, ctx.character).modules.find((x) => x.slotKey === key);
+        return buildDogma(sde, draft, fitCharacter(ctx.character)).modules.find((x) => x.slotKey === key);
       },
       replace: (typeId) => {
         if (!fit) return null;
@@ -579,7 +580,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         const result = applyChecked(sde, fit, ctx.character.skills, (draft) => {
           draft.slots[kind][i] = swappedModule(m, typeId);
           return { ok: true, message: tx('{name} montat în locul lui {old}', { name: name(typeId), old: moduleName(sde, m) }) };
-        }, ctx.character.implants);
+        }, fitCharacter(ctx.character).implants);
         toast(result.ok ? result.message : proving(result.message));
         if (!result.ok) return null;
         render();
@@ -606,7 +607,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       f.id = newFitId();
       if (!(await replaceCurrent(limitDrones(f)))) { done(); return; }
       markClean();
-      const problems = violations(sde, f, ctx.character.skills, ctx.character.implants).size;
+      const problems = violations(sde, f, ctx.character.skills, fitCharacter(ctx.character).implants).size;
       const what = published ? tx('Fit {kind} publicat încărcat în tab-ul curent', { kind: label }) : tx('Nu există fit {kind} publicat pentru nava asta, am deschis unul generat din bonusurile și statisticile ei', { kind: label });
       toast(problems ? `${what}. ${tx('Ce nu încape cu skill-urile caracterului apare cu roșu.')}` : what);
     };
@@ -631,7 +632,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         const same = draft.cargo.find((c) => c.typeId === t.id);
         if (same) same.count++; else draft.cargo.push({ typeId: t.id, count: 1 });
         return { ok: true, message: tx('{name} adăugat în cargo', { name: t.name }) };
-      }, ctx.character.implants);
+      }, fitCharacter(ctx.character).implants);
       toast(proving(result.message));
       if (result.ok) render();
       return true;
@@ -650,7 +651,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     }
     if (!fit) { toast(tx('Alege întâi o navă')); return; }
     if (routeToExtras(t)) return;
-    let result = applyChecked(sde, fit, ctx.character.skills, (draft) => addToFit(sde, draft, t.id), ctx.character.implants);
+    let result = applyChecked(sde, fit, ctx.character.skills, (draft) => addToFit(sde, draft, t.id), fitCharacter(ctx.character).implants);
     if (!result.ok && (t.categoryId === Category.Drone || t.categoryId === Category.Fighter)) {
       const bay = applyChecked(sde, fit, ctx.character.skills, (draft) => {
         const r = addToFit(sde, draft, t.id);
@@ -659,7 +660,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
         const why = result.message.charAt(0).toLowerCase() + result.message.slice(1);
         if (!r.ok) return r;
         return { ok: true, message: t.categoryId === Category.Fighter ? tx('{name} adăugat în hangarul de fighteri (nelansat: {why})', { name: t.name, why }) : tx('{name} adăugată în hangarul de drone (nelansată: {why})', { name: t.name, why }) };
-      }, ctx.character.implants);
+      }, fitCharacter(ctx.character).implants);
       if (bay.ok) result = bay;
     }
     toast(proving(result.message));
@@ -672,7 +673,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   function change(fn: (draft: Fit) => void) {
     if (!fit) return;
-    const result = applyChecked(sde, fit, ctx.character.skills, (draft) => { fn(draft); }, ctx.character.implants);
+    const result = applyChecked(sde, fit, ctx.character.skills, (draft) => { fn(draft); }, fitCharacter(ctx.character).implants);
     if (!result.ok) toast(proving(result.message));
     render();
   }
@@ -695,6 +696,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (npc.handleClick(target)) { render(); return; }
     if (target.closest('[data-ammo-del]') && handleAmmo(target)) { render(); return; }
     if (improvement.handleClick(target)) return;
+    if (implantPanel.handleClick(target, render)) return;
 
     const tabClose = at('[data-fit-close]');
     if (tabClose) { void closeTab(Number(tabClose.dataset.fitClose)); return; }
@@ -828,6 +830,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     if (target.matches('[data-ammo-add]') && handleAmmo(target)) { render(); return; }
     if (fit && support.handleChange(target)) return;
     if (npc.handleChange(target)) { render(); return; }
+    if (implantPanel.handleChange(target)) { render(); return; }
     if (target.id === 'fitProfile') { profileId = target.value; saveJson(PROFILE_KEY, profileId); render(); return; }
     if (target.id === 'fitTarget') {
       const preset = TARGETS.find((t) => t.id === target.value);
@@ -954,7 +957,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     renderCharacters();
     if (fit && shownCharacter !== ctx.character.id) {
       limitDrones(fit);
-      const problems = [...violations(sde, fit, ctx.character.skills, ctx.character.implants).values()];
+      const problems = [...violations(sde, fit, ctx.character.skills, fitCharacter(ctx.character).implants).values()];
       if (problems.length) toast(proving(tx('Fit-ul nu încape cu skill-urile lui {name}: {why}', { name: ctx.character.name, why: problems[0] })));
     }
     shownCharacter = ctx.character.id;

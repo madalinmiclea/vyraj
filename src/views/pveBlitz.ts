@@ -26,7 +26,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: tx('Misiuni de blitz') },
   { id: 'bships', label: tx('Nave') },
   { id: 'burners', label: tx('Misiuni Anomic') },
-  { id: 'nergal', label: tx('Setul Nergal') },
+  { id: 'nergal', label: tx('Fituri Nergal') },
   { id: 'where', label: tx('Unde') },
   { id: 'ships', label: tx('Nave') },
 ];
@@ -258,7 +258,7 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
     return `<div class="bz-grid">${BLITZ_SHIPS.filter((s) => s.role === role).map((s) => `<div class="bz-card">
         <div class="bz-card-head">${shipIcon(s.ship)}<b>${esc(s.ship)}</b></div>
         <div class="small">${esc(s.note)}</div>
-        <div class="bz-fits">${s.tab ? button(tx('Vezi setul'), { cls: 'sm', attrs: `data-bz-tab="${s.tab}"` }) : s.fits.length ? s.fits.map((id) => fitBtn(id, fitName(id))).join(' ') : button(tx('Deschide nava'), { cls: 'sm ghost', attrs: `data-bz-ship="${esc(s.ship)}"` })}</div>
+        <div class="bz-fits">${s.tab ? button(tx('Vezi fiturile'), { cls: 'sm', attrs: `data-bz-tab="${s.tab}"` }) : s.fits.length ? s.fits.map((id) => fitBtn(id, fitName(id))).join(' ') : button(tx('Deschide nava'), { cls: 'sm ghost', attrs: `data-bz-ship="${esc(s.ship)}"` })}</div>
       </div>`).join('')}</div>`;
   }
 

@@ -14,6 +14,7 @@ import { stackingFactor } from '../engine/dogma';
 import { tx } from '../i18n';
 import { DMG_LABEL, LAYER_LABEL, capTime, sum, damageBar, groupBy, type FitEnv } from './shared';
 import { turretGroups } from './tracking';
+import { fitCharacter } from './implantSets';
 
 const CURVE_COLORS = 4;
 const DAMAGE_ATTRS = ['emDamage', 'thermalDamage', 'kineticDamage', 'explosiveDamage'];
@@ -50,7 +51,7 @@ export function createStatsPanels(env: FitEnv, tips: Map<string, string>) {
   function withAmmo(fit: Fit, moduleId: number, chargeId: number): Dogma {
     const copy = cloneFit(fit);
     for (const k of SLOT_KINDS) for (const m of copy.slots[k]) if (m && m.typeId === moduleId) m.chargeId = chargeId;
-    return buildDogma(sde, copy, ctx.character);
+    return buildDogma(sde, copy, fitCharacter(ctx.character));
   }
 
   function buildTips(d: Dogma) {
