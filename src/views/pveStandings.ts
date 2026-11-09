@@ -91,8 +91,9 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     const effCell = (base: number | undefined, faction: number) => `<span class="std-cell"><span title="${esc(effTip(base, faction))}">${num(effective(base, faction, skills))}</span> <span class="std-base">(${tx('bază')} ${base == null ? '0.00' : sign(base)})</span></span>`;
     type Route = { kind: 'corp' | 'faction' | 'agent'; name: string; base: number | undefined };
     const KIND: Record<Route['kind'], string> = { corp: tx('corporația'), faction: tx('facțiunea'), agent: tx('agentul') };
-    const nextCell = (eff: number, faction: number, via?: string, routes: Route[] = []) => {
+    const nextCell = (eff: number, faction: number, via?: string, routes: Route[] = [], max = 5, who: 'corp' | 'faction' = 'faction') => {
       const next = [2, 3, 4, 5].find((l) => eff < STANDING_NEEDED[l]);
+      if (max < 5 && eff > -2 && (!next || next > max)) return `<span class="small dim">${who === 'corp' ? tx('Corporația nu are agenți L{l}', { l: max + 1 }) : tx('Facțiunea nu are agenți L{l}', { l: max + 1 })}</span>`;
       if (!next || eff <= -2) return `<span class="dim">—</span>`;
       const need = (from = 0) => baseNeeded(STANDING_NEEDED[next], faction, skills, from);
       const needTxt = (from = 0) => `${formatNum(STANDING_NEEDED[next], 2)} (${tx('bază')} ${formatNum(need(from), 2)})`;
@@ -103,13 +104,23 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     };
 
     const agentCorps = new Set(d.agents.filter((a) => a.kind === 0).map((a) => a.corp));
+    const corpMax = new Map<number, number>();
+    for (const a of d.agents) if (a.kind === 0) corpMax.set(a.corp, Math.max(corpMax.get(a.corp) ?? 0, a.level));
+    const factionMax = new Map<number, number>();
+    for (const [c, l] of corpMax) { const f = d.corps.get(c)?.faction ?? 0; factionMax.set(f, Math.max(factionMax.get(f) ?? 0, l)); }
+    const capOf = (corp: number, f: number): [number, 'corp' | 'faction'] => {
+      const fm = factionMax.get(f) ?? 5;
+      const cm = corpMax.get(corp) ?? fm;
+      return [cm, cm < fm ? 'corp' : 'faction'];
+    };
+    const capL = (corp: number, f: number, level: number) => Math.min(level, capOf(corp, f)[0]);
     const factionInfo = (f: number, sk: SocialSkills) => {
       const eff = effective(s.faction.get(f), f, sk);
       const accs = [...agentCorps].filter((c) => d.corps.get(c)?.faction === f).map((c) => ({ c, a: corpAccess(s, sk, c, f) })).filter((x) => !x.a.blocked);
       const top = accs.sort((x, y) => y.a.corp - x.a.corp)[0];
       const viaCorp = eff > -2 && !!top && top.a.corp > eff;
       const best = viaCorp ? top.a.corp : eff;
-      return { f, eff, level: levelOf(best), best, via: viaCorp ? top.c : 0 };
+      return { f, eff, level: Math.min(levelOf(best), factionMax.get(f) ?? 5), best, via: viaCorp ? top.c : 0 };
     };
     const skillHint = (now: number, levelWith: (sk: SocialSkills) => number) => {
       const out: string[] = [];
@@ -162,21 +173,21 @@ export function createStandingsPanel(el: HTMLElement, ctx: AppContext, opts: { o
     let table = '';
     if (state.tab === 'factions') {
       table = factionRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Facțiune')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${skillHint(level, (sk) => factionInfo(f, sk).level)}${nextCell(best, f, via ? corpName(via) : undefined, [...(via ? [{ kind: 'corp' as const, name: corpName(via), base: s.corp.get(via) }] : []), { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...[...agentCorps].filter((c) => c !== via && d.corps.get(c)?.faction === f).map((c) => ({ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) })).sort((x, y) => (y.base ?? 0) - (x.base ?? 0)).slice(0, 3)])}</td></tr>`).join('')}
+        ${factionRows.map(({ f, level, best, via }) => `<tr><td><span class="recon-ship">${logo(f)}<span>${esc(factionName(f))}</span></span></td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${via ? `<span class="small dim">${esc(corpName(via))}</span> ` : ''}${levelBadge(level)}</td><td>${skillHint(level, (sk) => factionInfo(f, sk).level)}${nextCell(best, f, via ? corpName(via) : undefined, [...(via ? [{ kind: 'corp' as const, name: corpName(via), base: s.corp.get(via) }] : []), { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }, ...[...agentCorps].filter((c) => c !== via && d.corps.get(c)?.faction === f).map((c) => ({ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) })).sort((x, y) => (y.base ?? 0) - (x.base ?? 0)).slice(0, 3)], factionMax.get(f) ?? 5)}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio facțiune nu se potrivește.')}</p>`;
     } else if (state.tab === 'corps') {
       table = corpRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Corporație')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Facțiune')}</th><th class="r">${tx('Agenți deblocați')}</th><th>${tx('Următorul nivel')}</th><th></th></tr></thead><tbody>
         ${groupOrder.map((f) => `<tr class="std-group"><td colspan="6">${f ? `${logo(f)}${esc(factionName(f))}` : tx('Fără facțiune')} <span class="dim">${num(effective(s.faction.get(f), f, skills))}</span></td></tr>
-          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(acc.level)}</td><td>${skillHint(acc.level, (sk) => corpAccess(s, sk, c, f).level)}${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }])}</td><td class="r">${agentsBtn(c, f, acc.level)}</td></tr>`).join('')}`).join('')}
+          ${groups.get(f)!.sort((a, b) => b.acc.best - a.acc.best || corpName(a.c).localeCompare(corpName(b.c))).map(({ c, acc }) => `<tr><td><span class="recon-ship">${logo(c)}<span>${esc(corpName(c))}</span></span></td><td class="r num">${effCell(s.corp.get(c), f)}</td><td class="r num">${effCell(s.faction.get(f), f)}</td><td class="r">${levelBadge(capL(c, f, acc.level))}</td><td>${skillHint(capL(c, f, acc.level), (sk) => capL(c, f, corpAccess(s, sk, c, f).level))}${acc.blocked ? `<span class="small dim">${tx('standing -2 sau mai mic')}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'corp' as const, name: corpName(c), base: s.corp.get(c) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }], ...capOf(c, f))}</td><td class="r">${agentsBtn(c, f, capL(c, f, acc.level))}</td></tr>`).join('')}`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Nicio corporație nu se potrivește.')}</p>`;
     } else {
       table = agentRows.length ? `<div class="wallet-scroll tall"><table class="table compact"><thead><tr><th>${tx('Agent')}</th><th>${tx('Corporație')}</th><th class="r">${tx('Nivel')}</th><th class="r">${tx('Standing')}</th><th class="r">${tx('Acces')}</th><th>${tx('Următorul nivel')}</th></tr></thead><tbody>
-        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? agentAccess(a.level, acc) : '—'}</td><td>${acc.blocked ? `<span class="small dim">${esc(blockReason(acc))}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'agent' as const, name: a?.name ?? names.get(id) ?? `#${id}`, base }, { kind: 'corp' as const, name: corpName(corp), base: s.corp.get(corp) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }])}</td></tr>`).join('')}
+        ${agentRows.map(({ id, base, a, corp, f, acc }) => `<tr><td><span class="recon-ship"><img class="row-icon" src="https://images.evetech.net/characters/${id}/portrait?size=32" alt="" loading="lazy" /><span>${esc(a?.name ?? names.get(id) ?? `#${id}`)}</span></span></td><td>${corp ? esc(corpName(corp)) : '—'}</td><td class="r num">${a ? `L${a.level}` : '—'}</td><td class="r num">${effCell(base, f)}</td><td class="r">${a ? agentAccess(a.level, acc) : '—'}</td><td>${acc.blocked ? `<span class="small dim">${esc(blockReason(acc))}</span>` : nextCell(acc.best, f, undefined, [{ kind: 'agent' as const, name: a?.name ?? names.get(id) ?? `#${id}`, base }, { kind: 'corp' as const, name: corpName(corp), base: s.corp.get(corp) }, { kind: 'faction' as const, name: factionName(f), base: s.faction.get(f) }], ...capOf(corp, f))}</td></tr>`).join('')}
       </tbody></table></div>` : `<p class="dim">${tx('Niciun agent cu standing personal.')}</p>`;
     }
 
-    const unlocked = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && corpAccess(s, skills, c, d.corps.get(c)?.faction ?? 0).level >= l).length }));
-    const maxed = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && corpAccess(s, ALL5, c, d.corps.get(c)?.faction ?? 0).level >= l).length }));
+    const unlocked = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && capL(c, d.corps.get(c)?.faction ?? 0, corpAccess(s, skills, c, d.corps.get(c)?.faction ?? 0).level) >= l).length }));
+    const maxed = [5, 4, 3, 2].map((l) => ({ l, n: corpIds.filter((c) => agentCorps.has(c) && capL(c, d.corps.get(c)?.faction ?? 0, corpAccess(s, ALL5, c, d.corps.get(c)?.faction ?? 0).level) >= l).length }));
     const gains = maxed.filter((m, i) => m.n > unlocked[i].n).map((m) => `L${m.l}: ${formatInt(unlocked[[5, 4, 3, 2].indexOf(m.l)].n)} → ${formatInt(m.n)}`);
     el.innerHTML = panel({
       title: tx('Standing-uri NPC'),

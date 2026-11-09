@@ -5,11 +5,14 @@ import { loadMap, displaySec, secClass, type NavMap } from '../services/navigati
 import { pveOrigin, originBar, bindOrigin, type Origin } from '../services/pveOrigin';
 import { faction, FLAG_LABEL, EU_URL, type Dmg, type Ewar, EWAR_LABEL } from '../services/missions';
 import {
-  loadEpicArcs, loadArcDone, arcAccess, ARC_REQ, saveArcDone, pickArc, isChoice, arcStats, COOLDOWN_DAYS,
+  loadEpicArcs, loadArcDone, arcAccess, ARC_REQ, ARC_SHIPS, missionLimit, saveArcDone, pickArc, isChoice, arcStats, COOLDOWN_DAYS,
   type Arc, type ArcData, type ArcDone, type ArcMission, type ArcNode, type ArcProgress, type ArcWave, type ArcAccess, type GateCheck, type GateVia,
 } from '../services/epicArcs';
 import { tx, locale } from '../i18n';
 import { loginProblem } from '../character/sso';
+import { requirementsFor } from '../character/requirements';
+import { formatDuration } from '../character/training';
+import { emptyFit, type Fit } from '../engine/fit';
 import { permissionGate } from '../character/permissions';
 import { loadNpcStandings, cachedNpcStandings, canReadNpcStandings, socialSkills } from '../services/npcStandings';
 
@@ -39,7 +42,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 const tone = (v: number) => (v <= -2 ? 'danger' : v < 0 ? 'warn' : v >= 5 ? 'ok' : v > 0 ? 'accent' : 'dim');
 const stdNum = (v: number, base: number | undefined) => `<span class="std-val ${tone(v)}" title="${esc(tx('bază {v}', { v: formatNum(base ?? 0, 2) }))}">${formatNum(v, 2)}</span>`;
 
-export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { onTank: (site: string, faction: string) => void }) {
+export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { onTank: (site: string, faction: string) => void; openFit?: (fit: Fit) => void }) {
   const ui: Ui = { arc: '', ...loadJson<Partial<Ui>>(UI_KEY, {}) };
   let visible = false;
   let seq = 0;
@@ -74,6 +77,24 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
       return `<span class="badge danger">${tx('Blocat')}</span> <span>${esc(tx('{name} sub -2', { name: gateName(a, c, k) }))} ${stdNum(c.v[k], c.base[k])}</span>${hint}`;
     }
     return `<span class="badge warn">${tx('Nu încă')}</span> <span>${esc(tx('lipsesc {x}', { x: formatNum(r.need - c.best, 2) }))} · ${esc(gateName(a, c, c.via))} ${stdNum(c.v[c.via], c.base[c.via])} ${esc(tx('din {n}', { n: formatNum(r.need, 2) }))}</span>${hint}`;
+  }
+
+  function shipsHtml(a: Arc) {
+    const s = ARC_SHIPS[a.id];
+    if (!s) return esc(pickArc(a.ship));
+    const me = logged();
+    const chips = s.ships.map((name) => {
+      const t = ctx.sde.findType(name);
+      if (!t) return '';
+      const r = me ? requirementsFor(ctx.sde, [t.id], ctx.character) : null;
+      const st = r ? (r.canFly ? `<span class="badge ok">${tx('Poți zbura')}</span>` : `<span class="dim">${esc(formatDuration(r.totalSeconds))}</span>`) : '';
+      return `<button class="epic-ship" data-epic-ship="${t.id}" title="${esc(tx('Deschide în Fitting'))}"><img src="https://images.evetech.net/types/${t.id}/icon?size=64" alt="" width="28" height="28" loading="lazy" /><span>${esc(t.name)}</span>${st}</button>`;
+    }).join('');
+    const limits = s.limits.map((l) => `<li><span class="badge warn">${esc(pickArc(l.r))}</span> ${esc(l.m.join(', '))}</li>`).join('');
+    return `<div><b>${esc(pickArc(s.hull))}</b> <span class="dim">· ${esc(pickArc(s.tier))}</span></div>
+      <div>${esc(pickArc(a.ship))}</div>
+      <div class="epic-ships">${chips}</div>
+      ${limits ? `<div class="epic-limits"><span class="label">${tx('Limite de navă')}</span><ul>${limits}</ul></div>` : `<div class="small dim">${tx('Fără limită de navă la porți')}</div>`}`;
   }
 
   function standingCard(a: Arc) {
@@ -152,6 +173,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
         <span class="epic-card-head"><span class="epic-card-name">${esc(a.name)}</span>${statusBadge(a)}</span>
         <span class="mis-tags"><span class="badge">${esc(a.fac)}</span><span class="badge accent">L${a.level}</span><span class="badge">${esc(tx('{n} misiuni', { n: Object.keys(a.m).length }))}</span></span>
         <span class="epic-card-line"><span class="label">${tx('Start')}</span><span>${esc(a.start.agent)} · ${sysHtml(a.start.sys, dd)}${a.starts && a.starts.length > 1 ? ` <span class="dim">${esc(tx('și încă {n}', { n: a.starts.length - 1 }))}</span>` : ''}</span></span>
+        ${ARC_SHIPS[a.id] ? `<span class="epic-card-line"><span class="label">${tx('Navă')}</span><span>${esc(pickArc(ARC_SHIPS[a.id].hull))} <span class="dim">· ${esc(pickArc(ARC_SHIPS[a.id].tier))}</span>${ARC_SHIPS[a.id].limits.length ? ` <span class="badge warn">${tx('Limite de navă')}</span>` : ''}</span></span>` : ''}
         <span class="epic-card-line"><span class="label">${tx('Standing')}</span><span>${standingCard(a)}</span></span>
         <span class="epic-card-line"><span class="label">${tx('Recompensă')}</span><span class="epic-clamp">${esc(pickArc(a.reward))}</span></span>
         <span class="cos-meter"><span style="width:${pct}%"></span></span>
@@ -234,6 +256,11 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
       ${eu ? `<div class="mis-links">${eu}</div>` : ''}`;
   }
 
+  const limitBadge = (a: Arc, title: string) => {
+    const l = missionLimit(a.id, title);
+    return l ? `<span class="badge warn">${esc(pickArc(l))}</span>` : '';
+  };
+
   function missionCard(a: Arc, title: string, anc: string, d: Map<number, number> | null, isNext: boolean) {
     const m = a.m[title];
     if (!m) return '';
@@ -247,7 +274,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
         <span class="mis-caret" aria-hidden="true"></span>
         <span class="mis-main">
           <span class="mis-name"><span class="mis-range">${esc(m.n)}</span> ${esc(title)}</span>
-          <span class="mis-tags"><span class="badge">${esc(TYPE_LABEL[m.t])}</span>${isNext ? `<span class="badge accent">${tx('Urmează')}</span>` : ''}${m.hard ? `<span class="badge danger">${tx('Grea')}</span>` : ''}${m.remote ? `<span class="badge">${tx('Se predă de la distanță')}</span>` : ''}${s ? `<span class="badge">${esc(s.name)} <span class="sec ${secClass(s.sec)}">${formatNum(displaySec(s.sec) || 0, 1)}</span></span>` : ''}</span>
+          <span class="mis-tags"><span class="badge">${esc(TYPE_LABEL[m.t])}</span>${isNext ? `<span class="badge accent">${tx('Urmează')}</span>` : ''}${m.hard ? `<span class="badge danger">${tx('Grea')}</span>` : ''}${limitBadge(a, title)}${m.remote ? `<span class="badge">${tx('Se predă de la distanță')}</span>` : ''}${s ? `<span class="badge">${esc(s.name)} <span class="sec ${secClass(s.sec)}">${formatNum(displaySec(s.sec) || 0, 1)}</span></span>` : ''}</span>
         </span>
         <span class="mis-weak">${weak.map(chip).join('')}</span>
       </summary>
@@ -305,7 +332,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
       [tx('Standing'), standingPage(a)],
       [tx('Spațiu'), esc(pickArc(a.space))],
       [tx('Durată'), esc(pickArc(a.time))],
-      [tx('Navă'), esc(pickArc(a.ship))],
+      [tx('Navă'), shipsHtml(a)],
       [tx('Recompensă'), esc(pickArc(a.reward))],
     ];
     const eu = a.eu ? `<a class="ext-link" href="${EU_URL}${encodeURI(a.eu.replace(/ /g, '_'))}" target="_blank" rel="noopener noreferrer">EVE University</a>` : '';
@@ -368,6 +395,12 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
   el.addEventListener('click', async (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('.epic-chk')) { e.stopPropagation(); return; }
+    const ship = t.closest<HTMLElement>('[data-epic-ship]');
+    if (ship) {
+      const id = Number(ship.dataset.epicShip);
+      if (id && opts.openFit) opts.openFit(emptyFit(id, ctx.sde.types.get(id)?.name ?? tx('Fit nou')));
+      return;
+    }
     const card = t.closest<HTMLElement>('[data-epic-arc]');
     if (card) { ui.arc = card.dataset.epicArc!; saveUi(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }
     if (t.closest('[data-epic-back]')) { ui.arc = ''; saveUi(); render(); el.closest('.main')?.scrollTo({ top: 0 }); return; }

@@ -5,7 +5,7 @@ import { typeIconUrl } from '../services/market';
 import { loadMap, displaySec, secClass, type NavMap } from '../services/navigation';
 import { loadAgents, type AgentData } from '../services/agents';
 import { pveOrigin, type Origin } from '../services/pveOrigin';
-import { BLITZ_MISSIONS, BURNERS, BLITZ_SHIPS, BLITZ_FITS, NERGAL_FITS, type BlitzVerdict, type BlitzShip, type BlitzWhere, type BurnerKind, type Resist } from '../services/blitz';
+import { BLITZ_MISSIONS, BURNERS, BLITZ_SHIPS, BLITZ_LEVELS, BLITZ_FITS, NERGAL_FITS, type BlitzLevel, type BlitzVerdict, type BlitzShip, type BlitzWhere, type BurnerKind, type Resist, type BlitzShipCard } from '../services/blitz';
 import { parseEft } from '../io/eft';
 import type { Fit } from '../engine/fit';
 import { tx } from '../i18n';
@@ -18,11 +18,13 @@ const STATE_KEY = 'eve-pve:blitz';
 const HUB_LIMIT = 25;
 const POPULAR = new Set(['Sisters of EVE', 'Caldari Navy', 'Republic Fleet']);
 
-type Tab = 'missions' | 'burners' | 'nergal' | 'where' | 'ships';
-interface State { tab: Tab; faction: number }
+type Tab = 'missions' | 'bships' | 'burners' | 'nergal' | 'where' | 'ships';
+interface State { tab: Tab; faction: number; level: BlitzLevel }
+const BLITZ_TABS = new Set<Tab>(['missions', 'bships']);
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: tx('Misiuni de blitz') },
+  { id: 'bships', label: tx('Nave') },
   { id: 'burners', label: tx('Misiuni Anomic') },
   { id: 'nergal', label: tx('Setul Nergal') },
   { id: 'where', label: tx('Unde') },
@@ -61,9 +63,9 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
   blitzCounts: () => Map<number, number>;
   only: 'blitz' | 'anomic';
 }) {
-  const tabs = TABS.filter((t) => (opts.only === 'blitz') === (t.id === 'missions'));
+  const tabs = TABS.filter((t) => (opts.only === 'blitz') === BLITZ_TABS.has(t.id));
   const key = opts.only === 'blitz' ? STATE_KEY : `${STATE_KEY}:anomic`;
-  const state: State = { tab: tabs[0].id, faction: 0, ...loadJson<Partial<State>>(key, {}) };
+  const state: State = { tab: tabs[0].id, faction: 0, level: 'l4', ...loadJson<Partial<State>>(key, {}) };
   if (!tabs.some((t) => t.id === state.tab)) state.tab = tabs[0].id;
   let visible = false;
   let seq = 0;
@@ -78,13 +80,14 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
   const fitBtn = (id: string, label = fitShip(id), cls = 'sm') => button(label, { cls, attrs: `data-bz-fit="${id}" title="${esc(tx('Deschide în Fitting'))}"` });
 
   function head() {
-    if (opts.only === 'blitz') return '';
+    const row = tabs.length > 1 ? `<div class="chip-row bz-tabs">${tabs.map((t) => `<button class="chip-btn ${t.id === state.tab ? 'active' : ''}" data-bz-tab="${t.id}">${t.label}</button>`).join('')}</div>` : '';
+    if (opts.only === 'blitz') return row;
     return `<div class="pve-facts">
         <div><span class="label">${tx('Burner')}</span><span class="value">~5 min</span><span class="small dim">${tx('cu drumul inclus')}</span></div>
         <div><span class="label">${tx('LP pe burner')}</span><span class="value">~14k</span><span class="small dim">${tx('agent în 0.5, Security Connections V')}</span></div>
         <div><span class="label">${tx('Venit posibil')}</span><span class="value">200M+/h</span><span class="small dim">${tx('blitz L4 plus burnere, cu LP vândut')}</span></div>
       </div>
-      ${tabs.length > 1 ? `<div class="chip-row bz-tabs">${tabs.map((t) => `<button class="chip-btn ${t.id === state.tab ? 'active' : ''}" data-bz-tab="${t.id}">${t.label}</button>`).join('')}</div>` : ''}`;
+      ${row}`;
   }
 
   function missionsTab() {
@@ -251,25 +254,37 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
       ${dist ? '' : `<p class="dim small wallet-note">${tx('Alege sistemul de pornire în Agenți ca să vezi salturile.')}</p>`}`;
   }
 
-  function shipsTab() {
-    const group = (role: 'blitz' | 'burner', title: string) => `<h4 class="bz-sub">${title}</h4>
-      <div class="bz-grid">${BLITZ_SHIPS.filter((s) => s.role === role).map((s) => `<div class="bz-card">
+  function shipCards(role: BlitzShipCard['role']) {
+    return `<div class="bz-grid">${BLITZ_SHIPS.filter((s) => s.role === role).map((s) => `<div class="bz-card">
         <div class="bz-card-head">${shipIcon(s.ship)}<b>${esc(s.ship)}</b></div>
         <div class="small">${esc(s.note)}</div>
         <div class="bz-fits">${s.tab ? button(tx('Vezi setul'), { cls: 'sm', attrs: `data-bz-tab="${s.tab}"` }) : s.fits.length ? s.fits.map((id) => fitBtn(id, fitName(id))).join(' ') : button(tx('Deschide nava'), { cls: 'sm ghost', attrs: `data-bz-ship="${esc(s.ship)}"` })}</div>
       </div>`).join('')}</div>`;
-    return `${group('blitz', tx('Blitz L4'))}${group('burner', tx('Burnere'))}
+  }
+
+  function blitzShipsTab() {
+    const lvl = BLITZ_LEVELS.find((l) => l.id === state.level) ?? BLITZ_LEVELS[3];
+    return `<div class="chip-row">${BLITZ_LEVELS.map((l) => `<button class="chip-btn ${l.id === lvl.id ? 'active' : ''}" data-bz-level="${l.id}">${l.id.toUpperCase()}</button>`).join('')}</div>
+      <p class="small dim">${lvl.face}</p>
+      ${shipCards(lvl.id)}
       <ul class="pve-list">
-        <li>${tx('Implanturi Ascendancy și WS-615 cresc viteza warp pe toate navele.')}</li>
-        <li>${tx('Zor\'s Custom Navigation Hyper-Link ajută navele cu MWD sau AB.')}</li>
-        <li>${tx('Marauderele scumpe atrag gankeri în sistemele aglomerate.')}</li>
+        ${lvl.id === 'l4' ? `<li>${tx('Pentru Recon și Cargo Delivery ține și o fregată rapidă, cu puțin tank pentru Recon 3.')}</li><li>${tx('Marauderele atrag gankeri în hub-urile aglomerate. Nu le folosi acolo sau în război.')}</li>` : ''}
+        <li>${tx('Pe battleship pune rig-uri Hyperspatial Velocity Optimizer, warp-ul contează mai mult decât tank-ul.')}</li>
+        <li>${tx('Implanturile Ascendancy și WS-615 cresc viteza warp pe orice navă.')}</li>
       </ul>
       <p class="dim small wallet-note">${tx('Pentru navele fără fit, Fitting are butoanele PvE fit.')}</p>`;
   }
 
+  function shipsTab() {
+    return `${shipCards('burner')}
+      <ul class="pve-list">
+        <li>${tx('Zor\'s Custom Navigation Hyper-Link ajută navele cu MWD sau AB.')}</li>
+      </ul>`;
+  }
+
   function render() {
-    const body = state.tab === 'missions' ? missionsTab() : state.tab === 'burners' ? burnersTab() : state.tab === 'nergal' ? nergalTab() : state.tab === 'where' ? hubsTab() : shipsTab();
-    el.innerHTML = panel({ title: opts.only === 'blitz' ? tx('Ghid blitz L4') : tx('Misiuni Anomic'), body: `${head()}<div class="bz-body">${body}</div>` });
+    const body = state.tab === 'missions' ? missionsTab() : state.tab === 'burners' ? burnersTab() : state.tab === 'nergal' ? nergalTab() : state.tab === 'where' ? hubsTab() : state.tab === 'bships' ? blitzShipsTab() : shipsTab();
+    el.innerHTML = panel({ title: opts.only === 'blitz' ? tx('Ghid blitz') : tx('Misiuni Anomic'), body: `${head()}<div class="bz-body">${body}</div>` });
   }
 
   async function loadHubs() {
@@ -302,7 +317,9 @@ export function createBlitzPanel(el: HTMLElement, ctx: AppContext, opts: {
   el.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const tab = t.closest<HTMLElement>('[data-bz-tab]');
-    if (tab) { const next = tab.dataset.bzTab as Tab; if (!tabs.some((x) => x.id === next)) { opts.openTool(next === 'missions' ? 'blitz' : 'anomic'); return; } state.tab = next; save(); render(); if (state.tab === 'where' && !agents) void loadHubs(); return; }
+    if (tab) { const next = tab.dataset.bzTab as Tab; if (!tabs.some((x) => x.id === next)) { opts.openTool(BLITZ_TABS.has(next) ? 'blitz' : 'anomic'); return; } state.tab = next; save(); render(); if (state.tab === 'where' && !agents) void loadHubs(); return; }
+    const lv = t.closest<HTMLElement>('[data-bz-level]');
+    if (lv) { state.level = lv.dataset.bzLevel as BlitzLevel; save(); render(); return; }
     const fit = t.closest<HTMLElement>('[data-bz-fit]');
     if (fit) { openFit(fit.dataset.bzFit!); return; }
     const ship = t.closest<HTMLElement>('[data-bz-ship]');

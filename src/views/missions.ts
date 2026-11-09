@@ -11,7 +11,6 @@ import { createEpicArcsPanel } from './epicArcs';
 import { tx, lang } from '../i18n';
 import { fold } from '../ui/fold';
 import { canLoadCharge, type Fit } from '../engine/fit';
-import { CURRENT_KEY } from '../fitting/shared';
 import { Category } from '../data/sde';
 import {
   loadMissions, mergeChains, chainBase, rangeLabel, pick, pickList, faction, sectionOf, intensities, dealtOf, weakOf, ewarOf, empiresOf, hasBlitz, searchText,
@@ -72,7 +71,6 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   let texts = new Map<string, string>();
   const chosen = new Map<string, number>();
   const ammoCache = new Map<string, string[]>();
-  let fit: Fit | null = null;
 
   el.innerHTML = `${embedded ? '' : pageHead(tx('Misiuni'), tx('Ghid pentru misiunile L1–L5, storyline și arcuri epice, agenți, standing-uri, magazin LP și blitz'), 'Lov')}
     <div id="${P}Help"></div>
@@ -114,7 +112,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     own.agents = agents;
     own.standings = createStandingsPanel(box('standings'), ctx, { openAgents: (corp, faction, level) => { agents.focus(corp, faction, level); openTool('agents'); } });
     own.blitz = createBlitzPanel(box('blitz'), ctx, blitzOpts('blitz'));
-    own.epic = createEpicArcsPanel(box('epic'), ctx, { onTank: opts.onTank });
+    own.epic = createEpicArcsPanel(box('epic'), ctx, { onTank: opts.onTank, openFit: (f: Fit) => opts.openFit?.(f) });
   }
   const isOwn = (t: MisTool | null): t is OwnTool => !!t && t in own;
   if (!MIS_TOOLS.some((t) => t.id === state.tool)) state.tool = '';
@@ -360,22 +358,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     </summary>`;
   }
 
-  function currentFit(): Fit | null {
-    const f = loadJson<Fit | null>(CURRENT_KEY, null);
-    return f && sde.types.has(f.shipId) ? f : null;
-  }
-
-  function weaponIds(f: Fit): number[] {
-    const ids = new Set<number>();
-    for (const m of f.slots.high ?? []) if (m && hasCharges(m.typeId)) ids.add(m.typeId);
-    return [...ids];
-  }
-
   const chargeTypes = () => sde.typesInCategory(Category.Charge);
-
-  function hasCharges(moduleId: number) {
-    return ['chargeGroup1', 'chargeGroup2', 'chargeGroup3'].some((n) => sde.hasAttr(n) && sde.baseAttr(moduleId, sde.attrId(n)) > 0);
-  }
 
   function ammoFor(weapon: number, d: Dmg): string[] {
     const key = `${weapon}:${d}`;
@@ -391,21 +374,37 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
       if (total <= 0 || v <= 0) continue;
       rows.push({ name: c.name, v, share: v / total });
     }
-    const best = rows.filter((r) => r.share >= 0.5).sort((a, b) => b.v - a.v);
-    const out = (best.length ? best : rows.sort((a, b) => b.share - a.share || b.v - a.v)).slice(0, 3).map((r) => r.name);
+    const out = rows.filter((r) => r.share >= 0.5).sort((a, b) => b.v - a.v).slice(0, 3).map((r) => r.name);
     ammoCache.set(key, out);
     return out;
   }
 
-  function ammoLines(v: MVariant) {
-    if (!fit) return `<div class="mis-line"><span class="label">${tx('Muniție')}</span><span class="dim">${tx('Deschide un fit în Fitting și îți arăt aici muniția potrivită pentru armele lui.')}</span></div>`;
-    const weak = weakOf(v);
-    const weapons = weaponIds(fit);
-    if (!weapons.length || !weak.length) return '';
-    return weapons.map((w) => {
-      const names = [...new Set(weak.slice(0, 2).flatMap((d) => ammoFor(w, d).slice(0, 2)))];
+  function weaponTier(m: Mission): 0 | 1 | 2 {
+    if (m.rating) return m.rating <= 3 ? 0 : m.rating <= 6 ? 1 : 2;
+    return m.level <= 1 ? 0 : m.level <= 3 ? 1 : 2;
+  }
+
+  function ammoFamilies(m: Mission): [string, string][] {
+    const t = weaponTier(m);
+    const rows: [[string, string, string], [string, string, string]][] = [
+      [[tx('Rachete light'), tx('Rachete heavy'), tx('Rachete cruise')], ['Light Missile Launcher II', 'Heavy Missile Launcher II', 'Cruise Missile Launcher II']],
+      [['Rockets', 'HAM', tx('Torpile')], ['Rocket Launcher II', 'Heavy Assault Missile Launcher II', 'Torpedo Launcher II']],
+      [[tx('Hibride'), tx('Hibride'), tx('Hibride')], ['Light Neutron Blaster II', 'Heavy Neutron Blaster II', 'Neutron Blaster Cannon II']],
+      [[tx('Lasere'), tx('Lasere'), tx('Lasere')], ['Small Focused Pulse Laser II', 'Focused Medium Pulse Laser II', 'Mega Pulse Laser II']],
+      [[tx('Proiectile'), tx('Proiectile'), tx('Proiectile')], ['200mm AutoCannon II', '425mm AutoCannon II', '800mm Repeating Cannon II']],
+    ];
+    return rows.map(([labels, names]) => [labels[t], names[t]] as [string, string]);
+  }
+
+  function ammoLines(m: Mission, v: MVariant) {
+    const weak = weakOf(v).slice(0, 2);
+    if (!weak.length) return '';
+    return ammoFamilies(m).map(([label, weaponName]) => {
+      const w = sde.findType(weaponName)?.id;
+      if (w == null) return '';
+      const names = [...new Set(weak.flatMap((d) => ammoFor(w, d).slice(0, 1)))];
       if (!names.length) return '';
-      return `<div class="mis-line"><span class="label">${esc(sde.types.get(w)?.name ?? '')}</span><span>${names.map((n) => `<span class="mis-ammo">${esc(n)}</span>`).join(' ')}</span></div>`;
+      return `<div class="mis-line"><span class="label">${esc(label)}</span><span>${names.map((n) => `<span class="mis-ammo">${esc(n)}</span>`).join(' ')}</span></div>`;
     }).join('');
   }
 
@@ -427,7 +426,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const npc = v.fac.map((f) => faction(f).npc).find(Boolean);
     return `<div class="mis-combat">
       <div class="mis-line"><span class="label">${tx('Trage cu')}</span><span>${chips(weakOf(v))}</span></div>
-      ${ammoLines(v)}
+      ${ammoLines(m, v)}
       <div class="mis-line"><span class="label">${tx('Primești')}</span><span>${chips(dealtOf(v))} <span class="dim">${esc(hardeners(v))}</span></span></div>
       ${ewar.length ? `<div class="mis-line"><span class="label">EWAR</span><span>${ewar.map((e) => `<span class="badge warn">${esc(EWAR_LABEL[e])}</span>`).join(' ')}</span></div>` : ''}
       ${emp.length ? `<div class="mis-line"><span class="label">${tx('Standing')}</span><span class="warn">${esc(emp.map((e) => tx('Scade standing-ul cu {e}.', { e })).join(' '))}</span></div>` : ''}
@@ -656,7 +655,6 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     missions = mergeChains(data.missions).filter((m) => (sectionOf(m) === 'ded') === embedded).sort((a, b) => GROUP_ORDER.indexOf(groupOf(a)) - GROUP_ORDER.indexOf(groupOf(b)) || sortName(a.name).localeCompare(sortName(b.name), 'en', { numeric: true, sensitivity: 'base' }));
     levels = intensities(missions);
     texts = new Map(missions.map((m) => [m.key, searchText(m)]));
-    fit = currentFit();
     renderBar();
     renderList();
   }).catch(() => {
@@ -668,11 +666,6 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     names: () => missions.map((m) => m.name),
     show() {
       if (state.q && missions.length) { state.q = ''; renderBar(); apply(); }
-      const next = currentFit();
-      if (JSON.stringify(next) === JSON.stringify(fit)) return;
-      fit = next;
-      ammoCache.clear();
-      list.querySelectorAll<HTMLDetailsElement>('details.mis-card[open]').forEach(refreshCard);
     },
   };
 }

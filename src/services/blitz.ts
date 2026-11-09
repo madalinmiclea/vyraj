@@ -45,17 +45,39 @@ export const BURNERS: Burner[] = [
   { id: 'base-guristas', kind: 'base', title: 'Guristas', enemy: 'Supercarrier', enemyId: 0, tank: ['kinetic', 'thermal'], skip: true, how: tx('Durează peste 30 de minute. Nu merită, refuz-o.') },
 ];
 
-export type ShipRole = 'blitz' | 'burner';
+export type BlitzLevel = 'l1' | 'l2' | 'l3' | 'l4' | 'l5';
+export type ShipRole = BlitzLevel | 'burner';
 
 export interface BlitzShipCard { ship: string; role: ShipRole; note: string; fits: string[]; tab?: 'nergal' }
 
+export const BLITZ_LEVELS: { id: BlitzLevel; face: string }[] = [
+  { id: 'l1', face: tx('Fregate și destroyere. Drumul durează mai mult decât lupta, deci o navă mică și rapidă.') },
+  { id: 'l2', face: tx('Tot nave mici, plus câteva cruisere. Un destroyer bun le duce încă.') },
+  { id: 'l3', face: tx('Mai ales cruisere și battlecruisere, dar încă multe fregate.') },
+  { id: 'l4', face: tx('Battleship-uri cu escortă. Unele fregate îți blochează warp-ul.') },
+  { id: 'l5', face: tx('Doar în lowsec. Multe nave și turnuri care îți golesc capacitorul.') },
+];
+
 export const BLITZ_SHIPS: BlitzShipCard[] = [
-  { ship: 'Paladin', role: 'blitz', note: tx('Cel mai rapid Marauder pe L4 acum, daune instant cu lasere.'), fits: [] },
-  { ship: 'Kronos', role: 'blitz', note: tx('După rebalansare are 5 sloturi medii. Railgun până peste 120 km.'), fits: [] },
-  { ship: 'Golem', role: 'blitz', note: tx('Rachete cruise. Două Target Paintere sunt obligatorii.'), fits: [] },
-  { ship: 'Machariel', role: 'blitz', note: tx('+50% viteză warp din rol, nava clasică de blitz.'), fits: ['machariel-autocannon', 'machariel-artillery'] },
-  { ship: 'Barghest', role: 'blitz', note: tx('Rachete fără falloff și burst mare cu RHML.'), fits: [] },
-  { ship: 'Rattlesnake', role: 'blitz', note: tx('Mai lent, dar relaxat: tank pasiv și drone.'), fits: [] },
+  { ship: 'Corax', role: 'l1', note: tx('Rachete ușoare, ieftin și rapid de antrenat. Schimbi tipul de daune după inamic.'), fits: [] },
+  { ship: 'Cormorant', role: 'l1', note: tx('Railgun de la 40-50 km, cu MWD ca să ții distanța. Muniția e ieftină.'), fits: [] },
+  { ship: 'Algos', role: 'l1', note: tx('Drone ușoare și tunuri mici. Skill-urile de drone îți folosesc și mai târziu.'), fits: [] },
+  { ship: 'Jackdaw', role: 'l2', note: tx('Destroyer tactic cu rachete. În modul de propulsie ajunge foarte repede la poartă.'), fits: [] },
+  { ship: 'Svipul', role: 'l2', note: tx('Destroyer tactic cu tunuri, rapid, cu tank pe scut sau pe armură.'), fits: [] },
+  { ship: 'Gnosis', role: 'l2', note: tx('Bonusurile nu depind de skill-uri, deci merge bine și pe un caracter nou. Ține și L3.'), fits: [] },
+  { ship: 'Gila', role: 'l3', note: tx('Drone medii și rachete ușoare rapide, scut care se reface singur. Ține și L4 cu skill-uri mici.'), fits: [] },
+  { ship: 'Ishtar', role: 'l3', note: tx('Cruiser de asalt cu drone, cam cât Gila. Alege-l dacă ai deja skill-urile.'), fits: [] },
+  { ship: 'Drake Navy Issue', role: 'l3', note: tx('Rachete medii cu bonus de aplicare, lovește bine și fregatele.'), fits: [] },
+  { ship: 'Tengu', role: 'l3', note: tx('Pentru L3 în nullsec: cu cloak și nullifier treci de bule fără să fii prins.'), fits: [] },
+  { ship: 'Paladin', role: 'l4', note: tx('Lasere cu daune instant și cristale în loc de muniție. Cel mai folosit Marauder pe L4.'), fits: [] },
+  { ship: 'Kronos', role: 'l4', note: tx('Railgun care lovește peste 100 km. După ultima rebalansare are 5 sloturi medii.'), fits: [] },
+  { ship: 'Golem', role: 'l4', note: tx('Rachete cruise care acoperă toată camera. Cu două target paintere, altfel pierde mult din daune.'), fits: [] },
+  { ship: 'Machariel', role: 'l4', note: tx('Warp cu 25% mai rapid și fără bastion. Câștigă timp acolo unde drumul contează mai mult decât lupta.'), fits: ['machariel-autocannon', 'machariel-artillery'] },
+  { ship: 'Barghest', role: 'l4', note: tx('Rachete de trei ori mai rapide, cu cruise sau rapid heavy. Fără bastion, pleci oricând.'), fits: [] },
+  { ship: 'Rattlesnake', role: 'l4', note: tx('Drone grele și tank pasiv pe scut. Mai lent, dar iartă greșelile.'), fits: [] },
+  { ship: 'Thanatos', role: 'l5', note: tx('Sau orice carrier, în misiunile fără acceleration gate. Ideal ai câte unul în fiecare sistem unde te trimite agentul.'), fits: [] },
+  { ship: 'Barghest', role: 'l5', note: tx('Cruise de la distanță, pentru misiunile cu gate unde carrier-ul nu intră.'), fits: [] },
+  { ship: 'Golem', role: 'l5', note: tx('Alternativa cu mai mult tank la Barghest, cu MJD pentru repoziționare.'), fits: [] },
   { ship: 'Nergal', role: 'burner', note: tx('Toate cele 9 burnere de fregată, cu aceleași rig-uri.'), fits: [], tab: 'nergal' },
   { ship: 'Garmur', role: 'burner', note: tx('Un fit pentru toate burnerele de echipă, schimbi doar muniția.'), fits: ['garmur-team'] },
   { ship: 'Vagabond', role: 'burner', note: tx('Baza Serpentis, cele trei Talos.'), fits: ['vagabond-serpentis-base'] },

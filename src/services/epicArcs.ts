@@ -138,3 +138,67 @@ export function arcAccess(arcId: string, st: NpcStandings, skills: SocialSkills)
   }
   return { need: req.need, ...r, unlock };
 }
+
+export interface ArcLimit { m: string[]; r: ArcText }
+export interface ArcShips { tier: ArcText; hull: ArcText; ships: string[]; limits: ArcLimit[] }
+
+const T3D: ArcText = { ro: 'Cel mult distrugătoare, inclusiv T3', en: 'Destroyers and below, T3 included' };
+const T1D: ArcText = { ro: 'Doar fregate T1/T2 și distrugătoare T1', en: 'T1/T2 frigates and T1 destroyers only' };
+
+export const ARC_SHIPS: Record<string, ArcShips> = {
+  soe: {
+    tier: { ro: 'Pilot nou', en: 'New pilot' }, hull: { ro: 'Distrugător T1', en: 'T1 destroyer' },
+    ships: ['Catalyst', 'Coercer', 'Cormorant', 'Thrasher'], limits: [],
+  },
+  air: {
+    tier: { ro: 'Pilot nou', en: 'New pilot' }, hull: { ro: 'Fregată standard T1', en: 'T1 standard frigate' },
+    ships: ['Merlin', 'Rifter', 'Punisher', 'Tristan'],
+    limits: [
+      { m: ['Caldari Prime Breakout'], r: { ro: 'Doar fregate standard Caldari', en: 'Caldari standard frigates only' } },
+      { m: ['Battle of Pator'], r: { ro: 'Doar fregate standard Minmatar', en: 'Minmatar standard frigates only' } },
+      { m: ['Golgothan Fields'], r: { ro: 'Doar fregate standard Amarr', en: 'Amarr standard frigates only' } },
+      { m: ['Intaki Liberation'], r: { ro: 'Doar fregate standard Gallente', en: 'Gallente standard frigates only' } },
+    ],
+  },
+  ore: {
+    tier: { ro: 'Pilot nou', en: 'New pilot' }, hull: { ro: 'Venture, apoi Pioneer', en: 'Venture, then Pioneer' },
+    ships: ['Venture', 'Pioneer'],
+    limits: [{ m: ['Pioneering Spirit'], r: { ro: 'Doar Pioneer', en: 'Pioneer only' } }],
+  },
+  angel: {
+    tier: { ro: 'Pilot mediu, null-sec', en: 'Mid pilot, null-sec' }, hull: { ro: 'Fregată sau distrugător', en: 'Frigate or destroyer' },
+    ships: ['Svipul', 'Thrasher', 'Wolf', 'Stiletto'],
+    limits: [{ m: ['Clear the Way', 'Natural Consequences', 'Rabbit Trap', 'Salvage Heist'], r: T3D }],
+  },
+  guristas: {
+    tier: { ro: 'Pilot mediu, null-sec', en: 'Mid pilot, null-sec' }, hull: { ro: 'Fregată sau distrugător T1', en: 'Frigate or T1 destroyer' },
+    ships: ['Corax', 'Hawk', 'Crow', 'Caldari Shuttle'],
+    limits: [
+      { m: ['Dread Pirates', 'Rabbit Hole', 'Foxfire', 'Fuel Gauge', 'Miscommunication', 'Smoke and Mirrors', 'Spy Games'], r: T1D },
+      { m: ['Passing the Buck'], r: T3D },
+      { m: ['Knockout Punch'], r: { ro: 'Doar shuttle', en: 'Shuttle only' } },
+    ],
+  },
+  amarr: {
+    tier: { ro: 'Pilot avansat, L4', en: 'Advanced pilot, L4' }, hull: { ro: 'Battleship, HAC sau T3C', en: 'Battleship, HAC or T3C' },
+    ships: ['Paladin', 'Apocalypse Navy Issue', 'Legion', 'Zealot'], limits: [],
+  },
+  caldari: {
+    tier: { ro: 'Pilot avansat, L4', en: 'Advanced pilot, L4' }, hull: { ro: 'Battleship, HAC sau T3C', en: 'Battleship, HAC or T3C' },
+    ships: ['Golem', 'Raven Navy Issue', 'Tengu', 'Cerberus', 'Crow', 'Crane'], limits: [],
+  },
+  gallente: {
+    tier: { ro: 'Pilot avansat, L4', en: 'Advanced pilot, L4' }, hull: { ro: 'Battleship cu rază mare', en: 'Long range battleship' },
+    ships: ['Vargur', 'Paladin', 'Tengu', 'Ishtar', 'Purifier'],
+    limits: [{ m: ['Rendezvous'], r: { ro: 'Cel mult battlecruiser T2', en: 'T2 battlecruisers and below' } }],
+  },
+  minmatar: {
+    tier: { ro: 'Pilot avansat, L4', en: 'Advanced pilot, L4' }, hull: { ro: 'Battleship sniper', en: 'Sniping battleship' },
+    ships: ['Vargur', 'Maelstrom', 'Loki', 'Muninn'],
+    limits: [{ m: ['Church Of The Obsidian', 'Friends In High Places'], r: { ro: 'Cel mult battleship', en: 'Battleships and below' } }],
+  },
+};
+
+export function missionLimit(arcId: string, title: string): ArcText | null {
+  return ARC_SHIPS[arcId]?.limits.find((l) => l.m.includes(title))?.r ?? null;
+}

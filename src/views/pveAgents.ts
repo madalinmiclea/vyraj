@@ -103,6 +103,11 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
     }).map((a) => ({ a, sys: m.systems.get(a.system)!, jumps: dist?.get(a.system) ?? null }))
       .sort((x, y) => (x.jumps ?? 0) - (y.jumps ?? 0) || y.a.level - x.a.level || x.a.name.localeCompare(y.a.name));
     const corpCount = new Set(rows.map((r) => r.a.corp)).size;
+    const maxIn = (ok: (corp: number) => boolean) => Math.max(0, ...d.agents.filter((a) => a.kind === 0 && ok(a.corp)).map((a) => a.level));
+    const selFaction = state.faction || (d.corps.get(state.corp)?.faction ?? 0);
+    const corpLacks = !!state.corp && maxIn((c) => c === state.corp) < state.level;
+    const factionLacks = !!selFaction && maxIn((c) => d.corps.get(c)?.faction === selFaction) < state.level;
+    const noLevel = !state.level || rows.length ? '' : factionLacks ? tx('Facțiunea nu are agenți L{l}', { l: state.level }) : corpLacks ? tx('Corporația nu are agenți L{l}', { l: state.level }) : '';
     const skills = standings ? socialSkills(ctx.sde, ctx.character) : null;
     const access = (corp: number, faction: number, id: number, level: number) => {
       if (!standings || !skills) return '';
@@ -138,7 +143,7 @@ export function createAgentsPanel(el: HTMLElement, ctx: AppContext) {
               <td>${esc(sys.name)} <span class="sec ${secClass(sys.sec)}">${displaySec(sys.sec).toFixed(1)}</span><div class="small dim">${esc(m.region(sys))}${st ? ` · ${esc(sys.name)} ${esc(st.where)}` : ` · ${tx('în spațiu')}`}</div></td>
               ${dist ? `<td class="r num">${jumps}</td>` : ''}${points ? `<td class="r num ${points.get(a.corp) ? '' : 'dim'}">${points.get(a.corp) ? formatInt(points.get(a.corp)!) : '—'}</td>` : ''}${access(a.corp, corp?.faction ?? 0, a.id, a.level)}</tr>`;
           }).join('')}
-        </tbody></table></div>${rows.length > LIMIT ? `<p class="dim small">${tx('Se văd primii {n}, cei mai apropiați.', { n: LIMIT })}</p>` : ''}` : `<p class="dim">${tx('Niciun agent nu se potrivește cu filtrele alese.')}</p>`}`,
+        </tbody></table></div>${rows.length > LIMIT ? `<p class="dim small">${tx('Se văd primii {n}, cei mai apropiați.', { n: LIMIT })}</p>` : ''}` : `<p class="dim">${noLevel || tx('Niciun agent nu se potrivește cu filtrele alese.')}</p>`}`,
     });
     bindOrigin(el, m, 'agOrigin', load);
     const search = el.querySelector<HTMLInputElement>('#agSearch');
