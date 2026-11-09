@@ -298,8 +298,8 @@ function switchView(id: ViewId, push = true) {
   browser.setCategories(v.categories);
   if (id !== 'fitting') { browser.setScope(null); fitting?.clearSlot(); }
   runLazy(id);
-  if (id === 'missions') missions?.show();
   if (id === 'cosmos') cosmos?.show(); else cosmos?.hide();
+  document.querySelector('.main')?.scrollTo({ top: 0 });
   if (id === 'notifications') notifications?.show('history');
   setSide(false);
   syncSubnav();
@@ -614,7 +614,7 @@ async function start() {
   later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
   later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
-  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); if (activeView === 'missions') missions.show(); });
+  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); });
   intel.setContext(ctx);
   runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {

@@ -46,7 +46,7 @@ const groupOf = (m: Mission) => (m.rating ? `ded${m.rating}` : sectionOf(m));
 const groupLabel = (g: string) => (g.startsWith('ded') ? `DED ${g.slice(3)}/10` : SECTIONS.find((s) => s.id === g)?.label ?? g);
 const norm = (s: string) => fold(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')).trim();
 
-interface State { section: Section | 'all'; tool?: MisTool | ''; guide?: Guide | ''; q: string }
+interface State { section: Section | 'all'; tool?: MisTool | ''; guide?: Guide | ''; q: string; open?: string }
 
 const DMG_NAME: Record<Dmg, string> = { em: 'EM', th: tx('Termic'), kin: tx('Cinetic'), exp: tx('Exploziv') };
 const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', exp: 'explosive' };
@@ -55,7 +55,7 @@ const ATTR: Record<Dmg, string> = { em: 'emDamage', th: 'thermalDamage', kin: 'k
 const chip = (d: Dmg) => `<span class="badge mis-dmg ${DMG_CLS[d]}">${DMG_NAME[d]}</span>`;
 const chips = (list: Dmg[]) => (list.length ? list.map(chip).join(' ') : `<span class="dim">${tx('Omni: orice tip')}</span>`);
 
-export interface MissionsView { show(): void; openMission(name: string, section?: Section | 'all'): void; names(): string[] }
+export interface MissionsView { openMission(name: string, section?: Section | 'all'): void; names(): string[] }
 
 export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, opts: { onTank: (site: string, faction: string) => void; openFit?: (fit: Fit) => void; scope?: 'ded' }): MissionsView {
   const sde = ctx.sde;
@@ -64,7 +64,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   const key = embedded ? 'eve-pve:ded' : STATE_KEY;
   const sections = SECTIONS.filter((s) => (s.id === 'ded') === embedded);
   const saved = loadJson<Partial<State>>(key, {});
-  const state: State = { section: embedded ? 'ded' : saved.section ?? 'all', tool: embedded ? '' : saved.tool ?? '', guide: embedded ? '' : saved.guide ?? '', q: '' };
+  const state: State = { section: embedded ? 'ded' : saved.section ?? 'all', tool: embedded ? '' : saved.tool ?? '', guide: embedded ? '' : saved.guide ?? '', q: saved.q ?? '', open: saved.open ?? '' };
   if (!sections.some((x) => x.id === state.section)) state.section = sections[0].id;
   let missions: Mission[] = [];
   let levels = new Map<string, Intensity>();
@@ -150,6 +150,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     state.guide = '';
     state.section = section;
     state.q = name ? chainBase(name) : name;
+    state.open = '';
     save();
     renderSide();
     showTool();
@@ -157,7 +158,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     el.closest('.main')?.scrollTo({ top: 0 });
   }
 
-  const save = () => saveJson(key, { ...state, q: '' });
+  const save = () => saveJson(key, state);
 
   help.innerHTML = embedded ? '' : `<div class="mis-help" data-guide="enemy" hidden>${enemyGuide()}</div>`;
   help.addEventListener('click', (e) => {
@@ -219,7 +220,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     };
     syncClear();
     input.addEventListener('sync', syncClear);
-    const reset = () => { input.value = ''; state.q = ''; syncClear(); closeSg(); save(); apply(); };
+    const reset = () => { input.value = ''; state.q = ''; state.open = ''; syncClear(); closeSg(); save(); apply(); };
     clear.addEventListener('click', (e) => { e.stopPropagation(); reset(); input.focus(); });
     input.addEventListener('focus', () => openSg());
     input.addEventListener('input', () => {
@@ -312,7 +313,9 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     const input = bar.querySelector<HTMLInputElement>(`#${P}Search`)!;
     input.value = m.name;
     state.q = m.name;
+    state.open = m.key;
     input.dispatchEvent(new Event('sync'));
+    input.blur();
     closeSg();
     save();
     apply();
@@ -657,6 +660,8 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     texts = new Map(missions.map((m) => [m.key, searchText(m)]));
     renderBar();
     renderList();
+    const d = state.open ? list.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(state.open)}"]`) : null;
+    if (d && !d.hidden) d.open = true;
   }).catch(() => {
     list.innerHTML = panel({ body: alertBox(tx('Nu am putut încărca datele misiunilor. Reîncarcă pagina.'), 'danger') });
   });
@@ -664,8 +669,5 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
   return {
     openMission,
     names: () => missions.map((m) => m.name),
-    show() {
-      if (state.q && missions.length) { state.q = ''; renderBar(); apply(); }
-    },
   };
 }
