@@ -19,7 +19,7 @@
   align-items: center;
   gap: 20px;
   padding: var(--safe-top) 16px 0 0;
-  background: linear-gradient(180deg, rgba(14, 20, 27, 0.95), rgba(8, 11, 15, 0.95));
+  background: linear-gradient(180deg, rgba(56, 68, 83, 0.96), rgba(46, 57, 70, 0.96));
   border-bottom: 1px solid var(--line);
   position: relative;
 }
@@ -154,7 +154,7 @@
   align-items: center;
   gap: 4px;
   padding: 10px 0;
-  background: rgba(5, 8, 11, 0.92);
+  background: rgba(39, 48, 60, 0.95);
   border-right: 1px solid var(--line);
 }
 .neocom-btn {
@@ -226,7 +226,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: rgba(8, 11, 15, 0.88);
+  background: rgba(39, 48, 60, 0.9);
   border-right: 1px solid var(--line);
   backdrop-filter: blur(6px);
 }

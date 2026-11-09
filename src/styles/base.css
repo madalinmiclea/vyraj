@@ -23,7 +23,7 @@ body {
   background-image:
     radial-gradient(ellipse 60% 50% at 85% 10%, rgba(40, 110, 150, 0.22), transparent 70%),
     radial-gradient(ellipse 50% 60% at 15% 95%, rgba(120, 70, 30, 0.16), transparent 70%),
-    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(10, 25, 35, 0.6), transparent 80%),
+    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(39, 48, 60, 0.6), transparent 80%),
     linear-gradient(var(--line) 1px, transparent 1px),
     linear-gradient(90deg, var(--line) 1px, transparent 1px);
   background-size: auto, auto, auto, 48px 48px, 48px 48px;
@@ -35,7 +35,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: radial-gradient(ellipse at center, rgba(5, 7, 10, 0.55), rgba(5, 7, 10, 0.92));
+  background: radial-gradient(ellipse at center, rgba(34, 42, 53, 0.5), rgba(34, 42, 53, 0.88));
   pointer-events: none;
   z-index: 0;
 }
