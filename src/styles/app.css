@@ -329,6 +329,17 @@ td thead th { top: 30px; z-index: 1; }
 .table.variations .icon-btn { width: 26px; height: 26px; }
 .table.variations .icon-btn svg { width: 14px; height: 14px; }
 .swap-fitted { display: inline-flex; color: var(--ok); }
+.table.variations .icon-btn.cmp-in { color: var(--ok); }
+.cmp-diff { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--text-dim); cursor: pointer; }
+.cmp-diff input { accent-color: var(--accent); }
+.cmp-table thead th { vertical-align: bottom; }
+.cmp-head { display: inline-flex; align-items: center; gap: 6px; text-align: right; }
+.cmp-head span { max-width: 150px; white-space: normal; }
+.cmp-head img { width: 24px; height: 24px; }
+.cmp-table .icon-btn { width: 22px; height: 22px; }
+.cmp-table .icon-btn svg { width: 12px; height: 12px; }
+.cmp-table td { white-space: nowrap; }
+.cmp-table tr.cmp-section td { padding-top: 12px; font-weight: 600; color: var(--text-dim); }
 .swap-fitted svg { width: 14px; height: 14px; }
 .info-head-actions { margin-left: auto; }
 .table.attrs.compare thead th { font-size: 11px; font-weight: 600; color: var(--text-dim); padding-bottom: 4px; }

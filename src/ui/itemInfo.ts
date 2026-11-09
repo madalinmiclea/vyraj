@@ -9,9 +9,11 @@ import { shipTraits, type TraitGroup } from '../services/traits';
 import { itemDescription } from '../services/descriptions';
 import { itemSummaryHtml } from './itemSummary';
 import { addToPlan, loadPlan, savePlan } from '../character/skillPlan';
-import type { DogmaItem } from '../engine/dogma';
-import { slotOf, type SlotKind } from '../engine/fit';
-import { attributeSections } from './attributes';
+import { Dogma, type DogmaItem, type DogmaInput } from '../engine/dogma';
+import { Category } from '../data/sde';
+import { slotOf, defaultState, type SlotKind } from '../engine/fit';
+import { fitCharacter } from '../fitting/implantSets';
+import { attributeSections, compareSections } from './attributes';
 import { openModal, badge, badgeHtml, button, esc, formatInt, formatNum, compactISK, copyText, toast, loader } from './components';
 import { icon } from './icons';
 import { fold } from './fold';
@@ -100,6 +102,25 @@ function masteryHtml(ctx: AppContext, mastery: ShipMastery, level: number, plans
     ${plan.missing.length ? `<div class="row-actions"><button class="btn ghost sm" data-plan-mastery>${tx('Adaugă în planul de skill-uri')}</button><button class="btn ghost sm" data-copy-mastery>${tx('Copiază planul')}</button></div>` : ''}`;
 }
 
+const compareLists = new Map<number, number[]>();
+
+function skilledItem(ctx: AppContext, id: number): DogmaItem | undefined {
+  const sde = ctx.sde;
+  const c = fitCharacter(ctx.character);
+  const base: DogmaInput = { shipId: 0, skills: c.skills, implants: c.implants, modules: [] };
+  switch (sde.types.get(id)?.categoryId) {
+    case Category.Ship: return new Dogma(sde, { ...base, shipId: id }).ship;
+    case Category.Module: case Category.Subsystem: return new Dogma(sde, { ...base, modules: [{ typeId: id, state: defaultState(sde, id), slotKey: `${slotOf(sde, id) ?? 'high'}0` }] }).modules[0];
+    case Category.Drone: case Category.Fighter: return new Dogma(sde, { ...base, drones: [{ typeId: id, count: 1, slotKey: 'drone0' }] }).drones[0]?.item;
+    case Category.Implant: return new Dogma(sde, { ...base, implants: [id] }).implants[0];
+  }
+  return undefined;
+}
+
+const compareToggle = (id: number, inList: boolean) => inList
+  ? `<button class="icon-btn cmp-in" data-cmp-toggle="${id}" title="${tx('Scoate din comparare')}" aria-label="${tx('Scoate din comparare')}">${icon('check')}</button>`
+  : `<button class="icon-btn" data-cmp-toggle="${id}" title="${tx('Adaugă în comparare')}" aria-label="${tx('Adaugă în comparare')}">${icon('plus')}</button>`;
+
 export interface FitSwap {
   fittedId: number;
   fitted: DogmaItem;
@@ -151,6 +172,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
   const sections = attributeSections(sde, typeId, item, comparing ? swap!.fitted : undefined);
   const fittedName = swap ? sde.types.get(swap.fittedId)?.name ?? '' : '';
   const family = sde.variations(typeId);
+  const familyKey = t.variationParentId ?? t.id;
   const attributes = sections.length
     ? `<input class="input plain attr-filter" placeholder="${tx('Filtrează atribute...')}" data-attr-filter />
       ${sections.map((sec) => `<div class="attr-section"><h3 class="section-title">${esc(sec.title)}</h3>
@@ -179,17 +201,18 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       <button class="tab" data-tab="attrs">${tx('Atribute')}</button>
       ${family.length > 1 ? `<button class="tab" data-tab="var">${tx('Variante')} <span class="tab-count neutral">${family.length}</span></button>` : ''}
       <button class="tab" data-tab="req">${tx('Cerințe')}${plan.canFly ? '' : ` <span class="tab-count">${plan.missing.length}</span>`}</button>
+      ${family.length > 1 ? `<button class="tab" data-tab="cmp">${tx('Comparare')} <span class="tab-count neutral" data-cmp-count></span></button>` : ''}
       ${t.categoryId === 6 ? '<button class="tab hidden" data-tab="mastery">Mastery <span class="tab-count neutral" data-mastery-count></span></button>' : ''}
     </div>
     <div class="tab-panel hidden" data-panel="traits"></div>
     ${t.categoryId === 6 ? '' : `<div class="tab-panel hidden info-desc" data-panel="desc">${itemSummaryHtml(sde, typeId, item)}<div data-official></div></div>`}
     <div class="tab-panel hidden" data-panel="attrs">${identity}${attributes}</div>
     <div class="tab-panel hidden" data-panel="var">
-      <table class="table compact variations"><thead><tr><th></th><th>${tx('Item')}</th><th>${tx('Tip')}</th><th class="r">Meta</th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
+      <table class="table compact variations"><thead><tr><th></th><th>${tx('Item')}</th><th>${tx('Tip')}</th><th class="r">Meta</th><th></th>${swap ? '<th></th>' : ''}</tr></thead><tbody>
         ${family.map((v) => `<tr class="${v.id === typeId ? 'current' : ''}" data-variation="${v.id}" title="${v.id === typeId ? tx('Itemul deschis') : tx('Deschide')}">
           <td><img src="${typeIconUrl(v.id, 32)}" alt="" loading="lazy" /></td>
           <td>${esc(v.name)}</td><td>${v.metaGroupId ? badge(META_GROUPS[v.metaGroupId] ?? `Meta ${v.metaGroupId}`, v.metaGroupId === 5 ? 'gold' : v.metaGroupId === 4 || v.metaGroupId === 6 ? 'accent' : '') : ''}</td>
-          <td class="r num">${v.metaLevel ?? 0}</td>${swap ? `<td class="swap-cell">${v.id === swap.fittedId
+          <td class="r num">${v.metaLevel ?? 0}</td><td class="swap-cell" data-cmp-cell="${v.id}"></td>${swap ? `<td class="swap-cell">${v.id === swap.fittedId
             ? `<span class="swap-fitted" title="${tx('Montat pe navă')}">${icon('check')}</span>`
             : `<button class="icon-btn" data-swap="${v.id}" title="${tx('Înlocuiește în fit')}" aria-label="${tx('Înlocuiește în fit')}">${icon('swap')}</button>`}</td>` : ''}</tr>`).join('')}
       </tbody></table>
@@ -200,6 +223,7 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       <div class="row-actions"><button class="btn ghost sm" data-copy-plan>${tx('Copiază planul')}</button></div>` : ''}
     <p class="dim small">${tx('Cerințe directe')}: ${directRequirements(sde, typeId).map((r) => `<button class="link" data-skill-info="${r.skillId}">${esc(sde.types.get(r.skillId)?.name ?? r.skillId)}</button> ${roman(r.level)}`).join(', ') || '—'}</p>
     </div>
+    <div class="tab-panel hidden" data-panel="cmp"></div>
     <div class="tab-panel hidden" data-panel="mastery"></div>
   `;
   const el = openModal(tx('Info item'), body, { wide: true });
@@ -209,6 +233,25 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     el.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab));
   };
   showTab(startTab);
+  let onlyDiff = false;
+  const itemFor = (id: number) => (swap ? (id === swap.fittedId ? swap.fitted : swap.preview(id) ?? skilledItem(ctx, id)) : skilledItem(ctx, id));
+  const renderCompare = () => {
+    const ids = compareLists.get(familyKey) ?? [];
+    const count = el.querySelector<HTMLElement>('[data-cmp-count]');
+    if (count) count.textContent = String(ids.length);
+    el.querySelectorAll<HTMLElement>('[data-cmp-cell]').forEach((c) => { const id = Number(c.dataset.cmpCell); c.innerHTML = compareToggle(id, ids.includes(id)); });
+    const panel = el.querySelector<HTMLElement>('[data-panel="cmp"]');
+    if (!panel) return;
+    if (!ids.length) { panel.innerHTML = `<p class="dim">${tx('Adaugă iteme din tab-ul Variante.')}</p>`; return; }
+    const secs = compareSections(sde, ids.map((id) => ({ typeId: id, item: itemFor(id) })));
+    panel.innerHTML = `<label class="check small cmp-diff"><input type="checkbox" data-cmp-diff ${onlyDiff ? 'checked' : ''} /> ${tx('Doar diferențe')}</label>
+      <div class="table-scroll"><table class="table compact attrs cmp-table"><thead><tr><th></th>${ids.map((id) => `<th class="r"><span class="cmp-head"><img src="${typeIconUrl(id, 32)}" alt="" loading="lazy" /><span>${esc(sde.types.get(id)?.name ?? '')}</span><button class="icon-btn" data-cmp-toggle="${id}" title="${tx('Scoate din comparare')}" aria-label="${tx('Scoate din comparare')}">${icon('close')}</button></span></th>`).join('')}</tr></thead>
+      <tbody>${secs.map((sec) => {
+        const rows = sec.rows.filter((r) => !onlyDiff || !r.same);
+        return rows.length ? `<tr class="cmp-section"><td colspan="${ids.length + 1}">${esc(sec.title)}</td></tr>${rows.map((r) => `<tr><td>${esc(r.name)}</td>${r.values.map((v, i) => `<td class="r num ${r.tones[i]}">${esc(v)}</td>`).join('')}</tr>`).join('')}` : '';
+      }).join('')}</tbody></table></div>`;
+  };
+  renderCompare();
   let mastery: ShipMastery | null = null;
   let masteryPlans: FitRequirements[] = [];
   let masteryLevel = 1;
@@ -261,6 +304,14 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
       copyText(skillPlanText(masteryPlans[masteryLevel - 1].missing), tx('Plan copiat (lipește-l în Skill Plans din joc)'));
       return;
     }
+    const cmpBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-cmp-toggle]');
+    if (cmpBtn) {
+      const id = Number(cmpBtn.dataset.cmpToggle);
+      const ids = compareLists.get(familyKey) ?? [];
+      compareLists.set(familyKey, ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+      renderCompare();
+      return;
+    }
     const swapBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-swap]');
     if (swapBtn && swap) {
       const id = Number(swapBtn.dataset.swap);
@@ -279,6 +330,11 @@ export function showItemInfo(ctx: AppContext, typeId: number, item?: DogmaItem, 
     if (!tab) return;
     tabPicked = true;
     showTab(tab.dataset.tab!);
+  });
+  el.addEventListener('change', (e) => {
+    if (!(e.target as HTMLElement).matches('[data-cmp-diff]')) return;
+    onlyDiff = (e.target as HTMLInputElement).checked;
+    renderCompare();
   });
   el.querySelector<HTMLInputElement>('[data-attr-filter]')?.addEventListener('input', (e) => {
     const q = fold((e.target as HTMLInputElement).value.trim());

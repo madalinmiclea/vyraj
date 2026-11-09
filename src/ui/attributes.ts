@@ -82,3 +82,35 @@ export function attributeSections(sde: Sde, typeId: number, item?: DogmaItem, co
     rows: byCategory.get(c)!.sort((x, y) => x.name.localeCompare(y.name)),
   }));
 }
+
+export interface CompareRow {
+  name: string;
+  values: string[];
+  tones: ('' | 'better' | 'worse')[];
+  same: boolean;
+}
+
+export function compareSections(sde: Sde, list: { typeId: number; item?: DogmaItem }[]): { title: string; rows: CompareRow[] }[] {
+  const per = list.map((x) => attributeSections(sde, x.typeId, x.item));
+  const has = per.map((secs) => new Set(secs.flatMap((sec) => sec.rows.map((r) => r.id))));
+  return [...new Set(CATEGORY_ORDER.map((c) => CATEGORIES[c]))].flatMap((title) => {
+    const names = new Map<number, string>();
+    for (const secs of per) for (const r of secs.find((sec) => sec.title === title)?.rows ?? []) names.set(r.id, r.name);
+    if (!names.size) return [];
+    const rows = [...names].map(([id, name]): CompareRow => {
+      const a = sde.attributes.get(id)!;
+      const raw = list.map((x, i) => (has[i].has(id) ? (x.item ? x.item.attr(id) : sde.baseAttr(x.typeId, id)) : undefined));
+      const present = raw.filter((v): v is number => v !== undefined);
+      const hi = Math.max(...present), lo = Math.min(...present);
+      const spread = hi - lo > 1e-9 * Math.max(1, Math.abs(hi));
+      const ranked = spread && !NEUTRAL_UNITS.has(a.unitId ?? 0);
+      return {
+        name,
+        values: raw.map((v) => (v === undefined ? '—' : formatAttribute(sde, a, v))),
+        tones: raw.map((v) => (v === undefined || !ranked ? '' : v === (a.highIsGood ? hi : lo) ? 'better' : v === (a.highIsGood ? lo : hi) ? 'worse' : '')),
+        same: !spread && present.length === list.length,
+      };
+    });
+    return [{ title, rows: rows.sort((x, y) => x.name.localeCompare(y.name)) }];
+  });
+}

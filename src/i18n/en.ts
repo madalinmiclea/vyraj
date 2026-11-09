@@ -4079,4 +4079,9 @@ export const EN: Record<string, string> = {
   "nesalvat": "unsaved",
   "Nesalvat": "Unsaved",
   "Implant slot {n}": "Implant slot {n}",
+  "Comparare": "Compare",
+  "Adaugă în comparare": "Add to compare",
+  "Scoate din comparare": "Remove from compare",
+  "Doar diferențe": "Only differences",
+  "Adaugă iteme din tab-ul Variante.": "Add items from the Variations tab.",
 };
