@@ -2,8 +2,9 @@ import { mergeImplants, type Fit } from '../engine/fit';
 import type { Dogma } from '../engine/dogma';
 import { typeIconUrl } from '../services/market';
 import { attributeSections } from '../ui/attributes';
-import { badge, button, closeModal, confirmDialog, esc, openModal, panel, toast } from '../ui/components';
+import { button, closeModal, confirmDialog, esc, openModal, panel, toast } from '../ui/components';
 import { Category } from '../data/sde';
+import { icon } from '../ui/icons';
 import { tx } from '../i18n';
 import type { FitEnv } from './shared';
 import { activeSet, deleteSet, DRAFT, fitCharacter, hasDraft, implantSets, saveSet, setImplants, useSet } from './implantSets';
@@ -40,30 +41,28 @@ export function createImplantPanel(env: FitEnv) {
 
   const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-  function row(d: Dogma, slot: number, id: number | undefined, tag: string) {
+  function row(d: Dogma, slot: number, id: number | undefined) {
     const sub = id ? bonusLine(id) : '';
     const set = id ? setLine(d, id) : '';
     const label = `[${slot}] ${id ? env.name(id) : tx('Gol')}`;
     return `<div class="slot ${id ? 'fitted' : ''}">
       ${id ? `<img class="slot-img" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />` : ''}
       <div class="slot-main">${id ? `<button class="slot-name link" data-info="${id}">${esc(label)}</button>` : `<span class="dim">${esc(label)}</span>`}${sub ? `<span class="dim small">${esc(sub)}</span>` : ''}${set ? `<span class="small set-bonus">${esc(set)}</span>` : ''}</div>
-      ${id && tag ? badge(tag, 'accent') : ''}
-      ${button(tx('Schimbă'), { cls: 'ghost sm', attrs: `data-implant-change="${slot}"` })}
-      ${button(tx('Golește'), { cls: 'ghost sm', attrs: `data-implant-clear="${slot}" ${id ? '' : 'disabled'}` })}
+      <button class="slot-info" data-implant-change="${slot}" title="${tx('Schimbă')}" aria-label="${tx('Schimbă')}">${icon('swap')}</button>
+      <button class="slot-remove" data-implant-clear="${slot}" title="${tx('Golește')}" aria-label="${tx('Golește')}" ${id ? '' : 'disabled'}>${icon('close')}</button>
     </div>`;
   }
 
   function render(f: Fit, d: Dogma): string {
     const base = fitCharacter(env.ctx.character).implants.filter((id) => sde.types.has(id) && !isBooster(id));
     const set = activeSet();
-    const baseTag = set ? set.name || tx('nesalvat') : tx('caracter');
     const fitted = f.implants.filter((id) => !isBooster(id));
     let count = 0;
     const rows = SLOTS.map((slot) => {
       const own = fitted.find((id) => slotOf(id) === slot);
       const id = own ?? base.find((x) => slotOf(x) === slot);
       if (id) count++;
-      return row(d, slot, id, own ? '' : baseTag);
+      return row(d, slot, id);
     }).join('');
     const body = `<div class="slot-group implants">${rows}</div>`
       + `<div class="implant-set-save"><input class="input sm" id="fitImplantSetName" placeholder="${tx('Nume set')}" value="${esc(set?.name ?? '')}" />${button(tx('Salvează set'), { cls: 'sm', attrs: 'data-implant-set-save' })}${set ? button(tx('Șterge set'), { cls: 'ghost sm', attrs: 'data-implant-set-delete' }) : ''}</div>`;
