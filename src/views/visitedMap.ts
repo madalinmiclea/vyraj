@@ -227,7 +227,7 @@ export function createVisitedMap(el: HTMLElement, ctx: AppContext, opts: { openF
         g.textAlign = 'left';
         g.textBaseline = 'middle';
         g.lineWidth = 3;
-        g.strokeStyle = p.css('--bg-void');
+        g.strokeStyle = p.css('--map-halo');
         g.strokeText(pos.who, pt[0] + r + 6, pt[1] - r - 6);
         g.fillStyle = p.css('--text-bright');
         g.fillText(pos.who, pt[0] + r + 6, pt[1] - r - 6);

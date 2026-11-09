@@ -379,7 +379,7 @@ export class StarMap {
     this.drawTerritory(ctx);
     this.opts.under?.(painter);
     const inView = (x: number, y: number, m = 40) => x > -m && y > -m && x < this.w + m && y < this.h + m;
-    const line = this.css('--line-strong');
+    const line = this.css('--map-lane');
     ctx.lineWidth = gap > 30 ? 1.2 : 0.8;
     for (const cross of [false, true]) {
       ctx.strokeStyle = line;
@@ -400,11 +400,13 @@ export class StarMap {
     ctx.globalAlpha = 1;
     const r = Math.max(1.2, Math.min(4.5, gap * 0.16));
     const labels = gap > 26;
+    const dimA = parseFloat(this.css('--map-dim')) || 0.28;
+    const dimL = parseFloat(this.css('--map-dim-label')) || 0.35;
     for (const s of this.list) {
       const [x, y] = this.toScreen(s.x2, s.y2);
       if (!inView(x, y)) continue;
       const dim = this.opts.dim?.(s);
-      ctx.globalAlpha = dim ? 0.28 : 1;
+      ctx.globalAlpha = dim ? dimA : 1;
       ctx.fillStyle = secColor(s.sec);
       if (labels) {
         ctx.beginPath();
@@ -438,7 +440,7 @@ export class StarMap {
       ctx.font = `${size}px ${this.css('--font-mono')}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      const text = this.css('--text-dim');
+      const text = this.css('--map-label');
       const order = this.opts.labelFirst ? [...this.list].sort((a, b) => Number(this.opts.labelFirst!(b.id)) - Number(this.opts.labelFirst!(a.id))) : this.list;
       for (const s of order) {
         const [x, y] = this.toScreen(s.x2, s.y2);
@@ -448,7 +450,7 @@ export class StarMap {
         const box: [number, number, number, number] = [x - w, top, x + w, top + size + 1];
         if (!free(...box)) continue;
         take(box);
-        ctx.globalAlpha = this.opts.dim?.(s) ? 0.35 : 1;
+        ctx.globalAlpha = this.opts.dim?.(s) ? dimL : 1;
         ctx.fillStyle = text;
         ctx.fillText(s.name, x, top);
       }
@@ -459,7 +461,7 @@ export class StarMap {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.lineWidth = 3;
-      ctx.strokeStyle = this.css('--bg-void');
+      ctx.strokeStyle = this.css('--map-halo');
       ctx.fillStyle = this.css('--text-bright');
       ctx.globalAlpha = gap < 26 ? 0.92 : 0.55;
       for (const c of this.regionCenters) {

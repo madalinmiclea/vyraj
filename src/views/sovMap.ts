@@ -135,7 +135,7 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
       const placed: [number, number, number, number][] = [];
       g.font = `700 ${p.spacing < 8 ? 12 : 14}px ${p.css('--font-heading')}`;
       g.lineWidth = 3;
-      g.strokeStyle = p.css('--bg-void');
+      g.strokeStyle = p.css('--map-halo');
       g.fillStyle = p.css('--text-bright');
       for (const l of labels) {
         const pt = p.world(l.x, l.y);

@@ -447,7 +447,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       if (!pt) continue;
       const s = 7;
       g.fillStyle = accent;
-      g.strokeStyle = p.css('--bg-void');
+      g.strokeStyle = p.css('--map-halo');
       g.lineWidth = 2;
       g.beginPath();
       g.moveTo(pt[0], pt[1] - s - 8);
@@ -486,7 +486,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     const min = p.spacing >= 16 ? 1 : p.spacing >= 7 ? 3 : 10;
     const placed: [number, number, number, number][] = [];
     const big = p.spacing >= 16;
-    const bg = p.css('--bg-void');
+    const bg = p.css('--map-halo');
     g.font = `600 10px ${p.css('--font-mono')}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
@@ -518,7 +518,7 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
   function drawBattles(p: MapPainter) {
     const { ctx: g } = p;
     const danger = p.css('--danger');
-    const bg = p.css('--bg-void');
+    const bg = p.css('--map-halo');
     const bright = p.css('--text-bright');
     const big = p.spacing >= 16;
     g.font = `700 11px ${p.css('--font-body')}`;

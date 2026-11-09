@@ -42,6 +42,16 @@
   --slot-rig: #9b7fe0;
   --slot-sub: #6fcf6f;
 
+  --map-bg: #121b25;
+  --map-grid: rgba(160, 190, 215, 0.06);
+  --map-grid-strong: rgba(160, 190, 215, 0.13);
+  --map-vignette: rgba(4, 7, 10, 0.55);
+  --map-lane: rgba(175, 205, 228, 0.55);
+  --map-label: #cbd7e2;
+  --map-halo: #0b1219;
+  --map-dim: 0.5;
+  --map-dim-label: 0.6;
+
   --font-heading: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

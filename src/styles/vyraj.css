@@ -1,22 +1,22 @@
 :root[data-theme='vyraj'] {
   color-scheme: dark;
-  --bg-void: #060505;
-  --bg-base: #0a0909;
-  --bg-panel: rgba(18, 16, 16, 0.9);
-  --bg-panel-solid: #121010;
-  --bg-raised: rgba(28, 25, 25, 0.92);
-  --bg-inset: rgba(4, 3, 3, 0.75);
+  --bg-void: #1e1a1a;
+  --bg-base: #241f1f;
+  --bg-panel: rgba(44, 38, 38, 0.92);
+  --bg-panel-solid: #2c2626;
+  --bg-raised: rgba(58, 50, 50, 0.94);
+  --bg-inset: rgba(22, 18, 18, 0.7);
   --bg-hover: rgba(214, 28, 44, 0.09);
   --bg-active: rgba(214, 28, 44, 0.18);
 
-  --line: rgba(190, 180, 178, 0.11);
-  --line-strong: rgba(190, 180, 178, 0.22);
+  --line: rgba(190, 180, 178, 0.16);
+  --line-strong: rgba(190, 180, 178, 0.32);
   --line-accent: rgba(214, 28, 44, 0.55);
 
   --text: #e9e3e2;
   --text-bright: #faf6f5;
-  --text-dim: #b3aaa8;
-  --text-faint: #857c7a;
+  --text-dim: #cbc2c0;
+  --text-faint: #a49a98;
 
   --accent: #e0263a;
   --accent-bright: #ff5466;
@@ -27,24 +27,32 @@
 
   --danger: #ff6a3d;
   --buy: #f07a52;
+
+  --map-bg: #312a2a;
+  --map-grid: rgba(215, 195, 192, 0.06);
+  --map-grid-strong: rgba(215, 195, 192, 0.12);
+  --map-vignette: rgba(8, 5, 5, 0.55);
+  --map-lane: rgba(225, 208, 205, 0.5);
+  --map-label: #d9cfcd;
+  --map-halo: #221c1c;
 }
 
 :root[data-theme='vyraj'] body {
   background-image:
     radial-gradient(ellipse 60% 50% at 85% 10%, rgba(150, 12, 28, 0.2), transparent 70%),
     radial-gradient(ellipse 50% 60% at 15% 95%, rgba(90, 10, 18, 0.18), transparent 70%),
-    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(22, 18, 18, 0.6), transparent 80%),
+    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(46, 40, 40, 0.6), transparent 80%),
     linear-gradient(var(--line) 1px, transparent 1px),
     linear-gradient(90deg, var(--line) 1px, transparent 1px);
 }
 
 :root[data-theme='vyraj'] body::before {
-  background: radial-gradient(ellipse at center, rgba(6, 5, 5, 0.55), rgba(6, 5, 5, 0.93));
+  background: radial-gradient(ellipse at center, rgba(30, 26, 26, 0.5), rgba(30, 26, 26, 0.88));
 }
 
-:root[data-theme='vyraj'] .topbar { background: linear-gradient(180deg, rgba(24, 21, 21, 0.96), rgba(10, 9, 9, 0.96)); box-shadow: inset 0 -1px 0 rgba(214, 28, 44, 0.25); }
-:root[data-theme='vyraj'] .neocom { background: rgba(12, 10, 10, 0.95); }
-:root[data-theme='vyraj'] .sidebar { background: rgba(11, 10, 10, 0.9); }
+:root[data-theme='vyraj'] .topbar { background: linear-gradient(180deg, rgba(50, 44, 44, 0.96), rgba(34, 29, 29, 0.96)); box-shadow: inset 0 -1px 0 rgba(214, 28, 44, 0.25); }
+:root[data-theme='vyraj'] .neocom { background: rgba(32, 28, 28, 0.95); }
+:root[data-theme='vyraj'] .sidebar { background: rgba(30, 26, 26, 0.9); }
 :root[data-theme='vyraj'] .modal-backdrop { background: rgba(4, 2, 2, 0.75); }
 
 :root:not([data-theme='vyraj']) .topbar-title { visibility: hidden; }
