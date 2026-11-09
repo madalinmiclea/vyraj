@@ -220,6 +220,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     };
     syncClear();
     input.addEventListener('sync', syncClear);
+    new ResizeObserver(() => syncClear()).observe(bar.querySelector(`#${P}SearchBox`)!);
     const reset = () => { input.value = ''; state.q = ''; state.open = ''; syncClear(); closeSg(); save(); apply(); };
     clear.addEventListener('click', (e) => { e.stopPropagation(); reset(); input.focus(); });
     input.addEventListener('focus', () => openSg());
