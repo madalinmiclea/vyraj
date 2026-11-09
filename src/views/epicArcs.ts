@@ -21,7 +21,7 @@ const DMG_CLS: Record<Dmg, string> = { em: 'em', th: 'thermal', kin: 'kinetic', 
 const chip = (d: Dmg) => `<span class="badge mis-dmg ${DMG_CLS[d]}">${DMG_NAME[d]}</span>`;
 const chips = (list: Dmg[]) => (list.length ? list.map(chip).join(' ') : `<span class="dim">${tx('Omni: orice tip')}</span>`);
 
-const TYPE_LABEL: Record<ArcMission['t'], string> = { enc: tx('Luptă'), talk: tx('Discuție'), courier: tx('Transport'), choice: tx('Alegere') };
+const TYPE_LABEL: Record<ArcMission['t'], string> = { enc: tx('Luptă'), talk: tx('Discuție'), courier: tx('Curier'), choice: tx('Alegere') };
 
 const CLS: Record<string, string> = {
   F: tx('Fregată'), EF: tx('Fregată elite'), D: tx('Distrugător'), C: tx('Crucișător'), EC: tx('Crucișător elite'), BC: tx('Battlecruiser'),
