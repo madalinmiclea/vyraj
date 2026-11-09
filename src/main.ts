@@ -29,7 +29,7 @@ import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
 import { requestPermission, type PermId } from './character/permissions';
 import { openPermissionsModal } from './character/loginModal';
 import { logoutCharacter, showLogoutFlash } from './character/logout';
-import { createMissionsView, type MissionsView } from './views/missions';
+import { createMissionsView } from './views/missions';
 import { createOperationsView } from './views/operations';
 import { createCosmosView, type CosmosView } from './views/cosmos';
 import { esiHealth } from './services/operations';
@@ -180,7 +180,6 @@ const intel = createIntelView(viewEl('intel'), null, {
 market.setFees(() => intel.fees());
 
 let fitting: FittingView | null = null;
-let missions: MissionsView | null = null;
 let cosmos: CosmosView | null = null;
 let doctrines: DoctrinesView | null = null;
 let notifications: NotificationsView | null = null;
@@ -614,7 +613,7 @@ async function start() {
   later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
   later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
   later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
-  later('missions', ['missions'], () => { missions = createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); });
+  later('missions', ['missions'], () => { createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); });
   intel.setContext(ctx);
   runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {

@@ -109,7 +109,7 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
     ratting: createRattingPanel(box('ratting'), ctx),
     anomalies: createAnomaliesPanel(box('anomalies'), { onTank: opts.onTank, openTool: openTab }),
     escalations: createEscalationsPanel(box('escalations'), ctx, { dedNames: () => ded.names(), openMission: (name) => { ded.openMission(name); openTab('ded'); } }),
-    ded: { show: () => ded.show(), hide: () => {} },
+    ded: { show: () => {}, hide: () => {} },
     dedguide: { show: () => {}, hide: () => {} },
     abyss: createAbyssGuidePanel(box('abyss'), { onTank: opts.onTank, openTool: openTab }),
     incursions: { show: () => incursions.show(), hide: () => {} },

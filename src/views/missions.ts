@@ -592,6 +592,7 @@ export function createMissionsView(el: HTMLElement, ctx: AppContext, side: HTMLE
     }
     const d = e.target as HTMLDetailsElement;
     if (!(d instanceof HTMLDetailsElement) || !d.classList.contains('mis-card')) return;
+    if (d.open && state.open !== d.dataset.key) { state.open = d.dataset.key; save(); }
     const b = d.querySelector<HTMLElement>('.mis-body')!;
     if (d.open && !b.innerHTML) { const m = missions.find((x) => x.key === d.dataset.key); if (m) b.innerHTML = body(m); }
   }, true);
