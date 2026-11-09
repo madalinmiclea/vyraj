@@ -1,6 +1,7 @@
 import { loadJson, saveJson, removeKey } from '../storage';
 import { lang } from '../i18n';
 import type { Dmg } from './missions';
+import { effective, type NpcStandings, type SocialSkills } from './npcStandings';
 
 export interface ArcText { ro: string; en: string }
 export type ArcShip = [string, string, string, string[], string];
@@ -86,4 +87,54 @@ export function arcStats(arc: Arc, prog: ArcProgress | undefined) {
   const sum = items.filter((r) => done.has(r.title)).length;
   const next = route(arc, prog).find((r) => r.k === 'c' || !done.has(r.title));
   return { total, sum, next, finished: !next && total > 0 };
+}
+
+export interface ArcGate { agent: number; corp: number; faction: number }
+export interface ArcReq { need: number; starts: ArcGate[] }
+
+export const ARC_REQ: Record<string, ArcReq> = {
+  angel: { need: 3, starts: [{ agent: 3019465, corp: 1000054, faction: 500002 }, { agent: 3019466, corp: 1000084, faction: 500003 }, { agent: 3019467, corp: 1000138, faction: 500011 }] },
+  guristas: { need: 3, starts: [{ agent: 3019463, corp: 1000121, faction: 500004 }, { agent: 3019462, corp: 1000004, faction: 500001 }, { agent: 3019464, corp: 1000127, faction: 500010 }] },
+  amarr: { need: 5, starts: [{ agent: 3019415, corp: 1000082, faction: 500003 }] },
+  caldari: { need: 5, starts: [{ agent: 3019396, corp: 1000023, faction: 500001 }] },
+  gallente: { need: 5, starts: [{ agent: 3019412, corp: 1000105, faction: 500004 }] },
+  minmatar: { need: 5, starts: [{ agent: 3019411, corp: 1000049, faction: 500002 }] },
+};
+
+export type GateVia = 'agent' | 'corp' | 'faction';
+export interface GateCheck { i: number; ok: boolean; v: Record<GateVia, number>; base: Record<GateVia, number | undefined>; best: number; via: GateVia; low: GateVia[] }
+export interface ArcAccess { need: number; checks: GateCheck[]; ok: boolean; top: GateCheck; unlock: { skill: keyof SocialSkills; level: number } | null }
+
+const VIA: GateVia[] = ['agent', 'corp', 'faction'];
+
+function checkGate(st: NpcStandings, skills: SocialSkills, g: ArcGate, need: number, i: number): GateCheck {
+  const base = { agent: st.agent.get(g.agent), corp: st.corp.get(g.corp), faction: st.faction.get(g.faction) };
+  const v = { agent: effective(base.agent, g.faction, skills), corp: effective(base.corp, g.faction, skills), faction: effective(base.faction, g.faction, skills) };
+  const via = VIA.reduce((a, b) => (v[b] > v[a] ? b : a));
+  const low = VIA.filter((k) => v[k] <= -2);
+  return { i, ok: !low.length && v[via] >= need, v, base, best: v[via], via, low };
+}
+
+function evaluate(req: ArcReq, st: NpcStandings, skills: SocialSkills) {
+  const checks = req.starts.map((g, i) => checkGate(st, skills, g, req.need, i));
+  const rank = (c: GateCheck) => (c.ok ? 1e3 : 0) - c.low.length * 100 + c.best;
+  const top = checks.reduce((a, b) => (rank(b) > rank(a) ? b : a));
+  return { checks, top, ok: checks.some((c) => c.ok) };
+}
+
+export function arcAccess(arcId: string, st: NpcStandings, skills: SocialSkills): ArcAccess | null {
+  const req = ARC_REQ[arcId];
+  if (!req) return null;
+  const r = evaluate(req, st, skills);
+  let unlock: ArcAccess['unlock'] = null;
+  if (!r.ok) {
+    const order: (keyof SocialSkills)[] = ['connections', 'criminal', 'diplomacy'];
+    outer: for (let lvl = 1; lvl <= 5; lvl++) {
+      for (const sk of order) {
+        if (skills[sk] >= lvl) continue;
+        if (evaluate(req, st, { ...skills, [sk]: lvl }).ok) { unlock = { skill: sk, level: lvl }; break outer; }
+      }
+    }
+  }
+  return { need: req.need, ...r, unlock };
 }

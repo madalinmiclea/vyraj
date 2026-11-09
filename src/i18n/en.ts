@@ -4030,4 +4030,12 @@ export const EN: Record<string, string> = {
   "Încarc arcurile epice": "Loading the epic arcs",
   "Ștergi progresul pentru {name}?": "Delete your progress for {name}?",
   "și încă {n}": "and {n} more",
+  "bază {v}": "base {v}",
+  "din {n}": "of {n}",
+  "Poți începe": "You can start",
+  "Nu încă": "Not yet",
+  "Cu {skill} {lvl}: deblocat": "With {skill} {lvl}: unlocked",
+  "{name} sub -2": "{name} below -2",
+  "lipsesc {x}": "{x} short",
+  "Loghează un caracter ca să afli dacă poți începe.": "Log in a character to see if you can start.",
 };

@@ -5,10 +5,13 @@ import { loadMap, displaySec, secClass, type NavMap } from '../services/navigati
 import { pveOrigin, originBar, bindOrigin, type Origin } from '../services/pveOrigin';
 import { faction, FLAG_LABEL, EU_URL, type Dmg, type Ewar, EWAR_LABEL } from '../services/missions';
 import {
-  loadEpicArcs, loadArcDone, saveArcDone, pickArc, isChoice, arcStats, COOLDOWN_DAYS,
-  type Arc, type ArcData, type ArcDone, type ArcMission, type ArcNode, type ArcProgress, type ArcWave,
+  loadEpicArcs, loadArcDone, arcAccess, ARC_REQ, saveArcDone, pickArc, isChoice, arcStats, COOLDOWN_DAYS,
+  type Arc, type ArcData, type ArcDone, type ArcMission, type ArcNode, type ArcProgress, type ArcWave, type ArcAccess, type GateCheck, type GateVia,
 } from '../services/epicArcs';
 import { tx, locale } from '../i18n';
+import { loginProblem } from '../character/sso';
+import { permissionGate } from '../character/permissions';
+import { loadNpcStandings, cachedNpcStandings, canReadNpcStandings, socialSkills } from '../services/npcStandings';
 
 const UI_KEY = 'eve-epic:ui';
 const DAY = 86_400_000;
@@ -30,6 +33,12 @@ const FLAG: Record<string, string> = { ...FLAG_LABEL, friend: tx('Prietenos'), n
 
 interface Ui { arc: string }
 
+const FACTION_NAME: Record<number, string> = { 500001: 'Caldari State', 500002: 'Minmatar Republic', 500003: 'Amarr Empire', 500004: 'Gallente Federation', 500010: 'Guristas Pirates', 500011: 'Angel Cartel' };
+const SKILL_NAME: Record<string, string> = { connections: 'Connections', diplomacy: 'Diplomacy', criminal: 'Criminal Connections' };
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+const tone = (v: number) => (v <= -2 ? 'danger' : v < 0 ? 'warn' : v >= 5 ? 'ok' : v > 0 ? 'accent' : 'dim');
+const stdNum = (v: number, base: number | undefined) => `<span class="std-val ${tone(v)}" title="${esc(tx('bază {v}', { v: formatNum(base ?? 0, 2) }))}">${formatNum(v, 2)}</span>`;
+
 export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { onTank: (site: string, faction: string) => void }) {
   const ui: Ui = { arc: '', ...loadJson<Partial<Ui>>(UI_KEY, {}) };
   let visible = false;
@@ -40,6 +49,56 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
   const charKey = () => ctx.character.id;
   let done: ArcDone = loadArcDone(charKey());
   const saveUi = () => saveJson(UI_KEY, ui);
+  const logged = () => !loginProblem(ctx.character) && !!ctx.character.characterId;
+  const canRead = () => logged() && canReadNpcStandings(ctx.character.characterId!);
+
+  function access(a: Arc): ArcAccess | null | undefined {
+    if (!ARC_REQ[a.id]) return null;
+    const st = canRead() ? cachedNpcStandings(ctx.character.characterId!) : null;
+    return st ? arcAccess(a.id, st, socialSkills(ctx.sde, ctx.character)) : undefined;
+  }
+
+  function gateName(a: Arc, c: GateCheck, via: GateVia) {
+    const s = a.starts?.[c.i];
+    if (via === 'agent') return s?.agent ?? a.start.agent;
+    if (via === 'corp') return s?.corp ?? a.start.corp;
+    return FACTION_NAME[ARC_REQ[a.id].starts[c.i].faction] ?? '';
+  }
+
+  function verdict(a: Arc, r: ArcAccess) {
+    const c = r.top;
+    if (r.ok) return `<span class="badge ok">${tx('Poți începe')}</span> <span>${esc(gateName(a, c, c.via))} ${stdNum(c.v[c.via], c.base[c.via])}</span>`;
+    const hint = r.unlock ? ` <span class="std-hint">${esc(tx('Cu {skill} {lvl}: deblocat', { skill: SKILL_NAME[r.unlock.skill], lvl: ROMAN[r.unlock.level] }))}</span>` : '';
+    if (c.low.length) {
+      const k = c.low[0];
+      return `<span class="badge danger">${tx('Blocat')}</span> <span>${esc(tx('{name} sub -2', { name: gateName(a, c, k) }))} ${stdNum(c.v[k], c.base[k])}</span>${hint}`;
+    }
+    return `<span class="badge warn">${tx('Nu încă')}</span> <span>${esc(tx('lipsesc {x}', { x: formatNum(r.need - c.best, 2) }))} · ${esc(gateName(a, c, c.via))} ${stdNum(c.v[c.via], c.base[c.via])} ${esc(tx('din {n}', { n: formatNum(r.need, 2) }))}</span>${hint}`;
+  }
+
+  function standingCard(a: Arc) {
+    const r = access(a);
+    if (r === null) return `<span class="badge ok">${tx('Poți începe')}</span> <span class="dim">${tx('fără standing')}</span>`;
+    if (!r) return esc(pickArc(a.standing));
+    return verdict(a, r);
+  }
+
+  function standingPage(a: Arc) {
+    const r = access(a);
+    const text = esc(pickArc(a.standing));
+    if (r === null) return `<div>${text}</div><div class="epic-std"><span class="badge ok">${tx('Poți începe')}</span></div>`;
+    if (!r) {
+      if (!logged()) return `<div>${text}</div><div class="small dim">${tx('Loghează un caracter ca să afli dacă poți începe.')}</div>`;
+      if (!canRead()) return `<div>${text}</div>${permissionGate('npcstandings', ctx.character.characterId!, ctx.character.name)}`;
+      return `<div>${text}</div>`;
+    }
+    const rows = r.checks.map((c) => {
+      const cells = (['agent', 'corp', 'faction'] as GateVia[]).map((k) => `<span class="epic-std-cell"><span class="dim">${esc(gateName(a, c, k))}</span> ${stdNum(c.v[k], c.base[k])}</span>`).join('');
+      const mark = c.ok ? `<span class="badge ok">${tx('Da')}</span>` : c.low.length ? `<span class="badge danger">${tx('Blocat')}</span>` : `<span class="badge warn">${tx('Nu')}</span>`;
+      return `<div class="epic-std-row">${mark}${cells}</div>`;
+    }).join('');
+    return `<div>${text}</div><div class="epic-std">${verdict(a, r)}</div><div class="epic-std-rows">${rows}</div>`;
+  }
 
   async function load() {
     if (!visible) return;
@@ -49,6 +108,9 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
       const [d, m] = await Promise.all([loadEpicArcs(), loadMap()]);
       origin = await pveOrigin(ctx, m);
       if (mine !== seq || !visible) return;
+      if (canRead() && !cachedNpcStandings(ctx.character.characterId!)) {
+        loadNpcStandings(ctx.character.characterId!).then(() => { if (mine === seq && visible) render(); }).catch(() => {});
+      }
       data = d;
       map = m;
       if (ui.arc && !d.arcs.some((a) => a.id === ui.arc)) ui.arc = '';
@@ -90,7 +152,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
         <span class="epic-card-head"><span class="epic-card-name">${esc(a.name)}</span>${statusBadge(a)}</span>
         <span class="mis-tags"><span class="badge">${esc(a.fac)}</span><span class="badge accent">L${a.level}</span><span class="badge">${esc(tx('{n} misiuni', { n: Object.keys(a.m).length }))}</span></span>
         <span class="epic-card-line"><span class="label">${tx('Start')}</span><span>${esc(a.start.agent)} · ${sysHtml(a.start.sys, dd)}${a.starts && a.starts.length > 1 ? ` <span class="dim">${esc(tx('și încă {n}', { n: a.starts.length - 1 }))}</span>` : ''}</span></span>
-        <span class="epic-card-line"><span class="label">${tx('Standing')}</span><span>${esc(pickArc(a.standing))}</span></span>
+        <span class="epic-card-line"><span class="label">${tx('Standing')}</span><span>${standingCard(a)}</span></span>
         <span class="epic-card-line"><span class="label">${tx('Recompensă')}</span><span class="epic-clamp">${esc(pickArc(a.reward))}</span></span>
         <span class="cos-meter"><span style="width:${pct}%"></span></span>
       </button>`;
@@ -240,7 +302,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
     const info: [string, string][] = [
       [tx('Facțiune'), `${esc(a.fac)} · L${a.level}`],
       [tx('Start'), a.starts?.length ? a.starts.map((s) => `<div>${esc(s.agent)}, ${esc(s.corp)} · ${sysHtml(s.sys, d)}${s.where ? ` <span class="dim">· ${esc(s.where)}</span>` : ''} <span class="dim">· ${esc(pickArc(s.need))}</span></div>`).join('') : `${esc(a.start.agent)}, ${esc(a.start.corp)} · ${sysHtml(a.start.sys, d)} <span class="dim">· ${esc(a.start.station)}</span>`],
-      [tx('Standing'), esc(pickArc(a.standing))],
+      [tx('Standing'), standingPage(a)],
       [tx('Spațiu'), esc(pickArc(a.space))],
       [tx('Durată'), esc(pickArc(a.time))],
       [tx('Navă'), esc(pickArc(a.ship))],
@@ -347,7 +409,7 @@ export function createEpicArcsPanel(el: HTMLElement, ctx: AppContext, opts: { on
     setDone(a, t.dataset.epicDone!, t.checked, t.dataset.epicAnc ?? '');
   });
 
-  ctx.onCharacterChange(() => { done = loadArcDone(charKey()); if (visible) render(); });
+  ctx.onCharacterChange(() => { done = loadArcDone(charKey()); if (visible) load(); });
 
   return {
     show() { visible = true; done = loadArcDone(charKey()); load(); },

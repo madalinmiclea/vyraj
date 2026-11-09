@@ -31,3 +31,9 @@
   .epic-choice { padding: 8px; }
 }
 .epic-card .cos-meter { margin-top: auto; }
+.epic-card-line .std-val, .epic-std .std-val, .epic-std-cell .std-val { font-family: var(--font-mono); }
+.std-hint { display: block; margin-top: 2px; font-size: 12px; color: var(--ok); }
+.epic-std { margin-top: 6px; }
+.epic-std-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.epic-std-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13px; }
+.epic-std-cell { white-space: nowrap; }
