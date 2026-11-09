@@ -2,7 +2,7 @@ import { mergeImplants, type Fit } from '../engine/fit';
 import type { Dogma } from '../engine/dogma';
 import { typeIconUrl } from '../services/market';
 import { attributeSections } from '../ui/attributes';
-import { button, closeModal, confirmDialog, esc, openModal, panel, toast } from '../ui/components';
+import { button, closeModal, confirmDialog, esc, formatNum, openModal, panel, toast } from '../ui/components';
 import { Category } from '../data/sde';
 import { icon } from '../ui/icons';
 import { tx } from '../i18n';
@@ -22,6 +22,7 @@ export function createImplantPanel(env: FitEnv) {
       const a = sde.attributes.get(r.id);
       return a && (/bonus/i.test(a.name) || PERCENT_UNITS.includes(a.unitId ?? 0)) && a.name !== 'implantness';
     });
+    if (!rows.length) return attributeSections(sde, id).flatMap((sec) => sec.rows).filter((r) => /^implantSet/.test(sde.attributes.get(r.id)?.name ?? '')).map((r) => `${r.name} ${r.value}`).join(' · ');
     return rows.slice(0, 2).map((r) => `${r.name} ${signed(r.base ?? r.value)}`).join(' · ');
   }
 
@@ -30,13 +31,18 @@ export function createImplantPanel(env: FitEnv) {
     const item = d.implants.find((i) => i.typeId === id);
     if (!setAttr || !item) return '';
     const pieces = d.implants.filter((i) => sde.type(i.typeId).attrs.has(setAttr)).length;
-    const changed = attributeSections(sde, id, item).flatMap((sec) => sec.rows).filter((r) => {
+    const all = attributeSections(sde, id, item).flatMap((sec) => sec.rows);
+    let changed = all.filter((r) => {
       const a = sde.attributes.get(r.id);
       return r.base && a && (/bonus/i.test(a.name) || PERCENT_UNITS.includes(a.unitId ?? 0));
     });
+    if (!changed.length) {
+      const total = d.implants.reduce((m, i) => m * (sde.baseAttr(i.typeId, setAttr) || 1), 1);
+      changed = all.filter((r) => r.id === setAttr).map((r) => ({ ...r, value: `${formatNum(total, 2)} x` }));
+    }
     if (!changed.length) return '';
     const setName = env.name(id).replace(/\s+\S+$/, '');
-    return `${tx('Set {name}', { name: setName })} · ${pieces === 1 ? tx('{n} piesă', { n: pieces }) : tx('{n} piese', { n: pieces })}: ${changed.map((r) => `${r.name} ${signed(r.value)}`).join(' · ')}`;
+    return `${tx('Set {name}', { name: setName })} · ${pieces === 1 ? tx('{n} piesă', { n: pieces }) : tx('{n} piese', { n: pieces })}: ${changed.map((r) => `${r.name} ${r.id === setAttr ? r.value : signed(r.value)}`).join(' · ')}`;
   }
 
   const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
