@@ -1189,7 +1189,6 @@ export const EN: Record<string, string> = {
   "Intensitate": "Intensity",
   "EHP față de spațiu normal: {d}%": "EHP vs normal space: {d}%",
   "Set {name}": "{name} set",
-  "Apasă pe un implant din browser ca să-l adaugi.": "Click an implant in the browser to add it.",
   "SKIN-uri filtrate": "Filtered SKINs",
   "Deținut": "Owned",
   "Fără ordere": "No orders",
@@ -4076,4 +4075,8 @@ export const EN: Record<string, string> = {
   "Înlocuiește": "Replace",
   "Set salvat": "Set saved",
   "Ștergi setul „{name}”?": "Delete set “{name}”?",
+  "Schimbă": "Change",
+  "nesalvat": "unsaved",
+  "Nesalvat": "Unsaved",
+  "Implant slot {n}": "Implant slot {n}",
 };
