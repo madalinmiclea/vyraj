@@ -4508,6 +4508,54 @@
    "title": "Gaia Light Fighter Ratting"
   }
  },
+ "95629": {
+  "pve": {
+   "eft": "[Oracle Navy Issue, Oracle Navy Issue Imperial Navy Synchronizer PvE]\nImperial Navy Medium Armor Repairer\nImperial Navy Medium Armor Repairer\nImperial Navy Multispectrum Energized Membrane\nImperial Navy Multispectrum Energized Membrane\nDamage Control II\nImperial Navy Heat Sink\nImperial Navy Heat Sink\n\n10MN Afterburner II\nImperial Navy Cap Recharger\nImperial Navy Cap Recharger\n\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\nImperial Navy Mega Pulse Laser, Imperial Navy Multifrequency L\n\nMedium Imperial Navy Synchronizer\nMedium Auxiliary Nano Pump I",
+   "source": "generated",
+   "title": "Oracle Navy Issue Imperial Navy Synchronizer PvE"
+  },
+  "pvp": {
+   "eft": "[Oracle Navy Issue, Oracle Navy Issue Imperial Navy Synchronizer PvP]\nImperial Navy 1600mm Steel Plates\nImperial Navy Multispectrum Energized Membrane\nImperial Navy Multispectrum Energized Membrane\nDamage Control II\nImperial Navy Heat Sink\nImperial Navy Heat Sink\nImperial Navy Heat Sink\n\n50MN Microwarpdrive II\nImperial Navy Warp Scrambler\nImperial Navy Stasis Webifier\n\nImperial Navy Mega Pulse Laser, Scorch L\nImperial Navy Mega Pulse Laser, Scorch L\nImperial Navy Mega Pulse Laser, Scorch L\nImperial Navy Mega Pulse Laser, Scorch L\nImperial Navy Mega Pulse Laser, Scorch L\nImperial Navy Mega Pulse Laser, Scorch L\n\nMedium Imperial Navy Synchronizer\nMedium Trimark Armor Pump I\nMedium Trimark Armor Pump I",
+   "source": "generated",
+   "title": "Oracle Navy Issue Imperial Navy Synchronizer PvP"
+  }
+ },
+ "95630": {
+  "pve": {
+   "eft": "[Naga Navy Issue, Naga Navy Issue Caldari Navy Synchronizer PvE]\nCaldari Navy Ballistic Control System\nCaldari Navy Ballistic Control System\nCaldari Navy Ballistic Control System\n\n10MN Afterburner II\nCaldari Navy Large Shield Extender\nCaldari Navy Large Shield Extender\nCaldari Navy Multispectrum Shield Hardener\nCaldari Navy Multispectrum Shield Hardener\nCaldari Navy Missile Guidance Computer, Missile Precision Script\nCaldari Navy Stasis Webifier\n\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\nCaldari Navy Cruise Missile Launcher, Caldari Navy Scourge Cruise Missile\n\nMedium Caldari Navy Synchronizer\nMedium Warhead Rigor Catalyst I",
+   "source": "generated",
+   "title": "Naga Navy Issue Caldari Navy Synchronizer PvE"
+  },
+  "pvp": {
+   "eft": "[Naga Navy Issue, Naga Navy Issue Caldari Navy Synchronizer PvP]\nCaldari Navy Ballistic Control System\nCaldari Navy Ballistic Control System\nDamage Control II\n\n50MN Microwarpdrive II\nCaldari Navy Warp Scrambler\nCaldari Navy Stasis Webifier\nCaldari Navy Large Shield Extender\nCaldari Navy Large Shield Extender\nCaldari Navy Multispectrum Shield Hardener\nCaldari Navy Missile Guidance Computer, Missile Precision Script\n\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\nCaldari Navy Torpedo Launcher, Scourge Rage Torpedo\n\nMedium Caldari Navy Synchronizer\nMedium Core Defense Field Extender I\nMedium Core Defense Field Extender I",
+   "source": "generated",
+   "title": "Naga Navy Issue Caldari Navy Synchronizer PvP"
+  }
+ },
+ "95631": {
+  "pve": {
+   "eft": "[Talos Navy Issue, Talos Navy Issue Federation Navy Synchronizer PvE]\nFederation Navy Magnetic Field Stabilizer\nFederation Navy Magnetic Field Stabilizer\nFederation Navy Magnetic Field Stabilizer\nDamage Control II\nFederation Navy Co-Processor\nTracking Enhancer II\n\nFederation Navy 10MN Afterburner\nLarge Shield Extender II\nLarge Shield Extender II\nMultispectrum Shield Hardener II\n\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\nFederation Navy 425mm Railgun, Federation Navy Antimatter Charge L\n\nMedium Federation Navy Synchronizer\nMedium Core Defense Field Extender I\nMedium Core Defense Field Extender I\n\nHobgoblin II x5",
+   "source": "generated",
+   "title": "Talos Navy Issue Federation Navy Synchronizer PvE"
+  },
+  "pvp": {
+   "eft": "[Talos Navy Issue, Talos Navy Issue Federation Navy Synchronizer PvP]\nFederation Navy Magnetic Field Stabilizer\nFederation Navy Magnetic Field Stabilizer\nFederation Navy Magnetic Field Stabilizer\nDamage Control II\nOverdrive Injector System II\nOverdrive Injector System II\n\nFederation Navy 50MN Microwarpdrive\nFederation Navy Warp Scrambler\nLarge Shield Extender II\nLarge Shield Extender II\n\nFederation Navy Neutron Blaster Cannon, Void L\nFederation Navy Neutron Blaster Cannon, Void L\nFederation Navy Neutron Blaster Cannon, Void L\nFederation Navy Neutron Blaster Cannon, Void L\nFederation Navy Neutron Blaster Cannon, Void L\nFederation Navy Neutron Blaster Cannon, Void L\n\nMedium Federation Navy Synchronizer\nMedium Core Defense Field Extender I\nMedium Core Defense Field Extender I\n\nWarrior II x5",
+   "source": "generated",
+   "title": "Talos Navy Issue Federation Navy Synchronizer PvP"
+  }
+ },
+ "95632": {
+  "pve": {
+   "eft": "[Tornado Fleet Issue, Tornado Fleet Issue Republic Fleet Synchronizer PvE]\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\nDamage Control II\n\nRepublic Fleet 10MN Afterburner\nRepublic Fleet Large Shield Extender\nRepublic Fleet Large Shield Extender\nMultispectrum Shield Hardener II\nMultispectrum Shield Hardener II\nRepublic Fleet Target Painter\n\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\nRepublic Fleet 800mm Repeating Cannon, Republic Fleet EMP L\n\nMedium Republic Fleet Synchronizer\nMedium Core Defense Field Extender I\nMedium Core Defense Field Extender I",
+   "source": "generated",
+   "title": "Tornado Fleet Issue Republic Fleet Synchronizer PvE"
+  },
+  "pvp": {
+   "eft": "[Tornado Fleet Issue, Tornado Fleet Issue Republic Fleet Synchronizer PvP]\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Gyrostabilizer\nRepublic Fleet Tracking Enhancer\nDamage Control II\n\nRepublic Fleet 50MN Microwarpdrive\nRepublic Fleet Large Shield Extender\nRepublic Fleet Large Shield Extender\nMultispectrum Shield Hardener II\nRepublic Fleet Warp Disruptor\nRepublic Fleet Target Painter\n\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\nRepublic Fleet 1200mm Artillery, Republic Fleet Phased Plasma L\n\nMedium Republic Fleet Synchronizer\nMedium Ancillary Current Router I",
+   "source": "generated",
+   "title": "Tornado Fleet Issue Republic Fleet Synchronizer PvP"
+  }
+ },
  "95741": {
   "pve": {
    "eft": "[Akoman,  Akoman 2]\nDamage Control II\nMedium Ancillary Armor Repairer\nNanofiber Internal Structure II\nTrue Sansha Multispectrum Energized Membrane\nTracking Enhancer II\nHeat Sink II\nHeat Sink II\n\nMedium Capacitor Booster II\nTrue Sansha Stasis Webifier\nTrue Sansha Stasis Webifier\nFederation Navy 100MN Afterburner\n\nCorpum A-Type Medium Energy Nosferatu\nCorpum A-Type Medium Energy Nosferatu\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\nMega Pulse Laser II\n\nMedium Explosive Armor Reinforcer I\nMedium Ancillary Current Router II\nMedium Polycarbon Engine Housing II\n\n\nConflagration L x8\nScorch L x4\nNanite Repair Paste x64\nNavy Cap Booster 800 x2",

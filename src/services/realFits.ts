@@ -56,6 +56,7 @@ function metaOf(sde: Sde, typeId: number): number[] {
 const excess = (r: Resource) => Math.max(0, r.used - r.total) / Math.max(r.total, 1);
 const fittingExcess = (r: Resources) => excess(r.cpu) + excess(r.power);
 const calibrationExcess = (r: Resources) => excess(r.calibration);
+const SYNCHRONIZER_GROUP = 5140;
 
 interface Adjustments { faction: number; meta: number; rigs: number; removed: number; trimmed: boolean; valid: boolean }
 
@@ -220,10 +221,11 @@ export function prepareFit(sde: Sde, shipId: number, kind: RealFitKind, entry: P
   const { fit } = parseEft(sde, entry.eft);
   if (fit.shipId !== shipId) return null;
   const upgraded: Upgraded[] = [];
+  const synced = fit.slots.rig.some((m) => m && sde.types.get(m.typeId)?.groupId === SYNCHRONIZER_GROUP);
   for (const k of SLOT_KINDS) {
     if (k === 'subsystem') continue;
     fit.slots[k].forEach((m, i) => {
-      if (!m || m.mutation) return;
+      if (!m || m.mutation || synced) return;
       const t2 = toT2(sde, m.typeId);
       if (t2 !== m.typeId) { upgraded.push({ k, i, original: m.typeId }); m.typeId = t2; }
     });
@@ -236,7 +238,9 @@ export function prepareFit(sde: Sde, shipId: number, kind: RealFitKind, entry: P
   const title = entry.title?.trim() || fit.name;
   fit.name = `${sde.type(shipId).name} ${label}`;
   const generated = entry.source === 'generated';
-  const notes = [generated
+  const notes = [synced
+    ? tx('Fit {kind} compus din bonusurile navei, cu synchronizer și module navy din aceeași facțiune.', { kind: label })
+    : generated
     ? tx('Fit {kind} compus din bonusurile și statisticile navei, pentru că nu există un fit publicat. Modulele care au variantă T2 au fost trecute pe T2.', { kind: label })
     : tx('Fit publicat: „{title}”, sursa {url} . Modulele care au variantă T2 au fost trecute pe T2.', { title, url: entry.source })];
   notes.push(tx('Muniția e T2 unde există, altfel de facțiune.'));

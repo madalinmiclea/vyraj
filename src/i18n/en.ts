@@ -1226,6 +1226,7 @@ export const EN: Record<string, string> = {
   "Ce nu încape cu skill-urile caracterului apare cu roșu.": "Whatever does not fit with the character's skills is shown in red.",
   "Fit {kind} generat din bonusurile, sloturile, punctele de montaj, CPU și powergrid ale navei, cu module T2, pentru că nu am găsit un fit publicat. Modifică-l după cum zbori.": "{kind} fit generated from the ship's bonuses, slots, hardpoints, CPU and powergrid, with T2 modules, because no published fit was found. Adjust it to the way you fly.",
   "Fit publicat: „{title}”, sursa {url} . Modulele care au variantă T2 au fost trecute pe T2.": "Published fit: “{title}”, source {url} . Modules with a T2 variant were switched to T2.",
+  "Fit {kind} compus din bonusurile navei, cu synchronizer și module navy din aceeași facțiune.": "{kind} fit built from the ship's bonuses, with a synchronizer and navy modules of the same faction.",
   "Fit {kind} compus din bonusurile și statisticile navei, pentru că nu există un fit publicat. Modulele care au variantă T2 au fost trecute pe T2.": "{kind} fit built from the ship's bonuses and stats, because no published fit exists. Modules with a T2 variant were switched to T2.",
   "„{name}” are modificări nesalvate. Le pierzi și începi un fit nou pe {ship}?": "“{name}” has unsaved changes. Discard them and start a new fit on {ship}?",
   "bonusuri (pe nivel de skill)": "bonuses (per skill level)",
