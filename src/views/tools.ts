@@ -497,7 +497,7 @@ export function createToolPanel(body: HTMLElement, ctx: AppContext): ToolPanel {
       return `<td class="r num ${v >= 0 ? 'up' : 'down'} ${mode === lpSort ? 'lp-key' : 'dim'}">${formatInt(v)}</td>`;
     };
     const units = c.n * r.o.quantity;
-    return `<td><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${units > 1 ? `${formatInt(units)}× ` : ''}${esc(typeName(r.o.type_id))}${lpFlags(r, c, points)}</td>
+    return `<td><button class="link asset-item" data-asset-info="${r.o.type_id}" title="${esc(tx('Deschide informațiile itemului'))}"><img class="row-icon" src="${typeIconUrl(r.o.type_id, 32)}" alt="" />${units > 1 ? `${formatInt(units)}× ` : ''}${esc(typeName(r.o.type_id))}</button>${lpFlags(r, c, points)}</td>
         <td class="r num">${formatInt(c.lp)}</td>
         <td class="r" title="${esc([`ISK ${compactISK(r.o.isk_cost * c.n)}`, ...r.o.required_items.map((x) => { const own = Math.min(lpOwned && lpOwnSrc !== 'none' ? lpOwned.counts.get(x.type_id) ?? 0 : 0, x.quantity * c.n); return `${formatInt(x.quantity * c.n)}× ${typeName(x.type_id)}${own ? ` (${tx('{n} din hangar', { n: formatInt(own) })})` : ''}`; })].join(', '))}">${isk(c.cost)}</td>
         <td class="r">${c.sell ? isk(c.sell) : '—'}</td>
