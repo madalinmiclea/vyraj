@@ -10,7 +10,7 @@ import { loadJson, saveJson, isDemo } from '../storage';
 import { DEMO_ID } from '../demo/identity';
 import { icon } from '../ui/icons';
 import { showItemInfo } from '../ui/itemInfo';
-import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast } from '../ui/components';
+import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast, windowTitle } from '../ui/components';
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { backupPanel } from '../io/backup';
@@ -20,9 +20,36 @@ import { loreText } from '../i18n/lore';
 import { typeIconUrl } from '../services/market';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
+const TAB_KEY = 'eve-fit:ui:char-tab';
 
-export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTMLElement, aside: HTMLElement) {
+type Tab = 'profile' | 'skills' | 'plan' | 'req' | 'roster' | 'settings';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'profile', label: tx('Profil') },
+  { id: 'skills', label: tx('Skill-urile mele') },
+  { id: 'plan', label: tx('Coadă și plan') },
+  { id: 'req', label: tx('Cerințe') },
+  { id: 'roster', label: tx('Toate caracterele') },
+  { id: 'settings', label: tx('Setări') },
+];
+
+export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTMLElement, aside: HTMLElement, nav: { side: HTMLElement; queue: HTMLElement; panes: Record<Tab, HTMLElement> }) {
   const sde = ctx.sde;
+  let tab = loadJson<Tab>(TAB_KEY, 'profile');
+  if (!TABS.some((t) => t.id === tab)) tab = 'profile';
+
+  function renderTabs() {
+    nav.side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Caracter'))}</div>
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-char-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+    for (const [id, pane] of Object.entries(nav.panes)) pane.hidden = id !== tab;
+  }
+
+  nav.side.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-char-tab]');
+    if (!b) return;
+    tab = b.dataset.charTab as Tab;
+    saveJson(TAB_KEY, tab);
+    renderTabs();
+  });
 
   const collapsed = new Set(loadJson<string[]>(COLLAPSED_KEY, []));
   const toggleCollapsed = (key: string) => {
@@ -69,8 +96,9 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         </div>`;
 
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
-    el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
-    aside.innerHTML = `${queuePanel()}${implantsPanel()}${permissionsPanel()}${setup}${backupPanel()}`;
+    el.innerHTML = `${error ? alertBox(error) : ''}${summary}${implantsPanel()}`;
+    nav.queue.innerHTML = queuePanel();
+    aside.innerHTML = `${permissionsPanel()}${setup}${backupPanel()}`;
     fillPublic();
   }
 
@@ -208,8 +236,10 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
 
   el.addEventListener('click', onClick);
   aside.addEventListener('click', onClick);
+  nav.queue.addEventListener('click', onClick);
 
   ctx.onCharacterChange(() => render());
+  renderTabs();
   render();
 
   return {

@@ -78,8 +78,9 @@ export function fitFromShip(sde: Sde, ship: OwnedShip, fitName: string): Fit {
   const loaded = new Map<string, number>();
   const items: { type_id: number; flag: string; quantity: number }[] = [];
   for (const a of ship.contents) {
+    if (a.location_flag === 'Cargo') continue;
     const isCharge = sde.types.get(a.type_id)?.categoryId === Category.Charge;
-    if (isCharge && a.location_flag !== 'Cargo') loaded.set(a.location_flag, a.type_id);
+    if (isCharge) loaded.set(a.location_flag, a.type_id);
     else items.push({ type_id: a.type_id, flag: a.location_flag, quantity: a.quantity });
   }
   const merged = new Map<string, { type_id: number; flag: string; quantity: number }>();

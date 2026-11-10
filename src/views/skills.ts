@@ -26,7 +26,7 @@ const SKILL_GROUP_RO: Record<string, string> = {
 
 const skillGroupLabel = (g: string) => (lang === 'ro' ? SKILL_GROUP_RO[g] ?? g : g);
 
-export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
+export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, reqEl: HTMLElement) {
   const sde = ctx.sde;
   const skills = sde.typesInCategory(Category.Skill).sort((a, b) => a.name.localeCompare(b.name));
   const groups = new Map<string, TypeInfo[]>();
@@ -40,18 +40,12 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
   const openGroups = new Set(loadJson<string[]>(OPEN_KEY, []));
   let selectedItem: number | null = null;
 
-  el.innerHTML = `<div class="stack">
-      <div class="char-plan-grid">
-        <div id="skillPlan" class="stack"></div>
-        <div class="stack">
-          ${panel({ title: tx('Cerințe pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
-          <div id="reqDetail"></div>
-        </div>
-      </div>
-    </div>`;
-  const search = el.querySelector<HTMLInputElement>('#reqSearch')!;
-  const results = el.querySelector<HTMLElement>('#reqResults')!;
-  const detail = el.querySelector<HTMLElement>('#reqDetail')!;
+  el.innerHTML = '<div id="skillPlan" class="stack"></div>';
+  reqEl.innerHTML = `${panel({ title: tx('Cerințe pentru orice item'), body: `${searchField({ id: 'reqSearch', placeholder: tx('Navă, modul, dronă, implant...') })}<div id="reqResults" class="req-results"></div>` })}
+    <div id="reqDetail"></div>`;
+  const search = reqEl.querySelector<HTMLInputElement>('#reqSearch')!;
+  const results = reqEl.querySelector<HTMLElement>('#reqResults')!;
+  const detail = reqEl.querySelector<HTMLElement>('#reqDetail')!;
   const planEl = el.querySelector<HTMLElement>('#skillPlan')!;
 
   function currentPlan(): PlanEntry[] {
@@ -145,7 +139,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
     const trained = skills.filter((s) => (c.skills.get(s.id) ?? 0) > 0).length;
     const sp = c.totalSp ?? skills.reduce((a, s) => a + (c.sp.get(s.id) ?? spForLevel(skillRank(sde, s.id), c.skills.get(s.id) ?? 0)), 0);
     const scroll = side.querySelector('.side-nav')?.scrollTop ?? 0;
-    side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Skill-uri'), `${trained}/${skills.length}`)}
+    side.innerHTML = `<section class="panel char-skills"><div class="sidebar-head">${windowTitle(tx('Skill-uri'), `${trained}/${skills.length}`)}
         <p class="side-note">${formatInt(sp)} SP${editable ? ` · ${tx('caracter personalizat: poți schimba nivelurile')}` : c.kind === 'esi' ? (c.clone === 'alpha' ? ` · ${tx('Alpha: antrenează la jumătate de viteză')}` : '') : ` · ${tx('caracter teoretic')}`}</p></div>
       <div class="side-nav skill-tree">${groupNames.map((g) => {
         const list = groups.get(g)!;
@@ -156,7 +150,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
             <div class="tree-items"><div class="skill-list">${open ? skillRows(g) : ''}</div></div>
           </div>`;
       }).join('')}</div>
-      <div class="sidebar-foot"><button class="btn sm" data-copy-skills>${icon('copy')}${tx('Copiază skill-urile')}</button></div>`;
+      <div class="sidebar-foot"><button class="btn sm" data-copy-skills>${icon('copy')}${tx('Copiază skill-urile')}</button></div></section>`;
     side.querySelector('.side-nav')!.scrollTop = scroll;
   }
 
@@ -273,6 +267,7 @@ export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLEle
 
   el.addEventListener('click', onClick);
   side.addEventListener('click', onClick);
+  reqEl.addEventListener('click', onClick);
 
   const onLevel = (e: Event) => {
     const target = e.target as HTMLSelectElement;

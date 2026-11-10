@@ -73,24 +73,24 @@ const FLAG: Record<Lang, string> = {
 const LANG_NAME: Record<Lang, string> = { ro: 'Română', en: 'English' };
 const VIEWS: { id: ViewId; label: string; short: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
   { id: 'home', label: tx('Start'), short: tx('Start'), icon: 'home', categories: null, lore: 'Prag', clade: 'Rod', order: 0 },
-  { id: 'market', label: tx('Piață'), short: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 2 },
-  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 3 },
-  { id: 'recon', label: tx('Intel PvP'), short: 'PvP', icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 10 },
-  { id: 'navigation', label: tx('Navigație'), short: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 11 },
-  { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 6 },
-  { id: 'character', label: tx('Caracter'), short: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 9 },
+  { id: 'market', label: tx('Piață'), short: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 6 },
+  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 7 },
+  { id: 'recon', label: tx('Intel PvP'), short: 'PvP', icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 3 },
+  { id: 'navigation', label: tx('Navigație'), short: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 4 },
+  { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 10 },
+  { id: 'character', label: tx('Caracter'), short: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 2 },
   { id: 'industry', label: tx('Industrie'), short: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 16 },
-  { id: 'wallet', label: tx('Portofel'), short: tx('Portofel'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 4 },
+  { id: 'wallet', label: tx('Portofel'), short: tx('Portofel'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 8 },
   { id: 'mining', label: tx('Minerit'), short: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 15 },
-  { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 4 },
-  { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 7 },
-  { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 7 },
+  { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 8 },
+  { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 11 },
+  { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 11 },
   { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 17 },
   { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 13 },
   { id: 'cosmos', label: 'COSMOS', short: 'COSMOS', icon: 'cosmos', categories: null, lore: 'Zvezdy', clade: 'Morana', order: 13 },
   { id: 'operations', label: 'PvE', short: 'PvE', icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 13 },
-  { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 9 },
-  { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 9 },
+  { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 2 },
+  { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 2 },
   { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
 ];
 
@@ -126,7 +126,7 @@ document.querySelector('#app')!.innerHTML = `
     </header>
 
     <nav class="neocom">
-      ${([['Veles', 1], ['Svarog', 5], ['Perun', 8], ['Morana', 12], ['Mokosh', 14], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
+      ${([['Perun', 1], ['Veles', 5], ['Svarog', 9], ['Morana', 12], ['Mokosh', 14], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
       ${VIEWS.map((v) => `<a class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" href="${viewHref(v.id)}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></a>`).join('')}
       <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
       <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · PolyForm Strict 1.0.0">v${__APP_VERSION__}</div>
@@ -595,10 +595,11 @@ async function start() {
   mount(['fitting'], () => { fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); }); });
   let character: ReturnType<typeof createCharacterView> | null = null;
   mount(['character'], () => {
-    viewEl('character').innerHTML = '<div id="charHead"></div><div class="char-layout"><div class="char-main"><div id="charTop" class="stack"></div><div id="charRoster"></div><div id="charSkills"></div></div><aside id="charAside" class="stack char-aside"></aside></div>';
-    character = createCharacterView(document.getElementById('charTop')!, ctx, document.getElementById('charHead')!, document.getElementById('charAside')!);
-    createSkillsView(document.getElementById('charSkills')!, ctx, sidePane('character'));
-    createRosterView(document.getElementById('charRoster')!, ctx);
+    viewEl('character').innerHTML = '<div id="charHead"></div><div id="charProfile" class="char-pane stack"></div><div id="charTree" class="char-pane"></div><div id="charPlan" class="char-pane stack"><div id="charQueue"></div><div id="charSkills"></div></div><div id="charReq" class="char-pane stack"></div><div id="charRoster" class="char-pane"></div><div id="charSettings" class="char-pane stack"></div>';
+    const byId = (id: string) => document.getElementById(id)!;
+    character = createCharacterView(byId('charProfile'), ctx, byId('charHead'), byId('charSettings'), { side: sidePane('character'), queue: byId('charQueue'), panes: { profile: byId('charProfile'), skills: byId('charTree'), plan: byId('charPlan'), req: byId('charReq'), roster: byId('charRoster'), settings: byId('charSettings') } });
+    createSkillsView(byId('charSkills'), ctx, byId('charTree'), byId('charReq'));
+    createRosterView(byId('charRoster'), ctx);
   });
   mount(['doctrines'], () => { doctrines = createDoctrinesView(viewEl('doctrines'), ctx, sidePane('doctrines'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); }, currentFit: () => fitting?.current() ?? null }); });
   mount(['wallet'], () => createWalletView(viewEl('wallet'), ctx, sidePane('wallet')));
