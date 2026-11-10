@@ -61,6 +61,7 @@
 .bz-card-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .bz-fits { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .bz-card .bz-fits { justify-content: flex-start; }
+td.bz-fits { display: table-cell; }
 .bz-levels { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
 .bz-body .dmg-tag:first-child { margin-left: 0; }
 .bz-table { overflow-x: auto; }
