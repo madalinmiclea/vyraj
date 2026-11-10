@@ -4,6 +4,22 @@ export interface Release { date: string; title: string; lead: string; items: str
 
 export const CHANGELOG: Release[] = [
   {
+    date: '2026-11-10',
+    title: tx('Arcuri epice și Fractured Skies'),
+    lead: tx('Toate arcurile epice într-un singur loc, Fractured Skies din prima zi și fituri care se schimbă dintr-un click.'),
+    items: [
+      tx('Arcuri epice: toate cele 9 arcuri, 205 misiuni scrise pas cu pas, ramurile pe care le alegi, standing-ul cerut și skill-ul social care te deblochează, navele recomandate și progresul pe fiecare caracter, cu cooldown-ul de 90 de zile.'),
+      tx('Fractured Skies din prima zi: datele noi din SDE, rig-urile Synchronizer calculate corect în fitting și fituri PvE și PvP gata făcute pentru noile battlecruiser-e navy.'),
+      tx('Misiunile Anomic și Ghidul blitz: fiturile Nergal explicate pentru cine n-a zburat niciodată una, cu skill-urile cerute și ținta din fiecare misiune, plus navele bune de blitz pe fiecare nivel.'),
+      tx('Misiunile în mai multe părți stau acum pe o singură pagină, iar meniul e împărțit clar: Misiuni pentru ghiduri, agenți și LP, PvE pentru ratting, explorare, abisal și flotă.'),
+      tx('Standing-ul de agent pe înțeles: ce deschide, când te blochează și cel mai scurt drum spre următorul nivel de agenți.'),
+      tx('Template-uri de implanturi în fitting: seturi cu nume, toate cele 10 sloturi la vedere, fiecare cu Schimbă și Golește.'),
+      tx('Drone mutate în fitting, cu simulatorul de roll-uri pentru mutaplasmide și șansa de a ieși peste bază pe fiecare atribut.'),
+      tx('Tab-ul Comparare din Show Info pune variantele unui item una lângă alta, cu valorile calculate din skill-urile tale, iar Magazinul LP deschide Show Info direct din listă.'),
+      tx('Teme mai odihnitoare pentru ochi și hărți mai clare, pe Dark, Vyraj și Light.'),
+    ],
+  },
+  {
     date: '2026-11-07',
     title: tx('Calea COSMOS și misiuni fără ghicit'),
     lead: tx('Fiecare misiune din EVE, de la COSMOS la L4, are acum un ghid în care poți avea încredere.'),
