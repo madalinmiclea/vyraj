@@ -1,6 +1,7 @@
 import { icon, reticle } from './icons';
-import { tx, locale } from '../i18n';
-import { isDemo } from '../storage';
+import { tx, locale, lang } from '../i18n';
+import { EN } from '../i18n/en';
+import { isDemo, loadJson, saveJson } from '../storage';
 import { loreText } from '../i18n/lore';
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -11,6 +12,61 @@ export function windowTitle(text: string, count?: string | number | null) {
 }
 
 export interface PanelOptions { title?: string; count?: string | number; body?: string; cls?: string; bodyCls?: string; id?: string; actions?: string }
+
+const FOLD_KEY = 'eve-fit:ui:folded';
+const folded = new Set(loadJson<string[]>(FOLD_KEY, []));
+
+const roTitle = (() => {
+  let map: Map<string, string> | null = null;
+  return (text: string) => {
+    if (lang === 'ro') return text;
+    map ??= new Map(Object.entries(EN).map(([ro, en]) => [en, ro]));
+    const [, n = '', rest = text] = text.match(/^(\d+ · )(.*)$/) ?? [];
+    return n + (map.get(rest) ?? rest);
+  };
+})();
+
+function foldKey(head: HTMLElement): string {
+  const title = head.querySelector<HTMLElement>('.window-title');
+  if (!title) return '';
+  const std = title.querySelector('.lore-std');
+  const text = std ? std.textContent : [...title.childNodes].filter((n) => !(n instanceof HTMLElement && n.classList.contains('count'))).map((n) => n.textContent).join('');
+  return roTitle((text ?? '').trim());
+}
+
+function setupFolds() {
+  document.querySelectorAll<HTMLElement>('.panel > .panel-head:not([data-fold]):not([data-collapse])').forEach((head) => {
+    if (head.closest('.modal')) return;
+    const key = foldKey(head);
+    if (!key) return;
+    head.dataset.fold = key;
+    head.classList.add('collapse-head');
+    head.setAttribute('role', 'button');
+    head.tabIndex = 0;
+    head.insertAdjacentHTML('afterbegin', icon('chevron', 'chev'));
+    head.parentElement!.classList.add('collapsible');
+    head.parentElement!.classList.toggle('collapsed', folded.has(key));
+  });
+}
+
+new MutationObserver(setupFolds).observe(document.documentElement, { childList: true, subtree: true });
+
+function toggleFold(head: HTMLElement) {
+  const key = head.dataset.fold!;
+  if (folded.has(key)) folded.delete(key); else folded.add(key);
+  saveJson(FOLD_KEY, [...folded]);
+  head.closest('.panel')?.classList.toggle('collapsed', folded.has(key));
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target as HTMLElement;
+  const head = t.closest<HTMLElement>('[data-fold]');
+  if (head && !t.closest('.panel-actions, button:not([data-fold]), a, input, select, textarea')) toggleFold(head);
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target as HTMLElement;
+  if ((e.key === 'Enter' || e.key === ' ') && t.matches('[data-fold]')) { e.preventDefault(); toggleFold(t); }
+});
 
 export function panel({ title, count, body = '', cls = '', bodyCls = 'panel-body', id = '', actions = '' }: PanelOptions = {}) {
   return `<section class="panel ${cls}" ${id ? `id="${id}"` : ''}>

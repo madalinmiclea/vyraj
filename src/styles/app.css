@@ -704,3 +704,6 @@ td thead th { top: 30px; z-index: 1; }
 .mut-roll-bar { width: 100%; height: 3px; background: var(--line-strong); }
 .mut-roll-bar i { display: block; height: 100%; background: var(--accent); }
 .row-actions .btn svg { width: 14px; height: 14px; margin-right: 6px; }
+.panel.collapsed > :not(.panel-head) { display: none; }
+.slot.dragging { opacity: 0.45; }
+.slot.drop-on { border-color: var(--slot); background: color-mix(in srgb, var(--slot) 14%, transparent); }

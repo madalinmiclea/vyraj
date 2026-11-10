@@ -343,7 +343,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
           ${options.map((c) => `<option value="${c.id}" ${c.id === m.chargeId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select>${m.chargeId ? `<button class="charge-info" data-info="${m.chargeId}" data-info-charge="${kind}${i}" title="${tx('Info muniție')}">i</button>` : ''}`
       : '';
-    return `<div class="slot fitted state-${m.state} ${over ? 'over' : ''}" data-slot="${kind}:${i}" data-pick="${kind}">
+    return `<div class="slot fitted state-${m.state} ${over ? 'over' : ''}" data-slot="${kind}:${i}" data-pick="${kind}"${kind === 'subsystem' ? '' : ` draggable="true" data-drop="${kind}:${i}"`}>
       <img class="slot-img" src="${typeIconUrl(m.typeId, 32)}" alt="" loading="lazy" />
       <div class="slot-main">
         <button class="slot-name link ${m.mutation ? 'abyssal' : ''}" data-info="${m.typeId}">${esc(moduleName(sde, m))}</button>
@@ -367,7 +367,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
       for (let i = 0; i < total; i++) {
         const m = list[i];
         if (m) rows.push(moduleRow(g.key, i, m, i >= counts[g.key]));
-        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}" role="button" tabindex="0" aria-label="${esc(`${tx('Slot liber')} · ${g.label}`)}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
+        else if (i < counts[g.key]) rows.push(`<div class="slot slot-empty" data-pick="${g.key}"${g.key === 'subsystem' ? '' : ` data-drop="${g.key}:${i}"`} role="button" tabindex="0" aria-label="${esc(`${tx('Slot liber')} · ${g.label}`)}"><span class="slot-ico">${icon('plus')}</span><span>${tx('Slot liber')}</span></div>`);
       }
       const pips = Array.from({ length: Math.max(counts[g.key], 1) }, (_, i) => `<i class="${i < used ? 'on' : ''}"></i>`).join('');
       return `<div class="slot-group ${g.cls} ${pickedSlot === g.key ? 'picked' : ''}" data-group="${g.key}">
@@ -802,6 +802,42 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     dragFrom = -1;
   });
   tabsEl.addEventListener('dragend', () => { dragFrom = -1; });
+
+  let dragSlot = '';
+  const clearDrag = () => left.querySelectorAll('.dragging, .drop-on').forEach((x) => x.classList.remove('dragging', 'drop-on'));
+  left.addEventListener('dragstart', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.slot.fitted[data-drop]');
+    if (!row) return;
+    dragSlot = row.dataset.drop!;
+    e.dataTransfer?.setData('text/plain', dragSlot);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    row.classList.add('dragging');
+  });
+  left.addEventListener('dragover', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-drop]');
+    if (!row || !dragSlot || parseSlot(row.dataset.drop!)[0] !== parseSlot(dragSlot)[0]) return;
+    e.preventDefault();
+    if (row.classList.contains('drop-on')) return;
+    left.querySelectorAll('.drop-on').forEach((x) => x.classList.remove('drop-on'));
+    row.classList.add('drop-on');
+  });
+  left.addEventListener('drop', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-drop]');
+    const from = dragSlot;
+    dragSlot = '';
+    clearDrag();
+    if (!row || !from) return;
+    e.preventDefault();
+    const [k, a] = parseSlot(from);
+    const [k2, b] = parseSlot(row.dataset.drop!);
+    if (k !== k2 || a === b) return;
+    change((draft) => {
+      const list = draft.slots[k];
+      while (list.length <= Math.max(a, b)) list.push(null);
+      [list[a], list[b]] = [list[b], list[a]];
+    });
+  });
+  left.addEventListener('dragend', () => { dragSlot = ''; clearDrag(); });
 
   el.addEventListener('input', (e) => {
     const target = e.target as HTMLTextAreaElement;
