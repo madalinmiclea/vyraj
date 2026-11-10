@@ -39,6 +39,13 @@ const CATEGORY_RO: Record<string, string> = {
   "Pilot's Services": 'Servicii pentru piloți', 'Planetary Infrastructure': 'Infrastructură planetară',
 };
 
+const MUTAPLASMIDS = 'Ship and Module Modifications/2436';
+
+function withoutMutaplasmids(node: TreeNode): TreeNode {
+  const hidden = node.children.find((c) => c.key === MUTAPLASMIDS);
+  return hidden ? { ...node, children: node.children.filter((c) => c !== hidden), total: node.total - hidden.total } : node;
+}
+
 const categoryLabel = (name: string) => (lang === 'ro' ? CATEGORY_RO[name] ?? name : name);
 
 function buildTree(items: EveItem[], groups: MarketGroups): TreeNode[] {
@@ -163,6 +170,7 @@ export function createItemBrowser(container: HTMLElement, { onSelect, onInfo, on
     const ids = scope?.ids;
     const roots = tree
       .filter((r) => !only || only.includes(r.name))
+      .map((r) => (only ? withoutMutaplasmids(r) : r))
       .map((r) => (ids ? prune(r, (e) => e.t != null && ids.has(e.t)) : r))
       .filter((r): r is TreeNode => r !== null);
     if (query) {

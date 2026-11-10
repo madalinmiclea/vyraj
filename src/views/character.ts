@@ -218,13 +218,9 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         const c = await importCharacter(characterId, characterName);
         const known = loadStoredCharacters().some((x) => x.id === c.id);
         upsertStoredCharacter(c);
-        if (known) {
-          ctx.reloadCharacters();
-          toast(tx('Permisiuni actualizate pentru {name}', { name: characterName }));
-        } else {
-          ctx.setCharacter(c.id);
-          toast(tx('{name} importat', { name: characterName }));
-        }
+        if (known && ctx.character.kind === 'esi') ctx.reloadCharacters();
+        else ctx.setCharacter(c.id);
+        toast(known ? tx('Permisiuni actualizate pentru {name}', { name: characterName }) : tx('{name} importat', { name: characterName }));
       } catch (err) {
         render((err as Error).message);
       }

@@ -10,7 +10,7 @@ import { applyChecked, violations } from '../engine/rules';
 import { computeStats, type FitStats, type Resource, type Resources } from '../engine/stats';
 import { findProfile } from '../engine/profiles';
 import { requirementsFor, fitTypeIds } from '../character/requirements';
-import { allCharacters, allLevels } from '../character/characters';
+import { allCharacters, allLevels, findCharacter } from '../character/characters';
 import { exportMultibuy } from '../io/eft';
 import { shareUrl } from '../io/shareLink';
 import { openShareModal } from '../ui/shareModal';
@@ -55,7 +55,9 @@ export interface FittingView {
   current(): Fit | null;
 }
 
-export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
+export function createFittingView(el: HTMLElement, app: AppContext, onSlot: (scope: BrowserScope | null) => void = () => {}): FittingView {
+  let fitChar = app.character;
+  const ctx: AppContext = Object.create(app, { character: { get: () => fitChar } });
   const sde = ctx.sde;
   const limitDrones = (f: Fit) => ensureDroneLimits(sde, f, droneLimit(sde, f, ctx.character.skills, fitCharacter(ctx.character).implants));
   const usable = (f: Fit | null | undefined) => (f && sde.types.has(f.shipId) ? limitDrones(f) : null);
@@ -862,7 +864,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   el.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
-    if (target === charSelect) { ctx.setCharacter(charSelect.value); return; }
+    if (target === charSelect) { fitChar = findCharacter(sde, charSelect.value); onCharacter(); return; }
     if (target.matches('[data-ammo-add]') && handleAmmo(target)) { render(); return; }
     if (fit && support.handleChange(target)) return;
     if (npc.handleChange(target)) { render(); return; }
@@ -989,7 +991,13 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
 
   renderCharacters();
   let shownCharacter = ctx.character.id;
-  ctx.onCharacterChange(() => {
+  let globalCharacter = app.character.id;
+  app.onCharacterChange(() => {
+    fitChar = app.character.id !== globalCharacter ? app.character : findCharacter(sde, fitChar.id);
+    globalCharacter = app.character.id;
+    onCharacter();
+  });
+  function onCharacter() {
     renderCharacters();
     if (fit && shownCharacter !== ctx.character.id) {
       limitDrones(fit);
@@ -998,7 +1006,7 @@ export function createFittingView(el: HTMLElement, ctx: AppContext, onSlot: (sco
     }
     shownCharacter = ctx.character.id;
     render();
-  });
+  }
   render();
 
   return {
