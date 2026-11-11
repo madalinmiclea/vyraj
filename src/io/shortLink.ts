@@ -2,7 +2,7 @@ import { shareHref, shareLinkUrl, type ShareKey } from '../app/route';
 
 const API = `${(import.meta.env.VITE_R2Z2_URL || 'https://vyraj-r2z2.vyraj.workers.dev').replace(/\/+$/, '')}/s`;
 const ID = /^[A-Za-z0-9]{6,12}$/;
-const KEYS: ShareKey[] = ['fit', 'doctrine', 'build'];
+const KEYS: ShareKey[] = ['fit', 'doctrine', 'build', 'profile'];
 const CODE = /^[A-Za-z0-9_-]+$/;
 
 export function shortId(): string | null {

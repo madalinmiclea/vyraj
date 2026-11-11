@@ -1,8 +1,8 @@
 const BASE = import.meta.env.BASE_URL;
 const MAX_QUERY = 6000;
 
-export type ShareKey = 'fit' | 'doctrine' | 'build';
-const SHARE_VIEW: Record<ShareKey, string> = { fit: 'fitting', doctrine: 'doctrines', build: 'industry' };
+export type ShareKey = 'fit' | 'doctrine' | 'build' | 'profile';
+const SHARE_VIEW: Record<ShareKey, string> = { fit: 'fitting', doctrine: 'doctrines', build: 'industry', profile: 'character' };
 const SHARE_KEYS = Object.keys(SHARE_VIEW) as ShareKey[];
 const CODE = /^[A-Za-z0-9_-]+$/;
 

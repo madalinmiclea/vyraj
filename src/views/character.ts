@@ -15,25 +15,24 @@ import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
 import { backupSide } from '../io/backup';
 import { tx, locale } from '../i18n';
-import { characterPublic, loadActivities } from '../services/operations';
+import { createShowcase } from './charProfile';
 import { loreText } from '../i18n/lore';
-import { typeIconUrl } from '../services/market';
 
 const COLLAPSED_KEY = 'eve-fit:ui:collapsed';
 const TAB_KEY = 'eve-fit:ui:char-tab';
 
-type Tab = 'profile' | 'skills' | 'plan' | 'req' | 'roster' | 'settings';
+type Tab = 'profile' | 'plan' | 'req' | 'roster' | 'settings';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'profile', label: tx('Profil') },
-  { id: 'skills', label: tx('Skill-urile mele') },
   { id: 'plan', label: tx('Coadă și plan') },
   { id: 'req', label: tx('Cerințe') },
   { id: 'roster', label: tx('Toate caracterele') },
   { id: 'settings', label: tx('Setări') },
 ];
 
-export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTMLElement, aside: HTMLElement, nav: { side: HTMLElement; queue: HTMLElement; panes: Record<Tab, HTMLElement> }) {
+export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTMLElement, aside: HTMLElement, nav: { side: HTMLElement; queue: HTMLElement; panes: Record<Tab, HTMLElement>; own: HTMLElement; shared: HTMLElement }) {
   const sde = ctx.sde;
+  const showcase = createShowcase(ctx, el, nav.shared, nav.own);
   let tab = loadJson<Tab>(TAB_KEY, 'profile');
   if (!TABS.some((t) => t.id === tab)) tab = 'profile';
 
@@ -87,7 +86,10 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         </div>`, stored.length > 0);
 
     const activeStored = stored.find((c) => c.id === active.id);
-    const summary = activeStored
+    const showProfile = activeStored?.kind === 'esi' && activeStored.characterId != null;
+    const summary = showProfile
+      ? '<div id="charShowcase" class="stack"></div>'
+      : activeStored
       ? characterCard(activeStored, true)
       : stored.length ? '' : `<div class="panel char-empty">
           <span class="char-empty-ico">${icon('character')}</span>
@@ -96,25 +98,11 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
         </div>`;
 
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
-    el.innerHTML = `${error ? alertBox(error) : ''}${summary}${implantsPanel()}`;
+    el.innerHTML = `${error ? alertBox(error) : ''}${summary}`;
     nav.queue.innerHTML = queuePanel();
     aside.innerHTML = `${permissionsPanel()}${setup}`;
-    fillPublic();
-  }
-
-  async function fillPublic() {
-    for (const node of el.querySelectorAll<HTMLElement>('[data-char-public]')) {
-      const info = await characterPublic(Number(node.dataset.charPublic));
-      if (!info) continue;
-      const titles = info.character_title_id ? (await loadActivities().catch(() => null))?.titles : null;
-      const parts = [
-        info.character_title_id ? tx('Titlu: {t}', { t: titles?.[info.character_title_id] ?? '—' }) : '',
-        info.achievement_score != null ? tx('Scor realizări: {n}', { n: formatInt(info.achievement_score) }) : '',
-        info.security_status != null ? tx('Securitate: {n}', { n: info.security_status.toFixed(1) }) : '',
-        info.corporation_title ? tx('Rol în corporație: {t}', { t: info.corporation_title }) : '',
-      ].filter(Boolean);
-      if (node.isConnected) node.textContent = parts.join(' · ');
-    }
+    if (showProfile) showcase.mount(el.querySelector<HTMLElement>('#charShowcase')!, activeStored!, cardActions(activeStored!, true));
+    else showcase.unmount();
   }
 
   function characterCard(c: StoredCharacter, isActive: boolean) {
@@ -127,16 +115,20 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${c.kind === 'esi' ? badge(logged ? 'ESI' : tx('ESI · delogat'), logged ? 'accent' : 'warn') : badge(tx('Personalizat'))}
           ${isActive ? badge(tx('Activ'), 'ok', true) : ''}
         </div>
-        ${c.characterId ? `<div class="dim small" data-char-public="${c.characterId}"></div>` : ''}
         <div class="dim small">${c.totalSp ? formatInt(c.totalSp) + ' SP · ' : ''}${tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(locale) : ''}</div>
-        <div class="row-actions">
+      </div>
+      ${cardActions(c, isActive)}
+    </div>`;
+  }
+
+  function cardActions(c: StoredCharacter, isActive: boolean) {
+    const logged = c.characterId != null && hasTokens(c.characterId);
+    return `<div class="row-actions">
           ${isActive ? '' : button(tx('Folosește'), { cls: 'sm', attrs: `data-use="${esc(c.id)}"` })}
           ${c.kind === 'esi' && logged ? button(tx('Actualizează'), { iconName: 'refresh', cls: 'ghost sm', attrs: `data-refresh="${esc(c.id)}"` }) : ''}
           ${button(tx('Copie editabilă'), { cls: 'ghost sm', attrs: `data-clone="${esc(c.id)}"` })}
         </div>
-      </div>
-      ${isDemo() && c.characterId === DEMO_ID ? '' : c.kind === 'esi' ? `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Delogare')}" aria-label="${tx('Delogare')}">${icon('power')}</button>` : `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Șterge')}" aria-label="${tx('Șterge')}">✕</button>`}
-    </div>`;
+      ${isDemo() && c.characterId === DEMO_ID ? '' : c.kind === 'esi' ? `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Delogare')}" aria-label="${tx('Delogare')}">${icon('power')}</button>` : `<button class="btn ghost sm icon-only char-remove" data-remove="${esc(c.id)}" title="${tx('Șterge')}" aria-label="${tx('Șterge')}">✕</button>`}`;
   }
 
   function permissionsPanel() {
@@ -159,14 +151,6 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
           ${missing.length ? button(tx('Alege pe grupuri'), { cls: 'ghost sm', attrs: `data-perm-modal="${id}"` }) : ''}
           <a class="btn ghost sm" href="https://community.eveonline.com/support/third-party-applications/" target="_blank" rel="noopener">${icon('external')}${tx('Aplicațiile tale EVE')}</a>
         </div>`);
-  }
-
-  function implantsPanel() {
-    const c = ctx.character;
-    if (c.kind !== 'esi' || !c.implants?.length) return '';
-    const slotOf = (id: number) => sde.baseAttr(id, sde.attrId('implantness')) || 99;
-    const rows = [...c.implants].sort((a, b) => slotOf(a) - slotOf(b)).map((id) => `<tr><td class="num dim">${slotOf(id) < 99 ? slotOf(id) : '—'}</td><td><button class="link" data-skill-info="${id}"><img class="row-icon" src="${typeIconUrl(id, 32)}" alt="" loading="lazy" />${esc(sde.types.get(id)?.name ?? String(id))}</button></td></tr>`).join('');
-    return collapsible('implants', tx('Implanturi'), c.implants.length, `<table class="table compact"><thead><tr><th>${tx('Slot')}</th><th>Implant</th></tr></thead><tbody>${rows}</tbody></table>`);
   }
 
   function queuePanel() {
@@ -256,5 +240,10 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
       }
     },
     showError: (msg: string) => render(msg),
+    openShared(code: string) {
+      tab = 'profile';
+      renderTabs();
+      showcase.openShared(code);
+    },
   };
 }

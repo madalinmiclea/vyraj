@@ -15,7 +15,7 @@ const SLEEP_AFTER_MS = 10 * 60 * 1000;
 const MAX_BACK = 3000;
 const SAVE_MS = 60 * 1000;
 
-const LINK_KEYS = ['fit', 'doctrine', 'build'];
+const LINK_KEYS = ['fit', 'doctrine', 'build', 'profile'];
 const LINK_CODE = /^[A-Za-z0-9_-]{1,16000}$/;
 const LINK_ID = /^[A-Za-z0-9]{6,12}$/;
 const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';

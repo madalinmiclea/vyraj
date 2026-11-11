@@ -218,6 +218,10 @@ export function characterPublic(characterId: number): Promise<CharacterPublic | 
   return hit;
 }
 
+export function corporationHistory(characterId: number): Promise<{ corporation_id: number; start_date: string; is_deleted?: boolean }[]> {
+  return publicJson(`/characters/${characterId}/corporationhistory/`);
+}
+
 export type RouteHealth = 'Unknown' | 'OK' | 'Degraded' | 'Down' | 'Recovering';
 
 export async function esiHealth(): Promise<{ method: string; path: string; status: RouteHealth }[]> {

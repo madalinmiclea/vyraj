@@ -16,7 +16,7 @@ const NOTABLE_LIMIT = 40;
 
 interface Source { id: string; label: string; hint: string; refs: string[]; unit: string; countRef?: string }
 
-const SOURCES: Source[] = [
+export const SOURCES: Source[] = [
   { id: 'bounty', label: tx('Recompense NPC'), hint: tx('Bounty plătit de CONCORD la fiecare tick de 20 de minute, după taxa corporației'), refs: ['bounty_prizes', 'bounty_prize'], unit: tx('{n} tick-uri') },
   { id: 'ess', label: 'ESS', hint: tx('Partea de bounty ținută în ESS-ul sistemului și plătită la final'), refs: ['ess_escrow_transfer'], unit: tx('{n} plăți') },
   { id: 'missions', label: tx('Misiuni'), hint: tx('Recompensa agentului plus bonusul pentru misiunea terminată repede'), refs: ['agent_mission_reward', 'agent_mission_time_bonus_reward'], unit: tx('{n} misiuni'), countRef: 'agent_mission_reward' },
@@ -36,14 +36,14 @@ const SHAPES: Record<string, string> = {
 
 const shape = (id: string) => `<svg class="pva-shape" viewBox="0 0 20 21" aria-hidden="true">${SHAPES[id]}</svg>`;
 
-const RATTING: { id: NpcClass; label: string; hint: string; icon: string }[] = [
+export const RATTING: { id: NpcClass; label: string; hint: string; icon: string }[] = [
   { id: 'sub', label: tx('Subcapitale'), hint: tx('Nave NPC subcapitale distruse (fregate până la battleship-uri)'), icon: 'battleship' },
   { id: 'cap', label: tx('Capitale'), hint: tx('Dreadnought-uri, carrier-e și alte capitale NPC distruse'), icon: 'capital' },
   { id: 'super', label: tx('Supercarrier-e'), hint: tx('Supercarrier-e NPC distruse'), icon: 'super' },
   { id: 'titan', label: tx('Titani'), hint: tx('Titani NPC distruși'), icon: 'titan' },
 ];
 
-const OFFICERS: { id: NpcClass; label: string; icon: string }[] = [
+export const OFFICERS: { id: NpcClass; label: string; icon: string }[] = [
   { id: 'offBs', label: tx('Officer battleship'), icon: 'battleship' },
   { id: 'offCr', label: tx('Officer cruiser'), icon: 'cruiser' },
   { id: 'offFr', label: tx('Officer fregată'), icon: 'frigate' },
@@ -57,7 +57,7 @@ const CLASS_NAME: Record<NpcClass, string> = {
 const dateTime = (ms: number) => new Date(ms).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const day = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-function tile(o: { label: string; hint: string; value: string; sub?: string; on: boolean; icon?: string }) {
+export function tile(o: { label: string; hint: string; value: string; sub?: string; on: boolean; icon?: string }) {
   return `<div class="pva-tile ${o.on ? 'on' : ''}" title="${esc(o.hint)}">
     ${o.icon ? `<span class="pva-icon">${shape(o.icon)}</span>` : ''}
     <span class="pva-tile-text"><span class="label">${esc(o.label)}</span><span class="value">${o.on ? o.value : '—'}</span>${o.sub && o.on ? `<span class="pva-sub dim small">${esc(o.sub)}</span>` : ''}</span>

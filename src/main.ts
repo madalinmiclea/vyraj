@@ -29,7 +29,7 @@ import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
 import type { ViewId } from './app/views';
-import { hasSharedLink, linkView, migrateLegacyHash, pathSegment, sharedCode, viewHref } from './app/route';
+import { clearShared, hasSharedLink, linkView, migrateLegacyHash, pathSegment, sharedCode, viewHref } from './app/route';
 import { handleCallback, hasTokens, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
 import { loadStoredCharacters, upsertStoredCharacter } from './character/characters';
 import { importCharacter } from './character/esi';
@@ -309,9 +309,9 @@ async function start() {
   mount(['fitting'], () => { fitting = createFittingView(viewEl('fitting'), ctx, (scope) => { browser.setScope(scope); if (scope) setSide(true); }); });
   let character: ReturnType<typeof createCharacterView> | null = null;
   mount(['character'], () => {
-    viewEl('character').innerHTML = '<div id="charHead"></div><div id="charProfile" class="char-pane stack"></div><div id="charTree" class="char-pane"></div><div id="charPlan" class="char-pane stack"><div id="charQueue"></div><div id="charSkills"></div></div><div id="charReq" class="char-pane stack"></div><div id="charRoster" class="char-pane"></div><div id="charSettings" class="char-pane stack"></div>';
+    viewEl('character').innerHTML = '<div id="charHead"></div><div id="charProfile" class="char-pane"><div id="charOwn" class="char-profile"><div id="charDossier" class="stack"></div><div id="charTree"></div></div><div id="charShared" hidden></div></div><div id="charPlan" class="char-pane stack"><div id="charQueue"></div><div id="charSkills"></div></div><div id="charReq" class="char-pane stack"></div><div id="charRoster" class="char-pane"></div><div id="charSettings" class="char-pane stack"></div>';
     const byId = (id: string) => document.getElementById(id)!;
-    character = createCharacterView(byId('charProfile'), ctx, byId('charHead'), byId('charSettings'), { side: sidePane('character'), queue: byId('charQueue'), panes: { profile: byId('charProfile'), skills: byId('charTree'), plan: byId('charPlan'), req: byId('charReq'), roster: byId('charRoster'), settings: byId('charSettings') } });
+    character = createCharacterView(byId('charDossier'), ctx, byId('charHead'), byId('charSettings'), { side: sidePane('character'), queue: byId('charQueue'), own: byId('charOwn'), shared: byId('charShared'), panes: { profile: byId('charProfile'), plan: byId('charPlan'), req: byId('charReq'), roster: byId('charRoster'), settings: byId('charSettings') } });
     createSkillsView(byId('charSkills'), ctx, byId('charTree'), byId('charReq'));
     createRosterView(byId('charRoster'), ctx);
   });
@@ -345,12 +345,21 @@ async function start() {
     }).catch(() => toast(tx('Linkul de doctrină nu e valid sau e incomplet.')));
   };
   const openBuild = () => { if (sharedCode('build') && activeView !== 'industry') switchView('industry'); };
+  const openProfile = () => {
+    const code = sharedCode('profile');
+    const view = character as ReturnType<typeof createCharacterView> | null;
+    if (!code || !view) return;
+    clearShared('profile');
+    switchView('character');
+    view.openShared(code);
+  };
   resolveShortLink().catch(() => toast(tx('Linkul scurt nu mai există sau nu e valid.'))).finally(() => {
     openShared();
     openDoctrine();
     openBuild();
+    openProfile();
   });
-  window.addEventListener('hashchange', () => { migrateLegacyHash(); openShared(); openDoctrine(); openBuild(); });
+  window.addEventListener('hashchange', () => { migrateLegacyHash(); openShared(); openDoctrine(); openBuild(); openProfile(); });
 
   const view = character as ReturnType<typeof createCharacterView> | null;
   if (view && login) await view.imported(login.characterId, login.characterName);

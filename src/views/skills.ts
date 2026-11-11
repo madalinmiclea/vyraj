@@ -24,7 +24,7 @@ const SKILL_GROUP_RO: Record<string, string> = {
   'Structure Management': 'Management structuri', 'Subsystems': 'Subsisteme', 'Targeting': 'Țintire', 'Trade': 'Comerț',
 };
 
-const skillGroupLabel = (g: string) => (lang === 'ro' ? SKILL_GROUP_RO[g] ?? g : g);
+export const skillGroupLabel = (g: string) => (lang === 'ro' ? SKILL_GROUP_RO[g] ?? g : g);
 
 export function createSkillsView(el: HTMLElement, ctx: AppContext, side: HTMLElement, reqEl: HTMLElement) {
   const sde = ctx.sde;

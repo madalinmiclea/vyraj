@@ -452,6 +452,7 @@ export async function demoResponse(input: string, init?: RequestInit): Promise<R
   const url = new URL(input);
   const path = url.pathname.replace(/^\/(latest|v\d+)\//, '/');
   if (new RegExp(`^/characters/${DEMO_ID}/?$`).test(path)) return json({ name: tx('Pilot demo'), corporation_id: 1000120, birthday: '2019-04-12T18:00:00Z', gender: 'female', race_id: 4, bloodline_id: 7, security_status: 2.4 });
+  if (new RegExp(`^/characters/${DEMO_ID}/corporationhistory/?$`).test(path)) return json([{ corporation_id: 1000120, record_id: 3, start_date: '2023-02-08T10:00:00Z' }, { corporation_id: 1000035, record_id: 2, start_date: '2020-06-21T16:00:00Z' }, { corporation_id: 1000045, record_id: 1, start_date: '2019-04-12T18:00:00Z' }]);
   if (/^\/universe\/names\/?$/.test(path) && init?.body) {
     const ids = JSON.parse(String(init.body)) as number[];
     const biz = businessNames();

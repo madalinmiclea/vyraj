@@ -28,6 +28,7 @@ async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   if (!c.characterId || !lastOfId) return;
   const id = c.characterId;
   forgetWallet(id);
+  removeKey(`eve-fit:profile:${id}`);
   removeKey(`eve-mail:cache:${id}`);
   await forgetMail(id);
   const colonies = loadColonies();
