@@ -241,6 +241,8 @@
 .side-link { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 16px; text-align: left; font-size: 14px; color: var(--text-dim); border-left: 2px solid transparent; transition: background 0.15s var(--ease), color 0.15s var(--ease); }
 .side-link:hover { background: var(--bg-hover); color: var(--text-bright); }
 .side-link.active { color: var(--text-bright); border-left-color: var(--accent); background: rgba(var(--accent-rgb), 0.07); }
+.side-backup { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; margin-top: 6px; border-top: 1px solid var(--line); }
+.side-backup p { margin: 0; }
 .side-link .count { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
 .side-link img, .side-link .char-placeholder { width: 36px; height: 36px; flex: none; border: 1px solid var(--line); background: var(--bg-inset); }
 .side-who { display: flex; flex-direction: column; min-width: 0; }

@@ -4,6 +4,11 @@
 .live-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--line); }
 .live-toolbar .input { height: 32px; }
 .live-jump { width: 230px; }
+.sov-find { position: relative; display: inline-flex; }
+.sov-find .live-jump { padding-right: 30px; }
+.sov-find-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; font-size: 18px; line-height: 1; color: var(--text-dim); background: none; border: 0; cursor: pointer; }
+.sov-find-clear:hover { color: var(--text-bright); }
+.sov-find-clear[hidden] { display: none; }
 .live-seg { display: inline-flex; gap: 4px; }
 .live-toolbar label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); white-space: nowrap; cursor: pointer; }
 .live-toolbar label.check input { accent-color: var(--accent); }
@@ -99,6 +104,7 @@
 }
 @media (max-width: 760px) {
   .live-jump { width: 100%; }
+  .sov-find { width: 100%; }
   .live-status { margin-left: 0; }
   .live-sep { display: none; }
   .live-canvas { height: 58vh; min-height: 340px; }

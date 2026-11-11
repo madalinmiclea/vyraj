@@ -14,6 +14,11 @@ export function pathSegment(pathname = location.pathname): string | null {
   return seg && seg !== 'index' ? seg : null;
 }
 
+export function subSegment(pathname = location.pathname): string | null {
+  if (!pathname.startsWith(BASE)) return null;
+  return pathname.slice(BASE.length).split('/')[1]?.toLowerCase() || null;
+}
+
 export function linkView(href: string): string | null {
   const legacy = href.match(/^#\/([a-z]+)$/);
   if (legacy) return legacy[1];

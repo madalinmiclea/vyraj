@@ -113,3 +113,12 @@ export function backupPanel(): string {
     </div>
   </section>`;
 }
+
+export function backupSide(): string {
+  const s = backupSummary();
+  return `<div class="side-backup">
+    <p class="dim small">${s.keys === 1 ? tx('1 set de date') : tx('{n} seturi de date', { n: `<span class="num">${s.keys}</span>` })} · <span class="num">${Math.max(1, Math.round(s.bytes / 1024))} KB</span></p>
+    <button class="btn sm" data-backup-dl>${icon('download')}${tx('Descarcă backup')}</button>
+    <button class="btn ghost sm" data-backup-up>${icon('upload')}${tx('Restaurează')}</button>
+  </div>`;
+}

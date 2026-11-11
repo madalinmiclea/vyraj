@@ -13,7 +13,7 @@ import { showItemInfo } from '../ui/itemInfo';
 import { alertBox, badge, button, copyText, esc, formatInt, pageHead, toast, windowTitle } from '../ui/components';
 import { theme } from '../theme';
 import { roman } from '../ui/itemInfo';
-import { backupPanel } from '../io/backup';
+import { backupSide } from '../io/backup';
 import { tx, locale } from '../i18n';
 import { characterPublic, loadActivities } from '../services/operations';
 import { loreText } from '../i18n/lore';
@@ -39,7 +39,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
 
   function renderTabs() {
     nav.side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Caracter'))}</div>
-      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-char-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
+      <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-char-tab="${t.id}">${t.label}</button>`).join('')}${backupSide()}</div>`;
     for (const [id, pane] of Object.entries(nav.panes)) pane.hidden = id !== tab;
   }
 
@@ -98,7 +98,7 @@ export function createCharacterView(el: HTMLElement, ctx: AppContext, head: HTML
     head.innerHTML = pageHead(tx('Caracter'), tx('Dosar de capsuleer · New Eden'), 'Narodnya');
     el.innerHTML = `${error ? alertBox(error) : ''}${summary}${implantsPanel()}`;
     nav.queue.innerHTML = queuePanel();
-    aside.innerHTML = `${permissionsPanel()}${setup}${backupPanel()}`;
+    aside.innerHTML = `${permissionsPanel()}${setup}`;
     fillPublic();
   }
 

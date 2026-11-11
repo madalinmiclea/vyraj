@@ -141,7 +141,8 @@ const pathView = (): ViewId | null => asView(pathSegment());
 function switchView(id: ViewId, push = true) {
   activeView = id;
   const target = viewHref(id);
-  if (!hasSharedLink() && (location.pathname !== target || location.search || location.hash)) history[push ? 'pushState' : 'replaceState'](null, '', target);
+  const onTarget = location.pathname === target || (id !== 'home' && location.pathname.startsWith(`${target}/`));
+  if (!hasSharedLink() && (!onTarget || location.search || location.hash)) history[push ? 'pushState' : 'replaceState'](null, '', target);
   saveJson(VIEW_KEY, id);
   const v = VIEWS.find((x) => x.id === id)!;
   document.querySelectorAll('.view').forEach((el) => el.classList.toggle('active', el.id === 'view-' + id));

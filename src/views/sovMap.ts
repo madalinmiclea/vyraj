@@ -264,7 +264,7 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
     }
     el.innerHTML = `<div class="live-map sov-map">
       <div class="live-toolbar">
-        <input class="input live-jump" id="sovFind" data-list="sovNames" placeholder="${esc(tx('Caută alianță, sistem sau regiune'))}" autocomplete="off" spellcheck="false" />
+        <span class="sov-find"><input class="input live-jump" id="sovFind" data-list="sovNames" placeholder="${esc(tx('Caută alianță, sistem sau regiune'))}" autocomplete="off" spellcheck="false" /><button type="button" class="sov-find-clear" id="sovFindClear" aria-label="${esc(tx('Șterge căutarea'))}" hidden>×</button></span>
         <span class="small dim">${tx('★ capitală · cerc punctat = campanie de suveranitate · gri = null-sec NPC')}</span>
         <span class="live-status small dim" id="sovStamp"></span>
         <button class="btn ghost sm sov-standings-btn ${standingsOn ? 'active' : ''}" data-sov-standings aria-pressed="${standingsOn}">${icon('character')}Standings</button>
@@ -300,7 +300,10 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
     });
     const find = el.querySelector<HTMLInputElement>('#sovFind')!;
     const list = el.querySelector<HTMLDataListElement>('#sovNames')!;
+    const clear = el.querySelector<HTMLButtonElement>('#sovFindClear')!;
+    clear.addEventListener('click', () => { find.value = ''; list.innerHTML = ''; clear.hidden = true; setFocus(null); star?.fitAll(); find.focus(); });
     find.addEventListener('input', () => {
+      clear.hidden = !find.value;
       const q = fold(find.value.trim());
       if (!q || !map) { list.innerHTML = ''; return; }
       const alliances = [...holders, ...factions].filter((h) => fold(cachedName(h.id)).includes(q)).slice(0, 8);
