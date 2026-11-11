@@ -155,7 +155,7 @@ export function createContractsPanel(el: HTMLElement, ctx: AppContext, deps: { o
     const route = c.type === 'courier' ? `${esc(nameOf(c.start_location_id))} → ${esc(nameOf(c.end_location_id))}` : esc(nameOf(c.start_location_id));
     const who = `${esc(nameOf(c.issuer_id))}${c.assignee_id ? ` → ${esc(nameOf(c.assignee_id))}` : ''}`;
     return `<tr class="${due != null && due - Date.now() < 86_400_000 ? 'ord-beaten' : ''}">
-      <td><button class="link ord-item" data-ct-open="${c.contract_id}">${icon(c.type === 'courier' ? 'jump' : c.type === 'auction' ? 'isk' : 'orders')}${esc(c.title?.trim() || TYPE_LABEL[c.type])}</button> ${badge(TYPE_LABEL[c.type])}${c.for_corporation ? badge('Corp') : ''}
+      <td><button class="link ord-item" data-ct-open="${c.contract_id}">${icon(c.type === 'courier' ? 'jump' : c.type === 'auction' ? 'isk' : 'orders')}${esc(c.title?.trim() || TYPE_LABEL[c.type])}</button> ${c.title?.trim() ? badge(TYPE_LABEL[c.type]) : ''}${c.for_corporation ? badge('Corp') : ''}
         <div class="small dim ord-place" title="${esc(route)}">${multi ? `${esc(c.ownerName)} · ` : ''}${who} · ${route}</div></td>
       <td>${badge(label, tone, true)}</td>
       <td class="r">${priceCell(c)}</td>

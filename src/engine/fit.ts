@@ -196,7 +196,7 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
     const idx = list.findIndex((m) => m && sde.baseAttr(m.typeId, sde.attrId('subSystemSlot')) === pos);
     const entry = { typeId, state: 'online' as ModuleState };
     if (idx >= 0) list[idx] = entry; else list.push(entry);
-    return { ok: true, message: `${t.name} montat` };
+    return { ok: true, message: tx('{name} montat', { name: t.name }) };
   }
 
   const d = new Dogma(sde, toDogmaInput(sde, fit, new Map()));
@@ -212,7 +212,7 @@ export function addToFit(sde: Sde, fit: Fit, typeId: number): AddResult {
   for (let i = 0; i < counts[kind]; i++) {
     if (!list[i]) {
       list[i] = { typeId, state: defaultState(sde, typeId) };
-      return { ok: true, message: `${t.name} montat` };
+      return { ok: true, message: tx('{name} montat', { name: t.name }) };
     }
   }
   return { ok: false, message: tx('Nu mai sunt sloturi {k} libere.', { k: kind }) };

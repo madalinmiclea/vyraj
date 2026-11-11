@@ -107,6 +107,8 @@ export async function assetNames(characterId: number, itemIds: number[]): Promis
 
 export const STRUCTURES_KEY = 'eve-fit:structure-names';
 const structureMisses = new Set<number>();
+const MISSES_KEY = 'eve-fit:structure-misses';
+const MISS_MS = 24 * 3_600_000;
 
 async function namesBatch(ids: number[], out: Map<number, string>): Promise<void> {
   const res = await esiFetch(`${ESI}/universe/names/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids) });
@@ -129,25 +131,32 @@ export async function universeNames(ids: number[], characterId?: number): Promis
   const structures = unique.filter((id) => id >= 1e12);
   if (!structures.length) return out;
   const cache = loadJson<Record<string, string>>(STRUCTURES_KEY, {});
+  const now = Date.now();
+  const misses = Object.fromEntries(Object.entries(loadJson<Record<string, number>>(MISSES_KEY, {})).filter(([, at]) => now - at < MISS_MS));
   const readers = [...new Set([characterId, ...loadStoredCharacters().map((c) => c.characterId)])]
     .filter((id): id is number => !!id && hasScope(id, 'esi-universe.read_structures.v1'));
   let changed = false;
+  let missed = false;
   for (const id of structures) {
-    if (!cache[id] && !structureMisses.has(id) && readers.length) {
+    if (!cache[id] && !structureMisses.has(id) && !misses[id] && readers.length) {
+      let refused = false;
       for (const reader of readers) {
         try {
           cache[id] = (await esi<{ name: string }>(reader, `/universe/structures/${id}/`)).name;
           changed = true;
           break;
-        } catch {
+        } catch (err) {
+          if ((err as Error).message.includes(': 403 ')) refused = true;
           continue;
         }
       }
       if (!cache[id]) structureMisses.add(id);
+      if (!cache[id] && refused) { misses[id] = now; missed = true; }
     }
     if (cache[id]) out.set(id, cache[id]);
   }
   if (changed) saveJson(STRUCTURES_KEY, cache);
+  if (missed) saveJson(MISSES_KEY, misses);
   return out;
 }
 

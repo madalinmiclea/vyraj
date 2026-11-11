@@ -315,10 +315,9 @@ export function createDoctrinesView(el: HTMLElement, ctx: AppContext, side: HTML
       return;
     }
     if (t.closest('[data-doc-del]')) {
-      if (!await confirmDialog(tx('Ștergi doctrina „{name}” cu toate cele {n} fituri? Fiturile salvate în Fitting rămân.', { name: d.name, n: d.fits.length }), { ok: tx('Șterge'), danger: true })) return;
+      if (!await confirmDialog(tx('Ștergi doctrina „{name}” cu toate fiturile ei ({n})? Fiturile salvate în Fitting rămân.', { name: d.name, n: d.fits.length }), { ok: tx('Șterge'), danger: true })) return;
       deleteDoctrine(d.id);
-      selected = '';
-      render();
+      select('');
       return;
     }
     if (t.closest('[data-doc-multibuy]')) {
@@ -334,7 +333,13 @@ export function createDoctrinesView(el: HTMLElement, ctx: AppContext, side: HTML
     const t = e.target as HTMLElement;
     const d = current();
     if (!d) return;
-    if (t.id === 'docName') { d.name = (t as HTMLInputElement).value.trim() || tx('Doctrină fără nume'); save(d); return; }
+    if (t.id === 'docName') {
+      d.name = (t as HTMLInputElement).value = (t as HTMLInputElement).value.trim() || tx('Doctrină fără nume');
+      upsertDoctrine(d);
+      const link = side.querySelector('.side-link.active')?.firstChild;
+      if (link?.nodeType === 3) link.textContent = d.name;
+      return;
+    }
     if (t.id === 'docNotes') { d.notes = (t as HTMLTextAreaElement).value; upsertDoctrine(d); return; }
     const row = t.closest<HTMLElement>('[data-fit]');
     const f = row ? d.fits.find((x) => x.id === row.dataset.fit) : undefined;

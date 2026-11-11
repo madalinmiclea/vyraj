@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, emptyState, windowTitle, button, toast, openModal, closeModal, confirmDialog, stampTime } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, emptyState, windowTitle, button, toast, openModal, closeModal, confirmDialog, stampTime, loginEmpty } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson, removeKey } from '../storage';
 import { loadMailMeta, saveMailMeta, loadMailBody, saveMailBody, dropMailBody, cachedMailIds } from '../services/mailCache';
@@ -135,7 +135,7 @@ export function createMailView(el: HTMLElement, ctx: AppContext, side: HTMLEleme
     const c = ctx.character;
     const problem = loginProblem({ kind: c.kind, characterId: c.characterId, name: c.name });
     if (problem) {
-      body.innerHTML = panel({ body: emptyState({ title: tx('Niciun caracter EVE selectat'), text: problem }) });
+      body.innerHTML = c.kind !== 'esi' ? loginEmpty(tx('Fă login cu EVE ca să vezi mailurile.')) : panel({ body: emptyState({ title: tx('Niciun caracter EVE selectat'), text: problem }) });
       return;
     }
     if (!canRead(c.characterId!)) {

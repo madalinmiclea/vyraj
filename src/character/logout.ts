@@ -45,7 +45,7 @@ async function forgetCharacterData(c: StoredCharacter, lastOfId: boolean) {
   if (orders.character === id) saveJson('eve-orders:ui', { ...orders, character: 0 });
   forgetCharacterNotices(id);
   forgetEscalations(id);
-  for (const cache of ['eve-mail:names', 'eve-fit:structure-names', 'eve-tools:dynamic-items', 'eve-orders:status']) removeKey(cache);
+  for (const cache of ['eve-mail:names', 'eve-fit:structure-names', 'eve-fit:structure-misses', 'eve-tools:dynamic-items', 'eve-orders:status']) removeKey(cache);
   const fired = loadJson<Record<string, number>>('eve-notify:fired', {});
   const marker = `:${id}:`;
   if (Object.keys(fired).some((k) => k.includes(marker))) saveJson('eve-notify:fired', Object.fromEntries(Object.entries(fired).filter(([k]) => !k.includes(marker))));

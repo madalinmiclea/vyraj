@@ -12,6 +12,7 @@ import { loadNpcStandings, canReadNpcStandings, socialSkills, effective, type Np
 import { fold } from '../ui/fold';
 import { loadItems } from '../data/items';
 import { roman } from '../ui/itemInfo';
+import { typeName, resolveTypeNames } from '../services/typeNames';
 import { tx } from '../i18n';
 
 const RD_SCOPE = 'esi-characters.read_agents_research.v1';
@@ -43,7 +44,7 @@ export function createResearchPanel(pane: HTMLElement, ctx: AppContext, setStamp
 
   const level = (id: number | undefined) => (id ? ctx.character.skills.get(id) ?? 0 : 0);
   const skillId = (name: string) => ctx.sde.findType(name)?.id;
-  const skillName = (id: number) => ctx.sde.types.get(id)?.name ?? `#${id}`;
+  const skillName = (id: number) => ctx.sde.types.get(id)?.name ?? typeName(id);
   const coreOf = (field: number) => coreIds.get(`Datacore - ${skillName(field).replace('Amarr Starship', 'Amarrian Starship').replace('Gallente Starship', 'Gallentean Starship')}`);
   const corePrice = (field: number) => {
     const id = coreOf(field);
@@ -65,7 +66,7 @@ export function createResearchPanel(pane: HTMLElement, ctx: AppContext, setStamp
       const logged = !loginProblem(c) && !!c.characterId;
       mine = null;
       mineError = '';
-      const jobs: Promise<unknown>[] = [];
+      const jobs: Promise<unknown>[] = [resolveTypeNames(d.rd.flatMap((a) => a.fields))];
       if (logged && hasScope(c.characterId!, RD_SCOPE)) jobs.push(agentsResearch(c.characterId!).then((r) => { mine = r; }).catch((e) => { mineError = (e as Error).message; }));
       jobs.push((logged && canReadNpcStandings(c.characterId!) ? loadNpcStandings(c.characterId!).catch(() => null) : Promise.resolve(null)).then((s) => { standings = s; }));
       await Promise.all(jobs);

@@ -4,8 +4,8 @@ import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
 import { permissionGate } from '../character/permissions';
-import { characterLocation, walletJournal } from '../character/esi';
-import { archiveJournal } from '../services/wallet';
+import { characterLocation } from '../character/esi';
+import { syncWallet } from '../services/wallet';
 import { loadMap, type NavMap, type NavSystem } from '../services/navigation';
 import { resolveNames, cachedName, displaySec, secClass } from '../services/recon';
 import { StarMap, type MapPainter } from '../ui/starMap';
@@ -77,6 +77,7 @@ export function createIncursionsPanel(body: HTMLElement, ctx: AppContext, opts: 
   let focusC: number | null = null;
   const calc: CalcState = { ...CALC_DEFAULT, ...loadJson<Partial<CalcState>>(CALC_KEY, {}) };
   let sessions: PaySession[] | string | null = null;
+  let sessionsAt = 0;
   let run = 0;
 
   const sys = (id: number) => map?.systems.get(id);
@@ -466,7 +467,7 @@ export function createIncursionsPanel(body: HTMLElement, ctx: AppContext, opts: 
           <label><span class="label">${tx('ISK pe LP (opțional)')}</span><input class="input" type="number" min="0" step="50" data-calc="lpIsk" value="${calc.lpIsk || ''}" /></label>
         </div>
         <div id="incCalcOut">${calcResult()}</div>`,
-    })}${panel({ title: tx('Sesiunile tale de incursiuni'), body: `<div id="incSessions">${sessionsHtml()}</div>` })}`;
+    })}${panel({ title: tx('Sesiunile tale de incursiuni'), actions: `<span id="incSessionsStamp">${sessionsStamp()}</span>`, body: `<div id="incSessions">${sessionsHtml()}</div>` })}`;
   }
 
   function wireCalc() {
@@ -513,13 +514,16 @@ export function createIncursionsPanel(body: HTMLElement, ctx: AppContext, opts: 
       <p class="dim small">${tx('Plățile de tip Corporate Reward Payout la mai puțin de 30 de minute una de alta formează o sesiune.')}</p>`;
   }
 
-  async function loadSessions() {
+  const sessionsStamp = () => (Array.isArray(sessions) ? dataStamp(sessionsAt, 'data-inc-wallet', { label: tx('Date din {time}'), title: tx('Jurnalul și soldul sunt păstrate până le reîmprospătezi. Click pentru a le citi din nou din ESI.') }) : '');
+
+  async function loadSessions(force = false) {
     const who = charState(WALLET_SCOPE);
     if (!who) { sessions = 'login'; paintSessions(); return; }
     if (who === 'scope') { sessions = 'scope'; paintSessions(); return; }
     try {
-      const fresh = await walletJournal(who.id);
-      sessions = payoutSessions(archiveJournal(who.id, fresh));
+      const r = await syncWallet(who.id, force);
+      sessions = payoutSessions(r.entries);
+      sessionsAt = r.at;
     } catch (err) {
       sessions = (err as Error).message;
     }
@@ -529,6 +533,8 @@ export function createIncursionsPanel(body: HTMLElement, ctx: AppContext, opts: 
   function paintSessions() {
     const box = body.querySelector<HTMLElement>('#incSessions');
     if (box) box.innerHTML = sessionsHtml();
+    const stamp = body.querySelector<HTMLElement>('#incSessionsStamp');
+    if (stamp) stamp.innerHTML = sessionsStamp();
   }
 
   function logHtml() {
@@ -559,6 +565,7 @@ export function createIncursionsPanel(body: HTMLElement, ctx: AppContext, opts: 
     const s = t.closest<HTMLElement>('[data-inc-sub]');
     if (s) { sub = s.dataset.incSub as Sub; saveJson(SUB_KEY, sub); render(); return; }
     if (t.closest('[data-inc-refresh]')) { load(true); return; }
+    if (t.closest('[data-inc-wallet]')) { sessions = null; paintSessions(); loadSessions(true); return; }
     const show = t.closest<HTMLElement>('[data-inc-show]');
     if (show) { focusC = Number(show.dataset.incShow); sub = 'map'; saveJson(SUB_KEY, sub); render(); return; }
     const f = t.closest<HTMLElement>('[data-inc-focus]');

@@ -212,7 +212,7 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
   }
 
   function trend() {
-    const all = rows().filter((r) => r.isk30 > 10e6);
+    const all = rows().filter((r) => r.isk30 > 10e6 && r.avg7 > 0);
     const table = (id: string, title: string, list: IntelRow[]) => panel({
       title,
       body: `<table class="table compact intel-table"><thead><tr><th>Item</th><th class="r">${tx('Medie 7z')}</th><th class="r">${tx('Medie 30z')}</th><th class="r">${tx('Preț')}</th><th class="r">${tx('Volum')}</th><th class="r">${tx('30 zile')}</th></tr></thead><tbody>

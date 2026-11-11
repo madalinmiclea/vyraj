@@ -216,9 +216,11 @@ export function clearVisits(who?: string) {
   const s = store();
   const w = s.who.indexOf(who);
   if (w < 0) return;
-  s.path = s.path.filter((p) => p[2] !== w);
-  delete s.seen[w];
-  if (s.here) delete s.here[w];
+  const shift = <T>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).filter(([i]) => +i !== w).map(([i, v]) => [+i > w ? +i - 1 : i, v]));
+  s.who.splice(w, 1);
+  s.path = s.path.filter((p) => p[2] !== w).map((p) => (p[2] > w ? [p[0], p[1], p[2] - 1] : p));
+  s.seen = shift(s.seen);
+  if (s.here) s.here = shift(s.here);
   persist();
 }
 

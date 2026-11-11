@@ -93,8 +93,8 @@ export function createLiveHtml(env: LiveEnv) {
     const fight = settings.battles ? battleAt(s.id) : undefined;
     return `<b>${esc(s.name)}</b> ${secSpan(s.sec)}<small>${esc(map!.region(s))} · ${esc(map!.constellation(s))}</small>
       ${owner ? `<small>${esc(owner)}</small>` : ''}
-      ${st ? `<span class="tip-row neg-text">${tx('{n} kill-uri în {win}', { n: st.n, win: settings.win === 15 ? '15 min' : '1 h' })}${st.pods ? ` · ${tx('{n} capsule', { n: st.pods })}` : ''}${st.gate ? ` · ${tx('{n} la poartă', { n: st.gate })}` : ''}</span>` : ''}
-      ${hour ? `<span class="tip-row">${tx('Kill-uri în ultima oră: {n}', { n: hour })}</span>` : ''}
+      ${st ? `<span class="tip-row neg-text">${tx('{n} kill-uri zKillboard în {win}', { n: st.n, win: settings.win === 15 ? '15 min' : '1 h' })}${st.pods ? ` · ${tx('{n} capsule', { n: st.pods })}` : ''}${st.gate ? ` · ${tx('{n} la poartă', { n: st.gate })}` : ''}</span>` : ''}
+      ${hour ? `<span class="tip-row">${tx('Kill-uri ESI în ultima oră: {n}', { n: hour })}</span>` : ''}
       ${fight ? `<span class="tip-row neg-text">${tx('Bătălie')} · ${compactISK(fight.value)} ISK · ${tx('{n} kill-uri', { n: fight.kills })}</span>` : ''}
       ${st?.camp ? `<span class="tip-row neg-text">${st.smartbomb ? tx('Smartbomb camp') : tx('Posibil gatecamp')}</span>` : ''}
       ${a ? `<span class="tip-row dim">${tx('ESI ultima oră: {ships} nave, {pods} capsule, {jumps} sărituri', { ships: a.ship, pods: a.pod, jumps: formatInt(a.jumps) })}</span>` : ''}
@@ -164,8 +164,8 @@ export function createLiveHtml(env: LiveEnv) {
         </div>
       </div>
       <div class="history-kpis live-kpis">
-        <div><span class="label">${tx('Kill-uri')} · ${settings.win === 15 ? '15 min' : '1 h'}</span><span class="value ${st ? 'neg-text' : ''}">${st?.n ?? 0}</span></div>
-        <div title="${esc(tx('Eticheta Kill-uri N de lângă sistem: kill-urile din ultima oră după ESI, plus cele venite live de atunci.'))}"><span class="label">${tx('Kill-uri / h')}</span><span class="value">${hourly.get(s.id) ?? 0}</span></div>
+        <div><span class="label">${tx('Kill-uri zKillboard')} · ${settings.win === 15 ? '15 min' : '1 h'}</span><span class="value ${st ? 'neg-text' : ''}">${st?.n ?? 0}</span></div>
+        <div title="${esc(tx('Eticheta Kill-uri N de lângă sistem: kill-urile din ultima oră după ESI, plus cele venite live de atunci.'))}"><span class="label">${tx('Kill-uri ESI · 1 h')}</span><span class="value">${hourly.get(s.id) ?? 0}</span></div>
         <div><span class="label">${tx('Capsule')}</span><span class="value">${st?.pods ?? 0}</span></div>
         <div><span class="label">${tx('La poartă')}</span><span class="value">${st?.gate ?? 0}</span></div>
         <div title="${esc(tx('Nave care au intrat în sistem prin stargate în ultima oră (ESI).'))}"><span class="label">${tx('Sărituri / h')}</span><span class="value">${a ? formatInt(a.jumps) : '—'}</span></div>

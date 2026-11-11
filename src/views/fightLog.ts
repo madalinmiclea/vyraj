@@ -114,7 +114,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
     sample = false;
     ids.clear(); systemId = 0; zkbState = 'idle';
     const visible = list();
-    selected = (visible[0] ?? encounters[0])?.id ?? '';
+    selected = visible[0]?.id ?? '';
     render();
   }
 
@@ -273,7 +273,7 @@ export function createFightView(el: HTMLElement, ctx: AppContext) {
       title: tx('Lupte găsite'),
       count: `${rows.length}`,
       actions: `<label class="check small"><input type="checkbox" data-fight-pve ${showPve ? 'checked' : ''} /> ${tx('Arată și luptele PvE')}</label>`,
-      body: `<p class="dim small">${esc(sourceLabel)} · ${tx('{all} lupte, din care {pvp} cu jucători. O pauză de peste un minut fără focuri separă luptele.', { all: encounters.length, pvp: pvpCount })}</p>${body}`,
+      body: `<p class="dim small">${esc(sourceLabel)} · ${tx('Lupte: {all}, din care cu jucători: {pvp}. O pauză de peste un minut fără focuri separă luptele.', { all: encounters.length, pvp: pvpCount })}</p>${body}`,
     });
   }
 

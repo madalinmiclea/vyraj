@@ -314,6 +314,8 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     settings.follow = v;
     save();
     followed.clear();
+    recomputeDistances();
+    renderSide();
     renderGate();
     pollFollow().then(() => {
       const first = [...followed.values()].find((f) => f.systemId);
