@@ -5,6 +5,15 @@ import { DAMAGE_TYPES } from '../engine/stats';
 import { formatNum } from '../ui/components';
 import { tx } from '../i18n';
 import type { Sde } from '../data/sde';
+import { theme } from '../theme';
+import { loreText } from '../i18n/lore';
+
+export const proving = (message: string) => (theme === 'vyraj' ? `${loreText('Proving failed')} · ${message}` : message);
+
+export function parseSlot(v: string): [SlotKind, number] {
+  const [k, i] = v.split(':');
+  return [k as SlotKind, Number(i)];
+}
 
 export const CURRENT_KEY = 'eve-fit:current';
 export const OPEN_KEY = 'eve-fit:open-fits';

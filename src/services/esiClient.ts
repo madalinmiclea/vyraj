@@ -143,6 +143,7 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
   const [target, options] = prepare(input, init);
   const key = keyOf(target, options);
   const who = key ? subjectOf(options) : '';
+  const repeatable = (options?.method ?? 'GET').toUpperCase() === 'GET' || !new Headers(options?.headers).has('authorization');
   for (let attempt = 0; ; attempt++) {
     const wait = pausedUntil - Date.now();
     if (wait > 0) await sleep(wait);
@@ -160,7 +161,9 @@ export async function esiFetch(input: string, init?: RequestInit, { urgent = fal
       else release();
     }
     if (res && key) noteLimits(res, key, who);
-    const retryable = !res || res.status === 420 || res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504;
+    const limited = res?.status === 420 || res?.status === 429;
+    const broken = !res || res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504;
+    const retryable = limited || (broken && repeatable);
     if (!retryable || attempt >= MAX_RETRIES) {
       if (res) return res;
       throw failure;

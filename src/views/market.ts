@@ -147,7 +147,7 @@ export function createMarketView(el: HTMLElement, { onType }: { onType?: (q: str
     if (current && isGlobalMarket(current.typeId)) return '';
     return `<div class="advice-sort">
       <button class="chip-btn ${historyMarket !== 'hub' ? 'active' : ''}" data-history-market="jita">Jita</button>
-      ${allHubs().map((x) => `<button class="chip-btn ${historyMarket === 'hub' && x.id === hubId ? 'active' : ''}" data-hub="${x.id}">${esc(x.name)}</button>`).join('')}
+      ${allHubs().map((x) => `<button class="chip-btn ${historyMarket === 'hub' && x.id === hubId ? 'active' : ''}" data-hub="${esc(x.id)}">${esc(x.name)}</button>`).join('')}
       <button class="chip-btn" data-hub-add title="${esc(tx('Adaugă un hub propriu'))}">+</button>
     </div>`;
   }

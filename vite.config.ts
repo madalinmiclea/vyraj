@@ -3,6 +3,7 @@ import { copyFileSync, readFileSync, readdirSync, writeFileSync, existsSync } fr
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { VIEW_IDS } from './src/app/views';
 
 function appVersion(): string {
   let count = 0;
@@ -45,8 +46,7 @@ function staticHost(): Plugin {
     },
     closeBundle() {
       copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, '404.html'));
-      const views = [...readFileSync('src/main.ts', 'utf8').matchAll(/\{ id: '([a-z]+)', label:/g)].map((m) => m[1]).filter((id) => id !== 'home');
-      for (const id of ['callback', ...views]) copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, `${id}.html`));
+      for (const id of ['callback', ...VIEW_IDS.filter((v) => v !== 'home')]) copyFileSync(resolve(outDir, 'index.html'), resolve(outDir, `${id}.html`));
       const sw = resolve(outDir, 'sw.js');
       if (!existsSync(sw)) return;
       const list = (dir: string, test: RegExp) => (existsSync(resolve(outDir, dir)) ? readdirSync(resolve(outDir, dir)).filter((f) => test.test(f)).map((f) => `${dir}/${f}`) : []);

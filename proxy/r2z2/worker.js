@@ -34,6 +34,21 @@ const BOOK_REGIONS = 25;
 const BOOK_SUBREQUESTS = 45;
 const BOOK_TTL = 300;
 
+const GET_WINDOW_MS = 10 * 60 * 1000;
+const GET_MAX = 300;
+const gets = new Map();
+
+function busy(ip) {
+  const now = Date.now();
+  let hit = gets.get(ip);
+  if (!hit || now - hit.at >= GET_WINDOW_MS) {
+    if (gets.size > 5000) gets.clear();
+    hit = { at: now, n: 0 };
+    gets.set(ip, hit);
+  }
+  return ++hit.n > GET_MAX;
+}
+
 function allowedOrigin(request, env) {
   const origin = request.headers.get('origin');
   const extra = (env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
@@ -316,6 +331,8 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/s' && request.method === 'POST') return links(request, env, url);
     if (request.method !== 'GET' && request.method !== 'HEAD') return reply(405);
+    if (!allowedOrigin(request, env)) return reply(403, null, { 'cache-control': 'no-store' });
+    if (busy(request.headers.get('cf-connecting-ip') || '')) return reply(429, null, { 'retry-after': '600', 'cache-control': 'no-store' });
     if (url.pathname.startsWith('/s/')) return links(request, env, url);
     if (url.pathname === '/book') return book(request, ctx, url);
     if (url.pathname === '/recent') {

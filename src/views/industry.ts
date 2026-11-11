@@ -136,8 +136,12 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     saveJson(SETTINGS_KEY, settings);
   }
 
-  function renderSettings() {
+  function facilityNote() {
     const sys = map?.find(settings.system);
+    return `${sys ? `${esc(sys.name)} <span class="num ${secClass(sys.sec)}">${formatNum(displaySec(sys.sec), 1)}</span> · ` : ''}${tx('Taxele de vânzare vin din skill-urile caracterului activ: taxă de vânzare {t}%, comision broker {b}%.', { t: formatNum(fees().salesTax, 2), b: formatNum(fees().brokerFee, 2) })}`;
+  }
+
+  function renderSettings() {
     settingsEl.innerHTML = panel({
       title: tx('Locul de producție'),
       body: `<form class="form-grid ind-settings" id="indSettingsForm">
@@ -155,7 +159,7 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
           <button type="button" class="chip-btn ${settings.basis === 'buy' ? 'active' : ''}" data-basis="buy">${tx('Jita cumpărare')}</button>
         </div>
       </form>
-      <p class="dim small" id="indFacilityNote">${sys ? `${esc(sys.name)} <span class="num ${secClass(sys.sec)}">${formatNum(displaySec(sys.sec), 1)}</span> · ` : ''}${tx('Taxele de vânzare vin din skill-urile caracterului activ: taxă de vânzare {t}%, comision broker {b}%.', { t: formatNum(fees().salesTax, 2), b: formatNum(fees().brokerFee, 2) })}</p>`,
+      <p class="dim small" id="indFacilityNote">${facilityNote()}</p>`,
     });
   }
 
@@ -167,7 +171,9 @@ export function createIndustryView(el: HTMLElement, ctx: AppContext, side: HTMLE
     else if (t.name === 'tax') settings.tax = clamp(Number(t.value), 0, 50);
     else return;
     saveSettings();
-    renderSettings();
+    if (t.name === 'system') t.value = settings.system;
+    else if (t.name === 'tax') t.value = String(settings.tax);
+    settingsEl.querySelector('#indFacilityNote')!.innerHTML = facilityNote();
     refresh();
   });
   settingsEl.addEventListener('click', (e) => {

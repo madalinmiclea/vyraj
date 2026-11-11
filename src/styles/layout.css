@@ -251,6 +251,8 @@
 .char-pane > :empty { display: none; }
 .char-pane .roster { margin-top: 0; }
 .char-pane td.num { white-space: nowrap; }
+#charPlan:not([hidden]) { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--gap); align-items: start; }
+#charPlan > * + * { margin-top: 0; }
 .char-skills .skill-tree { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; overflow: visible; }
 .side-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
 

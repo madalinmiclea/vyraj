@@ -1,52 +1,42 @@
 import './style.css';
 import { marketGroups, loadItems } from './data/items';
-import { icon, logo } from './ui/icons';
-import { windowTitle, searchField, formatInt, loader, alertBox, panel, esc, lore, toast, closeModal, confirmDialog } from './ui/components';
+import { loader, alertBox, panel, lore, toast, closeModal, confirmDialog } from './ui/components';
 import { createItemBrowser } from './ui/sidebar';
 import { createMarketView } from './views/market';
-import { createFittingView, FITTING_CATEGORIES, type FittingView } from './views/fitting';
+import { createFittingView, type FittingView } from './views/fitting';
 import { createCharacterView } from './views/character';
 import { createSkillsView } from './views/skills';
 import { createRosterView } from './views/roster';
 import { createWalletView } from './views/walletView';
 import { createOrdersView } from './views/orders';
-import { createMailView } from './views/mail';
-import { createNotificationsView, type NotificationsView } from './views/notifications';
-import { unreadCount, LOG_EVENT } from './services/notices';
+import type { NotificationsView } from './views/notifications';
 import { startNearbyWatcher } from './services/nearbyKills';
 import { createIntelView } from './views/intel';
 import { createReconView } from './views/recon';
-import { createNavigationView } from './views/navigation';
 import { startVisitTracker } from './services/visited';
-import { createMiningView } from './views/mining';
-import { createIndustryView } from './views/industry';
 import { createSkinsView } from './views/skins';
-import { createPiView } from './views/pi';
 import { createAboutView } from './views/about';
 import { createHomeView } from './views/home';
 import { createDoctrinesView, type DoctrinesView } from './views/doctrines';
 import { readSharedDoctrine, hasSharedDoctrine } from './fitting/doctrines';
 import { requestPermission, type PermId } from './character/permissions';
 import { openPermissionsModal } from './character/loginModal';
-import { logoutCharacter, showLogoutFlash } from './character/logout';
-import { createMissionsView } from './views/missions';
-import { createOperationsView } from './views/operations';
-import { createCosmosView, type CosmosView } from './views/cosmos';
-import { esiHealth } from './services/operations';
+import { showLogoutFlash } from './character/logout';
+import type { CosmosView } from './views/cosmos';
 import { startAlertWatcher } from './services/alerts';
 import { startNotifyWatcher } from './services/notify';
 import { startOrderWatcher } from './services/orders';
 import { loadSde, type Sde } from './data/sde';
 import { AppContext } from './app/context';
+import type { ViewId } from './app/views';
 import { hasSharedLink, linkView, migrateLegacyHash, pathSegment, sharedCode, viewHref } from './app/route';
 import { handleCallback, hasTokens, getSettings, SESSION_EXPIRED_EVENT, SCOPES_CHANGED_EVENT, type TokenSet } from './character/sso';
-import { loadStoredCharacters, upsertStoredCharacter, getActiveCharacterId, storedActiveCharacter } from './character/characters';
-import { importCharacter, portraitUrl } from './character/esi';
+import { loadStoredCharacters, upsertStoredCharacter } from './character/characters';
+import { importCharacter } from './character/esi';
 import { fetchListedTypes } from './services/market';
 import { showItemInfo, hasItemInfo } from './ui/itemInfo';
 import { loadJson, saveJson, onStorageError } from './storage';
-import { tx, lang, setLang, type Lang } from './i18n';
-import { theme, setTheme, type Theme } from './theme';
+import { tx, lang } from './i18n';
 import { initSelects } from './ui/select';
 import { initNumberSpin } from './ui/numberSpin';
 import { initSuggest } from './ui/suggest';
@@ -55,111 +45,17 @@ import { initDatePicker } from './ui/datepicker';
 import { readSharedFit } from './io/shareLink';
 import { resolveShortLink } from './io/shortLink';
 import { downloadBackup, pickBackup } from './io/backup';
-import { ESI, esiFetch, repeatAfter } from './services/esiClient';
 import { isDemo, startDemo, exitDemo } from './demo/demo';
-import { DEMO_ID } from './demo/identity';
-import { registerServiceWorker, canInstall, installApp, INSTALL_EVENT } from './services/pwa';
+import { registerServiceWorker } from './services/pwa';
+import { MOBILE_MAIN, SIDE_VIEWS, SDE_VIEWS, VIEWS, mountShell, viewEl, sidePane } from './app/shell';
+import { initSidePanel } from './app/sidePanel';
+import { initSubnav } from './app/subnav';
+import { initNeocom } from './app/neocom';
+import { initSwitches, initStatus, initNotifyBadge } from './app/topbar';
+import { createCharMenu } from './app/charMenu';
 
-type ViewId = 'home' | 'doctrines' | 'orders' | 'market' | 'intel' | 'recon' | 'navigation' | 'fitting' | 'character' | 'wallet' | 'skins' | 'pi' | 'industry' | 'mining' | 'missions' | 'cosmos' | 'operations' | 'mail' | 'notifications' | 'about';
+mountShell();
 
-const MOBILE_MAIN: string[] = ['home', 'market', 'fitting', 'character'];
-const SIDE_VIEWS = ['doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const;
-type SideView = (typeof SIDE_VIEWS)[number];
-
-const FLAG: Record<Lang, string> = {
-  ro: '<svg class="flag" viewBox="0 0 3 2" aria-hidden="true"><path fill="#002b7f" d="M0 0h1v2H0z"/><path fill="#fcd116" d="M1 0h1v2H1z"/><path fill="#ce1126" d="M2 0h1v2H2z"/></svg>',
-  en: '<svg class="flag" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><clipPath id="flagGbCross"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="m0 0 60 30m0-30L0 30"/><path stroke="#c8102e" stroke-width="4" clip-path="url(#flagGbCross)" d="m0 0 60 30m0-30L0 30"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg>',
-};
-const LANG_NAME: Record<Lang, string> = { ro: 'Română', en: 'English' };
-const VIEWS: { id: ViewId; label: string; short: string; icon: string; categories: string[] | null; lore: string; clade: string; order: number }[] = [
-  { id: 'home', label: tx('Start'), short: tx('Start'), icon: 'home', categories: null, lore: 'Prag', clade: 'Rod', order: 0 },
-  { id: 'market', label: tx('Piață'), short: tx('Piață'), icon: 'market', categories: null, lore: 'Conduit', clade: 'Veles', order: 6 },
-  { id: 'intel', label: tx('Intel Jita'), short: tx('Intel Jita'), icon: 'intel', categories: null, lore: 'Discourse', clade: 'Veles', order: 7 },
-  { id: 'recon', label: tx('Intel PvP'), short: 'PvP', icon: 'recon', categories: null, lore: 'Cladistic Recon', clade: 'Perun', order: 3 },
-  { id: 'navigation', label: tx('Navigație'), short: tx('Navigație'), icon: 'jump', categories: null, lore: 'Krai Passage', clade: 'Perun', order: 4 },
-  { id: 'fitting', label: tx('Fitting'), short: tx('Fitting'), icon: 'fitting', categories: FITTING_CATEGORIES, lore: 'Proving', clade: 'Svarog', order: 10 },
-  { id: 'character', label: tx('Caracter'), short: tx('Caracter'), icon: 'character', categories: null, lore: 'Narodnya', clade: 'Perun', order: 2 },
-  { id: 'industry', label: tx('Industrie'), short: tx('Industrie'), icon: 'industry', categories: null, lore: 'Matterweave', clade: 'Mokosh', order: 16 },
-  { id: 'wallet', label: tx('Portofel'), short: tx('Portofel'), icon: 'isk', categories: null, lore: 'Tithe', clade: 'Veles', order: 8 },
-  { id: 'mining', label: tx('Minerit'), short: tx('Minerit'), icon: 'mining', categories: null, lore: 'Rudnik', clade: 'Mokosh', order: 15 },
-  { id: 'orders', label: tx('Ordine de piață'), short: tx('Ordine'), icon: 'orders', categories: null, lore: 'Torg', clade: 'Veles', order: 8 },
-  { id: 'doctrines', label: tx('Doctrine'), short: tx('Doctrine'), icon: 'doctrine', categories: null, lore: 'Druzhina', clade: 'Svarog', order: 11 },
-  { id: 'skins', label: tx('SKIN-uri'), short: tx('SKIN-uri'), icon: 'skin', categories: null, lore: 'Raiment', clade: 'Svarog', order: 11 },
-  { id: 'pi', label: tx('Interacțiune planetară'), short: 'PI', icon: 'planet', categories: null, lore: 'Rootweave', clade: 'Mokosh', order: 17 },
-  { id: 'missions', label: tx('Misiuni'), short: tx('Misiuni'), icon: 'hunt', categories: null, lore: 'Lov', clade: 'Morana', order: 13 },
-  { id: 'cosmos', label: 'COSMOS', short: 'COSMOS', icon: 'cosmos', categories: null, lore: 'Zvezdy', clade: 'Morana', order: 13 },
-  { id: 'operations', label: 'PvE', short: 'PvE', icon: 'target', categories: null, lore: 'Pohod', clade: 'Morana', order: 13 },
-  { id: 'mail', label: tx('Mail'), short: tx('Mail'), icon: 'mail', categories: null, lore: 'Vest', clade: 'Perun', order: 2 },
-  { id: 'notifications', label: tx('Notificări'), short: tx('Alerte'), icon: 'bell', categories: null, lore: 'Glas', clade: 'Perun', order: 2 },
-  { id: 'about', label: tx('Credite'), short: tx('Credite'), icon: 'credits', categories: null, lore: 'Letopis', clade: 'Rod', order: 19 },
-];
-
-const portrait = (id?: number) => (id ? `<img src="${portraitUrl(id, 64)}" alt="" />` : `<span class="char-placeholder">${icon('character')}</span>`);
-const earlyChar = storedActiveCharacter();
-const earlyId = getActiveCharacterId();
-const earlyName = earlyChar?.name ?? (earlyId === 'all0' ? tx('Toate la 0') : tx('Toate la V'));
-const earlyLabel = earlyChar ? tx('Caracter') : tx('Skill-uri');
-
-if (window.top !== window.self) {
-  document.body.innerHTML = `<p style="padding:24px"><a href="${esc(location.href)}" target="_top" rel="noopener">Vyraj</a></p>`;
-  throw new Error('framed');
-}
-
-document.querySelector('#app')!.innerHTML = `
-  <a class="skip-link" href="#mainContent" data-skip-main>${tx('Sari la conținut')}</a>
-  <div class="shell">
-    <header class="topbar">
-      <button class="side-toggle" id="sideToggle" aria-label="${tx('Meniu')}">${icon('menu')}</button>
-      <button class="brand" id="brandHome" aria-label="${tx('Start')}" title="${tx('Reîncarcă aplicația cu ultima versiune')}">${logo}<span>Vyraj</span></button>
-      <div class="topbar-title" id="topbarTitle"></div>
-      <div class="topbar-spacer"></div>
-      <div class="topbar-stat optional"><span class="label">${tx('Jucători online')}</span><span class="value" id="onlinePlayers">—</span></div>
-      <div class="topbar-stat optional"><span class="label">ESI</span><span class="value esi-health" id="esiHealth"><i class="dot"></i><span>—</span></span></div>
-      <div class="topbar-stat"><span class="label">${tx('Ora EVE')}</span><span class="value" id="eveClock">--:--</span></div>
-      <div class="char-switch" id="charSwitch">
-        <button class="char-switch-btn" id="charSwitchBtn" aria-haspopup="true"><span class="char-switch-avatar" id="charAvatar">${portrait(earlyChar?.characterId)}</span><span class="topbar-stat"><span class="label" id="topCharacterLabel">${earlyLabel}</span><span class="value accent" id="topCharacter">${esc(earlyName)}</span></span>${icon('chevron', 'chev')}</button>
-        <div class="char-menu" id="charMenu" hidden></div>
-      </div>
-      <button class="btn ghost sm sso-btn" id="ssoBtn" data-tip="${tx('Permisiuni EVE')}" aria-label="${tx('Permisiuni EVE')}">${icon('login')}<span>SSO</span></button>
-      <div class="lang-switch theme-switch" role="group" aria-label="${tx('Temă')}">${([['light', 'sun', tx('Luminos')], ['dark', 'moon', tx('Întunecat')], ['vyraj', 'trinity', 'Vyraj']] as [Theme, string, string][]).map(([t, ic, label]) => `<button class="${t === theme ? 'active' : ''}" data-theme-set="${t}" aria-pressed="${t === theme}" data-tip="${label}" aria-label="${label}">${icon(ic)}</button>`).join('')}</div>
-      <div class="lang-switch" role="group" aria-label="${tx('Limbă')}">${(['ro', 'en'] as Lang[]).map((l) => `<button class="${l === lang ? 'active' : ''}" data-lang="${l}" aria-pressed="${l === lang}" title="${LANG_NAME[l]}" aria-label="${LANG_NAME[l]}">${FLAG[l]}</button>`).join('')}</div>
-    </header>
-
-    <nav class="neocom">
-      ${([['Perun', 1], ['Veles', 5], ['Svarog', 9], ['Morana', 12], ['Mokosh', 14], ['Rod', 18]] as [string, number][]).map(([c, o]) => `<div class="clade-sep" style="--vy-order:${o}">${c}</div>`).join('')}
-      ${VIEWS.map((v) => `<a class="neocom-btn ${MOBILE_MAIN.includes(v.id) ? 'nc-main' : ''} ${v.short === v.label ? 'tip-same' : ''}" href="${viewHref(v.id)}" data-view="${v.id}" aria-label="${v.label}" data-tip="${v.label}" data-tip-vy="${v.lore}" style="--vy-order:${v.order}">${icon(v.icon)}<span class="nc-label">${v.short}</span></a>`).join('')}
-      <button class="neocom-btn neocom-more" id="neocomMore" aria-haspopup="true" aria-label="${tx('Mai mult')}">${icon('menu')}<span class="nc-label">${tx('Mai mult')}</span></button>
-      <div class="app-version" title="${tx('Versiune')} ${__APP_VERSION__} · © 2026 Vyraj · PolyForm Strict 1.0.0">v${__APP_VERSION__}</div>
-    </nav>
-    <div class="neocom-sheet" id="neocomSheet" hidden>
-      ${[...VIEWS].sort((a, b) => a.order - b.order).map((v) => `<a class="sheet-btn" href="${viewHref(v.id)}" data-view="${v.id}">${icon(v.icon)}<span>${lore(v.label, v.lore)}</span></a>`).join('')}
-      <button class="sheet-btn sheet-install" id="sheetInstall" hidden>${icon('download')}<span>${tx('Instalează aplicația')}</span></button>
-    </div>
-
-    <aside class="sidebar">
-      <div class="side-pane active" id="pane-items">
-        <div class="sidebar-head">
-          ${windowTitle(tx('Browser iteme'))}
-          ${searchField({ id: 'treeFilter', placeholder: matchMedia('(pointer: coarse)').matches ? tx('Filtrează') : tx('Filtrează · click dreapta = Info') })}
-        </div>
-        <div class="sidebar-body" id="treeView"></div>
-      </div>
-      ${SIDE_VIEWS.map((id) => `<div class="side-pane" id="pane-${id}"></div>`).join('')}
-      <div class="side-resizer" id="sideResizer" title="${tx('Trage ca să lărgești meniul · dublu click pentru lățimea inițială')}"></div>
-    </aside>
-
-    <div class="side-scrim" id="sideScrim"></div>
-
-    <main class="main" id="mainContent" tabindex="-1">
-      ${isDemo() ? `<div class="demo-bar" role="status"><span class="demo-bar-ico">${icon('alert')}</span><span><b>${tx('Mod demo')}</b><span class="demo-bar-text"> · ${tx('Un pilot fictiv cu date inventate, ca să vezi tot ce face Vyraj fără login. Nimic nu ajunge în EVE.')}</span></span><button class="btn sm" data-demo-exit>${icon('close')}${tx('Ieși din demo')}</button></div>` : ''}
-      <nav class="subnav" id="subnav" hidden></nav>
-      ${VIEWS.map((v) => `<div class="view" id="view-${v.id}"></div>`).join('')}
-    </main>
-  </div>
-`;
-
-const viewEl = (id: ViewId) => document.getElementById('view-' + id)!;
-const sidePane = (id: SideView) => document.getElementById('pane-' + id)!;
 createAboutView(viewEl('about'));
 const treeFilter = document.querySelector<HTMLInputElement>('#treeFilter')!;
 initSelects();
@@ -183,7 +79,7 @@ let fitting: FittingView | null = null;
 let cosmos: CosmosView | null = null;
 let doctrines: DoctrinesView | null = null;
 let notifications: NotificationsView | null = null;
-for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
+for (const id of SDE_VIEWS) viewEl(id).innerHTML = loader(tx('Încărcăm datele de fitting (SDE)'));
 
 let activeView: ViewId = 'market';
 let infoHandler: ((typeId: number) => void) | null = null;
@@ -199,44 +95,7 @@ const browser = createItemBrowser(document.getElementById('treeView')!, {
 treeFilter.addEventListener('input', () => browser.filter(treeFilter.value));
 
 const shell = document.querySelector<HTMLElement>('.shell')!;
-const mobile = matchMedia('(max-width: 760px)');
-const SIDEBAR_KEY = 'eve-fit:ui:sidebar-scale';
-const rootStyle = document.documentElement.style;
-const setSidebarScale = (scale: number) => {
-  const v = Math.min(2, Math.max(1, scale || 1));
-  rootStyle.setProperty('--sidebar-scale', v.toFixed(3));
-  return v;
-};
-setSidebarScale(loadJson<number>(SIDEBAR_KEY, 1));
-const resizer = document.getElementById('sideResizer')!;
-resizer.addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  resizer.setPointerCapture(e.pointerId);
-  const base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-base')) || 320;
-  const startX = e.clientX;
-  const startW = (resizer.parentElement as HTMLElement).getBoundingClientRect().width;
-  let scale = startW / base;
-  shell.classList.add('resizing');
-  const move = (ev: PointerEvent) => { scale = setSidebarScale((startW + ev.clientX - startX) / base); };
-  const up = () => {
-    shell.classList.remove('resizing');
-    resizer.removeEventListener('pointermove', move);
-    resizer.removeEventListener('pointerup', up);
-    resizer.removeEventListener('pointercancel', up);
-    saveJson(SIDEBAR_KEY, scale);
-  };
-  resizer.addEventListener('pointermove', move);
-  resizer.addEventListener('pointerup', up);
-  resizer.addEventListener('pointercancel', up);
-});
-resizer.addEventListener('dblclick', () => saveJson(SIDEBAR_KEY, setSidebarScale(1)));
-const setSide = (open: boolean) => shell.classList.toggle('side-open', open && mobile.matches);
-document.getElementById('sideToggle')!.addEventListener('click', () => setSide(!shell.classList.contains('side-open')));
-document.getElementById('sideScrim')!.addEventListener('click', () => setSide(false));
-document.querySelector('.sidebar')!.addEventListener('click', (e) => {
-  if ((e.target as HTMLElement).closest('.tree-item, .side-link, .tree-scope-clear')) setSide(false);
-});
-mobile.addEventListener('change', () => setSide(false));
+const setSide = initSidePanel(shell);
 
 document.addEventListener('error', (e) => {
   if (e.target instanceof HTMLImageElement) e.target.style.visibility = 'hidden';
@@ -304,34 +163,18 @@ function switchView(id: ViewId, push = true) {
   syncSubnav();
 }
 
-const subnav = document.getElementById('subnav')!;
-let subLinks: HTMLElement[] = [];
-function syncSubnav() {
-  const pane = document.querySelector<HTMLElement>('.side-pane.active');
-  subLinks = pane ? [...pane.querySelectorAll<HTMLElement>('.side-nav:not(.skill-tree) > .side-link')] : [];
-  subnav.hidden = subLinks.length < 2;
-  subnav.innerHTML = subLinks.map((l, i) => {
-    const c = l.cloneNode(true) as HTMLElement;
-    c.querySelectorAll('.count, .ord-count, img, svg').forEach((x) => x.remove());
-    return `<button class="subnav-btn ${l.classList.contains('active') ? 'active' : ''}" data-sub="${i}">${esc(c.textContent?.trim() ?? '')}</button>`;
-  }).join('');
-  subnav.querySelector('.subnav-btn.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-}
-subnav.addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-sub]');
-  if (b) subLinks[Number(b.dataset.sub)]?.click();
-});
-const subObserver = new MutationObserver(() => syncSubnav());
-document.querySelectorAll('.side-pane').forEach((p) => subObserver.observe(p, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }));
+const syncSubnav = initSubnav();
+
+const openLogin = (characterId: number | null = null) => {
+  if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
+  openPermissionsModal(characterId, activeView);
+};
 
 const home = createHomeView(viewEl('home'), {
   tiles: VIEWS.map((v) => ({ id: v.id, label: v.label, icon: v.icon })),
   go: (id) => switchView(id as ViewId),
   openFit: (f) => { switchView('fitting'); fitting?.load(f); },
-  login: () => {
-    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-    openPermissionsModal(null, activeView);
-  },
+  login: () => openLogin(),
 });
 async function hardRefresh() {
   const base = import.meta.env.BASE_URL;
@@ -397,56 +240,13 @@ document.addEventListener('click', (e) => {
     target?.focus();
     return;
   }
-  if (t.closest('[data-login-open]')) {
-    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-    openPermissionsModal(null, activeView);
-    return;
-  }
+  if (t.closest('[data-login-open]')) { openLogin(); return; }
   if (t.closest('[data-backup-dl]')) downloadBackup();
   else if (t.closest('[data-backup-up]')) pickBackup();
 });
 
-document.getElementById('neocomMore')!.addEventListener('click', (e) => {
-  e.stopPropagation();
-  const sheet = document.getElementById('neocomSheet')!;
-  sheet.hidden = !sheet.hidden;
-});
-document.getElementById('neocomSheet')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLElement>('.sheet-btn[data-view]');
-  const me = e as MouseEvent;
-  if (btn && !(me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button !== 0)) { e.preventDefault(); switchView(btn.dataset.view as ViewId); }
-  if ((e.target as HTMLElement).closest('#sheetInstall')) { e.stopPropagation(); document.getElementById('neocomSheet')!.hidden = true; installApp(); }
-});
-const syncInstall = () => { document.getElementById('sheetInstall')!.hidden = !canInstall(); };
-syncInstall();
-window.addEventListener(INSTALL_EVENT, syncInstall);
-document.addEventListener('click', (e) => {
-  const sheet = document.getElementById('neocomSheet')!;
-  if (!sheet.hidden && !sheet.contains(e.target as Node)) sheet.hidden = true;
-});
-
-document.querySelector<HTMLElement>('.neocom')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLElement>('.neocom-btn[data-view]');
-  if (!btn || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-  e.preventDefault();
-  switchView(btn.dataset.view as ViewId);
-});
-
-document.querySelector('.theme-switch')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-theme-set]');
-  if (!btn) return;
-  setTheme(btn.dataset.themeSet as Theme);
-  document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => {
-    const on = b === btn;
-    b.classList.toggle('active', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
-});
-
-document.querySelector('.lang-switch:not(.theme-switch)')!.addEventListener('click', (e) => {
-  const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-lang]');
-  if (btn) setLang(btn.dataset.lang as Lang);
-});
+initNeocom(switchView);
+initSwitches();
 
 document.addEventListener('keydown', (e) => {
   const tag = document.activeElement?.tagName ?? '';
@@ -454,55 +254,11 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (activeView === 'market') market.focus(); else treeFilter.focus();
   }
-  if (e.key === 'Escape') { closeModal(); closeCharMenu(); }
+  if (e.key === 'Escape') { closeModal(); charMenu.close(); }
 });
 
-const charSwitch = document.getElementById('charSwitch')!;
-const charMenu = document.getElementById('charMenu')!;
-function closeCharMenu() {
-  charMenu.hidden = true;
-  charSwitch.classList.remove('open');
-}
-document.addEventListener('click', (e) => {
-  if (!charSwitch.contains(e.target as Node)) closeCharMenu();
-});
-
-const clock = document.getElementById('eveClock')!;
-const tick = () => { clock.textContent = new Date().toISOString().slice(11, 16); };
-tick();
-setInterval(tick, 10_000);
-
-const online = document.getElementById('onlinePlayers')!;
-const pollStatus = async () => {
-  try {
-    const res = await esiFetch(`${ESI}/status/`);
-    if (!res.ok) throw new Error();
-    const status = await res.json() as { players: number; vip?: boolean };
-    online.textContent = status.vip ? 'VIP' : formatInt(status.players);
-  } catch {
-    online.textContent = '—';
-  }
-};
-pollStatus();
-repeatAfter(pollStatus, 60_000, { visibleOnly: true });
-
-const health = document.getElementById('esiHealth')!;
-const pollHealth = async () => {
-  try {
-    const routes = await esiHealth();
-    const bad = routes.filter((r) => r.status === 'Degraded' || r.status === 'Down' || r.status === 'Recovering');
-    const down = bad.filter((r) => r.status === 'Down');
-    health.className = `value esi-health ${down.length ? 'down' : bad.length ? 'warn' : ''}`;
-    health.querySelector('span')!.textContent = down.length ? tx('{n} rute căzute', { n: down.length }) : bad.length ? tx('{n} rute lente', { n: bad.length }) : 'OK';
-    health.title = bad.length ? bad.slice(0, 25).map((r) => `${r.status} · ${r.method} ${r.path}`).join('\n') : tx('Toate rutele ESI funcționează normal.');
-  } catch {
-    health.className = 'value esi-health down';
-    health.querySelector('span')!.textContent = tx('indisponibil');
-    health.title = tx('ESI nu răspunde acum.');
-  }
-};
-pollHealth();
-repeatAfter(pollHealth, 5 * 60_000, { visibleOnly: true });
+const charMenu = createCharMenu(openLogin);
+initStatus();
 
 async function start() {
   let login: (TokenSet & { returnTo?: string; wanted?: number }) | null = null;
@@ -520,7 +276,7 @@ async function start() {
     [sde] = await Promise.all([loadSde(), itemsReady]);
   } catch (err) {
     const msg = alertBox((err as Error).message);
-    for (const id of ['fitting', 'doctrines', 'character', 'wallet', 'orders', 'skins', 'recon', 'navigation', 'pi', 'industry', 'mining', 'missions', 'cosmos', 'operations', 'mail', 'notifications'] as const) viewEl(id).innerHTML = panel({ body: msg });
+    for (const id of SDE_VIEWS) viewEl(id).innerHTML = panel({ body: msg });
     return;
   }
   const mount = (ids: ViewId[], fn: () => void) => {
@@ -531,56 +287,13 @@ async function start() {
       for (const id of ids) viewEl(id).innerHTML = panel({ body: msg });
     }
   };
-  const later = (id: ViewId, ids: ViewId[], fn: () => void) => lazyMounts.set(id, () => mount(ids, fn));
+  const later = <M>(id: ViewId, load: () => Promise<M>, fn: (m: M) => void) => lazyMounts.set(id, () => {
+    load().then((m) => mount([id], () => fn(m)), (err) => { viewEl(id).innerHTML = panel({ body: alertBox((err as Error).message) }); });
+  });
   const ctx = new AppContext(sde);
   home.setContext(ctx);
-  const topCharacter = document.getElementById('topCharacter')!;
-  const avatar = document.getElementById('charAvatar')!;
-  const renderCharMenu = () => {
-    const stored = loadStoredCharacters();
-    const active = ctx.character;
-    const anyLogged = stored.some((c) => c.characterId != null && hasTokens(c.characterId));
-    charMenu.innerHTML = `${stored.map((c) => `<button class="char-menu-item ${c.id === active.id ? 'active' : ''}" data-switch="${esc(c.id)}">${portrait(c.characterId)}
-        <span class="side-who"><span>${esc(c.name)}</span> <small>${c.totalSp ? formatInt(c.totalSp) + ' SP' : tx('{n} skill-uri', { n: Object.values(c.skills).filter((x) => x.level > 0).length })}</small></span></button>`).join('')}
-      ${['all5', 'all0'].map((id) => `<button class="char-menu-item ${active.id === id ? 'active' : ''}" data-switch="${id}">${portrait()}<span class="side-who"><span>${id === 'all5' ? tx('Toate la V') : tx('Toate la 0')}</span> <small>${id === 'all5' ? tx('teoretic, toate skill-urile la nivel V') : tx('teoretic, fără niciun skill')}</small></span></button>`).join('')}
-      <div class="char-menu-sep"></div>
-      ${active.kind === 'esi' && !(isDemo() && active.characterId === DEMO_ID) ? `<button class="char-menu-item logout" data-char-logout="${esc(active.id)}">${icon('power')}<span>${tx('Delogare {name}', { name: esc(active.name) })}</span></button>` : ''}
-      <button class="char-menu-item login" data-char-login>${icon('login')}<span>${isDemo() ? tx('Ieși din demo și fă login') : anyLogged ? tx('Adaugă caracter') : tx('Login cu EVE')}</span></button>
-      ${isDemo() ? `<button class="char-menu-item login" data-demo-exit>${icon('close')}<span>${tx('Ieși din demo')}</span></button>` : anyLogged ? '' : `<button class="char-menu-item login" data-demo-start>${icon('play')}<span>${tx('Încearcă cu date demo')}</span></button>`}`;
-  };
-  const showCharacter = () => {
-    topCharacter.textContent = ctx.character.name;
-    avatar.innerHTML = portrait(ctx.character.characterId);
-    document.getElementById('topCharacterLabel')!.textContent = ctx.character.kind === 'all5' || ctx.character.kind === 'all0' ? tx('Skill-uri') : tx('Caracter');
-    document.getElementById('ssoBtn')!.style.display = loadStoredCharacters().some((c) => c.characterId != null && hasTokens(c.characterId)) ? '' : 'none';
-    renderCharMenu();
-  };
-  ctx.onCharacterChange(showCharacter);
-  showCharacter();
+  charMenu.attach(ctx);
   showLogoutFlash();
-  document.getElementById('charSwitchBtn')!.addEventListener('click', () => {
-    renderCharMenu();
-    charMenu.hidden = !charMenu.hidden;
-    charSwitch.classList.toggle('open', !charMenu.hidden);
-  });
-  charMenu.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement;
-    const sw = t.closest<HTMLElement>('[data-switch]');
-    if (sw) { closeCharMenu(); ctx.setCharacter(sw.dataset.switch!); return; }
-    const out = t.closest<HTMLElement>('[data-char-logout]');
-    if (out) { closeCharMenu(); logoutCharacter(out.dataset.charLogout!); return; }
-    if (t.closest('[data-char-login]')) {
-      closeCharMenu();
-      if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-      openPermissionsModal(null, activeView);
-    }
-  });
-  document.getElementById('ssoBtn')!.addEventListener('click', () => {
-    closeCharMenu();
-    if (!getSettings().clientId) { switchView('character'); toast(tx('Pune întâi Client ID-ul')); return; }
-    const c = ctx.character;
-    openPermissionsModal(c.kind === 'esi' && c.characterId && hasTokens(c.characterId) ? c.characterId : null, activeView);
-  });
   window.addEventListener(SESSION_EXPIRED_EVENT, (e) => {
     const id = (e as CustomEvent<number>).detail;
     const c = loadStoredCharacters().find((x) => x.characterId === id);
@@ -606,15 +319,15 @@ async function start() {
   mount(['orders'], () => createOrdersView(viewEl('orders'), ctx, sidePane('orders'), { onOpen: (name, typeId) => { switchView('market'); market.show(name, typeId); } }));
   mount(['skins'], () => createSkinsView(viewEl('skins'), ctx, sidePane('skins')));
   mount(['recon'], () => createReconView(viewEl('recon'), ctx, sidePane('recon')));
-  later('navigation', ['navigation'], () => createNavigationView(viewEl('navigation'), ctx, sidePane('navigation'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); } }));
-  later('mining', ['mining'], () => createMiningView(viewEl('mining'), ctx, sidePane('mining')));
-  later('industry', ['industry'], () => createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
-  later('pi', ['pi'], () => createPiView(viewEl('pi'), sidePane('pi')));
-  later('mail', ['mail'], () => createMailView(viewEl('mail'), ctx, sidePane('mail')));
-  later('notifications', ['notifications'], () => { notifications = createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
-  later('operations', ['operations'], () => createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
-  later('cosmos', ['cosmos'], () => { cosmos = createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
-  later('missions', ['missions'], () => { createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); });
+  later('navigation', () => import('./views/navigation'), (m) => m.createNavigationView(viewEl('navigation'), ctx, sidePane('navigation'), { openFit: (f) => { switchView('fitting'); fitting?.load(f); } }));
+  later('mining', () => import('./views/mining'), (m) => m.createMiningView(viewEl('mining'), ctx, sidePane('mining')));
+  later('industry', () => import('./views/industry'), (m) => m.createIndustryView(viewEl('industry'), ctx, sidePane('industry')));
+  later('pi', () => import('./views/pi'), (m) => m.createPiView(viewEl('pi'), sidePane('pi')));
+  later('mail', () => import('./views/mail'), (m) => m.createMailView(viewEl('mail'), ctx, sidePane('mail')));
+  later('notifications', () => import('./views/notifications'), (m) => { notifications = m.createNotificationsView(viewEl('notifications'), ctx, sidePane('notifications')); });
+  later('operations', () => import('./views/operations'), (m) => m.createOperationsView(viewEl('operations'), ctx, sidePane('operations'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openDoctrine: (q) => { if (!doctrines?.openMatching(q)) return false; switchView('doctrines'); return true; } }));
+  later('cosmos', () => import('./views/cosmos'), (m) => { cosmos = m.createCosmosView(viewEl('cosmos'), ctx, sidePane('cosmos')); if (activeView === 'cosmos') cosmos.show(); });
+  later('missions', () => import('./views/missions'), (m) => { m.createMissionsView(viewEl('missions'), ctx, sidePane('missions'), { onTank: (site, faction) => { if (!fitting) return; switchView('fitting'); fitting.setNpc(site, faction); }, openFit: (f) => { switchView('fitting'); fitting?.load(f); } }); });
   intel.setContext(ctx);
   runLazy(activeView);
   const openShared = () => readSharedFit(sde).then((f) => {
@@ -673,15 +386,4 @@ const refreshListed = () => fetchListedTypes().then((ids) => browser.setListed(i
 refreshListed();
 setInterval(refreshListed, 60 * 60 * 1000);
 
-const syncBadge = () => {
-  const n = unreadCount();
-  for (const b of document.querySelectorAll<HTMLElement>('[data-view="notifications"]')) {
-    let el = b.querySelector<HTMLElement>('.nc-badge');
-    if (!n) { el?.remove(); continue; }
-    if (!el) { el = document.createElement('span'); el.className = 'nc-badge'; b.append(el); }
-    el.textContent = n > 99 ? '99+' : String(n);
-  }
-};
-window.addEventListener(LOG_EVENT, syncBadge);
-window.addEventListener('storage', (e) => { if (e.key?.endsWith('eve-notify:log')) syncBadge(); });
-syncBadge();
+initNotifyBadge();

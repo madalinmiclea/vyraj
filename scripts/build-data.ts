@@ -258,6 +258,17 @@ async function generate(dir: string) {
         units: Object.fromEntries(Object.entries(units as Row).map(([id, u]) => [id, en(u.displayName)]).filter(([, n]) => n)),
     };
 
+    const low = ([
+        ['iteme de market', items.length, 15000],
+        ['iteme de fitting', outTypes.length, 6000],
+        ['iteme de fitting cu nume', outTypes.filter((t) => t.n).length, 6000],
+        ['iteme de fitting cu efecte', outTypes.filter((t) => t.e.length).length, 6000],
+        ['atribute', outAttrs.length, 2300],
+        ['efecte', outEffects.length, 2200],
+        ['efecte cu modificatori', outEffects.filter((e) => e.mods.length).length, 2000],
+    ] as [string, number, number][]).filter(([, n, min]) => n < min);
+    if (low.length) throw new Error(`SDE incomplet, nu public nimic: ${low.map(([what, n, min]) => `${what} ${n} (minim ${min})`).join(', ')}`);
+
     const file = path.join(RAW_DIR, 'sde.json');
     fs.writeFileSync(file, JSON.stringify(sde));
     const mb = (fs.statSync(file).size / 1e6).toFixed(1);

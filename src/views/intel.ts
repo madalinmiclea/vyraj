@@ -251,16 +251,16 @@ export function createIntelView(el: HTMLElement, ctx: AppContext | null, { onOpe
       name: (h) => h.row.name, buy: (h) => h.buy, sell: (h) => h.sell, unit: (h) => h.unit, margin: (h) => h.margin, m3: (h) => h.perM3,
       trip: (h) => (h.m3 > 0 ? Math.min(Math.floor(cargo / h.m3), h.depth) * h.unit : 0), depth: (h) => h.depth,
     }, 'trip').slice(0, 200);
-    const route = (h: HaulRow) => (h.direction === 'out' ? `Jita → ${hub.name}` : `${hub.name} → Jita`);
+    const route = (h: HaulRow) => esc(h.direction === 'out' ? `Jita → ${hub.name}` : `${hub.name} → Jita`);
     body.innerHTML = panel({
       title: tx('Transport între hub-uri'),
       count: tx('{n} rute', { n: formatInt(list.length) }),
       body: `<div class="form-grid">
-          <label>Hub<select class="input" data-set="hub">${allHubs().map((h) => `<option value="${h.id}" ${h.id === hub.id ? 'selected' : ''}>${h.name}</option>`).join('')}</select></label>
+          <label>Hub<select class="input" data-set="hub">${allHubs().map((h) => `<option value="${esc(h.id)}" ${h.id === hub.id ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select></label>
           <label>${tx('Direcție')}<select class="input" data-set="direction">
             <option value="all" ${settings.direction === 'all' ? 'selected' : ''}>${tx('Ambele')}</option>
-            <option value="out" ${settings.direction === 'out' ? 'selected' : ''}>Jita → ${hub.name}</option>
-            <option value="in" ${settings.direction === 'in' ? 'selected' : ''}>${hub.name} → Jita</option>
+            <option value="out" ${settings.direction === 'out' ? 'selected' : ''}>Jita → ${esc(hub.name)}</option>
+            <option value="in" ${settings.direction === 'in' ? 'selected' : ''}>${esc(hub.name)} → Jita</option>
           </select></label>
           <label>Cargo m³<input class="input sm-input" type="number" step="1000" min="1" data-set="cargo" value="${cargo}" /></label>
           <label>${tx('Marjă min %')}<input class="input sm-input" type="number" step="1" data-set="minMargin" value="${settings.minMargin}" /></label>
