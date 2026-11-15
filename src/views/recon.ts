@@ -1,18 +1,20 @@
 import type { AppContext } from '../app/context';
-import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, badge, button, windowTitle } from '../ui/components';
+import { pageHead, panel, loader, alertBox, esc, formatInt, formatNum, compactISK, emptyState, badge, button, windowTitle, toast } from '../ui/components';
 import { icon } from '../ui/icons';
 import { loadJson, saveJson } from '../storage';
 import { typeIconUrl } from '../services/market';
 import { portraitUrl } from '../character/esi';
 import {
-  findSystem, route, systemInfo, systemActivity, sovereignty, isDangerous, recentKills, killIntel, resolveIds, resolveNames, cachedName, affiliations, pilotStats, cachedPilot,
+  systemActivity, sovereignty, isDangerous, recentKills, killIntel, resolveIds, resolveNames, cachedName, affiliations, pilotStats, cachedPilot,
   parsePaste, estimateDps, threat, displaySec, secClass,
-  type RouteFlag, type RouteConnection, type SovClaim, type SystemInfo, type SystemActivity, type SystemIntel, type Pilot, type DscanRow, type DpsEstimate,
+  type RouteFlag, type SovClaim, type SystemInfo, type SystemActivity, type SystemIntel, type Pilot, type DscanRow, type DpsEstimate,
 } from '../services/recon';
 import { tx } from '../i18n';
 import { loadStoredCharacters } from '../character/characters';
 import { allEveItems } from '../data/items';
-import { wormholeLinks, type WormholeLink } from '../services/navigation';
+import { wormholeLinks, loadMap, displaySec as navSec, type WormholeLink, type NavMap } from '../services/navigation';
+import { planRoute, saveSharedRoute, MAX_VIA } from '../services/routePlanner';
+import { viewHref } from '../app/route';
 import type { LiveMapView } from './liveMap';
 import { feedKills } from '../services/killstream';
 
@@ -70,7 +72,7 @@ function dpsTip(e: DpsEstimate) {
 export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElement) {
   let tab = loadJson<Tab>(TAB_KEY, 'map');
   if (!TABS.some((t) => t.id === tab)) tab = 'route';
-  const saved = loadJson<{ from: string; to: string; flag: RouteFlag; avoid?: boolean; wh?: boolean }>(ROUTE_KEY, { from: 'Jita', to: 'Amarr', flag: 'shortest' });
+  const saved = loadJson<{ from: string; to: string; via?: string[]; flag: RouteFlag; detour?: number | null; avoid?: boolean; wh?: boolean }>(ROUTE_KEY, { from: 'Jita', to: 'Amarr', flag: 'shortest' });
 
   el.innerHTML = `${pageHead(tx('Intel PvP'), tx('Hartă live cu pericole, pericol pe rută, analiza Local / D-Scan și analiza luptelor din log'), 'Cladistic Recon')}
     <div id="reconMap"></div>
@@ -137,20 +139,63 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
 
   routeEl.innerHTML = `${panel({
     body: `<form class="form-grid recon-form" id="routeForm">
-        <label>${tx('Pornire')}<input class="input" name="from" value="${esc(saved.from)}" autocomplete="off" spellcheck="false" required /></label>
-        <label>${tx('Destinație')}<input class="input" name="to" value="${esc(saved.to)}" autocomplete="off" spellcheck="false" required /></label>
+        <label>${tx('Pornire')}<input class="input" name="from" value="${esc(saved.from)}" data-list="reconSystems" autocomplete="off" spellcheck="false" required /></label>
+        <label>${tx('Destinație')}<input class="input" name="to" value="${esc(saved.to)}" data-list="reconSystems" autocomplete="off" spellcheck="false" required /></label>
+        <label>${tx('Prin sistemele')}<input class="input" id="routeVia" data-list="reconSystems" placeholder="${esc(tx('Adaugă sistem'))}" autocomplete="off" spellcheck="false" /></label>
         <label>${tx('Preferință')}<select class="input" name="flag">${FLAGS.map((f) => `<option value="${f.id}" ${f.id === saved.flag ? 'selected' : ''}>${f.label}</option>`).join('')}</select></label>
+        <label id="routeDetour" title="${esc(tx('Câte sărituri în plus față de cea mai scurtă rută accepți ca să ocolești low/null. Gol = fără limită.'))}" ${saved.flag === 'secure' ? '' : 'hidden'}>${tx('Ocoliș maxim')}<input class="input nav-num" name="detour" type="number" min="0" max="60" step="1" value="${saved.detour ?? ''}" placeholder="${esc(tx('fără limită'))}" /></label>
         <label class="check" title="${esc(tx('Ruta evită sistemele cu multe nave sau capsule distruse în ultima oră (ESI). Pornirea și destinația nu sunt evitate.'))}"><input type="checkbox" name="avoid" ${saved.avoid ? 'checked' : ''} /> ${tx('Ocolește sistemele periculoase')}</label>
         <label class="check" title="${esc(tx('Adaugă la rută găurile de vierme spre Thera și Turnur raportate acum pe EVE-Scout. Verifică mărimea găurii înainte să sari.'))}"><input type="checkbox" name="wh" ${saved.wh ? 'checked' : ''} /> ${tx('Prin Thera și Turnur')}</label>
         <button class="btn" type="submit">${icon('search')}${tx('Verifică ruta')}</button>
       </form>
+      <div class="rp-via" id="routeViaList"></div>
+      <datalist id="reconSystems"></datalist>
       <p class="dim small">${tx('Kill-urile pe sistem vin din ESI (ultima oră, actualizate de CCP o dată pe oră). Sistemele cu kill-uri primesc detalii din zKillboard: ce nave au murit, cine a atacat și dacă pare un gatecamp.')}</p>`,
   })}<div id="routeResult"></div>`;
   const routeForm = routeEl.querySelector<HTMLFormElement>('#routeForm')!;
   const routeResult = routeEl.querySelector<HTMLElement>('#routeResult')!;
+  const viaInput = routeEl.querySelector<HTMLInputElement>('#routeVia')!;
+  const viaList = routeEl.querySelector<HTMLElement>('#routeViaList')!;
+  const systemList = routeEl.querySelector<HTMLDataListElement>('#reconSystems')!;
+  let navMap: NavMap | null = null;
+  const mapReady = () => loadMap().then((m) => (navMap = m));
+  let via = [...(saved.via ?? [])];
 
-  type SavedRoute = { from: string; to: string; flag: RouteFlag; avoid?: boolean; wh?: boolean };
-  const routeExtras = (r: SavedRoute) => [FLAGS.find((f) => f.id === r.flag)?.label ?? '', r.avoid ? tx('ocolește pericolul') : '', r.wh ? 'Thera/Turnur' : ''].filter(Boolean).join(' · ');
+  routeEl.addEventListener('input', (e) => {
+    const input = e.target as HTMLInputElement;
+    if (input.dataset.list !== 'reconSystems') return;
+    if (!navMap) { mapReady().catch(() => null); return; }
+    systemList.innerHTML = navMap.suggest(input.value).map((s) => `<option value="${esc(s.name)}">${esc(navMap!.region(s))} · ${formatNum(navSec(s.sec), 1)}</option>`).join('');
+  });
+  routeForm.querySelector('select[name="flag"]')!.addEventListener('change', (e) => {
+    routeEl.querySelector<HTMLElement>('#routeDetour')!.hidden = (e.target as HTMLSelectElement).value !== 'secure';
+  });
+  const renderVia = () => {
+    viaList.innerHTML = via.map((n, i) => `<button type="button" class="chip-btn sm active" data-via-drop="${i}" title="${esc(tx('Scoate'))}">${esc(n)} ×</button>`).join('');
+  };
+  const addVia = async () => {
+    const name = viaInput.value.trim();
+    if (!name) return;
+    const s = (navMap ?? (await mapReady())).find(name);
+    if (!s) { toast(tx('Nu găsesc sistemul „{name}”.', { name })); return; }
+    viaInput.value = '';
+    if (via.includes(s.name)) return;
+    if (via.length >= MAX_VIA) { toast(tx('Maxim {n} sisteme intermediare.', { n: MAX_VIA })); return; }
+    via.push(s.name);
+    renderVia();
+  };
+  viaInput.addEventListener('change', addVia);
+  viaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addVia(); } });
+  viaList.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-via-drop]');
+    if (!b) return;
+    via.splice(Number(b.dataset.viaDrop), 1);
+    renderVia();
+  });
+  renderVia();
+
+  type SavedRoute = { from: string; to: string; via?: string[]; flag: RouteFlag; detour?: number | null; avoid?: boolean; wh?: boolean };
+  const routeExtras = (r: SavedRoute) => [r.via?.length ? tx('prin {list}', { list: r.via.join(', ') }) : '', FLAGS.find((f) => f.id === r.flag)?.label ?? '', r.flag === 'secure' && r.detour != null ? tx('ocoliș max {n}', { n: r.detour }) : '', r.avoid ? tx('ocolește pericolul') : '', r.wh ? 'Thera/Turnur' : ''].filter(Boolean).join(' · ');
   const recentRoutes = () => loadJson<SavedRoute[]>(RECENT_ROUTES_KEY, []);
   function renderRecentRoutes() {
     const list = recentRoutes();
@@ -170,12 +215,17 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
     routeForm.querySelector<HTMLSelectElement>('[name="flag"]')!.value = r.flag;
     routeForm.querySelector<HTMLInputElement>('[name="avoid"]')!.checked = !!r.avoid;
     routeForm.querySelector<HTMLInputElement>('[name="wh"]')!.checked = !!r.wh;
+    routeForm.querySelector<HTMLInputElement>('[name="detour"]')!.value = r.detour != null ? String(r.detour) : '';
+    routeEl.querySelector<HTMLElement>('#routeDetour')!.hidden = r.flag !== 'secure';
+    via = [...(r.via ?? [])];
+    renderVia();
     routeForm.requestSubmit();
   });
   renderRecentRoutes();
 
   let routeRun = 0;
   let path: SystemInfo[] = [];
+  let stops: number[] = [];
   let act = new Map<number, SystemActivity>();
   let actAt = 0;
   const intel = new Map<number, SystemIntel | 'loading' | string>();
@@ -187,24 +237,41 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
   routeForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(routeForm);
-    const q: SavedRoute = { from: String(fd.get('from') ?? '').trim(), to: String(fd.get('to') ?? '').trim(), flag: fd.get('flag') as RouteFlag, avoid: fd.has('avoid'), wh: fd.has('wh') };
+    const detourRaw = String(fd.get('detour') ?? '').trim();
+    const q: SavedRoute = { from: String(fd.get('from') ?? '').trim(), to: String(fd.get('to') ?? '').trim(), via: [...via], flag: fd.get('flag') as RouteFlag, detour: detourRaw ? Math.max(0, Math.min(60, Math.round(Number(detourRaw) || 0))) : null, avoid: fd.has('avoid'), wh: fd.has('wh') };
     saveJson(ROUTE_KEY, q);
-    saveJson(RECENT_ROUTES_KEY, [q, ...recentRoutes().filter((r) => r.from.toLowerCase() !== q.from.toLowerCase() || r.to.toLowerCase() !== q.to.toLowerCase() || r.flag !== q.flag || !!r.avoid !== q.avoid || !!r.wh !== q.wh)].slice(0, 8));
+    const same = (r: SavedRoute) => r.from.toLowerCase() === q.from.toLowerCase() && r.to.toLowerCase() === q.to.toLowerCase() && (r.via ?? []).join() === q.via!.join() && r.flag === q.flag && (r.detour ?? null) === q.detour && !!r.avoid === q.avoid && !!r.wh === q.wh;
+    saveJson(RECENT_ROUTES_KEY, [q, ...recentRoutes().filter((r) => !same(r))].slice(0, 8));
     const run = ++routeRun;
     routeResult.innerHTML = loader(tx('Calculez ruta'));
     try {
-      const [a, b] = await Promise.all([findSystem(q.from), findSystem(q.to)]);
+      const m = navMap ?? (await mapReady());
+      const pick = (name: string) => {
+        const found = m.find(name);
+        if (found) return found;
+        const hits = m.suggest(name, 6);
+        if (hits.length > 1) throw new Error(tx('„{name}” se potrivește cu mai multe sisteme: {list}. Scrie numele complet.', { name, list: hits.slice(0, 5).map((x) => x.name).join(', ') + (hits.length > 5 ? '…' : '') }));
+        throw new Error(tx('Sistemul „{name}” nu există.', { name }));
+      };
+      const a = pick(q.from), b = pick(q.to);
+      const mid = q.via!.map((n) => pick(n).id);
       const [before, links] = await Promise.all([q.avoid ? systemActivity() : null, q.wh ? wormholeLinks().catch(() => [] as WormholeLink[]) : [] as WormholeLink[]]);
       const avoid = before ? [...before.map].filter(([, x]) => isDangerous(x)).map(([id]) => id) : [];
-      const connections: RouteConnection[] = links.flatMap((l) => [{ from: l.hubId, to: l.systemId }, { from: l.systemId, to: l.hubId }]);
-      const ids = await route(a.id, b.id, q.flag, { avoid, connections });
-      const [info, activity, claims] = await Promise.all([systemInfo(ids), systemActivity(), sovereignty().catch(() => new Map<number, SovClaim>())]);
+      const extra = new Map<number, number[]>();
+      for (const l of links) {
+        (extra.get(l.hubId) ?? extra.set(l.hubId, []).get(l.hubId)!).push(l.systemId);
+        (extra.get(l.systemId) ?? extra.set(l.systemId, []).get(l.systemId)!).push(l.hubId);
+      }
+      const plan = planRoute(m, a.id, b.id, mid, q.flag, { avoid: new Set(avoid), extra, detour: q.flag === 'secure' && q.detour != null ? q.detour : undefined });
+      const ids = plan.path;
+      const [activity, claims] = await Promise.all([systemActivity(), sovereignty().catch(() => new Map<number, SovClaim>())]);
       const owners = ids.map((id) => claims.get(id)?.id ?? 0).filter(Boolean);
       if (owners.length) await resolveNames(owners).catch(() => null);
       if (run !== routeRun) return;
-      path = ids.map((id) => info.get(id)!);
+      path = ids.map((id) => m.systems.get(id)!);
+      stops = plan.stops;
       sovMap = claims;
-      avoided = avoid.filter((id) => id !== a.id && id !== b.id).length;
+      avoided = avoid.filter((id) => !ids.includes(id)).length;
       whHops = new Map();
       for (let i = 1; i < ids.length; i++) {
         const l = links.find((x) => (x.hubId === ids[i - 1] && x.systemId === ids[i]) || (x.systemId === ids[i - 1] && x.hubId === ids[i]));
@@ -293,9 +360,9 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
       : risky.length ? alertBox(tx('Atenție la: {list}', { list: risky.map((x) => x.s.name).join(', ') }), 'warn')
       : `<div class="alert ok">${icon('check')}<span>${tx('Nicio activitate PvP semnificativă pe rută în ultima oră.')}</span></div>`;
     routeResult.innerHTML = panel({
-      title: `${path[0].name} → ${path[path.length - 1].name}`,
+      title: [path[0].name, ...stops.map((id) => path.find((s) => s.id === id)?.name ?? ''), path[path.length - 1].name].join(' → '),
       count: tx('{n} sărituri', { n: path.length - 1 }),
-      actions: `<span class="dim small">ESI ${ago(actAt)}</span>`,
+      actions: `<span class="dim small">ESI ${ago(actAt)}</span><a class="btn sm" href="${viewHref('navigation')}" data-route-share>${icon('jump')}${tx('Arată în Navigație')}</a>`,
       body: `<div class="history-kpis">
           <div><span class="label">${tx('Sărituri')}</span><span class="value">${path.length - 1}</span></div>
           <div><span class="label">${tx('Nave distruse / h')}</span><span class="value">${formatInt(ships)}</span></div>
@@ -316,7 +383,7 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
             : (a?.ship ?? 0) + (a?.pod ?? 0) > 0 ? `<button class="btn ghost sm" data-intel="${s.id}">${tx('Detalii')}</button>` : '';
           return `<tr class="${risk.level >= 3 ? 'risk-hi' : ''}">
             <td class="r num dim">${i}</td>
-            <td>${zkbLink('system', s.id, esc(s.name))}${whHops.has(s.id) ? ` ${badge('WH', 'gold')}<span class="dim small"> ${esc(whTitle(whHops.get(s.id)!))}</span>` : ''}</td>
+            <td>${zkbLink('system', s.id, esc(s.name))}${stops.includes(s.id) ? ` ${badge(tx('Punct intermediar'), 'gold')}` : ''}${whHops.has(s.id) ? ` ${badge('WH', 'gold')}<span class="dim small"> ${esc(whTitle(whHops.get(s.id)!))}</span>` : ''}</td>
             <td class="r">${secCell(s)}</td>
             <td class="small">${sovCell(sovMap.get(s.id))}</td>
             <td class="r num ${(a?.ship ?? 0) > 0 ? 'neg-text' : 'dim'}">${a?.ship ?? 0}</td>
@@ -334,6 +401,12 @@ export function createReconView(el: HTMLElement, ctx: AppContext, side: HTMLElem
 
   routeResult.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    if (t.closest('[data-route-share]') && path.length) {
+      saveSharedRoute({ path: path.map((s) => s.id), stops, title: [path[0].name, ...stops.map((id) => path.find((s) => s.id === id)?.name ?? ''), path[path.length - 1].name].join(' → '), at: Date.now() });
+      saveJson('eve-nav:tab', 'route');
+      window.dispatchEvent(new Event('vyraj-route'));
+      return;
+    }
     const load = t.closest<HTMLElement>('[data-intel]');
     if (load) { loadIntel(Number(load.dataset.intel)); return; }
     const tog = t.closest<HTMLElement>('[data-toggle]');

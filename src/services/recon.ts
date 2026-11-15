@@ -1,7 +1,6 @@
 import { ESI, esiFetch } from './esiClient';
 import { loadJson, saveJson } from '../storage';
 import type { Sde } from '../data/sde';
-import { tx } from '../i18n';
 
 const ZKB = 'https://zkillboard.com/api';
 
@@ -12,7 +11,6 @@ const MAX_PILOTS_CACHED = 2000;
 
 export type RouteFlag = 'shortest' | 'secure' | 'insecure';
 
-const ROUTE_PREFERENCE: Record<RouteFlag, string> = { shortest: 'Shorter', secure: 'Safer', insecure: 'LessSecure' };
 
 export interface SystemInfo { id: number; name: string; sec: number }
 export interface SystemActivity { ship: number; pod: number; npc: number; jumps: number }
@@ -141,28 +139,6 @@ export async function systemInfo(ids: number[]): Promise<Map<number, SystemInfo>
     saveJson(SYSTEMS_KEY, systems);
   }
   return new Map(ids.map((id) => [id, { id, name: systems[id][0], sec: systems[id][1] }]));
-}
-
-export async function findSystem(name: string): Promise<SystemInfo> {
-  const q = name.trim();
-  const known = Object.entries(systems).find(([, [n]]) => n.toLowerCase() === q.toLowerCase());
-  if (known) return { id: Number(known[0]), name: known[1][0], sec: known[1][1] };
-  const { systems: found } = await resolveIds([q]);
-  if (!found.length) throw new Error(tx('Sistemul „{name}” nu există.', { name: q }));
-  return (await systemInfo([found[0].id])).get(found[0].id)!;
-}
-
-export interface RouteConnection { from: number; to: number }
-
-export async function route(origin: number, destination: number, flag: RouteFlag, { avoid = [], connections = [] }: { avoid?: number[]; connections?: RouteConnection[] } = {}): Promise<number[]> {
-  const body: Record<string, unknown> = { preference: ROUTE_PREFERENCE[flag] };
-  const skip = avoid.filter((id) => id !== origin && id !== destination).slice(0, 1000);
-  if (skip.length) body.avoid_systems = [...new Set(skip)];
-  if (connections.length) body.connections = connections.slice(0, 1000);
-  const res = await esiFetch(`${ESI}/route/${origin}/${destination}`, post(body));
-  if (res.status === 404) throw new Error(tx('Nu există rută prin stargate-uri între aceste sisteme (wormhole sau sistem izolat).'));
-  if (!res.ok) throw new Error(`ESI /route: ${res.status}`);
-  return ((await res.json()) as { route: number[] }).route;
 }
 
 let activity: ActivitySnapshot | null = null;

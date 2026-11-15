@@ -48,3 +48,6 @@
 .vis-step-start { width: 22px; display: flex; justify-content: flex-end; flex: none; }
 .vis-step-start i { display: block; width: 3px; height: 15px; border-radius: 2px; background: var(--accent); }
 .vis-lg-jump { height: 0; background: none; border-top: 2px dotted var(--accent); opacity: 0.6; }
+.rp-steps { max-height: none; }
+.rp-done { opacity: 0.45; }
+.rp-done .vis-step-name { text-decoration: line-through; }

@@ -16,10 +16,12 @@ import { createAnsiblexPanel } from './ansiblex';
 import { tx } from '../i18n';
 import type { SovMapView } from './sovMap';
 import type { VisitedMapView } from './visitedMap';
+import type { RoutePlannerView } from './routePlanner';
 
-type Tab = 'jump' | 'visited' | 'pochven' | 'wormholes' | 'sov' | 'ansiblex';
+type Tab = 'route' | 'jump' | 'visited' | 'pochven' | 'wormholes' | 'sov' | 'ansiblex';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'route', label: tx('Asistent de drum') },
   { id: 'jump', label: tx('Planificator de salturi') },
   { id: 'visited', label: tx('Sisteme vizitate') },
   { id: 'pochven', label: 'Pochven' },
@@ -54,7 +56,8 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
   if (!TABS.some((t) => t.id === tab)) tab = 'jump';
   const saved = loadJson<PlanForm>(PLAN_KEY, { ship: 'type:28844', from: '', to: '', mode: 'jumps', avoid: '', fatigue: 0 });
 
-  el.innerHTML = `${pageHead(tx('Navigație'), tx('Planificator de salturi pentru capitale, sistemele prin care ai trecut, urmărire Pochven, conexiuni Thera / Turnur și harta de suveranitate'), 'Krai Passage')}
+  el.innerHTML = `${pageHead(tx('Navigație'), tx('Asistent de drum pe ruta din Intel PvP, planificator de salturi pentru capitale, sistemele prin care ai trecut, urmărire Pochven, conexiuni Thera / Turnur și harta de suveranitate'), 'Krai Passage')}
+    <div id="navRoute"></div>
     <div id="navJump"></div>
     <div id="navVisited"></div>
     <div id="navPochven"></div>
@@ -63,6 +66,7 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     <div id="navAnsiblex"></div>
     <datalist id="navSystems"></datalist>`;
   const panes: Record<Tab, HTMLElement> = {
+    route: el.querySelector<HTMLElement>('#navRoute')!,
     jump: el.querySelector<HTMLElement>('#navJump')!,
     visited: el.querySelector<HTMLElement>('#navVisited')!,
     pochven: el.querySelector<HTMLElement>('#navPochven')!,
@@ -76,6 +80,12 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     if (sovMap) { sovMap.show(); return; }
     panes.sov.innerHTML = loader(tx('Încarc harta de suveranitate'));
     import('./sovMap').then((m) => { sovMap ??= m.createSovMap(panes.sov, () => ({ id: ctx.character.characterId, name: ctx.character.name })); sovMap.show(); }).catch((err) => failed(panes.sov, err));
+  };
+  let routePlanner: RoutePlannerView | null = null;
+  const showRoute = () => {
+    if (routePlanner) { routePlanner.show(); return; }
+    panes.route.innerHTML = loader(tx('Încarc asistentul de drum'));
+    import('./routePlanner').then((m) => { routePlanner ??= m.createRoutePlanner(panes.route, ctx); routePlanner.show(); }).catch((err) => failed(panes.route, err));
   };
   let visitedMap: VisitedMapView | null = null;
   const showVisited = () => {
@@ -93,7 +103,8 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
     side.innerHTML = `<div class="sidebar-head">${windowTitle(tx('Navigație'))}</div>
       <div class="side-nav">${TABS.map((t) => `<button class="side-link ${t.id === tab ? 'active' : ''}" data-nav-tab="${t.id}">${t.label}</button>`).join('')}</div>`;
     for (const [id, pane] of Object.entries(panes)) pane.hidden = id !== tab;
-    el.classList.toggle('view-map', tab === 'sov' || tab === 'visited');
+    el.classList.toggle('view-map', tab === 'route' || tab === 'sov' || tab === 'visited');
+    if (tab === 'route') showRoute();
     if (tab === 'sov') showSov();
     if (tab === 'visited') showVisited();
     if (tab === 'ansiblex') ansiblex.show();
@@ -104,6 +115,8 @@ export function createNavigationView(el: HTMLElement, ctx: AppContext, side: HTM
       if (tab === 'wormholes') initWormholes();
     }
   }
+
+  window.addEventListener('vyraj-route', () => { tab = 'route'; renderTabs(); });
 
   side.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-nav-tab]');

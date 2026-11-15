@@ -333,7 +333,7 @@ export function isRiskyStop(level: RiskLevel, a?: SystemActivity): boolean {
   return level === 'safe' ? pvp >= 5 || a.pod >= 2 : pvp >= 5 || a.pod >= 3;
 }
 
-class Heap {
+export class Heap {
   private items: [number, number][] = [];
   get size() { return this.items.length; }
   push(cost: number, id: number) {
