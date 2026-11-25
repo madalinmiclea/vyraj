@@ -4,7 +4,7 @@ import { tx } from '../i18n';
 import { notify } from './pwa';
 import type { PermId } from '../character/permissions';
 
-export type NoticeKind = 'filled' | 'expired' | 'expiring' | 'outbid' | 'alerts' | 'skill' | 'queue' | 'mail' | 'industry' | 'pi' | 'contracts' | 'nearby' | 'gStructure' | 'gWar' | 'gCorp' | 'gKill' | 'gOther';
+export type NoticeKind = 'filled' | 'expired' | 'expiring' | 'outbid' | 'alerts' | 'skill' | 'queue' | 'mail' | 'industry' | 'pi' | 'contracts' | 'nearby' | 'campaigns' | 'gStructure' | 'gWar' | 'gCorp' | 'gKill' | 'gOther';
 
 export type NoticeGroup = 'market' | 'pilot' | 'production' | 'pvp' | 'game';
 
@@ -47,6 +47,7 @@ export const KINDS: KindInfo[] = [
   { id: 'pi', group: 'production', label: tx('Extractor PI oprit'), hint: tx('Când un extractor planetar ajunge la capătul ciclului și trebuie repornit.'), lead: true, perm: 'planets' },
   { id: 'contracts', group: 'production', label: tx('Contract care expiră'), hint: tx('Contractele tale active și termenele de livrare la curier.'), lead: true, perm: 'contracts' },
   { id: 'nearby', group: 'pvp', label: tx('Kill PvP lângă tine'), hint: tx('Un kill PvP în sistemul în care ești sau într-un sistem legat direct prin stargate de el. Contează doar kill-urile făcute după ce ai ajuns în sistem, așa că nu primești nimic din urmă când treci prin sisteme. Caracterele offline sunt ignorate.'), lead: false, perm: 'location' },
+  { id: 'campaigns', group: 'pvp', label: tx('Campanii militare'), hint: tx('Obiectiv sau campanie terminată și schimbarea liderului în cursa pentru Emergent Artifact.'), lead: false },
   { id: 'gStructure', group: 'game', label: tx('Structuri'), hint: tx('Structură atacată, scut sau armură pierdute, combustibil pe terminate, servicii oprite, suveranitate și skyhook-uri.'), lead: false, perm: 'notifications' },
   { id: 'gWar', group: 'game', label: tx('Războaie'), hint: tx('Războaie declarate, retrase sau încheiate, aliați noi și Faction Warfare.'), lead: false, perm: 'notifications' },
   { id: 'gCorp', group: 'game', label: tx('Corporație și alianță'), hint: tx('Cereri de intrare, membri care pleacă, voturi, roluri, facturi și taxe.'), lead: false, perm: 'notifications' },
@@ -69,6 +70,7 @@ const DEFAULT_KINDS: NoticeSettings['kinds'] = {
   pi: { on: true, lead: 2 },
   contracts: { on: true, lead: 4 },
   nearby: { on: false, lead: 0 },
+  campaigns: { on: true, lead: 0 },
   gStructure: { on: true, lead: 0 },
   gWar: { on: true, lead: 0 },
   gCorp: { on: true, lead: 0 },

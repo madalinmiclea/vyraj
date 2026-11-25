@@ -24,6 +24,8 @@ export function buildActivities(dir: string) {
             success: plain(c.annotations?.briefingSuccessDescription),
             faction: c.issuer?.factionID ?? 0,
             target: c.targetProgress ?? 0,
+            race: plain(c.annotations?.infoLabel),
+            raceHint: plain(c.annotations?.infoLabelHint),
         };
     }
     const objectives: Record<string, Row> = {};

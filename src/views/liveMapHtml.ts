@@ -111,10 +111,11 @@ export function createLiveHtml(env: LiveEnv) {
       k.npc ? badge('NPC') : k.solo ? badge('solo', 'gold') : '',
       d != null && d <= settings.range ? badge(tx('{n} sărituri', { n: d }), 'accent') : '',
     ].join('');
-    return `<div class="live-ev ${stats.get(k.systemId)?.camp ? 'camp' : ''}" data-sys="${k.systemId}">
+    return `<div class="live-ev ${stats.get(k.systemId)?.camp ? 'camp' : ''}" data-sys="${k.systemId}" data-kill="${k.id}" data-hash="${esc(k.hash)}">
       <img class="row-icon" src="${typeIconUrl(k.victimShip, 32)}" alt="" />
       <div class="live-ev-main">
         <div class="live-ev-top"><b>${esc(typeName(k.victimShip))}</b><span class="num dim">${compactISK(k.value)}</span></div>
+        ${k.victimCorp ? `<div class="live-ev-sub live-ev-who">${[[k.victimCorp, 'corporations'], [k.victimAlliance, 'alliances']].filter(([id]) => id).map(([id, kind]) => `<span><img src="https://images.evetech.net/${kind}/${id}/logo?size=32" alt="" />${esc(cachedName(id as number))}</span>`).join('')}</div>` : ''}
         <div class="live-ev-sub">${s ? `${secSpan(s.sec)} <span>${esc(s.name)}</span> <span class="dim">· ${esc(map!.region(s))}</span>` : `#${k.systemId}`}</div>
         <div class="live-ev-sub dim">${agoShort(k.time)} · ${tx('{n} atacatori', { n: k.players || k.attackers })} ${badges}</div>
       </div>

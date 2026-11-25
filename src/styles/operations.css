@@ -34,6 +34,7 @@
 .fw-faction-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .fw-faction-grid { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin-bottom: 4px; }
 .fw-faction-grid .num { text-align: right; }
+.ops-race + .ops-race { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .fw-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .fw-q { max-width: 220px; margin-left: auto; }
 @media (max-width: 700px) { .fw-boards { grid-template-columns: 1fr; } .fw-q { max-width: none; margin-left: 0; } }

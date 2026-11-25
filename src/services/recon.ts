@@ -233,6 +233,22 @@ export interface EsiKillmail {
 
 export interface ZkbMeta { hash: string; totalValue: number; npc: boolean; solo: boolean; locationID?: number }
 
+export interface EsiKillItem { item_type_id: number; flag: number; quantity_destroyed?: number; quantity_dropped?: number; singleton: number; items?: EsiKillItem[] }
+export interface EsiKillAttacker { character_id?: number; corporation_id?: number; alliance_id?: number; faction_id?: number; ship_type_id?: number; weapon_type_id?: number; damage_done: number; final_blow: boolean; security_status: number }
+export interface EsiKillFull {
+  killmail_id: number;
+  killmail_time: string;
+  solar_system_id: number;
+  victim: { ship_type_id: number; character_id?: number; corporation_id?: number; alliance_id?: number; faction_id?: number; damage_taken: number; items?: EsiKillItem[] };
+  attackers: EsiKillAttacker[];
+}
+export interface ZkbFull extends ZkbMeta { fittedValue?: number; droppedValue?: number; destroyedValue?: number; points?: number; awox?: boolean; labels?: string[] }
+
+export async function killDetail(id: number, hash: string): Promise<{ km: EsiKillFull; zkb: ZkbFull | null }> {
+  const [km, z] = await Promise.all([esiJson<EsiKillFull>(`/killmails/${id}/${hash}/`), zkbJson<{ zkb: ZkbFull }[]>(`/killID/${id}/`).catch(() => null)]);
+  return { km, zkb: Array.isArray(z) ? z[0]?.zkb ?? null : null };
+}
+
 export function summarizeKill(id: number, km: EsiKillmail, zkb: ZkbMeta): KillSummary {
   const pilots = km.attackers.filter((a) => a.character_id);
   const main = pilots.length ? pilots : km.attackers;

@@ -4,7 +4,7 @@ import { loadJson, saveJson } from '../storage';
 import { hasScope, loginProblem } from '../character/sso';
 import { permissionGate, type PermId } from '../character/permissions';
 import {
-  freelanceJobs, freelanceJob, myFreelanceJobs, militaryCampaigns, campaignObjectives, myObjectives, mercenaryDens, tacticalOperations, loadActivities,
+  freelanceJobs, freelanceJob, myFreelanceJobs, militaryCampaigns, campaignObjectives, myObjectives, mercenaryDens, tacticalOperations, loadActivities, raceScore, racePairs,
   FREELANCE_SCOPE, CAMPAIGN_SCOPE, DENS_SCOPE, MTO_SCOPE,
   type FreelanceJob, type FreelanceDetail, type MyJob, type Campaign, type Objective, type MyObjective, type MercenaryDen, type TacticalOperation, type Activities, type EvolutionLevel,
 } from '../services/operations';
@@ -309,7 +309,7 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
     if (typeof o === 'string') return alertBox(o, 'warn');
     const mine = Array.isArray(mineObj) ? new Map(mineObj.map((x) => [x.id, x])) : null;
     const rows = o.map((x) => ({ x, info: data?.objectives[x.id] })).sort((a, b) => (a.x.state === 'Active' ? 0 : 1) - (b.x.state === 'Active' ? 0 : 1) || (b.info?.isk ?? 0) - (a.info?.isk ?? 0));
-    return `<div class="table-scroll"><table class="table compact ops-table"><thead><tr><th>${tx('Obiectiv')}</th><th>${tx('Carieră')}</th><th>${tx('Stare')}</th><th>${tx('Progres')}</th><th class="r" title="${esc(tx('Piloți care au contribuit / care s-au înscris.'))}">${tx('Piloți')}</th><th class="r" title="${esc(tx('Recompensa pentru fiecare unitate de progres, din SDE.'))}">ISK / ${tx('unitate')}</th><th class="r">LP / ${tx('unitate')}</th>${mine ? `<th class="r">${tx('Contribuția ta')}</th>` : ''}</tr></thead><tbody>
+    return `<div class="table-scroll"><table class="table compact ops-table"><thead><tr><th>${tx('Obiectiv')}</th><th>${tx('Carieră')}</th><th>${tx('Stare')}</th><th>${tx('Progres')}</th><th class="r" title="${esc(tx('Piloți care au contribuit / care s-au înscris.'))}">${tx('Piloți')}</th><th class="r" title="${esc(tx('Recompensa pentru fiecare unitate de progres, din SDE.'))}">ISK / ${tx('unitate')}</th><th class="r">LP / ${tx('unitate')}</th>${mine ? `<th class="r">${tx('Contribuția ta')}</th><th class="r" title="${esc(tx('Contribuția ta înmulțită cu recompensa pe unitate din SDE.'))}">${tx('Câștig estimat')}</th>` : ''}</tr></thead><tbody>
       ${rows.map(({ x, info }) => {
         const m = mine?.get(x.id);
         return `<tr>
@@ -320,17 +320,64 @@ export function createOperationsView(el: HTMLElement, ctx: AppContext, side: HTM
           <td class="r num">${formatInt(x.participants.contributors)} / ${formatInt(x.participants.committed)}</td>
           <td class="r">${info?.isk ? isk(info.isk) : '—'}</td>
           <td class="r num" title="${esc(info?.lpCorp ? cachedName(info.lpCorp) : '')}">${info?.lp ? formatInt(info.lp) : '—'}</td>
-          ${mine ? `<td class="r num">${m ? `${formatInt(m.contributed)}${m.is_committed ? ` ${badge(tx('înscris'), 'ok')}` : ''}` : '—'}</td>` : ''}
+          ${mine ? `<td class="r num">${m ? `${formatInt(m.contributed)}${m.is_committed ? ` ${badge(tx('înscris'), 'ok')}` : ''}` : '—'}</td><td class="r">${m?.contributed ? `${isk(m.contributed * (info?.isk ?? 0))}<div class="dim small num">${formatInt(m.contributed * (info?.lp ?? 0))} LP</div>` : '—'}</td>` : ''}
         </tr>`;
       }).join('')}
       </tbody></table></div>`;
+  }
+
+  function score(c: Campaign) {
+    const o = objectives.get(c.id);
+    return raceScore(c, Array.isArray(o) ? o : [], data);
+  }
+
+  function raceBoard(list: Campaign[]) {
+    if (!data) return '';
+    const pairs = racePairs(list, data, cachedName);
+    if (!pairs.length) return '';
+    const side = (c: Campaign, lead: boolean) => {
+      const info = data!.campaigns[c.id];
+      const s = score(c);
+      return `<div class="ops-race">
+        <div class="fw-faction-head"><b title="${esc(info.raceHint ?? '')}">${esc(cachedName(info.faction) || info.title)}</b>${c.state === 'Completed' ? badge(tx('A terminat'), 'accent', true) : lead ? badge(tx('Conduce'), 'ok', true) : ''}</div>
+        <div class="dim small">${esc(info.title)}</div>
+        ${bar(s.share * 1000, 1000)}
+        <div class="fw-faction-grid"><span class="dim">${tx('Obiective terminate')}</span><span class="num">${s.done} / ${s.target}</span><span class="dim">${tx('Progres total')}</span><span class="num">${formatNum(s.share * 100)}%</span></div>
+      </div>`;
+    };
+    return panel({
+      title: tx('Cursa pentru Emergent Artifact'),
+      body: `<div class="fw-boards">${pairs.map(([a, b]) => {
+        const sa = score(a), sb = score(b);
+        const diff = sa.done - sb.done || sa.share - sb.share;
+        return `<div class="fw-faction">${side(a, diff > 0)}${side(b, diff < 0)}</div>`;
+      }).join('')}</div>`,
+    });
+  }
+
+  function myEarnings() {
+    if (!Array.isArray(mineObj) || !data) return '';
+    const rows = mineObj.filter((m) => m.contributed > 0);
+    if (!rows.length) return '';
+    const total = rows.reduce((t, m) => {
+      const info = data!.objectives[m.id];
+      return { isk: t.isk + m.contributed * (info?.isk ?? 0), lp: t.lp + m.contributed * (info?.lp ?? 0) };
+    }, { isk: 0, lp: 0 });
+    return panel({
+      title: tx('Câștigul tău din campanii'),
+      body: `<div class="history-kpis">
+          <div><span class="label">${tx('ISK estimat')}</span><span class="value">${isk(total.isk)}</span></div>
+          <div><span class="label">${tx('LP estimat')}</span><span class="value num">${formatInt(total.lp)}</span></div>
+          <div><span class="label">${tx('Obiective cu contribuție')}</span><span class="value num">${rows.length}</span></div>
+        </div>`,
+    });
   }
 
   function renderCampaigns(list: Campaign[], at: number) {
     shownCampaigns = { list, at };
     const sorted = [...list].sort((a, b) => (a.state === 'Active' ? 0 : 1) - (b.state === 'Active' ? 0 : 1) || (b.started ?? '').localeCompare(a.started ?? ''));
     const mineNote = typeof mineObj === 'string' ? (mineObj === 'scope' ? panel({ body: gate('campaigns') }) : mineObj && ctx.character.kind === 'esi' ? panel({ body: alertBox(mineObj, 'warn') }) : '') : '';
-    body.innerHTML = `${mineNote}${sorted.length ? sorted.map((c) => {
+    body.innerHTML = `${mineNote}${raceBoard(sorted)}${myEarnings()}${sorted.length ? sorted.map((c) => {
       const info = data?.campaigns[c.id];
       return panel({
         title: info?.title ?? c.id,

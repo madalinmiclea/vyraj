@@ -8,6 +8,8 @@ import { loadStandings, canReadStandings, type Standings } from '../services/sta
 import { permissionGate } from '../character/permissions';
 import { loadJson, saveJson } from '../storage';
 import { sovereignty, sovCampaigns, resolveNames, cachedName, displaySec, secClass, type SovClaim, type SovCampaign } from '../services/recon';
+import { militaryCampaigns, campaignObjectives, loadActivities } from '../services/operations';
+import { loadFw } from '../services/fw';
 
 type SideTab = 'alliances' | 'campaigns';
 
@@ -33,6 +35,10 @@ const whenText = (start: number) => {
 export interface SovMapView { show(): void }
 
 const STANDINGS_KEY = 'eve-nav:sov-standings';
+const CAMP_KEY = 'eve-nav:sov-campaigns';
+const CAMP_COLOR: Record<number, string> = { 500003: 'hsl(45, 85%, 55%)', 500001: 'hsl(205, 80%, 56%)', 500004: 'hsl(150, 60%, 45%)', 500002: 'hsl(5, 75%, 56%)' };
+
+interface CampSide { faction: number; title: string; bonuses: { text: string; on: boolean }[]; systems: number }
 
 const standingTone = (v: number | undefined, own: boolean) => (own ? 'own' : v == null || v === 0 ? 'neutral' : v >= 5 ? 'excellent' : v > 0 ? 'good' : v <= -5 ? 'terrible' : 'bad');
 const STANDING_COLOR: Record<string, string> = { own: 'hsl(280, 70%, 62%)', excellent: 'hsl(215, 90%, 52%)', good: 'hsl(200, 80%, 66%)', neutral: 'hsl(220, 8%, 46%)', bad: 'hsl(28, 92%, 56%)', terrible: 'hsl(0, 84%, 54%)' };
@@ -56,6 +62,10 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
   let standings: Standings | null = null;
   let standingsFor = 0;
   let standingsError = '';
+  let campOn = loadJson<boolean>(CAMP_KEY, false);
+  let campSides: CampSide[] | null = null;
+  let campError = '';
+  let campSpace = new Map<number, number>();
 
   el.innerHTML = loader(tx('Încarc harta de suveranitate'));
 
@@ -89,6 +99,7 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
     if (standingsOn && standings) for (const h of holders) h.color = STANDING_COLOR[standingTone(standings.byId.get(h.id), h.id === standings.allianceId)];
     territory = new Map();
     for (const h of [...factions, ...holders]) if (!focus || focus === h.id) for (const s of h.systems) territory.set(s, h.color);
+    if (campOn && campSides) territory = new Map([...campSpace].map(([sys, f]) => [sys, CAMP_COLOR[f]]));
     contested = new Map();
     for (const c of campaigns) (contested.get(c.systemId) ?? contested.set(c.systemId, []).get(c.systemId)!).push(c);
     labels = [];
@@ -153,8 +164,10 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
   function tooltip(s: NavSystem) {
     const c = claimOf(s.id);
     const camp = contested.get(s.id) ?? [];
+    const side = campOn ? campSides?.find((x) => x.faction === campSpace.get(s.id)) : undefined;
     return `<b>${esc(s.name)}</b> ${secSpan(s.sec)}<small>${esc(map!.region(s))} · ${esc(map!.constellation(s))}</small>
       ${c ? `<span class="tip-row">${esc(cachedName(c.id) || `#${c.id}`)}${c.kind === 'alliance' && c.capital ? ` · ${tx('capitală')}` : ''}${c.kind === 'faction' ? ` <span class="dim">(${tx(displaySec(s.sec) <= 0 ? 'null-sec NPC, fără suveranitate de jucători' : 'facțiune NPC')})</span>` : ''}</span>` : `<span class="tip-row dim">${tx('Nerevendicat')}</span>`}
+      ${side ? `<span class="tip-row">${esc(side.title)} · ${tx('{n} / {t} bonusuri active', { n: side.bonuses.filter((b) => b.on).length, t: side.bonuses.length })}</span>` : ''}
       ${camp.map((x) => `<span class="tip-row warn-text">${esc(CAMPAIGN_TYPE[x.type] ?? x.type)} · ${whenText(x.start)} · ${Math.round(x.defenderScore * 100)}% ${tx('apărare')}</span>`).join('')}`;
   }
 
@@ -190,7 +203,47 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
     renderSide();
   }
 
+  function campHtml() {
+    if (campError) return alertBox(campError);
+    if (!campSides) return loader(tx('Citim campaniile militare'));
+    if (!campSides.length) return `<p class="dim small">${tx('Nicio campanie militară în ESI acum')}</p>`;
+    return campSides.map((c) => `<div class="sov-camp-side">
+        <div class="sov-row"><i style="background:${CAMP_COLOR[c.faction]}"></i><span><b>${esc(cachedName(c.faction) || c.title)}</b> <span class="dim small">${esc(c.title)}</span></span><span class="num dim">${c.systems}</span></div>
+        ${c.bonuses.map((b) => `<div class="small ${b.on ? '' : 'dim'}">${b.on ? '✓' : '·'} ${esc(b.text)}</div>`).join('')}
+      </div>`).join('');
+  }
+
+  async function loadCampaignLayer() {
+    campError = '';
+    try {
+      const [r, d, fw] = await Promise.all([militaryCampaigns(), loadActivities(), loadFw()]);
+      const active = r.list.filter((c) => c.state === 'Active' && d.campaigns[c.id]?.race && CAMP_COLOR[d.campaigns[c.id].faction]);
+      const lists = await Promise.all(active.map((c) => campaignObjectives(c.id)));
+      await resolveNames(active.map((c) => d.campaigns[c.id].faction)).catch(() => null);
+      const occupied = new Map(fw.systems.map((x) => [x.solar_system_id, x.occupier_faction_id]));
+      campSpace = new Map();
+      for (const [sys, owner] of occupied) if (CAMP_COLOR[owner] && active.some((c) => d.campaigns[c.id].faction === owner)) campSpace.set(sys, owner);
+      for (const s of map ? map.systems.values() : []) {
+        const c = claims.get(s.id);
+        if (occupied.has(s.id) || c?.kind !== 'faction' || displaySec(s.sec) <= 0) continue;
+        if (active.some((x) => d.campaigns[x.id].faction === c.id)) campSpace.set(s.id, c.id);
+      }
+      campSides = active.map((c, i) => {
+        const info = d.campaigns[c.id];
+        const done = lists[i].filter((o) => o.state === 'Completed').map((o) => (d.objectives[o.id]?.title ?? '').replace(/^Deliver /, '').replace(/\s+in\s+\S+$/i, ''));
+        const bonuses = [...info.success.matchAll(/Deliver ([^:]+?): (.+?)(?= Deliver | On (?:campaign )?completion|$)/g)].map((m) => ({ text: m[2].trim(), on: done.some((t) => !!t && m[1].startsWith(t)) }));
+        return { faction: info.faction, title: info.title, bonuses, systems: [...campSpace.values()].filter((f) => f === info.faction).length };
+      });
+    } catch (err) {
+      campError = (err as Error).message;
+    }
+    build();
+    star?.invalidateTerritory();
+    renderSide();
+  }
+
   function sideHtml() {
+    if (campOn) return campHtml();
     if (tab === 'alliances') {
       if (standingsOn) return `${standingsHtml()}<div class="sov-list">${holders.map(row).join('')}</div>`;
       return `<div class="label">${tx('{n} alianțe dețin {s} sisteme', { n: holders.length, s: formatInt(holders.reduce((n, h) => n + h.n, 0)) })}</div>
@@ -268,6 +321,7 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
         <span class="small dim">${tx('★ capitală · cerc punctat = campanie de suveranitate · gri = null-sec NPC')}</span>
         <span class="live-status small dim" id="sovStamp"></span>
         <button class="btn ghost sm sov-standings-btn ${standingsOn ? 'active' : ''}" data-sov-standings aria-pressed="${standingsOn}">${icon('character')}Standings</button>
+        <button class="btn ghost sm sov-camp-btn ${campOn ? 'active' : ''}" data-sov-camp aria-pressed="${campOn}">${tx('Campanii militare')}</button>
         <button class="btn ghost sm" data-sov-reload>${icon('refresh')}${tx('Reîncarcă')}</button>
       </div>
       <div class="live-body">
@@ -348,6 +402,18 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
         refreshStandings();
         return;
       }
+      const cb = t.closest<HTMLElement>('[data-sov-camp]');
+      if (cb) {
+        campOn = !campOn;
+        saveJson(CAMP_KEY, campOn);
+        cb.classList.toggle('active', campOn);
+        cb.setAttribute('aria-pressed', String(campOn));
+        build();
+        star?.invalidateTerritory();
+        renderSide();
+        if (campOn && !campSides) loadCampaignLayer();
+        return;
+      }
       if (t.closest('[data-sov-reload]')) { load().catch((err) => toast((err as Error).message)); return; }
       const sys = t.closest<HTMLElement>('[data-sys]');
       if (sys) { const id = Number(sys.dataset.sys); star?.select(id); star?.focus(id); }
@@ -355,6 +421,7 @@ export function createSovMap(el: HTMLElement, activeCharacter: () => { id?: numb
     try {
       await load();
       if (standingsOn) refreshStandings();
+      if (campOn) loadCampaignLayer();
     } catch (err) {
       const box = el.querySelector<HTMLElement>('#sovSide');
       if (box) box.innerHTML = alertBox((err as Error).message);

@@ -8,7 +8,7 @@ export const DENS_SCOPE = 'esi-structures.read_character.v1';
 export const MTO_SCOPE = 'esi-activities.read_character.v1';
 export const SKINR_SCOPE = 'esi.cosmetic.char:read';
 
-export interface CampaignInfo { title: string; subtitle: string; goal: string; success: string; faction: number; target: number }
+export interface CampaignInfo { title: string; subtitle: string; goal: string; success: string; faction: number; target: number; race?: string; raceHint?: string }
 export interface ObjectiveInfo { campaign: string; title: string; subtitle: string; career: string; target: number; perPilot: number; isk: number; lp: number; lpCorp: number }
 export interface OperationInfo { name: string; description: string; anarchy: number; development: number; infomorphs: number }
 export interface ComponentInfo { name: string; category: string; rarity: string; finish: string }
@@ -122,6 +122,28 @@ export async function militaryCampaigns(force = false): Promise<{ at: number; li
   const r = await publicJson<{ campaigns: Campaign[] }>('/military-campaigns');
   campaigns = { at: Date.now(), list: r.campaigns ?? [] };
   return campaigns;
+}
+
+export function raceScore(c: Campaign, list: Objective[], d: Activities | null) {
+  const target = d?.campaigns[c.id]?.target || list.length || 1;
+  const done = list.filter((x) => x.state === 'Completed').length;
+  const share = list.reduce((sum, x) => sum + Math.min(1, x.progress / (d?.objectives[x.id]?.target || 1)), 0) / target;
+  return { done, target, share };
+}
+
+export function racePairs(list: Campaign[], d: Activities, name: (id: number) => string): [Campaign, Campaign][] {
+  const racing = list.filter((c) => d.campaigns[c.id]?.race);
+  const pairs: [Campaign, Campaign][] = [];
+  for (const c of racing) {
+    if (pairs.some((p) => p.includes(c))) continue;
+    const race = d.campaigns[c.id].race!;
+    const rival = racing.find((r) => {
+      const n = name(d.campaigns[r.id].faction);
+      return r !== c && !!n && race.includes(n);
+    });
+    if (rival) pairs.push([c, rival]);
+  }
+  return pairs;
 }
 
 const objectiveCache = new Map<string, { at: number; list: Objective[] }>();

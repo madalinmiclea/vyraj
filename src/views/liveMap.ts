@@ -14,7 +14,7 @@ import { fold } from '../ui/fold';
 import { StarMap } from '../ui/starMap';
 import { playSound, unlockAudio, type SoundKind } from '../ui/sound';
 import { loadMap, wormholeLinks, type NavMap, type WormholeLink } from '../services/navigation';
-import { analyzeKills, systemActivity, sovereignty, resolveNames, displaySec, type ActivitySnapshot, type SystemActivity, type SovClaim } from '../services/recon';
+import { analyzeKills, systemActivity, sovereignty, resolveNames, cachedName, displaySec, type ActivitySnapshot, type SystemActivity, type SovClaim } from '../services/recon';
 import { startKillStream, onKill, onStreamStatus, liveKills, setStreamPaused, streamPaused, WINDOW_MS, type LiveKill, type StreamStatus } from '../services/killstream';
 import { recordVisit } from '../services/visited';
 import { ChatWatcher, SystemMatcher, parseIntel, type IntelReport } from '../services/chatIntel';
@@ -242,12 +242,17 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
     box.innerHTML = settings.follow && missing.length ? permissionButtons('location', missing) : '';
   }
 
+  const askedNames = new Set<number>();
   function renderSide() {
     const box = el.querySelector<HTMLElement>('#liveSide');
     if (!box || !map) return;
     const scroll = box.scrollTop;
     const draft = box.querySelector<HTMLTextAreaElement>('#livePaste')?.value ?? '';
     box.innerHTML = settings.tab === 'events' ? eventsHtml() : settings.tab === 'system' ? systemHtml() : chatHtml();
+    if (settings.tab === 'events') {
+      const ids = liveKills(settings.win * 60_000).flatMap((k) => [k.victimCorp ?? 0, k.victimAlliance ?? 0]).filter((id) => id && !cachedName(id) && !askedNames.has(id));
+      if (ids.length) { for (const id of ids) askedNames.add(id); resolveNames(ids).then(renderSide).catch(() => null); }
+    }
     const paste = box.querySelector<HTMLTextAreaElement>('#livePaste');
     if (paste) paste.value = draft;
     box.scrollTop = scroll;
@@ -412,6 +417,8 @@ export function createLiveMap(el: HTMLElement, ctx: AppContext): LiveMapView {
       if (reg) { star?.fitRegion(Number(reg.dataset.region)); return; }
       if (t.closest('[data-chat-pick]')) { chat.pick().catch((err) => { if ((err as Error).name !== 'AbortError') toast((err as Error).message); }); return; }
       if (t.closest('[data-chat-reconnect]')) { chat.reconnect().catch((err) => toast((err as Error).message)); return; }
+      const kill = t.closest<HTMLElement>('[data-kill]');
+      if (kill && !t.closest('a')) import('./killDetail').then((m) => m.openKillDetail(ctx, map, Number(kill.dataset.kill), kill.dataset.hash!)).catch((err) => toast((err as Error).message));
       const sys = t.closest<HTMLElement>('[data-sys]');
       if (sys && !t.closest('input, textarea, label')) focusSystem(Number(sys.dataset.sys));
     });

@@ -8,6 +8,8 @@ import { scanContracts, lastContracts, contractCharacters, dueAt, isActive } fro
 import { lastScan, expiresAt } from './orders';
 import { listMail, canRead, mailNames, cachedMailName, LABEL_INBOX } from './mail';
 import { pollGame } from './gameNotices';
+import { militaryCampaigns, campaignObjectives, loadActivities, raceScore, racePairs } from './operations';
+import { resolveNames, cachedName } from './recon';
 import { typeName, resolveTypeNames } from './typeNames';
 import { tx } from '../i18n';
 import { noticeSettings, deliver, kindOn, type NoticeKind } from './notices';
@@ -17,6 +19,7 @@ export interface Upcoming { key: string; kind: NoticeKind; at: number; title: st
 
 const FIRED_KEY = 'eve-notify:fired';
 const MAIL_SEEN_KEY = 'eve-notify:mail-seen';
+const CAMPAIGN_KEY = 'eve-notify:campaigns';
 const CHECK_MS = 5 * 60 * 1000;
 const FETCH_MS = 20 * 60 * 1000;
 const STALE_MS = 6 * 3_600_000;
@@ -134,6 +137,39 @@ async function pollMail() {
   saveJson(MAIL_SEEN_KEY, seen);
 }
 
+async function pollCampaigns() {
+  if (!kindOn('campaigns')) return;
+  const prev = loadJson<{ camp: Record<string, string>; obj: Record<string, string>; lead: Record<string, number> } | null>(CAMPAIGN_KEY, null);
+  const [r, d] = await Promise.all([militaryCampaigns(), loadActivities()]);
+  const list = r.list.filter((c) => d.campaigns[c.id]?.race);
+  const objs = new Map(await Promise.all(list.map(async (c) => [c.id, await campaignObjectives(c.id)] as const)));
+  await resolveNames(list.map((c) => d.campaigns[c.id].faction)).catch(() => null);
+  const next = { camp: {} as Record<string, string>, obj: {} as Record<string, string>, lead: {} as Record<string, number> };
+  const url = viewHref('operations');
+  for (const c of list) {
+    const info = d.campaigns[c.id];
+    const who = cachedName(info.faction) || info.title;
+    next.camp[c.id] = c.state;
+    if (prev && c.state === 'Completed' && prev.camp[c.id] && prev.camp[c.id] !== 'Completed') deliver('campaigns', { title: tx('Campanie terminată · {name}', { name: who }), body: info.title, url, tag: `vyraj-camp-${c.id}` });
+    for (const o of objs.get(c.id) ?? []) {
+      next.obj[o.id] = o.state;
+      if (prev && o.state === 'Completed' && prev.obj[o.id] && prev.obj[o.id] !== 'Completed') deliver('campaigns', { title: tx('Obiectiv de campanie terminat · {name}', { name: who }), body: d.objectives[o.id]?.title ?? info.title, url, tag: `vyraj-camp-${o.id}` });
+    }
+  }
+  for (const [a, b] of racePairs(list, d, cachedName)) {
+    const sa = raceScore(a, objs.get(a.id) ?? [], d), sb = raceScore(b, objs.get(b.id) ?? [], d);
+    const diff = sa.done - sb.done || sa.share - sb.share;
+    const key = [a.id, b.id].sort().join(':');
+    const lead = diff > 0 ? d.campaigns[a.id].faction : diff < 0 ? d.campaigns[b.id].faction : 0;
+    next.lead[key] = lead || prev?.lead[key] || 0;
+    if (prev && lead && prev.lead[key] && prev.lead[key] !== lead) {
+      const [w, l, ws, ls] = lead === d.campaigns[a.id].faction ? [a, b, sa, sb] : [b, a, sb, sa];
+      deliver('campaigns', { title: tx('{name} a trecut în față în cursă', { name: cachedName(lead) }), body: `${d.campaigns[w.id].title} ${Math.round(ws.share * 100)}% · ${d.campaigns[l.id].title} ${Math.round(ls.share * 100)}%`, url, tag: `vyraj-camp-lead-${key}` });
+    }
+  }
+  saveJson(CAMPAIGN_KEY, next);
+}
+
 let running = false;
 
 export async function check(force = false): Promise<void> {
@@ -154,6 +190,7 @@ export async function check(force = false): Promise<void> {
     saveJson(FIRED_KEY, fired);
     await pollMail().catch(() => {});
     await pollGame().catch(() => {});
+    await pollCampaigns().catch(() => {});
   } finally {
     running = false;
   }
